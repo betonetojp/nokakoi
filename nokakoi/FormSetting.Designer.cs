@@ -83,6 +83,7 @@
             // textBoxPassword
             // 
             textBoxPassword.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            textBoxPassword.ImeMode = ImeMode.Disable;
             textBoxPassword.Location = new Point(145, 241);
             textBoxPassword.Name = "textBoxPassword";
             textBoxPassword.PasswordChar = '*';
@@ -152,6 +153,7 @@
             // 
             // textBoxShortcode
             // 
+            textBoxShortcode.ImeMode = ImeMode.Disable;
             textBoxShortcode.Location = new Point(123, 89);
             textBoxShortcode.Name = "textBoxShortcode";
             textBoxShortcode.Size = new Size(26, 23);
@@ -231,6 +233,7 @@
             // 
             // textBoxEmojiUrl
             // 
+            textBoxEmojiUrl.ImeMode = ImeMode.Disable;
             textBoxEmojiUrl.Location = new Point(78, 118);
             textBoxEmojiUrl.Name = "textBoxEmojiUrl";
             textBoxEmojiUrl.Size = new Size(194, 23);

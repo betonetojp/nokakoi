@@ -35,6 +35,7 @@ namespace nokakoi
             Setting.Load("nokakoi.config");
 
             Location = Setting.Location;
+            Size = Setting.Size;
             textBoxRelay.Text = Setting.Relay;
             TopMost = Setting.TopMost;
             _cutLength = Setting.CutLength;
@@ -364,6 +365,7 @@ namespace nokakoi
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
         {
             Setting.Location = Location;
+            Setting.Size = Size;
             Setting.Relay = textBoxRelay.Text;
 
             Setting.Save("nokakoi.config");

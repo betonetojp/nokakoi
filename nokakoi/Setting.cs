@@ -11,6 +11,7 @@ namespace nokakoi
         public class Data
         {
             public Point Location { get; set; }
+            public Size Size { get; set; } = new Size(320, 320);
             public string Relay { get; set; } = "wss://yabu.me";
             public bool TopMost { get; set; } = false;
             public int CutLength { get; set; } = 20;
@@ -37,6 +38,17 @@ namespace nokakoi
             set
             {
                 _data.Location = value;
+            }
+        }
+        public static Size Size
+        {
+            get
+            {
+                return _data.Size;
+            }
+            set
+            {
+                _data.Size = value;
             }
         }
         public static string Relay

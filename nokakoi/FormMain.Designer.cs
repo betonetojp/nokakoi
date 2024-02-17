@@ -42,6 +42,7 @@
             // textBoxRelay
             // 
             textBoxRelay.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxRelay.ImeMode = ImeMode.Disable;
             textBoxRelay.Location = new Point(12, 12);
             textBoxRelay.Name = "textBoxRelay";
             textBoxRelay.PlaceholderText = "wss://";
