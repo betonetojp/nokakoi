@@ -21,6 +21,7 @@ nokakoiキーは後述するnokakoienc.exeで作成します。
 2024/02/11 ver. 0.2.4 日本語フィルタ追加。同梱の Core14.profile.xml が必要です。削除やリネームをしないでください。
 2024/02/15 ver. 0.2.5 設定を保存するように。エンドタグをemojiに変更。
 2024/02/17 ver. 0.2.6 エンドタグをshortcode専用に変更。emoji URLを設定可能に。
+2024/02/20 ver. 0.2.7 サイズを保存するように。clientタグとemojiタグを必要時のみ付けるように修正。
 
 
 ◆ nokakoienc.exe
