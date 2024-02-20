@@ -229,22 +229,25 @@ namespace nokakoi
             {
                 return;
             }
-
-            // load from an nsec string
-            var key = _nsec.FromNIP19Nsec();
-            List<NostrEventTag> tags =
-            [
-                new NostrEventTag() { TagIdentifier = "client", Data = ["nokakoi"] },
-                new NostrEventTag() { TagIdentifier = "emoji", Data = [$"{_shortcode}", $"{_emojiUrl}"] }
-            ];
+            // create tags
+            List<NostrEventTag> tags = [];
+            if (_addClient)
+            {
+                tags.Add(new NostrEventTag() { TagIdentifier = "client", Data = ["nokakoi"] });
+            }
+            if (_addShortcode)
+            {
+                tags.Add(new NostrEventTag() { TagIdentifier = "emoji", Data = [$"{_shortcode}", $"{_emojiUrl}"] });
+            }
             // create a new event
             var newEvent = new NostrEvent()
             {
                 Kind = 1,
                 Content = textBoxPost.Text + (_addShortcode ? " :" + _shortcode + ":" : string.Empty),
-                //Tags = [new NostrEventTag() { TagIdentifier = "client", Data = ["nokakoi"] }],
                 Tags = tags
             };
+            // load from an nsec string
+            var key = _nsec.FromNIP19Nsec();
             // sign the event
             await newEvent.ComputeIdAndSignAsync(key);
             // send the event
