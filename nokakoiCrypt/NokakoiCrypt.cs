@@ -42,8 +42,7 @@ namespace nokakoi
         static string EncryptString(this SymmetricAlgorithm algorithm, string sourceString, string password)
         {
             //パスワードから共有キーと初期化ベクタを作成
-            byte[] key, iv;
-            GenerateKeyFromPassword(password, algorithm.KeySize, out key, algorithm.BlockSize, out iv);
+            GenerateKeyFromPassword(password, algorithm.KeySize, out byte[] key, algorithm.BlockSize, out byte[] iv);
             algorithm.Key = key;
             algorithm.IV = iv;
 
@@ -70,13 +69,11 @@ namespace nokakoi
         static string DecryptString(this SymmetricAlgorithm algorithm, string sourceString, string password)
         {
             //パスワードから共有キーと初期化ベクタを作成
-            byte[] key, iv;
-            GenerateKeyFromPassword(password, algorithm.KeySize, out key, algorithm.BlockSize, out iv);
+            GenerateKeyFromPassword(password, algorithm.KeySize, out byte[] key, algorithm.BlockSize, out byte[] iv);
             algorithm.Key = key;
             algorithm.IV = iv;
 
             //文字列をバイト型配列に戻す
-            //byte[] strBytes = Convert.FromBase64String(sourceString);
             byte[] strBytes = StringToBytes(sourceString);
 
             //対称暗号化オブジェクトの作成
@@ -101,7 +98,6 @@ namespace nokakoi
         /// <param name="iv">作成された初期化ベクタ</param>
         static void GenerateKeyFromPassword(string password, int keySize, out byte[] key, int blockSize, out byte[] iv)
         {
-            //パスワードから共有キーと初期化ベクタを作成する
             //saltを決める
             byte[] salt = Encoding.UTF8.GetBytes("nokakoi is cheap");
             //Rfc2898DeriveBytesオブジェクトを作成する
