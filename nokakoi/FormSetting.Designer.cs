@@ -137,15 +137,15 @@
             checkBoxAddEndTag.AutoSize = true;
             checkBoxAddEndTag.Location = new Point(12, 91);
             checkBoxAddEndTag.Name = "checkBoxAddEndTag";
-            checkBoxAddEndTag.Size = new Size(104, 19);
+            checkBoxAddEndTag.Size = new Size(136, 19);
             checkBoxAddEndTag.TabIndex = 5;
-            checkBoxAddEndTag.Text = "Add shortcode";
+            checkBoxAddEndTag.Text = "Add emoji shortcode";
             checkBoxAddEndTag.UseVisualStyleBackColor = true;
             // 
             // textBoxShortcode
             // 
             textBoxShortcode.ImeMode = ImeMode.Disable;
-            textBoxShortcode.Location = new Point(122, 89);
+            textBoxShortcode.Location = new Point(154, 89);
             textBoxShortcode.Name = "textBoxShortcode";
             textBoxShortcode.Size = new Size(26, 23);
             textBoxShortcode.TabIndex = 6;
