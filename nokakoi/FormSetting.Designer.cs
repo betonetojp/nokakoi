@@ -37,7 +37,6 @@
             checkBoxTopMost = new CheckBox();
             label2 = new Label();
             label3 = new Label();
-            label4 = new Label();
             checkBoxAddEndTag = new CheckBox();
             textBoxShortcode = new TextBox();
             checkBoxDisplayTime = new CheckBox();
@@ -49,15 +48,16 @@
             label6 = new Label();
             textBoxEmojiUrl = new TextBox();
             label7 = new Label();
-            label8 = new Label();
+            labelVersion = new Label();
             ((System.ComponentModel.ISupportInitialize)trackBarOpacity).BeginInit();
             SuspendLayout();
             // 
             // textBoxNokakoiKey
             // 
-            textBoxNokakoiKey.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            textBoxNokakoiKey.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxNokakoiKey.ImeMode = ImeMode.Disable;
             textBoxNokakoiKey.Location = new Point(12, 241);
+            textBoxNokakoiKey.MaxLength = 136;
             textBoxNokakoiKey.Name = "textBoxNokakoiKey";
             textBoxNokakoiKey.Size = new Size(127, 23);
             textBoxNokakoiKey.TabIndex = 11;
@@ -65,8 +65,8 @@
             // textBoxCutLength
             // 
             textBoxCutLength.ImeMode = ImeMode.Disable;
-            textBoxCutLength.Location = new Point(96, 37);
-            textBoxCutLength.MaxLength = 3;
+            textBoxCutLength.Location = new Point(100, 37);
+            textBoxCutLength.MaxLength = 4;
             textBoxCutLength.Name = "textBoxCutLength";
             textBoxCutLength.Size = new Size(26, 23);
             textBoxCutLength.TabIndex = 2;
@@ -82,9 +82,10 @@
             // 
             // textBoxPassword
             // 
-            textBoxPassword.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            textBoxPassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             textBoxPassword.ImeMode = ImeMode.Disable;
             textBoxPassword.Location = new Point(145, 241);
+            textBoxPassword.MaxLength = 256;
             textBoxPassword.Name = "textBoxPassword";
             textBoxPassword.PasswordChar = '*';
             textBoxPassword.PlaceholderText = "password";
@@ -124,7 +125,6 @@
             // 
             // label3
             // 
-            label3.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             label3.AutoSize = true;
             label3.Location = new Point(12, 223);
             label3.Name = "label3";
@@ -132,29 +132,20 @@
             label3.TabIndex = 0;
             label3.Text = "nokakoi key and password are required to post";
             // 
-            // label4
-            // 
-            label4.AutoSize = true;
-            label4.Location = new Point(147, 92);
-            label4.Name = "label4";
-            label4.Size = new Size(111, 15);
-            label4.TabIndex = 0;
-            label4.Text = ":\" at the end of post";
-            // 
             // checkBoxAddEndTag
             // 
             checkBoxAddEndTag.AutoSize = true;
             checkBoxAddEndTag.Location = new Point(12, 91);
             checkBoxAddEndTag.Name = "checkBoxAddEndTag";
-            checkBoxAddEndTag.Size = new Size(118, 19);
+            checkBoxAddEndTag.Size = new Size(104, 19);
             checkBoxAddEndTag.TabIndex = 5;
-            checkBoxAddEndTag.Text = "Add shortcode \" :";
+            checkBoxAddEndTag.Text = "Add shortcode";
             checkBoxAddEndTag.UseVisualStyleBackColor = true;
             // 
             // textBoxShortcode
             // 
             textBoxShortcode.ImeMode = ImeMode.Disable;
-            textBoxShortcode.Location = new Point(123, 89);
+            textBoxShortcode.Location = new Point(122, 89);
             textBoxShortcode.Name = "textBoxShortcode";
             textBoxShortcode.Size = new Size(26, 23);
             textBoxShortcode.TabIndex = 6;
@@ -182,7 +173,6 @@
             // 
             // label5
             // 
-            label5.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             label5.AutoSize = true;
             label5.ForeColor = SystemColors.GrayText;
             label5.Location = new Point(104, 267);
@@ -193,7 +183,6 @@
             // 
             // linkLabelIcons8
             // 
-            linkLabelIcons8.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             linkLabelIcons8.AutoSize = true;
             linkLabelIcons8.Location = new Point(231, 267);
             linkLabelIcons8.Name = "linkLabelIcons8";
@@ -233,6 +222,7 @@
             // 
             // textBoxEmojiUrl
             // 
+            textBoxEmojiUrl.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxEmojiUrl.ImeMode = ImeMode.Disable;
             textBoxEmojiUrl.Location = new Point(78, 118);
             textBoxEmojiUrl.Name = "textBoxEmojiUrl";
@@ -249,21 +239,21 @@
             label7.TabIndex = 0;
             label7.Text = "emoji URL";
             // 
-            // label8
+            // labelVersion
             // 
-            label8.AutoSize = true;
-            label8.Location = new Point(12, 267);
-            label8.Name = "label8";
-            label8.Size = new Size(37, 15);
-            label8.TabIndex = 15;
-            label8.Text = "v0.2.6";
+            labelVersion.AutoSize = true;
+            labelVersion.Location = new Point(12, 267);
+            labelVersion.Name = "labelVersion";
+            labelVersion.Size = new Size(37, 15);
+            labelVersion.TabIndex = 15;
+            labelVersion.Text = "v0.2.8";
             // 
             // FormSetting
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(284, 291);
-            Controls.Add(label8);
+            Controls.Add(labelVersion);
             Controls.Add(label7);
             Controls.Add(textBoxEmojiUrl);
             Controls.Add(label6);
@@ -275,7 +265,6 @@
             Controls.Add(checkBoxDisplayTime);
             Controls.Add(textBoxShortcode);
             Controls.Add(checkBoxAddEndTag);
-            Controls.Add(label4);
             Controls.Add(label3);
             Controls.Add(label2);
             Controls.Add(checkBoxTopMost);
@@ -284,14 +273,11 @@
             Controls.Add(label1);
             Controls.Add(textBoxCutLength);
             Controls.Add(textBoxNokakoiKey);
-            FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;
-            MaximumSize = new Size(300, 330);
             MinimizeBox = false;
             MinimumSize = new Size(300, 330);
             Name = "FormSetting";
-            SizeGripStyle = SizeGripStyle.Hide;
             StartPosition = FormStartPosition.CenterParent;
             Text = "Setting";
             TopMost = true;
@@ -310,7 +296,6 @@
         internal CheckBox checkBoxTopMost;
         private Label label2;
         private Label label3;
-        private Label label4;
         internal CheckBox checkBoxAddEndTag;
         internal TextBox textBoxShortcode;
         internal CheckBox checkBoxDisplayTime;
@@ -322,6 +307,6 @@
         private Label label6;
         private Label label7;
         internal TextBox textBoxEmojiUrl;
-        private Label label8;
+        private Label labelVersion;
     }
 }

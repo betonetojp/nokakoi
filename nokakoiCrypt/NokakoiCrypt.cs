@@ -7,10 +7,6 @@ namespace nokakoi
     {
         public static readonly string NokakoiTag = "nokakoi:";
 
-        // ソルトがnullだと復号化でArgumentNullExceptionが発生
-        // 安全のため消してあるので適宜設定してください↓
-        private static readonly string _nokakoiSalt;
-
         /// <summary>
         /// nokakoiキーを生成する
         /// </summary>
@@ -107,7 +103,7 @@ namespace nokakoi
         {
             //パスワードから共有キーと初期化ベクタを作成する
             //saltを決める
-            byte[] salt = Encoding.UTF8.GetBytes(_nokakoiSalt);
+            byte[] salt = Encoding.UTF8.GetBytes("nokakoi is cheap");
             //Rfc2898DeriveBytesオブジェクトを作成する
             Rfc2898DeriveBytes deriveBytes = new(password, salt, 1000, HashAlgorithmName.SHA1);
             //共有キーと初期化ベクタを生成する

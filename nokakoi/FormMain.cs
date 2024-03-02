@@ -7,11 +7,13 @@ namespace nokakoi
 {
     public partial class FormMain : Form
     {
-        private static TimeSpan _timeSpan = new(0, 0, 0, 0);
-        private FormSetting _formSetting = new();
+        private static readonly TimeSpan _timeSpan = new(0, 0, 0, 0);
+        private readonly FormSetting _formSetting = new();
+
         private NostrClient? _client;
         private static string _subscriptionId = string.Empty;
         private static string _nsec = string.Empty;
+        private static string _npub = string.Empty;
 
         private static int _cutLength;
         private static bool _displayTime;
@@ -34,7 +36,16 @@ namespace nokakoi
 
             Setting.Load("nokakoi.config");
 
+            // 最小化状態で閉じられた時の暫定対応
+            if (Setting.Location.X < 0 || Setting.Location.Y < 0)
+            {
+                Setting.Location = new Point(0, 0);
+            }
             Location = Setting.Location;
+            if (Setting.Size.Width < 200 || Setting.Size.Height < 200)
+            {
+                Setting.Size = new Size(320, 320);
+            }
             Size = Setting.Size;
             textBoxRelay.Text = Setting.Relay;
             TopMost = Setting.TopMost;
@@ -102,12 +113,12 @@ namespace nokakoi
                 return;
             }
 
-            //subscribe to all kind 1 events under the subscription id of _subscriptionId
             await _client.CreateSubscription(
                     _subscriptionId,
-                    [new NostrSubscriptionFilter()
+                    [
+                        new NostrSubscriptionFilter()
                         {
-                            Kinds = [1],
+                            Kinds = [1,7], // 1: text note, 7: reaction
                             Since = DateTimeOffset.Now - _timeSpan,
                         }
                     ]
@@ -127,34 +138,8 @@ namespace nokakoi
             {
                 foreach (var nostrEvent in args.events)
                 {
-                    var c = nostrEvent.GetTaggedData("client");
-                    var iSnokakoi = -1 < Array.IndexOf(c, "nokakoi");
-
-                    if (_showOnlyTagged && !iSnokakoi)
-                    {
-                        // nokakoi限定表示オンでnokakoiじゃない時は表示しない
-                        continue;
-                    }
-
                     var content = nostrEvent.Content;
-                    if (content != null)
-                    {
-                        if (_showOnlyJapanese)
-                        {
-                            // 日本語限定表示オンの時
-                            if ("jpn" != DetermineLanguage(content))
-                            {
-                                continue;
-                            }
-                        }
 
-                        content = Regex.Unescape(content);
-                        content = content.Replace('\n', ' ');
-                        if (content.Length > _cutLength)
-                        {
-                            content = $"{content[.._cutLength]} . . .";
-                        }
-                    }
                     DateTimeOffset time;
                     int hour;
                     int minute;
@@ -168,8 +153,49 @@ namespace nokakoi
                         timeString = string.Format("{0:D2}", hour) + ":" + string.Format("{0:D2}", minute);
                     }
 
-                    textBoxTimeline.Text = (iSnokakoi ? "*" : "-") + (_displayTime ? timeString : string.Empty)
+                    //  7: reaction
+                    if (7 == nostrEvent.Kind)
+                    {
+                        if (nostrEvent.GetTaggedPublicKeys().Contains(_npub.ConvertToHex()))
+                        {
+                            textBoxTimeline.Text = "+" + (_displayTime ? timeString : string.Empty)
                                          + " " + content + Environment.NewLine + textBoxTimeline.Text;
+                        }
+                    }
+                    //  1: text note
+                    if (1 == nostrEvent.Kind)
+                    {
+                        var c = nostrEvent.GetTaggedData("client");
+                        var iSnokakoi = -1 < Array.IndexOf(c, "nokakoi");
+
+                        if (_showOnlyTagged && !iSnokakoi)
+                        {
+                            // nokakoi限定表示オンでnokakoiじゃない時は表示しない
+                            continue;
+                        }
+
+                        if (content != null)
+                        {
+                            if (_showOnlyJapanese)
+                            {
+                                // 日本語限定表示オンの時
+                                if ("jpn" != DetermineLanguage(content))
+                                {
+                                    continue;
+                                }
+                            }
+
+                            content = Regex.Unescape(content);
+                            content = content.Replace('\n', ' ');
+                            if (content.Length > _cutLength)
+                            {
+                                content = $"{content[.._cutLength]} . . .";
+                            }
+                        }
+
+                        textBoxTimeline.Text = (iSnokakoi ? "*" : "-") + (_displayTime ? timeString : string.Empty)
+                                             + " " + content + Environment.NewLine + textBoxTimeline.Text;
+                    }
                 }
             }
         }
@@ -299,10 +325,13 @@ namespace nokakoi
             try
             {
                 _nsec = NokakoiCrypt.DecryptNokakoiKey(_nokakoiKey, _password);
+                _npub = _nsec.GetNpub();
+                //textBoxTimeline.Text = "> Welcome " + _npub + Environment.NewLine + textBoxTimeline.Text;
             }
             catch (Exception)
             {
-                MessageBox.Show("Decryption failed.");
+                //MessageBox.Show("Decryption failed.");
+                textBoxTimeline.Text = "> Decryption failed." + Environment.NewLine + textBoxTimeline.Text;
             }
 
             Setting.TopMost = TopMost;

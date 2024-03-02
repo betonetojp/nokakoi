@@ -70,6 +70,7 @@
             // textBoxPassword
             // 
             textBoxPassword.Location = new Point(12, 71);
+            textBoxPassword.MaxLength = 256;
             textBoxPassword.Name = "textBoxPassword";
             textBoxPassword.PasswordChar = '*';
             textBoxPassword.PlaceholderText = "password";
@@ -89,6 +90,7 @@
             // 
             textBoxNokakoiKey.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             textBoxNokakoiKey.Location = new Point(12, 115);
+            textBoxNokakoiKey.MaxLength = 136;
             textBoxNokakoiKey.Multiline = true;
             textBoxNokakoiKey.Name = "textBoxNokakoiKey";
             textBoxNokakoiKey.Size = new Size(220, 94);

@@ -9,10 +9,11 @@
     <ApplicationIcon>Resources\nokakoi.ico</ApplicationIcon>
     <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
     <Configurations>Debug;Release</Configurations>
-    <Version>$(VersionPrefix)0.2.7</Version>
+    <Version>$(VersionPrefix)0.2.8</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Authors>$(AssemblyName)</Authors>
     <AssemblyVersion></AssemblyVersion>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
