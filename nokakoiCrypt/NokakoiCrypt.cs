@@ -7,7 +7,7 @@ namespace nokakoi
     {
         public static readonly string NokakoiTag = "nokakoi:";
 
-        // ソルトがnullだと復号化でArgumentNullExceptionが発生
+        // ソルトがnullだとArgumentNullExceptionが発生
         // 安全のため消してあるので適宜設定してください↓
         private static readonly string _nokakoiSalt;
 

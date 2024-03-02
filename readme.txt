@@ -22,6 +22,7 @@ nokakoiキーは後述するnokakoienc.exeで作成します。
 2024/02/15 ver. 0.2.5 設定を保存するように。エンドタグをemojiに変更。
 2024/02/17 ver. 0.2.6 エンドタグをshortcode専用に変更。emoji URLを設定可能に。
 2024/02/20 ver. 0.2.7 サイズを保存するように。clientタグとemojiタグを必要時のみ付けるように修正。
+2024/03/02 ver. 0.2.8 リアクション表示を追加。
 
 
 ◆ nokakoienc.exe

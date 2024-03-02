@@ -44,6 +44,7 @@
             textBoxRelay.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxRelay.ImeMode = ImeMode.Disable;
             textBoxRelay.Location = new Point(12, 12);
+            textBoxRelay.MaxLength = 256;
             textBoxRelay.Name = "textBoxRelay";
             textBoxRelay.PlaceholderText = "wss://";
             textBoxRelay.Size = new Size(193, 23);
@@ -100,6 +101,7 @@
             // 
             textBoxPost.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             textBoxPost.Location = new Point(12, 246);
+            textBoxPost.MaxLength = 1024;
             textBoxPost.Name = "textBoxPost";
             textBoxPost.PlaceholderText = "Hello Nostr!";
             textBoxPost.Size = new Size(222, 23);

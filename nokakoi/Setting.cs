@@ -191,13 +191,9 @@ namespace nokakoi
             {
                 var serializer = new XmlSerializer(typeof(Data));
                 var xmlSettings = new XmlReaderSettings();
-                using (var streamReader = new StreamReader(path, Encoding.UTF8))
-                {
-                    using (var xmlReader = XmlReader.Create(streamReader, xmlSettings))
-                    {
-                        _data = serializer.Deserialize(xmlReader) as Data ?? _data;
-                    }
-                }
+                using var streamReader = new StreamReader(path, Encoding.UTF8);
+                using var xmlReader = XmlReader.Create(streamReader, xmlSettings);
+                _data = serializer.Deserialize(xmlReader) as Data ?? _data;
                 return true;
             }
             catch (Exception ex)
@@ -212,11 +208,9 @@ namespace nokakoi
             try
             {
                 var serializer = new XmlSerializer(typeof(Data));
-                using (var streamWriter = new StreamWriter(path, false, Encoding.UTF8))
-                {
-                    serializer.Serialize(streamWriter, _data);
-                    streamWriter.Flush();
-                }
+                using var streamWriter = new StreamWriter(path, false, Encoding.UTF8);
+                serializer.Serialize(streamWriter, _data);
+                streamWriter.Flush();
                 return true;
             }
             catch (Exception ex)

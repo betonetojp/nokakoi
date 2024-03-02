@@ -14,9 +14,15 @@ namespace nokakoi
         {
             string nsec = textBoxNsec.Text;
             string password = textBoxPassword.Text;
-
-            string nokakoiKey = NokakoiCrypt.EncryptNokakoiKey(nsec, password);
-
+            string nokakoiKey;
+            try
+            {
+                nokakoiKey = NokakoiCrypt.EncryptNokakoiKey(nsec, password);
+            }
+            catch
+            {
+                nokakoiKey = "Error.";
+            }
             textBoxNokakoiKey.Text = nokakoiKey;
         }
 
