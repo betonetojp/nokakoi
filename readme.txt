@@ -34,6 +34,9 @@ nokakoiキーは後述するnokakoienc.exeで作成します。
 2024/03/02 ver. 0.2.9
 DirectSSTP送信を試験的に追加。SSPゴーストにタイムラインとリアクション通知を送信します。
 
+2024/03/02 ver. 0.2.9.1
+SSPゴーストに送る文章も本体設定文字数でカットするように変更。SSTPLib更新。
+
 
 ◆ nokakoienc.exe
 
@@ -57,4 +60,4 @@ https://licenses.nuget.org/MIT
 
 DirectSSTPTester
 https://github.com/nikolat/DirectSSTPTester
-内のSSTPLibを利用しています。
+内のSSTPLib Ver4.0.0を利用しています。
