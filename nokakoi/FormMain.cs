@@ -1,32 +1,39 @@
 using NNostr.Client;
 using NNostr.Client.Protocols;
 using NTextCat;
+using NTextCat.Commons;
+using SSTPLib;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 
 namespace nokakoi
 {
     public partial class FormMain : Form
     {
-        private static readonly TimeSpan _timeSpan = new(0, 0, 0, 0);
+        private readonly TimeSpan _timeSpan = new(0, 0, 0, 0);
         private readonly FormSetting _formSetting = new();
 
         private NostrClient? _client;
-        private static string _subscriptionId = string.Empty;
-        private static string _nsec = string.Empty;
-        private static string _npub = string.Empty;
+        private string _subscriptionId = string.Empty;
+        private string _nsec = string.Empty;
+        private string _npub = string.Empty;
 
-        private static int _cutLength;
-        private static bool _displayTime;
-        private static bool _addShortcode;
-        private static string _shortcode = string.Empty;
-        private static string _emojiUrl = string.Empty;
-        private static bool _addClient;
-        private static bool _showOnlyTagged;
-        private static bool _showOnlyJapanese;
-        private static string _nokakoiKey = string.Empty;
-        private static string _password = string.Empty;
+        private int _cutLength;
+        private bool _displayTime;
+        private bool _addShortcode;
+        private string _shortcode = string.Empty;
+        private string _emojiUrl = string.Empty;
+        private bool _addClient;
+        private bool _showOnlyTagged;
+        private bool _showOnlyJapanese;
+        private string _nokakoiKey = string.Empty;
+        private string _password = string.Empty;
 
-        private static double _tempOpacity = 1.00;
+        private double _tempOpacity = 1.00;
+
+        private readonly DSSTPSender _ds = new("SakuraUnicode");
+        private readonly string _mesHeader = "SEND SSTP/1.0\r\nCharset: UTF-8\r\nSender: nokakoi\r\nOption: nobreak\r\nScript: ";
+        private string _ghostName = string.Empty;
 
         #region コンストラクタ
         // コンストラクタ
@@ -42,6 +49,7 @@ namespace nokakoi
                 Setting.Location = new Point(0, 0);
             }
             Location = Setting.Location;
+            // 設定ファイルがない時の初期サイズ
             if (Setting.Size.Width < 200 || Setting.Size.Height < 200)
             {
                 Setting.Size = new Size(320, 320);
@@ -63,19 +71,48 @@ namespace nokakoi
         }
         #endregion
 
+        #region SSPゴースト名を取得する
+        /// <summary>
+        /// SSPゴースト名を取得する
+        /// </summary>
+        private void SearchGhost()
+        {
+            _ds.Update();
+            SakuraFMO fmo = (SakuraFMO)_ds.FMO;
+            var names = fmo.GetGhostNames();
+            if (names.Length > 0)
+            {
+                _ghostName = names.First(); // とりあえず先頭で
+                Debug.Print(_ghostName);
+            }
+            else
+            {
+                _ghostName = string.Empty;
+                Debug.Print("ゴーストがいません");
+            }
+        }
+        #endregion
+
         #region Connectボタン
         // Connectボタン
-        private void buttonConnect_Click(object sender, EventArgs e)
+        private async void buttonConnect_Click(object sender, EventArgs e)
         {
-            _subscriptionId = Guid.NewGuid().ToString("N");
+            try
+            {
+                await ConnectAsync();
 
-            _ = ConnectAsync();
-
-            textBoxRelay.ForeColor = SystemColors.GrayText;
-            buttonConnect.Enabled = false;
-            buttonStart.Enabled = true;
-            buttonStart.Focus();
-            textBoxTimeline.Text = string.Empty;
+                textBoxRelay.ForeColor = SystemColors.GrayText;
+                buttonConnect.Enabled = false;
+                buttonStart.Enabled = true;
+                buttonStart.Focus();
+                textBoxTimeline.Text = string.Empty;
+                textBoxTimeline.Text = "> Connect." + Environment.NewLine + textBoxTimeline.Text;
+            }
+            catch (Exception ex)
+            {
+                Debug.Print(ex.ToString());
+                textBoxTimeline.Text = "> Could not connect." + Environment.NewLine + textBoxTimeline.Text;
+            }
         }
         #endregion
 
@@ -83,29 +120,29 @@ namespace nokakoi
         // 接続処理
         private async Task ConnectAsync()
         {
+            _subscriptionId = Guid.NewGuid().ToString("N");
             _client = new NostrClient(new Uri(textBoxRelay.Text));
 
             await _client.Connect();
-
-            textBoxTimeline.Text = "> Connect." + Environment.NewLine + textBoxTimeline.Text;
         }
         #endregion
 
         #region Startボタン
         // Startボタン
-        private void buttonStart_Click(object sender, EventArgs e)
+        private async void buttonStart_Click(object sender, EventArgs e)
         {
-            _ = StartAsync();
+            await StartAsync();
 
             buttonStart.Enabled = false;
             buttonStop.Enabled = true;
             buttonStop.Focus();
             buttonPost.Enabled = true;
+            textBoxTimeline.Text = "> Create subscription." + Environment.NewLine + textBoxTimeline.Text;
         }
         #endregion
 
-        #region 購読開始
-        // 購読開始
+        #region 購読処理
+        // 購読処理
         private async Task StartAsync()
         {
             if (null == _client)
@@ -122,16 +159,14 @@ namespace nokakoi
                             Since = DateTimeOffset.Now - _timeSpan,
                         }
                     ]
-                );
-
-            textBoxTimeline.Text = "> Create subscription." + Environment.NewLine + textBoxTimeline.Text;
+                 );
 
             _client.EventsReceived += OnClientOnEventsReceived;
         }
         #endregion
 
-        #region イベントリッスン
-        // イベントリッスン
+        #region イベント受信時処理
+        // イベント受信時処理
         private void OnClientOnEventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) args)
         {
             if (args.subscriptionId == _subscriptionId)
@@ -156,8 +191,17 @@ namespace nokakoi
                     //  7: reaction
                     if (7 == nostrEvent.Kind)
                     {
-                        if (nostrEvent.GetTaggedPublicKeys().Contains(_npub.ConvertToHex()))
+                        if (!_npub.IsNullOrEmpty() && nostrEvent.GetTaggedPublicKeys().Contains(_npub.ConvertToHex()))
                         {
+                            // SSPに送る
+                            if (null != _ds)
+                            {
+                                SearchGhost();
+                                string sstpmsg = $"{_mesHeader}\\uリアクション {content}\\e\r\n";
+                                string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
+                                Debug.WriteLine(r);
+                            }
+
                             textBoxTimeline.Text = "+" + (_displayTime ? timeString : string.Empty)
                                          + " " + content + Environment.NewLine + textBoxTimeline.Text;
                         }
@@ -176,13 +220,19 @@ namespace nokakoi
 
                         if (content != null)
                         {
-                            if (_showOnlyJapanese)
+                            if (_showOnlyJapanese && "jpn" != DetermineLanguage(content))
                             {
-                                // 日本語限定表示オンの時
-                                if ("jpn" != DetermineLanguage(content))
-                                {
-                                    continue;
-                                }
+                                // 日本語限定表示オンので日本語じゃない時は表示しない
+                                continue;
+                            }
+
+                            // SSPに送る
+                            if (null != _ds)
+                            {
+                                SearchGhost();
+                                string sstpmsg = $"{_mesHeader}\\h{content}\\e\r\n";
+                                string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
+                                Debug.WriteLine(r);
                             }
 
                             content = Regex.Unescape(content);
@@ -203,19 +253,19 @@ namespace nokakoi
 
         #region Stopボタン
         // Stopボタン
-        private void buttonStop_Click(object sender, EventArgs e)
+        private async void buttonStop_Click(object sender, EventArgs e)
         {
             if (null == _client)
             {
                 return;
             }
 
-            _client.CloseSubscription(_subscriptionId);
+            await _client.CloseSubscription(_subscriptionId);
             textBoxTimeline.Text = "> Close subscription." + Environment.NewLine + textBoxTimeline.Text;
-            _client.Disconnect();
+            await _client.Disconnect();
             textBoxTimeline.Text = "> Disconnect." + Environment.NewLine + textBoxTimeline.Text;
             _client.Dispose();
-            textBoxTimeline.Text = "> Finish." + Environment.NewLine + textBoxTimeline.Text;
+            //textBoxTimeline.Text = "> Finish." + Environment.NewLine + textBoxTimeline.Text;
 
             textBoxRelay.ForeColor = SystemColors.WindowText;
             buttonConnect.Enabled = true;
@@ -328,9 +378,10 @@ namespace nokakoi
                 _npub = _nsec.GetNpub();
                 //textBoxTimeline.Text = "> Welcome " + _npub + Environment.NewLine + textBoxTimeline.Text;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 //MessageBox.Show("Decryption failed.");
+                Debug.WriteLine(ex.Message);
                 textBoxTimeline.Text = "> Decryption failed." + Environment.NewLine + textBoxTimeline.Text;
             }
 
@@ -399,8 +450,10 @@ namespace nokakoi
             Setting.Location = Location;
             Setting.Size = Size;
             Setting.Relay = textBoxRelay.Text;
-
             Setting.Save("nokakoi.config");
+
+            _ds?.Dispose();     // FrmMsgReceiverのThread停止せず1000ms待たされるうえにプロセス残るので…
+            Application.Exit(); // ←これで殺す。SSTLibに手を入れた方がいいが、とりあえず。
         }
         #endregion
     }

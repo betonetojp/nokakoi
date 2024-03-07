@@ -17,7 +17,7 @@ nokakoiキーは後述するnokakoienc.exeで作成します。
 履歴
 
 2024/02/11 ver. 0.2.4
-日本語フィルタ追加。同梱の Core14.profile.xml が必要です。削除やリネームをしないでください。
+日本語フィルタ追加。同梱の Core14.profile.xml が必要です。
 
 2024/02/15 ver. 0.2.5
 設定を保存するように。エンドタグをemojiに変更。
@@ -30,6 +30,9 @@ nokakoiキーは後述するnokakoienc.exeで作成します。
 
 2024/03/02 ver. 0.2.8
 リアクション表示を追加。
+
+2024/03/02 ver. 0.2.9
+DirectSSTP送信を試験的に追加。SSPゴーストにタイムラインとリアクション通知を送信します。
 
 
 ◆ nokakoienc.exe
@@ -49,3 +52,9 @@ https://raw.githubusercontent.com/Kukks/NNostr/master/LICENSE
 NTextCat
 https://licenses.nuget.org/MIT
 
+
+◆DirectSSTP送信ライブラリ
+
+DirectSSTPTester
+https://github.com/nikolat/DirectSSTPTester
+内のSSTPLibを利用しています。

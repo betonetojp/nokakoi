@@ -77,6 +77,7 @@
             // 
             textBoxTimeline.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             textBoxTimeline.Location = new Point(12, 41);
+            textBoxTimeline.MaxLength = 0;
             textBoxTimeline.Multiline = true;
             textBoxTimeline.Name = "textBoxTimeline";
             textBoxTimeline.ScrollBars = ScrollBars.Vertical;

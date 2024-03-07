@@ -49,6 +49,7 @@
             textBoxEmojiUrl = new TextBox();
             label7 = new Label();
             labelVersion = new Label();
+            labelOpacity = new Label();
             ((System.ComponentModel.ISupportInitialize)trackBarOpacity).BeginInit();
             SuspendLayout();
             // 
@@ -246,13 +247,23 @@
             labelVersion.Name = "labelVersion";
             labelVersion.Size = new Size(37, 15);
             labelVersion.TabIndex = 15;
-            labelVersion.Text = "v0.2.8";
+            labelVersion.Text = "v0.2.9";
+            // 
+            // labelOpacity
+            // 
+            labelOpacity.Location = new Point(231, 13);
+            labelOpacity.Name = "labelOpacity";
+            labelOpacity.Size = new Size(41, 15);
+            labelOpacity.TabIndex = 0;
+            labelOpacity.Text = "100%";
+            labelOpacity.TextAlign = ContentAlignment.TopRight;
             // 
             // FormSetting
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(284, 291);
+            Controls.Add(labelOpacity);
             Controls.Add(labelVersion);
             Controls.Add(label7);
             Controls.Add(textBoxEmojiUrl);
@@ -274,13 +285,17 @@
             Controls.Add(textBoxCutLength);
             Controls.Add(textBoxNokakoiKey);
             Icon = (Icon)resources.GetObject("$this.Icon");
+            KeyPreview = true;
             MaximizeBox = false;
             MinimizeBox = false;
             MinimumSize = new Size(300, 330);
             Name = "FormSetting";
+            ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
             Text = "Setting";
             TopMost = true;
+            Load += FormSetting_Load;
+            KeyPress += FormSetting_KeyPress;
             ((System.ComponentModel.ISupportInitialize)trackBarOpacity).EndInit();
             ResumeLayout(false);
             PerformLayout();
@@ -308,5 +323,6 @@
         private Label label7;
         internal TextBox textBoxEmojiUrl;
         private Label labelVersion;
+        private Label labelOpacity;
     }
 }

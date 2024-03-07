@@ -10,8 +10,14 @@ namespace nokakoi
             textBoxNokakoiKey.PlaceholderText = NokakoiCrypt.NokakoiTag + " . . .";
         }
 
+        private void FormSetting_Load(object sender, EventArgs e)
+        {
+            labelOpacity.Text = $"{trackBarOpacity.Value}%";
+        }
+
         private void trackBarOpacity_Scroll(object sender, EventArgs e)
         {
+            labelOpacity.Text = $"{trackBarOpacity.Value}%";
             if (null != Owner)
             {
                 Owner.Opacity = trackBarOpacity.Value / 100.0;
@@ -27,6 +33,14 @@ namespace nokakoi
             app.UseShellExecute = true;
 
             Process.Start(app);
+        }
+
+        private void FormSetting_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == (char)Keys.Escape)
+            {
+                Close();
+            }
         }
     }
 }
