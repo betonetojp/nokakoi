@@ -43,17 +43,7 @@ namespace nokakoi
 
             Setting.Load("nokakoi.config");
 
-            // 最小化状態で閉じられた時の暫定対応
-            if (Setting.Location.X < 0 || Setting.Location.Y < 0)
-            {
-                Setting.Location = new Point(0, 0);
-            }
             Location = Setting.Location;
-            // 設定ファイルがない時の初期サイズ
-            if (Setting.Size.Width < 200 || Setting.Size.Height < 200)
-            {
-                Setting.Size = new Size(320, 320);
-            }
             Size = Setting.Size;
             textBoxRelay.Text = Setting.Relay;
             TopMost = Setting.TopMost;
@@ -239,7 +229,8 @@ namespace nokakoi
                             {
                                 SearchGhost();
                                 string msg = content;
-                                if (msg.Length > _cutLength) {
+                                if (msg.Length > _cutLength)
+                                {
                                     msg = $"{msg[.._cutLength]}（以下略）";
                                 }
                                 string sstpmsg = $"{_mesHeader}\\h{msg}\\e\r\n";
@@ -476,8 +467,17 @@ namespace nokakoi
         // 閉じる
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
         {
-            Setting.Location = Location;
-            Setting.Size = Size;
+            if (WindowState != FormWindowState.Normal)
+            {
+                // 最小化最大化状態の時、元の位置と大きさを保存
+                Setting.Location = RestoreBounds.Location;
+                Setting.Size = RestoreBounds.Size;
+            }
+            else
+            {
+                Setting.Location = Location;
+                Setting.Size = Size;
+            }
             Setting.Relay = textBoxRelay.Text;
             Setting.Save("nokakoi.config");
 
