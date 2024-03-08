@@ -1,9 +1,11 @@
 ﻿using System.Diagnostics;
+using System.Security.Permissions;
 
 namespace nokakoi
 {
     public partial class FormSetting : Form
     {
+        internal FormPostBar? FormPostBar;
         public FormSetting()
         {
             InitializeComponent();
@@ -18,9 +20,10 @@ namespace nokakoi
         private void trackBarOpacity_Scroll(object sender, EventArgs e)
         {
             labelOpacity.Text = $"{trackBarOpacity.Value}%";
-            if (null != Owner)
+            if (null != Owner && null != FormPostBar)
             {
                 Owner.Opacity = trackBarOpacity.Value / 100.0;
+                FormPostBar.Opacity = Owner.Opacity;
             }
         }
 

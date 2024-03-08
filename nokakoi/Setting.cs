@@ -24,6 +24,8 @@ namespace nokakoi
             public bool ShowOnlyTagged { get; set; } = false;
             public bool ShowOnlyJapanese { get; set; } = false;
             public string NokakoiKey { get; set; } = string.Empty;
+            public Point PostBarLocation { get; set; }
+            public Size PostBarSize { get; set; }
         }
 
         private static Data _data = new();
@@ -181,6 +183,28 @@ namespace nokakoi
             set
             {
                 _data.NokakoiKey = value;
+            }
+        }
+        public static Point PostBarLocation
+        {
+            get
+            {
+                return _data.PostBarLocation;
+            }
+            set
+            {
+                _data.PostBarLocation = value;
+            }
+        }
+        public static Size PostBarSize
+        {
+            get
+            {
+                return _data.PostBarSize;
+            }
+            set
+            {
+                _data.PostBarSize = value;
             }
         }
         #endregion

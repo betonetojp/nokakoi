@@ -37,6 +37,7 @@
             textBoxPost = new TextBox();
             buttonPost = new Button();
             buttonSetting = new Button();
+            checkBoxPostBar = new CheckBox();
             SuspendLayout();
             // 
             // textBoxRelay
@@ -101,12 +102,12 @@
             // textBoxPost
             // 
             textBoxPost.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            textBoxPost.Location = new Point(12, 246);
+            textBoxPost.Location = new Point(33, 247);
             textBoxPost.MaxLength = 1024;
             textBoxPost.Name = "textBoxPost";
             textBoxPost.PlaceholderText = "Hello Nostr!";
-            textBoxPost.Size = new Size(222, 23);
-            textBoxPost.TabIndex = 5;
+            textBoxPost.Size = new Size(201, 23);
+            textBoxPost.TabIndex = 6;
             // 
             // buttonPost
             // 
@@ -116,7 +117,7 @@
             buttonPost.Location = new Point(240, 246);
             buttonPost.Name = "buttonPost";
             buttonPost.Size = new Size(23, 23);
-            buttonPost.TabIndex = 6;
+            buttonPost.TabIndex = 7;
             buttonPost.UseVisualStyleBackColor = true;
             buttonPost.Click += buttonPost_Click;
             // 
@@ -127,15 +128,27 @@
             buttonSetting.Location = new Point(269, 246);
             buttonSetting.Name = "buttonSetting";
             buttonSetting.Size = new Size(23, 23);
-            buttonSetting.TabIndex = 7;
+            buttonSetting.TabIndex = 8;
             buttonSetting.UseVisualStyleBackColor = true;
             buttonSetting.Click += buttonSetting_Click;
+            // 
+            // checkBoxPostBar
+            // 
+            checkBoxPostBar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            checkBoxPostBar.AutoSize = true;
+            checkBoxPostBar.Location = new Point(12, 251);
+            checkBoxPostBar.Name = "checkBoxPostBar";
+            checkBoxPostBar.Size = new Size(15, 14);
+            checkBoxPostBar.TabIndex = 5;
+            checkBoxPostBar.UseVisualStyleBackColor = true;
+            checkBoxPostBar.CheckedChanged += checkBoxPostBar_CheckedChanged;
             // 
             // FormMain
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(304, 281);
+            Controls.Add(checkBoxPostBar);
             Controls.Add(buttonSetting);
             Controls.Add(buttonPost);
             Controls.Add(textBoxPost);
@@ -151,6 +164,7 @@
             Text = "nokakoi";
             TopMost = true;
             FormClosing += FormMain_FormClosing;
+            Load += FormMain_Load;
             ResumeLayout(false);
             PerformLayout();
         }
@@ -162,8 +176,9 @@
         private Button buttonStart;
         private TextBox textBoxTimeline;
         private Button buttonStop;
-        private TextBox textBoxPost;
         private Button buttonPost;
         private Button buttonSetting;
+        internal TextBox textBoxPost;
+        internal CheckBox checkBoxPostBar;
     }
 }

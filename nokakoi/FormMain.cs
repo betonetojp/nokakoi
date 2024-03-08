@@ -12,6 +12,7 @@ namespace nokakoi
     {
         private readonly TimeSpan _timeSpan = new(0, 0, 0, 0);
         private readonly FormSetting _formSetting = new();
+        private readonly FormPostBar _formPostBar = new();
 
         private NostrClient? _client;
         private string _subscriptionId = string.Empty;
@@ -44,12 +45,20 @@ namespace nokakoi
             Setting.Load("nokakoi.config");
 
             Location = Setting.Location;
+            if (new Point(0, 0) == Location)
+            {
+                StartPosition = FormStartPosition.CenterScreen;
+            }
             Size = Setting.Size;
             textBoxRelay.Text = Setting.Relay;
             TopMost = Setting.TopMost;
             _cutLength = Setting.CutLength;
             Opacity = Setting.Opacity;
-            if (0 == Opacity) { Opacity = 1; }
+            if (0 == Opacity)
+            {
+                Opacity = 1;
+            }
+            _formPostBar.Opacity = Opacity;
             _displayTime = Setting.DisplayTime;
             _addShortcode = Setting.AddShortcode;
             _shortcode = Setting.Shortcode;
@@ -58,6 +67,15 @@ namespace nokakoi
             _showOnlyTagged = Setting.ShowOnlyTagged;
             _showOnlyJapanese = Setting.ShowOnlyJapanese;
             _nokakoiKey = Setting.NokakoiKey;
+            _formPostBar.Location = Setting.PostBarLocation;
+            if (new Point(0, 0) == _formPostBar.Location)
+            {
+                _formPostBar.StartPosition = FormStartPosition.CenterScreen;
+            }
+            _formPostBar.Size = Setting.PostBarSize;
+
+            _formSetting.FormPostBar = _formPostBar;
+            _formPostBar.FormMain = this;
         }
         #endregion
 
@@ -129,6 +147,7 @@ namespace nokakoi
                 buttonStop.Enabled = true;
                 buttonStop.Focus();
                 buttonPost.Enabled = true;
+                _formPostBar.buttonPost.Enabled = true;
                 textBoxTimeline.Text = "> Create subscription." + Environment.NewLine + textBoxTimeline.Text;
             }
             catch (Exception ex)
@@ -231,7 +250,7 @@ namespace nokakoi
                                 string msg = content;
                                 if (msg.Length > _cutLength)
                                 {
-                                    msg = $"{msg[.._cutLength]}（以下略）";
+                                    msg = $"{msg[.._cutLength]} . . .\\u長いよっ！";
                                 }
                                 string sstpmsg = $"{_mesHeader}\\h{msg}\\e\r\n";
                                 string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
@@ -277,6 +296,7 @@ namespace nokakoi
                 buttonConnect.Focus();
                 buttonStop.Enabled = false;
                 buttonPost.Enabled = false;
+                _formPostBar.buttonPost.Enabled = false;
             }
             catch (Exception ex)
             {
@@ -288,7 +308,7 @@ namespace nokakoi
 
         #region Postボタン
         // Postボタン
-        private void buttonPost_Click(object sender, EventArgs e)
+        internal void buttonPost_Click(object sender, EventArgs e)
         {
             if (0 == _formSetting.textBoxNokakoiKey.TextLength || 0 == _formSetting.textBoxPassword.TextLength)
             {
@@ -306,6 +326,7 @@ namespace nokakoi
                 _ = PostAsync();
 
                 textBoxPost.Text = string.Empty;
+                _formPostBar.textBoxPost.Text = string.Empty;
             }
             catch (Exception ex)
             {
@@ -313,7 +334,14 @@ namespace nokakoi
                 textBoxTimeline.Text = "> Could not post." + Environment.NewLine + textBoxTimeline.Text;
             }
 
-            textBoxPost.Focus();
+            if (checkBoxPostBar.Checked)
+            {
+                _formPostBar.textBoxPost.Focus();
+            }
+            else
+            {
+                textBoxPost.Focus();
+            }
         }
         #endregion
 
@@ -383,6 +411,7 @@ namespace nokakoi
                 _cutLength = 1;
             }
             Opacity = _formSetting.trackBarOpacity.Value / 100.0;
+            _formPostBar.Opacity = Opacity;
             _displayTime = _formSetting.checkBoxDisplayTime.Checked;
             _addShortcode = _formSetting.checkBoxAddEndTag.Checked;
             _shortcode = _formSetting.textBoxShortcode.Text;
@@ -467,7 +496,7 @@ namespace nokakoi
         // 閉じる
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (WindowState != FormWindowState.Normal)
+            if (FormWindowState.Normal != WindowState)
             {
                 // 最小化最大化状態の時、元の位置と大きさを保存
                 Setting.Location = RestoreBounds.Location;
@@ -478,6 +507,8 @@ namespace nokakoi
                 Setting.Location = Location;
                 Setting.Size = Size;
             }
+            Setting.PostBarLocation = _formPostBar.Location;
+            Setting.PostBarSize = _formPostBar.Size;
             Setting.Relay = textBoxRelay.Text;
             Setting.Save("nokakoi.config");
 
@@ -485,5 +516,15 @@ namespace nokakoi
             Application.Exit(); // ←これで殺す。SSTLibに手を入れた方がいいが、とりあえず。
         }
         #endregion
+
+        private void FormMain_Load(object sender, EventArgs e)
+        {
+            _formPostBar.ShowDialog();
+        }
+
+        private void checkBoxPostBar_CheckedChanged(object sender, EventArgs e)
+        {
+            _formPostBar.Visible = checkBoxPostBar.Checked;
+        }
     }
 }
