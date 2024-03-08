@@ -95,11 +95,11 @@ namespace nokakoi
 
         #region Connectボタン
         // Connectボタン
-        private async void buttonConnect_Click(object sender, EventArgs e)
+        private void buttonConnect_Click(object sender, EventArgs e)
         {
             try
             {
-                await ConnectAsync();
+                _ = ConnectAsync();
 
                 textBoxRelay.ForeColor = SystemColors.GrayText;
                 buttonConnect.Enabled = false;
@@ -129,15 +129,23 @@ namespace nokakoi
 
         #region Startボタン
         // Startボタン
-        private async void buttonStart_Click(object sender, EventArgs e)
+        private void buttonStart_Click(object sender, EventArgs e)
         {
-            await StartAsync();
+            try
+            {
+                _ = StartAsync();
 
-            buttonStart.Enabled = false;
-            buttonStop.Enabled = true;
-            buttonStop.Focus();
-            buttonPost.Enabled = true;
-            textBoxTimeline.Text = "> Create subscription." + Environment.NewLine + textBoxTimeline.Text;
+                buttonStart.Enabled = false;
+                buttonStop.Enabled = true;
+                buttonStop.Focus();
+                buttonPost.Enabled = true;
+                textBoxTimeline.Text = "> Create subscription." + Environment.NewLine + textBoxTimeline.Text;
+            }
+            catch (Exception ex)
+            {
+                Debug.Print(ex.ToString());
+                textBoxTimeline.Text = "> Could not start." + Environment.NewLine + textBoxTimeline.Text;
+            }
         }
         #endregion
 
@@ -253,25 +261,33 @@ namespace nokakoi
 
         #region Stopボタン
         // Stopボタン
-        private async void buttonStop_Click(object sender, EventArgs e)
+        private void buttonStop_Click(object sender, EventArgs e)
         {
             if (null == _client)
             {
                 return;
             }
 
-            await _client.CloseSubscription(_subscriptionId);
-            textBoxTimeline.Text = "> Close subscription." + Environment.NewLine + textBoxTimeline.Text;
-            await _client.Disconnect();
-            textBoxTimeline.Text = "> Disconnect." + Environment.NewLine + textBoxTimeline.Text;
-            _client.Dispose();
-            //textBoxTimeline.Text = "> Finish." + Environment.NewLine + textBoxTimeline.Text;
+            try
+            {
+                _ = _client.CloseSubscription(_subscriptionId);
+                textBoxTimeline.Text = "> Close subscription." + Environment.NewLine + textBoxTimeline.Text;
+                _ = _client.Disconnect();
+                textBoxTimeline.Text = "> Disconnect." + Environment.NewLine + textBoxTimeline.Text;
+                _client.Dispose();
+                //textBoxTimeline.Text = "> Finish." + Environment.NewLine + textBoxTimeline.Text;
 
-            textBoxRelay.ForeColor = SystemColors.WindowText;
-            buttonConnect.Enabled = true;
-            buttonConnect.Focus();
-            buttonStop.Enabled = false;
-            buttonPost.Enabled = false;
+                textBoxRelay.ForeColor = SystemColors.WindowText;
+                buttonConnect.Enabled = true;
+                buttonConnect.Focus();
+                buttonStop.Enabled = false;
+                buttonPost.Enabled = false;
+            }
+            catch (Exception ex)
+            {
+                Debug.Print(ex.ToString());
+                textBoxTimeline.Text = "> Could not stop." + Environment.NewLine + textBoxTimeline.Text;
+            }
         }
         #endregion
 
@@ -290,9 +306,18 @@ namespace nokakoi
                 return;
             }
 
-            _ = PostAsync();
+            try
+            {
+                _ = PostAsync();
 
-            textBoxPost.Text = string.Empty;
+                textBoxPost.Text = string.Empty;
+            }
+            catch (Exception ex)
+            {
+                Debug.Print(ex.ToString());
+                textBoxTimeline.Text = "> Could not post." + Environment.NewLine + textBoxTimeline.Text;
+            }
+
             textBoxPost.Focus();
         }
         #endregion

@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\nokakoiCrypt\nokakoiCrypt.csproj" />
+    <ProjectReference Include="..\SSTPLib\SSTPLib.csproj" />
   </ItemGroup>
 
   <ItemGroup>
