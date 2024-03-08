@@ -238,7 +238,11 @@ namespace nokakoi
                             if (null != _ds)
                             {
                                 SearchGhost();
-                                string sstpmsg = $"{_mesHeader}\\h{content}\\e\r\n";
+                                string msg = content;
+                                if (msg.Length > _cutLength) {
+                                    msg = $"{msg[.._cutLength]}Åià»â∫ó™Åj";
+                                }
+                                string sstpmsg = $"{_mesHeader}\\h{msg}\\e\r\n";
                                 string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
                                 Debug.WriteLine(r);
                             }
