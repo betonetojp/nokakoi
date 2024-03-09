@@ -167,9 +167,9 @@
             checkBoxAddClient.AutoSize = true;
             checkBoxAddClient.Location = new Point(12, 147);
             checkBoxAddClient.Name = "checkBoxAddClient";
-            checkBoxAddClient.Size = new Size(218, 19);
+            checkBoxAddClient.Size = new Size(173, 19);
             checkBoxAddClient.TabIndex = 8;
-            checkBoxAddClient.Text = "Add tag [\"client\",\"nokakoi\"] to posts";
+            checkBoxAddClient.Text = "Add tag [\"client\",\"nokakoi\"]";
             checkBoxAddClient.UseVisualStyleBackColor = true;
             // 
             // label5
@@ -208,9 +208,9 @@
             checkBoxShowOnlyJapanese.AutoSize = true;
             checkBoxShowOnlyJapanese.Location = new Point(12, 197);
             checkBoxShowOnlyJapanese.Name = "checkBoxShowOnlyJapanese";
-            checkBoxShowOnlyJapanese.Size = new Size(156, 19);
+            checkBoxShowOnlyJapanese.Size = new Size(162, 19);
             checkBoxShowOnlyJapanese.TabIndex = 10;
-            checkBoxShowOnlyJapanese.Text = "Show only Japanes posts";
+            checkBoxShowOnlyJapanese.Text = "Show only Japanese posts";
             checkBoxShowOnlyJapanese.UseVisualStyleBackColor = true;
             // 
             // label6
