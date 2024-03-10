@@ -214,7 +214,7 @@ namespace nokakoi
                             if (null != _ds)
                             {
                                 SearchGhost();
-                                string sstpmsg = $"{_mesHeader}\\uリアクション {content}\\e\r\n";
+                                string sstpmsg = $"{_mesHeader}\\u\\p[1]\\s[10]リアクション {content}\\e\r\n";
                                 string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
                                 Debug.WriteLine(r);
                             }
@@ -250,9 +250,9 @@ namespace nokakoi
                                 string msg = content;
                                 if (msg.Length > _cutLength)
                                 {
-                                    msg = $"{msg[.._cutLength]} . . .\\u長いよっ！";
+                                    msg = $"{msg[.._cutLength]} . . .\\u\\p[1]\\s[10]長いよっ！";
                                 }
-                                string sstpmsg = $"{_mesHeader}\\h{msg}\\e\r\n";
+                                string sstpmsg = $"{_mesHeader}\\h\\p[0]\\s[0]{msg}\\e\r\n";
                                 string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
                                 Debug.WriteLine(r);
                             }
