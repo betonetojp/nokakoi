@@ -270,6 +270,30 @@ namespace nokakoi
                     }
                 }
             }
+            else
+            {
+                foreach (var nostrEvent in args.events)
+                {
+                    if (0 == nostrEvent.Kind)
+                    {
+                        var x = Regex.Unescape(nostrEvent.Content);
+                        Debug.WriteLine(x);
+                    }
+                    if (3 == nostrEvent.Kind)
+                    {
+                        var x = nostrEvent.Tags;
+                        foreach (var tag in x)
+                        {
+                            // フォロイー
+                            if("p" == tag.TagIdentifier)
+                            {
+                                Debug.WriteLine(tag.Data[0]);
+                            }
+                        }
+
+                    }
+                }
+            }
         }
         #endregion
 
@@ -381,7 +405,7 @@ namespace nokakoi
 
         #region Settingボタン
         // Settingボタン
-        private void buttonSetting_Click(object sender, EventArgs e)
+        private async void buttonSetting_Click(object sender, EventArgs e)
         {
             // 開く前
             _formSetting.checkBoxTopMost.Checked = TopMost;
@@ -426,6 +450,14 @@ namespace nokakoi
                 _nsec = NokakoiCrypt.DecryptNokakoiKey(_nokakoiKey, _password);
                 _npub = _nsec.GetNpub();
                 //textBoxTimeline.Text = "> Welcome " + _npub + Environment.NewLine + textBoxTimeline.Text;
+
+                var kind0SubscriptionId = Guid.NewGuid().ToString("N");
+                var kind0Client = new NostrClient(new Uri(textBoxRelay.Text));
+                await kind0Client.Connect();
+                _ = GetMyDataAsync(kind0Client, kind0SubscriptionId);
+                //await kind0Client.CloseSubscription(kind0SubscriptionId);
+                //await kind0Client.Disconnect();
+                //kind0Client.Dispose();
             }
             catch (Exception ex)
             {
@@ -449,6 +481,27 @@ namespace nokakoi
             Setting.Save("nokakoi.config");
         }
         #endregion
+
+        private async Task GetMyDataAsync(NostrClient client, String subscriptionId)
+        {
+            if (null == client)
+            {
+                return;
+            }
+
+            await client.CreateSubscription(
+                    subscriptionId,
+                    [
+                        new NostrSubscriptionFilter
+                        {
+                            Kinds = [0, 3],
+                            Authors = [_npub.ConvertToHex()]
+                        }
+                    ]
+                 );
+
+            client.EventsReceived += OnClientOnEventsReceived;
+        }
 
         #region 透明解除処理
         // マウス入った時
