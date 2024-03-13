@@ -23,6 +23,7 @@ namespace nokakoi
             public bool AddClient { get; set; } = true;
             public bool ShowOnlyTagged { get; set; } = false;
             public bool ShowOnlyJapanese { get; set; } = false;
+            public bool ShowOnlyFollowees { get; set; } = false;
             public string NokakoiKey { get; set; } = string.Empty;
             public Point PostBarLocation { get; set; }
             public Size PostBarSize { get; set; }
@@ -172,6 +173,17 @@ namespace nokakoi
             set
             {
                 _data.ShowOnlyJapanese = value;
+            }
+        }
+        public static bool ShowOnlyFollowees
+        {
+            get
+            {
+                return _data.ShowOnlyFollowees;
+            }
+            set
+            {
+                _data.ShowOnlyFollowees = value;
             }
         }
         public static string NokakoiKey
