@@ -50,6 +50,7 @@
             label7 = new Label();
             labelVersion = new Label();
             labelOpacity = new Label();
+            checkBoxShowOnlyFollowees = new CheckBox();
             ((System.ComponentModel.ISupportInitialize)trackBarOpacity).BeginInit();
             SuspendLayout();
             // 
@@ -57,11 +58,11 @@
             // 
             textBoxNokakoiKey.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxNokakoiKey.ImeMode = ImeMode.Disable;
-            textBoxNokakoiKey.Location = new Point(12, 241);
+            textBoxNokakoiKey.Location = new Point(12, 262);
             textBoxNokakoiKey.MaxLength = 136;
             textBoxNokakoiKey.Name = "textBoxNokakoiKey";
             textBoxNokakoiKey.Size = new Size(127, 23);
-            textBoxNokakoiKey.TabIndex = 11;
+            textBoxNokakoiKey.TabIndex = 12;
             // 
             // textBoxCutLength
             // 
@@ -85,13 +86,13 @@
             // 
             textBoxPassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             textBoxPassword.ImeMode = ImeMode.Disable;
-            textBoxPassword.Location = new Point(145, 241);
+            textBoxPassword.Location = new Point(145, 262);
             textBoxPassword.MaxLength = 256;
             textBoxPassword.Name = "textBoxPassword";
             textBoxPassword.PasswordChar = '*';
             textBoxPassword.PlaceholderText = "password";
             textBoxPassword.Size = new Size(127, 23);
-            textBoxPassword.TabIndex = 12;
+            textBoxPassword.TabIndex = 13;
             // 
             // trackBarOpacity
             // 
@@ -127,7 +128,7 @@
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new Point(12, 223);
+            label3.Location = new Point(12, 244);
             label3.Name = "label3";
             label3.Size = new Size(252, 15);
             label3.TabIndex = 0;
@@ -176,7 +177,7 @@
             // 
             label5.AutoSize = true;
             label5.ForeColor = SystemColors.GrayText;
-            label5.Location = new Point(104, 267);
+            label5.Location = new Point(100, 297);
             label5.Name = "label5";
             label5.Size = new Size(126, 15);
             label5.TabIndex = 0;
@@ -185,10 +186,10 @@
             // linkLabelIcons8
             // 
             linkLabelIcons8.AutoSize = true;
-            linkLabelIcons8.Location = new Point(231, 267);
+            linkLabelIcons8.Location = new Point(231, 297);
             linkLabelIcons8.Name = "linkLabelIcons8";
             linkLabelIcons8.Size = new Size(41, 15);
-            linkLabelIcons8.TabIndex = 11;
+            linkLabelIcons8.TabIndex = 14;
             linkLabelIcons8.TabStop = true;
             linkLabelIcons8.Text = "Icons8";
             linkLabelIcons8.LinkClicked += linkLabelIcons8_LinkClicked;
@@ -198,9 +199,9 @@
             checkBoxShowOnlyTagged.AutoSize = true;
             checkBoxShowOnlyTagged.Location = new Point(12, 172);
             checkBoxShowOnlyTagged.Name = "checkBoxShowOnlyTagged";
-            checkBoxShowOnlyTagged.Size = new Size(233, 19);
+            checkBoxShowOnlyTagged.Size = new Size(185, 19);
             checkBoxShowOnlyTagged.TabIndex = 9;
-            checkBoxShowOnlyTagged.Text = "Show only posts tagged with the above";
+            checkBoxShowOnlyTagged.Text = "Show only posts from nokakoi";
             checkBoxShowOnlyTagged.UseVisualStyleBackColor = true;
             // 
             // checkBoxShowOnlyJapanese
@@ -243,11 +244,11 @@
             // labelVersion
             // 
             labelVersion.AutoSize = true;
-            labelVersion.Location = new Point(12, 267);
+            labelVersion.Location = new Point(12, 297);
             labelVersion.Name = "labelVersion";
-            labelVersion.Size = new Size(43, 15);
-            labelVersion.TabIndex = 15;
-            labelVersion.Text = "v0.2.10";
+            labelVersion.Size = new Size(65, 15);
+            labelVersion.TabIndex = 0;
+            labelVersion.Text = "v0.3.0-beta";
             // 
             // labelOpacity
             // 
@@ -258,11 +259,22 @@
             labelOpacity.Text = "100%";
             labelOpacity.TextAlign = ContentAlignment.TopRight;
             // 
+            // checkBoxShowOnlyFollowees
+            // 
+            checkBoxShowOnlyFollowees.AutoSize = true;
+            checkBoxShowOnlyFollowees.Location = new Point(12, 222);
+            checkBoxShowOnlyFollowees.Name = "checkBoxShowOnlyFollowees";
+            checkBoxShowOnlyFollowees.Size = new Size(134, 19);
+            checkBoxShowOnlyFollowees.TabIndex = 11;
+            checkBoxShowOnlyFollowees.Text = "Show only followees";
+            checkBoxShowOnlyFollowees.UseVisualStyleBackColor = true;
+            // 
             // FormSetting
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(284, 291);
+            ClientSize = new Size(284, 321);
+            Controls.Add(checkBoxShowOnlyFollowees);
             Controls.Add(labelOpacity);
             Controls.Add(labelVersion);
             Controls.Add(label7);
@@ -288,7 +300,7 @@
             KeyPreview = true;
             MaximizeBox = false;
             MinimizeBox = false;
-            MinimumSize = new Size(300, 330);
+            MinimumSize = new Size(300, 360);
             Name = "FormSetting";
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
@@ -324,5 +336,6 @@
         internal TextBox textBoxEmojiUrl;
         private Label labelVersion;
         private Label labelOpacity;
+        internal CheckBox checkBoxShowOnlyFollowees;
     }
 }

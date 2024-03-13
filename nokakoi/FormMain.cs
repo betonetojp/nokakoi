@@ -4,8 +4,8 @@ using NTextCat;
 using NTextCat.Commons;
 using SSTPLib;
 using System.Diagnostics;
-using System.Text.RegularExpressions;
 using System.Net.WebSockets;
+using System.Text.RegularExpressions;
 
 namespace nokakoi
 {
@@ -32,6 +32,7 @@ namespace nokakoi
         private bool _addClient;
         private bool _showOnlyTagged;
         private bool _showOnlyJapanese;
+        private bool _showOnlyFollowees;
         private string _nokakoiKey = string.Empty;
         private string _password = string.Empty;
 
@@ -71,6 +72,7 @@ namespace nokakoi
             _addClient = Setting.AddClient;
             _showOnlyTagged = Setting.ShowOnlyTagged;
             _showOnlyJapanese = Setting.ShowOnlyJapanese;
+            _showOnlyFollowees = Setting.ShowOnlyFollowees;
             _nokakoiKey = Setting.NokakoiKey;
             _formPostBar.Location = Setting.PostBarLocation;
             if (new Point(0, 0) == _formPostBar.Location)
@@ -179,12 +181,12 @@ namespace nokakoi
                 return;
             }
 
-            _ =  _client.CreateSubscription(
+            _ = _client.CreateSubscription(
                     _subscriptionId,
                     [
                         new NostrSubscriptionFilter()
                         {
-                            Kinds = [1,7], // 1: text note, 7: reaction
+                            Kinds = [1,7], // 1: テキストノート, 7: リアクション
                             Since = DateTimeOffset.Now - _timeSpan,
                         }
                     ]
@@ -216,11 +218,11 @@ namespace nokakoi
                     }
 
                     _follows.TryGetValue(nostrEvent.PublicKey, out User? user);
-                    string? userInfo = "unknown";
+                    string? userInfo = "*UNK*";
                     string speaker = "\\u\\p[1]\\s[10]";
                     if (null != user)
                     {
-                        userInfo = $"{user.DisplayName}";// @{user.Name}";
+                        userInfo = user.DisplayName ?? $"@{user.Name}";
                         speaker = "\\h\\p[0]\\s[0]";
                     }
 
@@ -262,11 +264,17 @@ namespace nokakoi
                                 continue;
                             }
 
+                            if (_showOnlyFollowees && !_follows.ContainsKey(nostrEvent.PublicKey))
+                            {
+                                // フォロイー限定表示オンのでフォロイーじゃない時は表示しない
+                                continue;
+                            }
+
                             // SSPに送る
                             if (null != _ds)
                             {
                                 SearchGhost();
-                                
+
                                 string msg = content;
                                 if (msg.Length > _cutLength)
                                 {
@@ -285,7 +293,7 @@ namespace nokakoi
                             }
                         }
 
-                        textBoxTimeline.Text = (iSnokakoi ? "*" : "-") 
+                        textBoxTimeline.Text = (iSnokakoi ? "*" : "-")
                                              + (_displayTime ? $"{timeString} {userInfo}{Environment.NewLine}" : string.Empty)
                                              + " " + content + Environment.NewLine + textBoxTimeline.Text;
                     }
@@ -300,7 +308,7 @@ namespace nokakoi
                     {
                         var contentJson = Regex.Unescape(nostrEvent.Content);
                         var user = Tools.JsonToUser(contentJson);
-                        Debug.WriteLine($"{user?.DisplayName} @{user?.Name} {user?.Nip05} {user?.Picture}");
+                        Debug.WriteLine($"{nostrEvent.PublicKey} {user?.DisplayName} @{user?.Name} {user?.Nip05}");
                         // 辞書に追加
                         _follows[nostrEvent.PublicKey] = user;
                     }
@@ -344,7 +352,7 @@ namespace nokakoi
                 _ = _client.Disconnect();
                 textBoxTimeline.Text = "> Disconnect." + Environment.NewLine + textBoxTimeline.Text;
                 _client.Dispose();
-                //textBoxTimeline.Text = "> Finish." + Environment.NewLine + textBoxTimeline.Text;
+                _client = null;
 
                 textBoxRelay.ForeColor = SystemColors.WindowText;
                 buttonConnect.Enabled = true;
@@ -449,6 +457,7 @@ namespace nokakoi
             _formSetting.checkBoxAddClient.Checked = _addClient;
             _formSetting.checkBoxShowOnlyTagged.Checked = _showOnlyTagged;
             _formSetting.checkBoxShowOnlyJapanese.Checked = _showOnlyJapanese;
+            _formSetting.checkBoxShowOnlyFollowees.Checked = _showOnlyFollowees;
             _formSetting.textBoxNokakoiKey.Text = _nokakoiKey;
             _formSetting.textBoxPassword.Text = _password;
 
@@ -474,6 +483,7 @@ namespace nokakoi
             _addClient = _formSetting.checkBoxAddClient.Checked;
             _showOnlyTagged = _formSetting.checkBoxShowOnlyTagged.Checked;
             _showOnlyJapanese = _formSetting.checkBoxShowOnlyJapanese.Checked;
+            _showOnlyFollowees = _formSetting.checkBoxShowOnlyFollowees.Checked;
             _nokakoiKey = _formSetting.textBoxNokakoiKey.Text;
             _password = _formSetting.textBoxPassword.Text;
             try
@@ -520,6 +530,7 @@ namespace nokakoi
             Setting.AddClient = _addClient;
             Setting.ShowOnlyTagged = _showOnlyTagged;
             Setting.ShowOnlyJapanese = _showOnlyJapanese;
+            Setting.ShowOnlyFollowees = _showOnlyFollowees;
             Setting.NokakoiKey = _nokakoiKey;
 
             Setting.Save("nokakoi.config");
