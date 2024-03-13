@@ -5,6 +5,7 @@ using NTextCat.Commons;
 using SSTPLib;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using System.Net.WebSockets;
 
 namespace nokakoi
 {
@@ -18,6 +19,10 @@ namespace nokakoi
         private string _subscriptionId = string.Empty;
         private string _nsec = string.Empty;
         private string _npub = string.Empty;
+        private string _npubHex = string.Empty;
+        private readonly string _getFollowsSubscriptionId = Guid.NewGuid().ToString("N");
+        private readonly string _getProfilesSubscriptionId = Guid.NewGuid().ToString("N");
+        private Dictionary<string, User?> _follows = [];
 
         private int _cutLength;
         private bool _displayTime;
@@ -129,9 +134,16 @@ namespace nokakoi
         private async Task ConnectAsync()
         {
             _subscriptionId = Guid.NewGuid().ToString("N");
-            _client = new NostrClient(new Uri(textBoxRelay.Text));
-
-            await _client.Connect();
+            if (null == _client)
+            {
+                _client = new NostrClient(new Uri(textBoxRelay.Text));
+                await _client.Connect();
+                _client.EventsReceived += OnClientOnEventsReceived;
+            }
+            else if (WebSocketState.CloseReceived < _client.State)
+            {
+                await _client.Connect();
+            }
         }
         #endregion
 
@@ -141,7 +153,7 @@ namespace nokakoi
         {
             try
             {
-                _ = StartAsync();
+                Subscribe();
 
                 buttonStart.Enabled = false;
                 buttonStop.Enabled = true;
@@ -160,14 +172,14 @@ namespace nokakoi
 
         #region 購読処理
         // 購読処理
-        private async Task StartAsync()
+        private void Subscribe()
         {
             if (null == _client)
             {
                 return;
             }
 
-            await _client.CreateSubscription(
+            _ =  _client.CreateSubscription(
                     _subscriptionId,
                     [
                         new NostrSubscriptionFilter()
@@ -177,8 +189,6 @@ namespace nokakoi
                         }
                     ]
                  );
-
-            _client.EventsReceived += OnClientOnEventsReceived;
         }
         #endregion
 
@@ -205,25 +215,34 @@ namespace nokakoi
                         timeString = string.Format("{0:D2}", hour) + ":" + string.Format("{0:D2}", minute);
                     }
 
-                    //  7: reaction
+                    _follows.TryGetValue(nostrEvent.PublicKey, out User? user);
+                    string? userInfo = "unknown";
+                    string speaker = "\\u\\p[1]\\s[10]";
+                    if (null != user)
+                    {
+                        userInfo = $"{user.DisplayName} @{user.Name}";
+                        speaker = "\\h\\p[0]\\s[0]";
+                    }
+
+                    // リアクション
                     if (7 == nostrEvent.Kind)
                     {
-                        if (!_npub.IsNullOrEmpty() && nostrEvent.GetTaggedPublicKeys().Contains(_npub.ConvertToHex()))
+                        if (!_npubHex.IsNullOrEmpty() && nostrEvent.GetTaggedPublicKeys().Contains(_npubHex))
                         {
                             // SSPに送る
                             if (null != _ds)
                             {
                                 SearchGhost();
-                                string sstpmsg = $"{_mesHeader}\\u\\p[1]\\s[10]リアクション {content}\\e\r\n";
+                                string sstpmsg = $"{_mesHeader}{speaker}リアクション {userInfo} {content}\\e\r\n";
                                 string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
                                 Debug.WriteLine(r);
                             }
 
                             textBoxTimeline.Text = "+" + (_displayTime ? timeString : string.Empty)
-                                         + " " + content + Environment.NewLine + textBoxTimeline.Text;
+                                         + " " + userInfo + " " + content + Environment.NewLine + textBoxTimeline.Text;
                         }
                     }
-                    //  1: text note
+                    // テキストノート
                     if (1 == nostrEvent.Kind)
                     {
                         var c = nostrEvent.GetTaggedData("client");
@@ -247,12 +266,13 @@ namespace nokakoi
                             if (null != _ds)
                             {
                                 SearchGhost();
+                                
                                 string msg = content;
                                 if (msg.Length > _cutLength)
                                 {
-                                    msg = $"{msg[.._cutLength]} . . .\\u\\p[1]\\s[10]長いよっ！";
+                                    msg = $"{msg[.._cutLength]} . . .";//\\u\\p[1]\\s[10]長いよっ！";
                                 }
-                                string sstpmsg = $"{_mesHeader}\\h\\p[0]\\s[0]{msg}\\e\r\n";
+                                string sstpmsg = $"{_mesHeader}{speaker}{userInfo}\\n{msg}\\e\r\n";
                                 string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
                                 Debug.WriteLine(r);
                             }
@@ -265,32 +285,41 @@ namespace nokakoi
                             }
                         }
 
-                        textBoxTimeline.Text = (iSnokakoi ? "*" : "-") + (_displayTime ? timeString : string.Empty)
+                        textBoxTimeline.Text = (iSnokakoi ? "*" : "-") 
+                                             + (_displayTime ? $"{timeString} {userInfo}{Environment.NewLine}" : string.Empty)
                                              + " " + content + Environment.NewLine + textBoxTimeline.Text;
                     }
                 }
             }
-            else
+            else // ちょっと乱暴か
             {
                 foreach (var nostrEvent in args.events)
                 {
-                    if (0 == nostrEvent.Kind)
+                    // プロフィール
+                    if (0 == nostrEvent.Kind && null != nostrEvent.Content)
                     {
-                        var x = Regex.Unescape(nostrEvent.Content);
-                        Debug.WriteLine(x);
+                        var contentJson = Regex.Unescape(nostrEvent.Content);
+                        var user = Tools.JsonToUser(contentJson);
+                        Debug.WriteLine($"{user?.DisplayName} @{user?.Name} {user?.Nip05} {user?.Picture}");
+                        // 辞書に追加
+                        _follows[nostrEvent.PublicKey] = user;
                     }
+
+                    // フォロイー
                     if (3 == nostrEvent.Kind)
                     {
-                        var x = nostrEvent.Tags;
-                        foreach (var tag in x)
+                        HashSet<string> hexs = [];
+                        var tags = nostrEvent.Tags;
+                        foreach (var tag in tags)
                         {
-                            // フォロイー
-                            if("p" == tag.TagIdentifier)
+                            if ("p" == tag.TagIdentifier)
                             {
-                                Debug.WriteLine(tag.Data[0]);
+                                _follows.TryAdd(tag.Data[0], null);
+                                hexs.Add(tag.Data[0]);
                             }
                         }
-
+                        // プロフィールを要求
+                        SubscribeProfiles([.. hexs]);
                     }
                 }
             }
@@ -309,6 +338,8 @@ namespace nokakoi
             try
             {
                 _ = _client.CloseSubscription(_subscriptionId);
+                _ = _client.CloseSubscription(_getFollowsSubscriptionId);
+                _ = _client.CloseSubscription(_getProfilesSubscriptionId);
                 textBoxTimeline.Text = "> Close subscription." + Environment.NewLine + textBoxTimeline.Text;
                 _ = _client.Disconnect();
                 textBoxTimeline.Text = "> Disconnect." + Environment.NewLine + textBoxTimeline.Text;
@@ -447,17 +478,30 @@ namespace nokakoi
             _password = _formSetting.textBoxPassword.Text;
             try
             {
+                _nsec = string.Empty;
+                _npubHex = string.Empty;
+                _npub = string.Empty;
                 _nsec = NokakoiCrypt.DecryptNokakoiKey(_nokakoiKey, _password);
-                _npub = _nsec.GetNpub();
+                _npubHex = _nsec.GetNpubHex();
+                _npub = _npubHex.ConvertToNpub();
                 //textBoxTimeline.Text = "> Welcome " + _npub + Environment.NewLine + textBoxTimeline.Text;
 
-                var kind0SubscriptionId = Guid.NewGuid().ToString("N");
-                var kind0Client = new NostrClient(new Uri(textBoxRelay.Text));
-                await kind0Client.Connect();
-                _ = GetMyDataAsync(kind0Client, kind0SubscriptionId);
-                //await kind0Client.CloseSubscription(kind0SubscriptionId);
-                //await kind0Client.Disconnect();
-                //kind0Client.Dispose();
+                if (!_npubHex.IsNullOrEmpty())
+                {
+                    // フォロイーを要求
+                    if (null == _client)
+                    {
+                        _client = new NostrClient(new Uri(textBoxRelay.Text));
+                        await _client.Connect();
+                        _client.EventsReceived += OnClientOnEventsReceived;
+                    }
+                    else if (WebSocketState.CloseReceived < _client.State)
+                    {
+                        await _client.Connect();
+                    }
+                    SubscribeFollows(_npubHex);
+                    //SubscribeProfiles([_npubHex]);
+                }
             }
             catch (Exception ex)
             {
@@ -482,26 +526,49 @@ namespace nokakoi
         }
         #endregion
 
-        private async Task GetMyDataAsync(NostrClient client, String subscriptionId)
+        #region フォロイー購読処理
+        // フォロイー購読処理
+        private void SubscribeFollows(string author)
         {
-            if (null == client)
+            if (null == _client)
             {
                 return;
             }
 
-            await client.CreateSubscription(
-                    subscriptionId,
+            _ = _client.CreateSubscription(
+                    _getFollowsSubscriptionId,
                     [
                         new NostrSubscriptionFilter
                         {
-                            Kinds = [0, 3],
-                            Authors = [_npub.ConvertToHex()]
+                            Kinds = [3],
+                            Authors = [author]
                         }
                     ]
                  );
-
-            client.EventsReceived += OnClientOnEventsReceived;
         }
+        #endregion
+
+        #region プロフィール購読処理
+        // プロフィール購読処理
+        private void SubscribeProfiles(string[] authors)
+        {
+            if (null == _client)
+            {
+                return;
+            }
+
+            _ = _client.CreateSubscription(
+                    _getProfilesSubscriptionId,
+                    [
+                        new NostrSubscriptionFilter
+                        {
+                            Kinds = [0],
+                            Authors = authors
+                        }
+                    ]
+                 );
+        }
+        #endregion
 
         #region 透明解除処理
         // マウス入った時
