@@ -157,9 +157,9 @@
             checkBoxDisplayTime.AutoSize = true;
             checkBoxDisplayTime.Location = new Point(12, 66);
             checkBoxDisplayTime.Name = "checkBoxDisplayTime";
-            checkBoxDisplayTime.Size = new Size(90, 19);
+            checkBoxDisplayTime.Size = new Size(145, 19);
             checkBoxDisplayTime.TabIndex = 4;
-            checkBoxDisplayTime.Text = "Display time";
+            checkBoxDisplayTime.Text = "Display time and name";
             checkBoxDisplayTime.UseVisualStyleBackColor = true;
             // 
             // checkBoxAddClient
