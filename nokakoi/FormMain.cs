@@ -59,7 +59,15 @@ namespace nokakoi
         private double _tempOpacity = 1.00;
 
         private readonly DSSTPSender _ds = new("SakuraUnicode");
-        private readonly string _mesHeader = "SEND SSTP/1.0\r\nCharset: UTF-8\r\nSender: nokakoi\r\nOption: nobreak\r\nScript: ";
+        private readonly string _SSTPMethod = "NOTIFY SSTP/1.1";
+        private readonly Dictionary<string, string> _baseSSTPHeader = new(){
+            {"Charset","UTF-8"},
+            {"Sender","nokakoi"},
+            {"Option","nobreak,notranslate"},
+            {"Event","OnNostr"},
+            {"Reference0","Nostr/0.2"}
+        };
+
         private string _ghostName = string.Empty;
         #endregion
 
@@ -257,7 +265,14 @@ namespace nokakoi
                                 if (null != _ds)
                                 {
                                     SearchGhost();
-                                    string sstpmsg = $"{_mesHeader}{speaker}リアクション {userName} {content}\\e\r\n";
+                                    Dictionary<string, string> SSTPHeader = new(_baseSSTPHeader)
+                                    {
+                                        { "Reference1", "reaction" },
+                                        { "Reference2", content },
+                                        { "Reference3", userName },
+                                        { "Script", $"{speaker}リアクション {userName} {content}\\e" }
+                                    };
+                                    string sstpmsg = _SSTPMethod + "\r\n" + String.Join("\r\n", SSTPHeader.Select(kvp => kvp.Key + ": " + kvp.Value)) + "\r\n\r\n";
                                     string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
                                     Debug.WriteLine(r);
                                 }
@@ -309,9 +324,16 @@ namespace nokakoi
                                 {
                                     msg = $"{msg[.._cutLength]} . . .";//\\u\\p[1]\\s[10]長いよっ！";
                                 }
-                                string sstpmsg = $"{_mesHeader}{speaker}{userName}\\n{msg}\\e\r\n";
-                                string res = _ds.GetSSTPResponse(_ghostName, sstpmsg);
-                                //Debug.WriteLine(res);
+                                Dictionary<string, string> SSTPHeader = new(_baseSSTPHeader)
+                                {
+                                    { "Reference1", "note" },
+                                    { "Reference2", content },
+                                    { "Reference3", userName },
+                                    { "Script", $"{speaker}{userName}\\n{msg}\\e" }
+                                };
+                                string sstpmsg = _SSTPMethod + "\r\n" + String.Join("\r\n", SSTPHeader.Select(kvp => kvp.Key + ": " + kvp.Value)) + "\r\n\r\n";
+                                string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
+                                Debug.WriteLine(r);
                             }
 
                             // エスケープ解除（↑SSPにはエスケープされたまま送る）
