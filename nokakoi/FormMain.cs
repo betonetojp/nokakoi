@@ -132,7 +132,10 @@ namespace nokakoi
         #endregion
 
         #region 接続処理
-        // 接続処理
+        /// <summary>
+        /// 接続処理
+        /// </summary>
+        /// <returns></returns>
         private async Task ConnectAsync()
         {
             _subscriptionId = Guid.NewGuid().ToString("N");
@@ -173,7 +176,9 @@ namespace nokakoi
         #endregion
 
         #region 購読処理
-        // 購読処理
+        /// <summary>
+        /// 購読処理
+        /// </summary>
         private void Subscribe()
         {
             if (null == _client)
@@ -195,7 +200,11 @@ namespace nokakoi
         #endregion
 
         #region イベント受信時処理
-        // イベント受信時処理
+        /// <summary>
+        /// イベント受信時処理
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
         private void OnClientOnEventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) args)
         {
             if (args.subscriptionId == _subscriptionId)
@@ -409,7 +418,10 @@ namespace nokakoi
         #endregion
 
         #region 投稿処理
-        // 投稿処理
+        /// <summary>
+        /// 投稿処理
+        /// </summary>
+        /// <returns></returns>
         private async Task PostAsync()
         {
             if (null == _client)
@@ -538,7 +550,10 @@ namespace nokakoi
         #endregion
 
         #region フォロイー購読処理
-        // フォロイー購読処理
+        /// <summary>
+        /// フォロイー購読処理
+        /// </summary>
+        /// <param name="author"></param>
         private void SubscribeFollows(string author)
         {
             if (null == _client)
@@ -560,7 +575,10 @@ namespace nokakoi
         #endregion
 
         #region プロフィール購読処理
-        // プロフィール購読処理
+        /// <summary>
+        /// プロフィール購読処理
+        /// </summary>
+        /// <param name="authors"></param>
         private void SubscribeProfiles(string[] authors)
         {
             if (null == _client)
@@ -597,7 +615,11 @@ namespace nokakoi
         #endregion
 
         #region 言語判定
-        // 言語判定
+        /// <summary>
+        /// 言語判定
+        /// </summary>
+        /// <param name="text"></param>
+        /// <returns></returns>
         private static string DetermineLanguage(string text)
         {
             var factory = new RankedLanguageIdentifierFactory();
@@ -648,14 +670,20 @@ namespace nokakoi
         }
         #endregion
 
+        #region ロード時
+        // ロード時
         private void FormMain_Load(object sender, EventArgs e)
         {
             _formPostBar.ShowDialog();
         }
+        #endregion
 
+        #region ポストバー表示切り替え
+        // ポストバー表示切り替え
         private void checkBoxPostBar_CheckedChanged(object sender, EventArgs e)
         {
             _formPostBar.Visible = checkBoxPostBar.Checked;
         }
+        #endregion
     }
 }
