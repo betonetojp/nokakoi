@@ -11,20 +11,40 @@ namespace nokakoi
 {
     public partial class FormMain : Form
     {
+        #region メンバー変数
         private readonly TimeSpan _timeSpan = new(0, 0, 0, 0);
         private readonly FormSetting _formSetting = new();
         private readonly FormPostBar _formPostBar = new();
 
         private NostrClient? _client;
-        private string _subscriptionId = string.Empty;
-        private string _nsec = string.Empty;
-        private string _npub = string.Empty;
-        private string _npubHex = string.Empty;
+        /// <summary>
+        /// タイムライン購読ID
+        /// </summary>
+        private readonly string _subscriptionId = Guid.NewGuid().ToString("N");
+        /// <summary>
+        /// フォロイー購読ID
+        /// </summary>
         private readonly string _getFollowsSubscriptionId = Guid.NewGuid().ToString("N");
+        /// <summary>
+        /// プロフィール購読ID
+        /// </summary>
         private readonly string _getProfilesSubscriptionId = Guid.NewGuid().ToString("N");
-        private Dictionary<string, User?> _follows = [];
+
+        private string _nsec = string.Empty;
+        //private string _npub = string.Empty;
+        private string _npubHex = string.Empty;
+        
+        /// <summary>
+        /// フォロイー公開鍵のハッシュセット
+        /// </summary>
+        private HashSet<string> _followeesHexs = [];
+        /// <summary>
+        /// ユーザー辞書
+        /// </summary>
+        private Dictionary<string, User?> _users = [];
 
         private int _cutLength;
+        private int _cutNameLength;
         private bool _displayTime;
         private bool _addShortcode;
         private string _shortcode = string.Empty;
@@ -41,6 +61,7 @@ namespace nokakoi
         private readonly DSSTPSender _ds = new("SakuraUnicode");
         private readonly string _mesHeader = "SEND SSTP/1.0\r\nCharset: UTF-8\r\nSender: nokakoi\r\nOption: nobreak\r\nScript: ";
         private string _ghostName = string.Empty;
+        #endregion
 
         #region コンストラクタ
         // コンストラクタ
@@ -59,6 +80,7 @@ namespace nokakoi
             textBoxRelay.Text = Setting.Relay;
             TopMost = Setting.TopMost;
             _cutLength = Setting.CutLength;
+            _cutNameLength = Setting.CutNameLength;
             Opacity = Setting.Opacity;
             if (0 == Opacity)
             {
@@ -83,28 +105,6 @@ namespace nokakoi
 
             _formSetting.FormPostBar = _formPostBar;
             _formPostBar.FormMain = this;
-        }
-        #endregion
-
-        #region SSPゴースト名を取得する
-        /// <summary>
-        /// SSPゴースト名を取得する
-        /// </summary>
-        private void SearchGhost()
-        {
-            _ds.Update();
-            SakuraFMO fmo = (SakuraFMO)_ds.FMO;
-            var names = fmo.GetGhostNames();
-            if (names.Length > 0)
-            {
-                _ghostName = names.First(); // とりあえず先頭で
-                Debug.Print(_ghostName);
-            }
-            else
-            {
-                _ghostName = string.Empty;
-                Debug.Print("ゴーストがいません");
-            }
         }
         #endregion
 
@@ -138,7 +138,7 @@ namespace nokakoi
         /// <returns></returns>
         private async Task ConnectAsync()
         {
-            _subscriptionId = Guid.NewGuid().ToString("N");
+            //_subscriptionId = Guid.NewGuid().ToString("N");
             if (null == _client)
             {
                 _client = new NostrClient(new Uri(textBoxRelay.Text));
@@ -175,9 +175,9 @@ namespace nokakoi
         }
         #endregion
 
-        #region 購読処理
+        #region タイムライン購読処理
         /// <summary>
-        /// 購読処理
+        /// タイムライン購読処理
         /// </summary>
         private void Subscribe()
         {
@@ -207,76 +207,95 @@ namespace nokakoi
         /// <param name="args"></param>
         private void OnClientOnEventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) args)
         {
+            // タイムライン購読
             if (args.subscriptionId == _subscriptionId)
             {
                 foreach (var nostrEvent in args.events)
                 {
                     var content = nostrEvent.Content;
-
-                    DateTimeOffset time;
-                    int hour;
-                    int minute;
-                    string timeString = "- ";
-                    if (nostrEvent.CreatedAt != null)
+                    if (content != null)
                     {
-                        time = (DateTimeOffset)nostrEvent.CreatedAt;
-                        time = time.LocalDateTime;
-                        hour = time.Hour;
-                        minute = time.Minute;
-                        timeString = string.Format("{0:D2}", hour) + ":" + string.Format("{0:D2}", minute);
-                    }
-
-                    _follows.TryGetValue(nostrEvent.PublicKey, out User? user);
-                    string? userInfo = "*UNK*";
-                    string speaker = "\\u\\p[1]\\s[10]";
-                    if (null != user)
-                    {
-                        userInfo = user.DisplayName ?? $"@{user.Name}";
-                        speaker = "\\h\\p[0]\\s[0]";
-                    }
-
-                    // リアクション
-                    if (7 == nostrEvent.Kind)
-                    {
-                        if (!_npubHex.IsNullOrEmpty() && nostrEvent.GetTaggedPublicKeys().Contains(_npubHex))
+                        // 時間表示
+                        DateTimeOffset time;
+                        int hour;
+                        int minute;
+                        string timeString = "- ";
+                        if (nostrEvent.CreatedAt != null)
                         {
-                            // SSPに送る
-                            if (null != _ds)
+                            time = (DateTimeOffset)nostrEvent.CreatedAt;
+                            time = time.LocalDateTime;
+                            hour = time.Hour;
+                            minute = time.Minute;
+                            timeString = string.Format("{0:D2}", hour) + ":" + string.Format("{0:D2}", minute);
+                        }
+
+                        // フォロイーチェック
+                        string headMark = "-";
+                        string speaker = "\\u\\p[1]\\s[10]";
+                        if (_followeesHexs.Contains(nostrEvent.PublicKey))
+                        {
+                            headMark = "*";
+                            // さくら側がしゃべる
+                            speaker = "\\h\\p[0]\\s[0]";
+                        }
+
+                        // リアクション
+                        if (7 == nostrEvent.Kind)
+                        {
+                            // ログイン済みで自分へのリアクション
+                            if (!_npubHex.IsNullOrEmpty() && nostrEvent.GetTaggedPublicKeys().Contains(_npubHex))
                             {
-                                SearchGhost();
-                                string sstpmsg = $"{_mesHeader}{speaker}リアクション {userInfo} {content}\\e\r\n";
-                                string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
-                                Debug.WriteLine(r);
+                                // ユーザー表示名取得
+                                string userName = GetUserName(nostrEvent.PublicKey);
+                                // ユーザー表示名カット
+                                if (userName.Length > _cutNameLength)
+                                {
+                                    userName = $"{userName[.._cutNameLength]}...";
+                                }
+
+                                // SSPに送る
+                                if (null != _ds)
+                                {
+                                    SearchGhost();
+                                    string sstpmsg = $"{_mesHeader}{speaker}リアクション {userName} {content}\\e\r\n";
+                                    string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
+                                    Debug.WriteLine(r);
+                                }
+                                // 画面に表示
+                                textBoxTimeline.Text = "+" + (_displayTime ? timeString : string.Empty)
+                                             + " " + userName + " " + content + Environment.NewLine + textBoxTimeline.Text;
+                            }
+                        }
+                        // テキストノート
+                        if (1 == nostrEvent.Kind)
+                        {
+                            var c = nostrEvent.GetTaggedData("client");
+                            var iSnokakoi = -1 < Array.IndexOf(c, "nokakoi");
+
+                            // nokakoi限定表示オンでnokakoiじゃない時は表示しない
+                            if (_showOnlyTagged && !iSnokakoi)
+                            {
+                                continue;
                             }
 
-                            textBoxTimeline.Text = "+" + (_displayTime ? timeString : string.Empty)
-                                         + " " + userInfo + " " + content + Environment.NewLine + textBoxTimeline.Text;
-                        }
-                    }
-                    // テキストノート
-                    if (1 == nostrEvent.Kind)
-                    {
-                        var c = nostrEvent.GetTaggedData("client");
-                        var iSnokakoi = -1 < Array.IndexOf(c, "nokakoi");
-
-                        if (_showOnlyTagged && !iSnokakoi)
-                        {
-                            // nokakoi限定表示オンでnokakoiじゃない時は表示しない
-                            continue;
-                        }
-
-                        if (content != null)
-                        {
+                            // 日本語限定表示オンので日本語じゃない時は表示しない
                             if (_showOnlyJapanese && "jpn" != DetermineLanguage(content))
                             {
-                                // 日本語限定表示オンので日本語じゃない時は表示しない
                                 continue;
                             }
 
-                            if (_showOnlyFollowees && !_follows.ContainsKey(nostrEvent.PublicKey))
+                            // フォロイー限定表示オンのでフォロイーじゃない時は表示しない
+                            if (_showOnlyFollowees && !_followeesHexs.Contains(nostrEvent.PublicKey))
                             {
-                                // フォロイー限定表示オンのでフォロイーじゃない時は表示しない
                                 continue;
+                            }
+
+                            // ユーザー表示名取得（ユーザー辞書メモリ節約のため↑のフラグ処理後に）
+                            string userName = GetUserName(nostrEvent.PublicKey);
+                            // ユーザー表示名カット
+                            if (userName.Length > _cutNameLength)
+                            {
+                                userName = $"{userName[.._cutNameLength]}...";
                             }
 
                             // SSPに送る
@@ -285,58 +304,73 @@ namespace nokakoi
                                 SearchGhost();
 
                                 string msg = content;
+                                // 本文カット
                                 if (msg.Length > _cutLength)
                                 {
                                     msg = $"{msg[.._cutLength]} . . .";//\\u\\p[1]\\s[10]長いよっ！";
                                 }
-                                string sstpmsg = $"{_mesHeader}{speaker}{userInfo}\\n{msg}\\e\r\n";
-                                string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
-                                Debug.WriteLine(r);
+                                string sstpmsg = $"{_mesHeader}{speaker}{userName}\\n{msg}\\e\r\n";
+                                string res = _ds.GetSSTPResponse(_ghostName, sstpmsg);
+                                //Debug.WriteLine(res);
                             }
 
+                            // エスケープ解除（↑SSPにはエスケープされたまま送る）
                             content = Regex.Unescape(content);
+                            // 改行をスペースに置き換え
                             content = content.Replace('\n', ' ');
+                            // 本文カット
                             if (content.Length > _cutLength)
                             {
                                 content = $"{content[.._cutLength]} . . .";
                             }
+                            // 画面に表示
+                            textBoxTimeline.Text = (iSnokakoi ? "[n]" : string.Empty) + headMark
+                                                 + (_displayTime ? $"{timeString} {userName}{Environment.NewLine}" : string.Empty)
+                                                 + " " + content + Environment.NewLine + textBoxTimeline.Text;
                         }
-
-                        textBoxTimeline.Text = (iSnokakoi ? "*" : "-")
-                                             + (_displayTime ? $"{timeString} {userInfo}{Environment.NewLine}" : string.Empty)
-                                             + " " + content + Environment.NewLine + textBoxTimeline.Text;
                     }
                 }
             }
-            else // ちょっと乱暴か
+            // フォロイー購読
+            else if (args.subscriptionId == _getFollowsSubscriptionId)
+            {
+                foreach (var nostrEvent in args.events)
+                {
+                    // フォローリスト
+                    if (3 == nostrEvent.Kind)
+                    {
+                        var tags = nostrEvent.Tags;
+                        foreach (var tag in tags)
+                        {
+                            // 公開鍵を保存
+                            if ("p" == tag.TagIdentifier)
+                            {
+                                // 先頭を公開鍵と決めつけているが…
+                                _followeesHexs.Add(tag.Data[0]);
+                            }
+                        }
+                        // プロフィールを購読する
+                        SubscribeProfiles([.. _followeesHexs]);
+                    }
+                }
+            }
+            // プロフィール購読
+            else if (args.subscriptionId == _getProfilesSubscriptionId)
             {
                 foreach (var nostrEvent in args.events)
                 {
                     // プロフィール
                     if (0 == nostrEvent.Kind && null != nostrEvent.Content)
                     {
+                        //// ※nostrEvent.Contentがnullになってしまう特定ユーザーがいる。ライブラリの問題か。
+
+                        // エスケープされているので解除
                         var contentJson = Regex.Unescape(nostrEvent.Content);
                         var user = Tools.JsonToUser(contentJson);
-                        Debug.WriteLine($"{nostrEvent.PublicKey} {user?.DisplayName} @{user?.Name} {user?.Nip05}");
-                        // 辞書に追加
-                        _follows[nostrEvent.PublicKey] = user;
-                    }
-
-                    // フォロイー
-                    if (3 == nostrEvent.Kind)
-                    {
-                        HashSet<string> hexs = [];
-                        var tags = nostrEvent.Tags;
-                        foreach (var tag in tags)
-                        {
-                            if ("p" == tag.TagIdentifier)
-                            {
-                                _follows.TryAdd(tag.Data[0], null);
-                                hexs.Add(tag.Data[0]);
-                            }
-                        }
-                        // プロフィールを要求
-                        SubscribeProfiles([.. hexs]);
+                        
+                        // 辞書に追加（上書き）
+                        _users[nostrEvent.PublicKey] = user;
+                        Debug.WriteLine($"{nostrEvent.PublicKey} {user?.DisplayName} @{user?.Name}");
                     }
                 }
             }
@@ -461,6 +495,7 @@ namespace nokakoi
             // 開く前
             _formSetting.checkBoxTopMost.Checked = TopMost;
             _formSetting.textBoxCutLength.Text = _cutLength.ToString();
+            _formSetting.textBoxCutNameLength.Text = _cutNameLength.ToString();
             _formSetting.trackBarOpacity.Value = (int)(Opacity * 100);
             _formSetting.checkBoxDisplayTime.Checked = _displayTime;
             _formSetting.checkBoxAddEndTag.Checked = _addShortcode;
@@ -486,6 +521,14 @@ namespace nokakoi
             {
                 _cutLength = 1;
             }
+            if (!int.TryParse(_formSetting.textBoxCutNameLength.Text, out _cutNameLength))
+            {
+                _cutNameLength = 20;
+            }
+            else if (_cutNameLength < 1)
+            {
+                _cutNameLength = 1;
+            }
             Opacity = _formSetting.trackBarOpacity.Value / 100.0;
             _formPostBar.Opacity = Opacity;
             _displayTime = _formSetting.checkBoxDisplayTime.Checked;
@@ -500,17 +543,21 @@ namespace nokakoi
             _password = _formSetting.textBoxPassword.Text;
             try
             {
+                // 別アカウントログイン失敗に備えてクリアしておく
                 _nsec = string.Empty;
                 _npubHex = string.Empty;
-                _npub = string.Empty;
+                //_npub = string.Empty;
+                _followeesHexs.Clear();
+
+                // 秘密鍵と公開鍵取得
                 _nsec = NokakoiCrypt.DecryptNokakoiKey(_nokakoiKey, _password);
                 _npubHex = _nsec.GetNpubHex();
-                _npub = _npubHex.ConvertToNpub();
+                //_npub = _npubHex.ConvertToNpub();
                 //textBoxTimeline.Text = "> Welcome " + _npub + Environment.NewLine + textBoxTimeline.Text;
 
+                // ログイン済みの時
                 if (!_npubHex.IsNullOrEmpty())
                 {
-                    // フォロイーを要求
                     if (null == _client)
                     {
                         _client = new NostrClient(new Uri(textBoxRelay.Text));
@@ -521,8 +568,8 @@ namespace nokakoi
                     {
                         await _client.Connect();
                     }
+                    // フォロイーを購読をする
                     SubscribeFollows(_npubHex);
-                    //SubscribeProfiles([_npubHex]);
                 }
             }
             catch (Exception ex)
@@ -534,6 +581,7 @@ namespace nokakoi
 
             Setting.TopMost = TopMost;
             Setting.CutLength = _cutLength;
+            Setting.CutNameLength = _cutNameLength;
             Setting.Opacity = Opacity;
             Setting.DisplayTime = _displayTime;
             Setting.AddShortcode = _addShortcode;
@@ -614,6 +662,28 @@ namespace nokakoi
         }
         #endregion
 
+        #region SSPゴースト名を取得する
+        /// <summary>
+        /// SSPゴースト名を取得する
+        /// </summary>
+        private void SearchGhost()
+        {
+            _ds.Update();
+            SakuraFMO fmo = (SakuraFMO)_ds.FMO;
+            var names = fmo.GetGhostNames();
+            if (names.Length > 0)
+            {
+                _ghostName = names.First(); // とりあえず先頭で
+                Debug.Print(_ghostName);
+            }
+            else
+            {
+                _ghostName = string.Empty;
+                Debug.Print("ゴーストがいません");
+            }
+        }
+        #endregion
+
         #region 言語判定
         /// <summary>
         /// 言語判定
@@ -642,6 +712,31 @@ namespace nokakoi
             {
                 return string.Empty;
             }
+        }
+        #endregion
+
+        #region ユーザー表示名を取得する
+        /// <summary>
+        /// ユーザー表示名を取得する
+        /// </summary>
+        /// <param name="publicKeyHex">公開鍵HEX</param>
+        /// <returns>ユーザー表示名</returns>
+        private string GetUserName (string publicKeyHex)
+        {
+            // 辞書にない場合プロフィールを購読する
+            if (!_users.TryGetValue(publicKeyHex, out User? user))
+            {
+                SubscribeProfiles([publicKeyHex]);
+            }
+
+            // 情報があれば表示名を取得
+            string userName = "????";
+            if (null != user)
+            {
+                // display_nameが無い場合は@nameとする
+                userName = user.DisplayName ?? $"@{user.Name}";
+            }
+            return userName;
         }
         #endregion
 

@@ -1,3 +1,10 @@
+◆ 動作環境
+
+Windows11 22H2 (x64)
+.NET 8.0
+※ランタイムが必要です。インストールしていない場合は初回起動時の案内に従ってください。
+
+
 ◆ nokakoi.exe
 
 Nostrのリレーサーバーに接続してグローバルタイムラインをリアルタイムに表示するアプリケーションです。
@@ -41,8 +48,10 @@ SSPゴーストに送る文章も本体設定文字数でカットするよう�
 2024/03/09 ver. 0.2.10
 投稿特化のポストバーを追加。ポストバーの余白ダブルクリックでメイン画面を最小化できます。
 
-2024/03/14 ver. 0.3.0-beta
-フォロイーのみを表示する設定を追加。フォロイーの名前を表示する設定を追加。
+2024/03/14 ver. 0.3.0
+ユーザーの名前表示にゆるく対応。
+名前の表示長さを指定する設定を追加。
+フォロイーのみを表示する設定を追加。
 
 
 ◆ nokakoienc.exe
@@ -54,7 +63,7 @@ nokakoiキーとパスワードが漏れると、他者によるnoskoiでの投�
 パスワード変更して新しいnokakoiキーを作成したとしても、以前のnokakoiキーとパスワードの組み合わせは有効です。
 
 
-◆利用NuGetパッケージ
+◆ 利用NuGetパッケージ
 
 NNostr.Client
 https://raw.githubusercontent.com/Kukks/NNostr/master/LICENSE
@@ -63,7 +72,7 @@ NTextCat
 https://licenses.nuget.org/MIT
 
 
-◆DirectSSTP送信ライブラリ
+◆ DirectSSTP送信ライブラリ
 
 DirectSSTPTester
 https://github.com/nikolat/DirectSSTPTester

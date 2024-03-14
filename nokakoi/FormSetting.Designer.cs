@@ -51,6 +51,8 @@
             labelVersion = new Label();
             labelOpacity = new Label();
             checkBoxShowOnlyFollowees = new CheckBox();
+            label4 = new Label();
+            textBoxCutNameLength = new TextBox();
             ((System.ComponentModel.ISupportInitialize)trackBarOpacity).BeginInit();
             SuspendLayout();
             // 
@@ -58,11 +60,11 @@
             // 
             textBoxNokakoiKey.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxNokakoiKey.ImeMode = ImeMode.Disable;
-            textBoxNokakoiKey.Location = new Point(12, 262);
+            textBoxNokakoiKey.Location = new Point(12, 291);
             textBoxNokakoiKey.MaxLength = 136;
             textBoxNokakoiKey.Name = "textBoxNokakoiKey";
             textBoxNokakoiKey.Size = new Size(127, 23);
-            textBoxNokakoiKey.TabIndex = 12;
+            textBoxNokakoiKey.TabIndex = 13;
             // 
             // textBoxCutLength
             // 
@@ -86,13 +88,13 @@
             // 
             textBoxPassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             textBoxPassword.ImeMode = ImeMode.Disable;
-            textBoxPassword.Location = new Point(145, 262);
+            textBoxPassword.Location = new Point(145, 291);
             textBoxPassword.MaxLength = 256;
             textBoxPassword.Name = "textBoxPassword";
             textBoxPassword.PasswordChar = '*';
             textBoxPassword.PlaceholderText = "password";
             textBoxPassword.Size = new Size(127, 23);
-            textBoxPassword.TabIndex = 13;
+            textBoxPassword.TabIndex = 14;
             // 
             // trackBarOpacity
             // 
@@ -128,7 +130,7 @@
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new Point(12, 244);
+            label3.Location = new Point(12, 273);
             label3.Name = "label3";
             label3.Size = new Size(252, 15);
             label3.TabIndex = 0;
@@ -137,39 +139,39 @@
             // checkBoxAddEndTag
             // 
             checkBoxAddEndTag.AutoSize = true;
-            checkBoxAddEndTag.Location = new Point(12, 91);
+            checkBoxAddEndTag.Location = new Point(12, 120);
             checkBoxAddEndTag.Name = "checkBoxAddEndTag";
             checkBoxAddEndTag.Size = new Size(136, 19);
-            checkBoxAddEndTag.TabIndex = 5;
+            checkBoxAddEndTag.TabIndex = 6;
             checkBoxAddEndTag.Text = "Add emoji shortcode";
             checkBoxAddEndTag.UseVisualStyleBackColor = true;
             // 
             // textBoxShortcode
             // 
             textBoxShortcode.ImeMode = ImeMode.Disable;
-            textBoxShortcode.Location = new Point(154, 89);
+            textBoxShortcode.Location = new Point(154, 118);
             textBoxShortcode.Name = "textBoxShortcode";
             textBoxShortcode.Size = new Size(26, 23);
-            textBoxShortcode.TabIndex = 6;
+            textBoxShortcode.TabIndex = 7;
             textBoxShortcode.Text = "n";
             // 
             // checkBoxDisplayTime
             // 
             checkBoxDisplayTime.AutoSize = true;
-            checkBoxDisplayTime.Location = new Point(12, 66);
+            checkBoxDisplayTime.Location = new Point(12, 95);
             checkBoxDisplayTime.Name = "checkBoxDisplayTime";
             checkBoxDisplayTime.Size = new Size(145, 19);
-            checkBoxDisplayTime.TabIndex = 4;
+            checkBoxDisplayTime.TabIndex = 5;
             checkBoxDisplayTime.Text = "Display time and name";
             checkBoxDisplayTime.UseVisualStyleBackColor = true;
             // 
             // checkBoxAddClient
             // 
             checkBoxAddClient.AutoSize = true;
-            checkBoxAddClient.Location = new Point(12, 147);
+            checkBoxAddClient.Location = new Point(12, 176);
             checkBoxAddClient.Name = "checkBoxAddClient";
             checkBoxAddClient.Size = new Size(173, 19);
-            checkBoxAddClient.TabIndex = 8;
+            checkBoxAddClient.TabIndex = 9;
             checkBoxAddClient.Text = "Add tag [\"client\",\"nokakoi\"]";
             checkBoxAddClient.UseVisualStyleBackColor = true;
             // 
@@ -177,7 +179,7 @@
             // 
             label5.AutoSize = true;
             label5.ForeColor = SystemColors.GrayText;
-            label5.Location = new Point(100, 297);
+            label5.Location = new Point(99, 337);
             label5.Name = "label5";
             label5.Size = new Size(126, 15);
             label5.TabIndex = 0;
@@ -186,10 +188,10 @@
             // linkLabelIcons8
             // 
             linkLabelIcons8.AutoSize = true;
-            linkLabelIcons8.Location = new Point(231, 297);
+            linkLabelIcons8.Location = new Point(231, 337);
             linkLabelIcons8.Name = "linkLabelIcons8";
             linkLabelIcons8.Size = new Size(41, 15);
-            linkLabelIcons8.TabIndex = 14;
+            linkLabelIcons8.TabIndex = 15;
             linkLabelIcons8.TabStop = true;
             linkLabelIcons8.Text = "Icons8";
             linkLabelIcons8.LinkClicked += linkLabelIcons8_LinkClicked;
@@ -197,27 +199,27 @@
             // checkBoxShowOnlyTagged
             // 
             checkBoxShowOnlyTagged.AutoSize = true;
-            checkBoxShowOnlyTagged.Location = new Point(12, 172);
+            checkBoxShowOnlyTagged.Location = new Point(12, 201);
             checkBoxShowOnlyTagged.Name = "checkBoxShowOnlyTagged";
             checkBoxShowOnlyTagged.Size = new Size(185, 19);
-            checkBoxShowOnlyTagged.TabIndex = 9;
+            checkBoxShowOnlyTagged.TabIndex = 10;
             checkBoxShowOnlyTagged.Text = "Show only posts from nokakoi";
             checkBoxShowOnlyTagged.UseVisualStyleBackColor = true;
             // 
             // checkBoxShowOnlyJapanese
             // 
             checkBoxShowOnlyJapanese.AutoSize = true;
-            checkBoxShowOnlyJapanese.Location = new Point(12, 197);
+            checkBoxShowOnlyJapanese.Location = new Point(12, 226);
             checkBoxShowOnlyJapanese.Name = "checkBoxShowOnlyJapanese";
             checkBoxShowOnlyJapanese.Size = new Size(162, 19);
-            checkBoxShowOnlyJapanese.TabIndex = 10;
+            checkBoxShowOnlyJapanese.TabIndex = 11;
             checkBoxShowOnlyJapanese.Text = "Show only Japanese posts";
             checkBoxShowOnlyJapanese.UseVisualStyleBackColor = true;
             // 
             // label6
             // 
             label6.AutoSize = true;
-            label6.Location = new Point(100, 92);
+            label6.Location = new Point(100, 121);
             label6.Name = "label6";
             label6.Size = new Size(0, 15);
             label6.TabIndex = 14;
@@ -226,16 +228,16 @@
             // 
             textBoxEmojiUrl.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxEmojiUrl.ImeMode = ImeMode.Disable;
-            textBoxEmojiUrl.Location = new Point(78, 118);
+            textBoxEmojiUrl.Location = new Point(78, 147);
             textBoxEmojiUrl.Name = "textBoxEmojiUrl";
             textBoxEmojiUrl.Size = new Size(194, 23);
-            textBoxEmojiUrl.TabIndex = 7;
+            textBoxEmojiUrl.TabIndex = 8;
             textBoxEmojiUrl.Text = "https://betoneto.win/media/nokakoi.png";
             // 
             // label7
             // 
             label7.AutoSize = true;
-            label7.Location = new Point(12, 121);
+            label7.Location = new Point(12, 150);
             label7.Name = "label7";
             label7.Size = new Size(60, 15);
             label7.TabIndex = 0;
@@ -244,11 +246,11 @@
             // labelVersion
             // 
             labelVersion.AutoSize = true;
-            labelVersion.Location = new Point(12, 297);
+            labelVersion.Location = new Point(12, 337);
             labelVersion.Name = "labelVersion";
-            labelVersion.Size = new Size(65, 15);
+            labelVersion.Size = new Size(37, 15);
             labelVersion.TabIndex = 0;
-            labelVersion.Text = "v0.3.0-beta";
+            labelVersion.Text = "v0.3.0";
             // 
             // labelOpacity
             // 
@@ -262,18 +264,38 @@
             // checkBoxShowOnlyFollowees
             // 
             checkBoxShowOnlyFollowees.AutoSize = true;
-            checkBoxShowOnlyFollowees.Location = new Point(12, 222);
+            checkBoxShowOnlyFollowees.Location = new Point(12, 251);
             checkBoxShowOnlyFollowees.Name = "checkBoxShowOnlyFollowees";
             checkBoxShowOnlyFollowees.Size = new Size(134, 19);
-            checkBoxShowOnlyFollowees.TabIndex = 11;
+            checkBoxShowOnlyFollowees.TabIndex = 12;
             checkBoxShowOnlyFollowees.Text = "Show only followees";
             checkBoxShowOnlyFollowees.UseVisualStyleBackColor = true;
+            // 
+            // label4
+            // 
+            label4.AutoSize = true;
+            label4.Location = new Point(12, 69);
+            label4.Name = "label4";
+            label4.Size = new Size(70, 15);
+            label4.TabIndex = 0;
+            label4.Text = "Cut name at";
+            // 
+            // textBoxCutNameLength
+            // 
+            textBoxCutNameLength.ImeMode = ImeMode.Disable;
+            textBoxCutNameLength.Location = new Point(100, 66);
+            textBoxCutNameLength.MaxLength = 4;
+            textBoxCutNameLength.Name = "textBoxCutNameLength";
+            textBoxCutNameLength.Size = new Size(26, 23);
+            textBoxCutNameLength.TabIndex = 4;
             // 
             // FormSetting
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(284, 321);
+            ClientSize = new Size(284, 361);
+            Controls.Add(label4);
+            Controls.Add(textBoxCutNameLength);
             Controls.Add(checkBoxShowOnlyFollowees);
             Controls.Add(labelOpacity);
             Controls.Add(labelVersion);
@@ -300,7 +322,7 @@
             KeyPreview = true;
             MaximizeBox = false;
             MinimizeBox = false;
-            MinimumSize = new Size(300, 360);
+            MinimumSize = new Size(300, 400);
             Name = "FormSetting";
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
@@ -337,5 +359,7 @@
         private Label labelVersion;
         private Label labelOpacity;
         internal CheckBox checkBoxShowOnlyFollowees;
+        private Label label4;
+        internal TextBox textBoxCutNameLength;
     }
 }

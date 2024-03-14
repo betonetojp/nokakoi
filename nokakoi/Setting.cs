@@ -7,7 +7,9 @@ namespace nokakoi
 {
     public class Setting
     {
+        private static Data _data = new();
 
+        #region データクラス
         public class Data
         {
             public Point Location { get; set; }
@@ -15,8 +17,9 @@ namespace nokakoi
             public string Relay { get; set; } = "wss://yabu.me";
             public bool TopMost { get; set; } = false;
             public int CutLength { get; set; } = 20;
+            public int CutNameLength { get; set; } = 10;
             public double Opacity { get; set; } = 1.00;
-            public bool DisplayTime { get; set; } = false;
+            public bool DisplayTime { get; set; } = true;
             public bool AddShortcode { get; set; } = true;
             public string Shortcode { get; set; } = "n";
             public string EmojiUrl { get; set; } = "https://betoneto.win/media/nokakoi.png";
@@ -28,8 +31,7 @@ namespace nokakoi
             public Point PostBarLocation { get; set; }
             public Size PostBarSize { get; set; }
         }
-
-        private static Data _data = new();
+        #endregion
 
         #region プロパティ
         public static Point Location
@@ -85,6 +87,17 @@ namespace nokakoi
             set
             {
                 _data.CutLength = value;
+            }
+        }
+        public static int CutNameLength
+        {
+            get
+            {
+                return _data.CutNameLength;
+            }
+            set
+            {
+                _data.CutNameLength = value;
             }
         }
         public static double Opacity
@@ -221,6 +234,12 @@ namespace nokakoi
         }
         #endregion
 
+        #region 設定ファイル操作
+        /// <summary>
+        /// 設定ファイル読み込み
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
         public static bool Load(string path)
         {
             try
@@ -239,6 +258,11 @@ namespace nokakoi
             }
         }
 
+        /// <summary>
+        /// 設定ファイル書き込み
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
         public static bool Save(string path)
         {
             try
@@ -255,5 +279,6 @@ namespace nokakoi
                 return false;
             }
         }
+        #endregion
     }
 }
