@@ -102,12 +102,14 @@
             // textBoxPost
             // 
             textBoxPost.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxPost.Enabled = false;
             textBoxPost.Location = new Point(33, 247);
             textBoxPost.MaxLength = 1024;
             textBoxPost.Name = "textBoxPost";
             textBoxPost.PlaceholderText = "Hello Nostr!";
             textBoxPost.Size = new Size(201, 23);
             textBoxPost.TabIndex = 6;
+            textBoxPost.KeyDown += textBoxPost_KeyDown;
             // 
             // buttonPost
             // 

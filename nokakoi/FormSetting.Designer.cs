@@ -53,6 +53,7 @@
             checkBoxShowOnlyFollowees = new CheckBox();
             label4 = new Label();
             textBoxCutNameLength = new TextBox();
+            label8 = new Label();
             ((System.ComponentModel.ISupportInitialize)trackBarOpacity).BeginInit();
             SuspendLayout();
             // 
@@ -60,10 +61,10 @@
             // 
             textBoxNokakoiKey.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxNokakoiKey.ImeMode = ImeMode.Disable;
-            textBoxNokakoiKey.Location = new Point(12, 291);
+            textBoxNokakoiKey.Location = new Point(88, 276);
             textBoxNokakoiKey.MaxLength = 136;
             textBoxNokakoiKey.Name = "textBoxNokakoiKey";
-            textBoxNokakoiKey.Size = new Size(127, 23);
+            textBoxNokakoiKey.Size = new Size(184, 23);
             textBoxNokakoiKey.TabIndex = 13;
             // 
             // textBoxCutLength
@@ -88,12 +89,12 @@
             // 
             textBoxPassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             textBoxPassword.ImeMode = ImeMode.Disable;
-            textBoxPassword.Location = new Point(145, 291);
+            textBoxPassword.Location = new Point(88, 305);
             textBoxPassword.MaxLength = 256;
             textBoxPassword.Name = "textBoxPassword";
             textBoxPassword.PasswordChar = '*';
             textBoxPassword.PlaceholderText = "password";
-            textBoxPassword.Size = new Size(127, 23);
+            textBoxPassword.Size = new Size(184, 23);
             textBoxPassword.TabIndex = 14;
             // 
             // trackBarOpacity
@@ -130,11 +131,11 @@
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new Point(12, 273);
+            label3.Location = new Point(12, 279);
             label3.Name = "label3";
-            label3.Size = new Size(252, 15);
+            label3.Size = new Size(70, 15);
             label3.TabIndex = 0;
-            label3.Text = "nokakoi key and password are required to post";
+            label3.Text = "nokakoi key";
             // 
             // checkBoxAddEndTag
             // 
@@ -250,7 +251,7 @@
             labelVersion.Name = "labelVersion";
             labelVersion.Size = new Size(37, 15);
             labelVersion.TabIndex = 0;
-            labelVersion.Text = "v0.3.1";
+            labelVersion.Text = "v0.3.2";
             // 
             // labelOpacity
             // 
@@ -289,11 +290,21 @@
             textBoxCutNameLength.Size = new Size(26, 23);
             textBoxCutNameLength.TabIndex = 4;
             // 
+            // label8
+            // 
+            label8.AutoSize = true;
+            label8.Location = new Point(15, 308);
+            label8.Name = "label8";
+            label8.Size = new Size(57, 15);
+            label8.TabIndex = 0;
+            label8.Text = "password";
+            // 
             // FormSetting
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(284, 361);
+            Controls.Add(label8);
             Controls.Add(label4);
             Controls.Add(textBoxCutNameLength);
             Controls.Add(checkBoxShowOnlyFollowees);
@@ -329,7 +340,8 @@
             Text = "Setting";
             TopMost = true;
             Load += FormSetting_Load;
-            KeyPress += FormSetting_KeyPress;
+            Shown += FormSetting_Shown;
+            KeyDown += FormSetting_KeyDown;
             ((System.ComponentModel.ISupportInitialize)trackBarOpacity).EndInit();
             ResumeLayout(false);
             PerformLayout();
@@ -361,5 +373,6 @@
         internal CheckBox checkBoxShowOnlyFollowees;
         private Label label4;
         internal TextBox textBoxCutNameLength;
+        private Label label8;
     }
 }

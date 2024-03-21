@@ -36,12 +36,14 @@
             // textBoxPost
             // 
             textBoxPost.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxPost.Enabled = false;
             textBoxPost.Location = new Point(12, 0);
             textBoxPost.MaxLength = 1024;
             textBoxPost.Name = "textBoxPost";
             textBoxPost.PlaceholderText = "Hello Nostr!";
             textBoxPost.Size = new Size(171, 23);
             textBoxPost.TabIndex = 6;
+            textBoxPost.KeyDown += textBoxPost_KeyDown;
             // 
             // buttonPost
             // 
@@ -75,6 +77,7 @@
             FormClosing += FormPostBar_FormClosing;
             Shown += FormPostBar_Shown;
             DoubleClick += FormPostBar_DoubleClick;
+            MouseClick += FormPostBar_MouseClick;
             MouseDown += FormPostBar_MouseDown;
             MouseMove += FormPostBar_MouseMove;
             ResumeLayout(false);

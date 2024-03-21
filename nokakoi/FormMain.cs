@@ -33,7 +33,7 @@ namespace nokakoi
         private string _nsec = string.Empty;
         //private string _npub = string.Empty;
         private string _npubHex = string.Empty;
-        
+
         /// <summary>
         /// フォロイー公開鍵のハッシュセット
         /// </summary>
@@ -111,8 +111,8 @@ namespace nokakoi
             }
             _formPostBar.Size = Setting.PostBarSize;
 
-            _formSetting.FormPostBar = _formPostBar;
-            _formPostBar.FormMain = this;
+            _formSetting._formPostBar = _formPostBar;
+            _formPostBar._formMain = this;
         }
         #endregion
 
@@ -171,7 +171,9 @@ namespace nokakoi
                 buttonStart.Enabled = false;
                 buttonStop.Enabled = true;
                 buttonStop.Focus();
+                textBoxPost.Enabled = true;
                 buttonPost.Enabled = true;
+                _formPostBar.textBoxPost.Enabled = true;
                 _formPostBar.buttonPost.Enabled = true;
                 textBoxTimeline.Text = "> Create subscription." + Environment.NewLine + textBoxTimeline.Text;
             }
@@ -389,7 +391,7 @@ namespace nokakoi
                         // エスケープされているので解除
                         var contentJson = Regex.Unescape(nostrEvent.Content);
                         var user = Tools.JsonToUser(contentJson);
-                        
+
                         // 辞書に追加（上書き）
                         _users[nostrEvent.PublicKey] = user;
                         Debug.WriteLine($"{nostrEvent.PublicKey} {user?.DisplayName} @{user?.Name}");
@@ -423,7 +425,9 @@ namespace nokakoi
                 buttonConnect.Enabled = true;
                 buttonConnect.Focus();
                 buttonStop.Enabled = false;
+                textBoxPost.Enabled = false;
                 buttonPost.Enabled = false;
+                _formPostBar.textBoxPost.Enabled = false;
                 _formPostBar.buttonPost.Enabled = false;
             }
             catch (Exception ex)
@@ -501,12 +505,21 @@ namespace nokakoi
                 Content = textBoxPost.Text + (_addShortcode ? " :" + _shortcode + ":" : string.Empty),
                 Tags = tags
             };
-            // load from an nsec string
-            var key = _nsec.FromNIP19Nsec();
-            // sign the event
-            await newEvent.ComputeIdAndSignAsync(key);
-            // send the event
-            await _client.SendEventsAndWaitUntilReceived([newEvent], CancellationToken.None);
+
+            try
+            {
+                // load from an nsec string
+                var key = _nsec.FromNIP19Nsec();
+                // sign the event
+                await newEvent.ComputeIdAndSignAsync(key);
+                // send the event
+                await _client.SendEventsAndWaitUntilReceived([newEvent], CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                textBoxTimeline.Text = "> Decryption failed." + Environment.NewLine + textBoxTimeline.Text;
+            }
         }
         #endregion
 
@@ -575,7 +588,6 @@ namespace nokakoi
                 _nsec = NokakoiCrypt.DecryptNokakoiKey(_nokakoiKey, _password);
                 _npubHex = _nsec.GetNpubHex();
                 //_npub = _npubHex.ConvertToNpub();
-                //textBoxTimeline.Text = "> Welcome " + _npub + Environment.NewLine + textBoxTimeline.Text;
 
                 // ログイン済みの時
                 if (!_npubHex.IsNullOrEmpty())
@@ -596,7 +608,6 @@ namespace nokakoi
             }
             catch (Exception ex)
             {
-                //MessageBox.Show("Decryption failed.");
                 Debug.WriteLine(ex.Message);
                 textBoxTimeline.Text = "> Decryption failed." + Environment.NewLine + textBoxTimeline.Text;
             }
@@ -743,7 +754,7 @@ namespace nokakoi
         /// </summary>
         /// <param name="publicKeyHex">公開鍵HEX</param>
         /// <returns>ユーザー表示名</returns>
-        private string GetUserName (string publicKeyHex)
+        private string GetUserName(string publicKeyHex)
         {
             // 辞書にない場合プロフィールを購読する
             if (!_users.TryGetValue(publicKeyHex, out User? user))
@@ -752,11 +763,15 @@ namespace nokakoi
             }
 
             // 情報があれば表示名を取得
-            string userName = "????";
+            string? userName = "????";
             if (null != user)
             {
+                userName = user.DisplayName;
                 // display_nameが無い場合は@nameとする
-                userName = user.DisplayName ?? $"@{user.Name}";
+                if (null == userName || string.Empty == userName)
+                {
+                    userName = $"@{user.Name}";
+                }
             }
             return userName;
         }
@@ -800,6 +815,21 @@ namespace nokakoi
         private void checkBoxPostBar_CheckedChanged(object sender, EventArgs e)
         {
             _formPostBar.Visible = checkBoxPostBar.Checked;
+        }
+        #endregion
+
+        #region CTRL + ENTERで投稿
+        /// <summary>
+        /// CTRL + ENTERで投稿
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void textBoxPost_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyData == (Keys.Enter | Keys.Control))
+            {
+                buttonPost_Click(sender, e);
+            }
         }
         #endregion
     }

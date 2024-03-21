@@ -4,7 +4,7 @@ namespace nokakoi
 {
     public partial class FormSetting : Form
     {
-        internal FormPostBar? FormPostBar;
+        internal FormPostBar? _formPostBar;
         public FormSetting()
         {
             InitializeComponent();
@@ -19,10 +19,10 @@ namespace nokakoi
         private void trackBarOpacity_Scroll(object sender, EventArgs e)
         {
             labelOpacity.Text = $"{trackBarOpacity.Value}%";
-            if (null != Owner && null != FormPostBar)
+            if (null != Owner && null != _formPostBar)
             {
                 Owner.Opacity = trackBarOpacity.Value / 100.0;
-                FormPostBar.Opacity = Owner.Opacity;
+                _formPostBar.Opacity = Owner.Opacity;
             }
         }
 
@@ -37,12 +37,17 @@ namespace nokakoi
             Process.Start(app);
         }
 
-        private void FormSetting_KeyPress(object sender, KeyPressEventArgs e)
+        private void FormSetting_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyChar == (char)Keys.Escape)
+            if (e.KeyCode == Keys.Escape)
             {
                 Close();
             }
+        }
+
+        private void FormSetting_Shown(object sender, EventArgs e)
+        {
+            textBoxPassword.Focus();
         }
     }
 }
