@@ -4,7 +4,7 @@
 	  <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows7.0</TargetFramework>
     <ApplicationIcon>Resources\nokakoi.ico</ApplicationIcon>
-    <Version>$(VersionPrefix)0.3.3</Version>
+    <Version>$(VersionPrefix)0.3.2</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <UseWindowsForms>True</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
