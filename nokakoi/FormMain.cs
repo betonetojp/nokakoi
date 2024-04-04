@@ -78,6 +78,7 @@ namespace nokakoi
             InitializeComponent();
 
             Setting.Load("nokakoi.config");
+            _users = Tools.LoadUsers();
 
             Location = Setting.Location;
             if (new Point(0, 0) == Location)
@@ -796,6 +797,7 @@ namespace nokakoi
             Setting.PostBarSize = _formPostBar.Size;
             Setting.Relay = textBoxRelay.Text;
             Setting.Save("nokakoi.config");
+            Tools.SaveUsers(_users);
 
             _ds?.Dispose();     // FrmMsgReceiverのThread停止せず1000ms待たされるうえにプロセス残るので…
             Application.Exit(); // ←これで殺す。SSTLibに手を入れた方がいいが、とりあえず。

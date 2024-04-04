@@ -98,5 +98,53 @@ namespace nokakoi
         {
             return ECXOnlyPubKey.Create(hex.FromHex()).ToNIP19();
         }
+
+        /// <summary>
+        /// ユーザー辞書をファイルに保存する
+        /// </summary>
+        /// <param name="users">ユーザー辞書</param>
+        internal static void SaveUsers(Dictionary<string, User?> users)
+        {
+            // users.jsonに保存
+            var filePath = "users.json";
+            try
+            {
+                var jsonContent = JsonSerializer.Serialize(users, GetOption());
+                File.WriteAllText(filePath, jsonContent);
+            }
+            catch (JsonException e)
+            {
+                Debug.WriteLine(e.Message);
+            }
+        }
+
+        /// <summary>
+        /// ファイルからユーザー辞書を読み込む
+        /// </summary>
+        /// <returns>ユーザー辞書</returns>
+        internal static Dictionary<string, User?> LoadUsers()
+        {
+            // users.jsonを読み込み
+            var filePath = "users.json";
+            if (!File.Exists(filePath))
+            {
+                return [];
+            }
+            try
+            {
+                var jsonContent = File.ReadAllText(filePath);
+                var users = JsonSerializer.Deserialize<Dictionary<string, User?>>(jsonContent, GetOption());
+                if (null != users)
+                {
+                    return users;
+                }
+                return [];
+            }
+            catch (JsonException e)
+            {
+                Debug.WriteLine(e.Message);
+                return [];
+            }
+        }
     }
 }
