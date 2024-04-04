@@ -79,6 +79,27 @@ namespace nokakoi
             InitializeComponent();
 
             Setting.Load("nokakoi.config");
+            // ユーザー辞書を読み込む
+=========
+>>>>>>>>> Temporary merge branch 2
+            // ユーザー辞書を読み込む
+=========
+>>>>>>>>> Temporary merge branch 2
+            // ユーザー辞書を読み込む
+=========
+>>>>>>>>> Temporary merge branch 2
+            // ユーザー辞書を読み込む
+=========
+>>>>>>>>> Temporary merge branch 2
+            // ユーザー辞書を読み込む
+=========
+>>>>>>>>> Temporary merge branch 2
+            // ユーザー辞書を読み込む
+=========
+>>>>>>>>> Temporary merge branch 2
+            // ユーザー辞書を読み込む
+=========
+>>>>>>>>> Temporary merge branch 2
             _users = Tools.LoadUsers();
 
             Location = Setting.Location;
