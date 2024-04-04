@@ -1,3 +1,4 @@
+using Microsoft.VisualBasic.ApplicationServices;
 using NNostr.Client;
 using NNostr.Client.Protocols;
 using NTextCat;
@@ -78,6 +79,7 @@ namespace nokakoi
             InitializeComponent();
 
             Setting.Load("nokakoi.config");
+            // ユーザー辞書を読み込む
             _users = Tools.LoadUsers();
 
             Location = Setting.Location;
@@ -797,6 +799,7 @@ namespace nokakoi
             Setting.PostBarSize = _formPostBar.Size;
             Setting.Relay = textBoxRelay.Text;
             Setting.Save("nokakoi.config");
+            // _usersをファイルに保存する
             Tools.SaveUsers(_users);
 
             _ds?.Dispose();     // FrmMsgReceiverのThread停止せず1000ms待たされるうえにプロセス残るので…
