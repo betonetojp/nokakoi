@@ -43,7 +43,7 @@
             textBoxPost.PlaceholderText = "Hello Nostr!";
             textBoxPost.Size = new Size(171, 23);
             textBoxPost.TabIndex = 6;
-            textBoxPost.KeyDown += textBoxPost_KeyDown;
+            textBoxPost.KeyDown += TextBoxPost_KeyDown;
             // 
             // buttonPost
             // 
@@ -55,7 +55,7 @@
             buttonPost.Size = new Size(23, 23);
             buttonPost.TabIndex = 7;
             buttonPost.UseVisualStyleBackColor = true;
-            buttonPost.Click += buttonPost_Click;
+            buttonPost.Click += ButtonPost_Click;
             // 
             // FormPostBar
             // 

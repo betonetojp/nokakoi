@@ -107,7 +107,7 @@
             trackBarOpacity.TabIndex = 3;
             trackBarOpacity.TickFrequency = 20;
             trackBarOpacity.Value = 100;
-            trackBarOpacity.Scroll += trackBarOpacity_Scroll;
+            trackBarOpacity.Scroll += TrackBarOpacity_Scroll;
             // 
             // checkBoxTopMost
             // 
@@ -195,7 +195,7 @@
             linkLabelIcons8.TabIndex = 15;
             linkLabelIcons8.TabStop = true;
             linkLabelIcons8.Text = "Icons8";
-            linkLabelIcons8.LinkClicked += linkLabelIcons8_LinkClicked;
+            linkLabelIcons8.LinkClicked += LinkLabelIcons8_LinkClicked;
             // 
             // checkBoxShowOnlyTagged
             // 

@@ -16,7 +16,7 @@ namespace nokakoi
             labelOpacity.Text = $"{trackBarOpacity.Value}%";
         }
 
-        private void trackBarOpacity_Scroll(object sender, EventArgs e)
+        private void TrackBarOpacity_Scroll(object sender, EventArgs e)
         {
             labelOpacity.Text = $"{trackBarOpacity.Value}%";
             if (null != Owner && null != _formPostBar)
@@ -26,13 +26,15 @@ namespace nokakoi
             }
         }
 
-        private void linkLabelIcons8_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        private void LinkLabelIcons8_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             linkLabelIcons8.LinkVisited = true;
 
-            var app = new ProcessStartInfo();
-            app.FileName = "https://icons8.com";
-            app.UseShellExecute = true;
+            var app = new ProcessStartInfo
+            {
+                FileName = "https://icons8.com",
+                UseShellExecute = true
+            };
 
             Process.Start(app);
         }

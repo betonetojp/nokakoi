@@ -37,11 +37,11 @@ namespace nokakoi
         /// <summary>
         /// フォロイー公開鍵のハッシュセット
         /// </summary>
-        private HashSet<string> _followeesHexs = [];
+        private readonly HashSet<string> _followeesHexs = [];
         /// <summary>
         /// ユーザー辞書
         /// </summary>
-        private Dictionary<string, User?> _users = [];
+        private readonly Dictionary<string, User?> _users = [];
 
         private int _cutLength;
         private int _cutNameLength;
@@ -119,7 +119,7 @@ namespace nokakoi
 
         #region Connectボタン
         // Connectボタン
-        private void buttonConnect_Click(object sender, EventArgs e)
+        private void ButtonConnect_Click(object sender, EventArgs e)
         {
             try
             {
@@ -163,7 +163,7 @@ namespace nokakoi
 
         #region Startボタン
         // Startボタン
-        private void buttonStart_Click(object sender, EventArgs e)
+        private void ButtonStart_Click(object sender, EventArgs e)
         {
             try
             {
@@ -308,6 +308,12 @@ namespace nokakoi
                                 continue;
                             }
 
+                            // ミュートされている時は表示しない
+                            if (IsMuted(nostrEvent.PublicKey))
+                            {
+                                continue;
+                            }
+
                             // ユーザー表示名取得（ユーザー辞書メモリ節約のため↑のフラグ処理後に）
                             string userName = GetUserName(nostrEvent.PublicKey);
                             // ユーザー表示名カット
@@ -404,7 +410,7 @@ namespace nokakoi
 
         #region Stopボタン
         // Stopボタン
-        private void buttonStop_Click(object sender, EventArgs e)
+        private void ButtonStop_Click(object sender, EventArgs e)
         {
             if (null == _client)
             {
@@ -441,7 +447,7 @@ namespace nokakoi
 
         #region Postボタン
         // Postボタン
-        internal void buttonPost_Click(object sender, EventArgs e)
+        internal void ButtonPost_Click(object sender, EventArgs e)
         {
             if (0 == _formSetting.textBoxNokakoiKey.TextLength || 0 == _formSetting.textBoxPassword.TextLength)
             {
@@ -526,7 +532,7 @@ namespace nokakoi
 
         #region Settingボタン
         // Settingボタン
-        private async void buttonSetting_Click(object sender, EventArgs e)
+        private async void ButtonSetting_Click(object sender, EventArgs e)
         {
             // 開く前
             _formSetting.checkBoxTopMost.Checked = TopMost;
@@ -683,14 +689,14 @@ namespace nokakoi
 
         #region 透明解除処理
         // マウス入った時
-        private void textBoxTimeline_MouseEnter(object sender, EventArgs e)
+        private void TextBoxTimeline_MouseEnter(object sender, EventArgs e)
         {
             _tempOpacity = Opacity;
             Opacity = 1.00;
         }
 
         // マウス出た時
-        private void textBoxTimeline_MouseLeave(object sender, EventArgs e)
+        private void TextBoxTimeline_MouseLeave(object sender, EventArgs e)
         {
             Opacity = _tempOpacity;
         }
@@ -778,6 +784,25 @@ namespace nokakoi
         }
         #endregion
 
+        #region ミュートされているか確認する
+        /// <summary>
+        /// ミュートされているか確認する
+        /// </summary>
+        /// <param name="publicKeyHex">公開鍵HEX</param>
+        /// <returns>ミュートフラグ</returns>
+        private bool IsMuted(string publicKeyHex)
+        {
+            if (_users.TryGetValue(publicKeyHex, out User? user))
+            {
+                if (null != user)
+                {
+                    return user.Mute;
+                }
+            }
+            return false;
+        }
+        #endregion
+        
         #region 閉じる
         // 閉じる
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
@@ -814,7 +839,7 @@ namespace nokakoi
 
         #region ポストバー表示切り替え
         // ポストバー表示切り替え
-        private void checkBoxPostBar_CheckedChanged(object sender, EventArgs e)
+        private void CheckBoxPostBar_CheckedChanged(object sender, EventArgs e)
         {
             _formPostBar.Visible = checkBoxPostBar.Checked;
         }
@@ -826,11 +851,11 @@ namespace nokakoi
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void textBoxPost_KeyDown(object sender, KeyEventArgs e)
+        private void TextBoxPost_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyData == (Keys.Enter | Keys.Control))
             {
-                buttonPost_Click(sender, e);
+                ButtonPost_Click(sender, e);
             }
         }
         #endregion

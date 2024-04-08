@@ -60,7 +60,7 @@
             buttonConnect.Size = new Size(23, 23);
             buttonConnect.TabIndex = 1;
             buttonConnect.UseVisualStyleBackColor = true;
-            buttonConnect.Click += buttonConnect_Click;
+            buttonConnect.Click += ButtonConnect_Click;
             // 
             // buttonStart
             // 
@@ -72,7 +72,7 @@
             buttonStart.Size = new Size(23, 23);
             buttonStart.TabIndex = 2;
             buttonStart.UseVisualStyleBackColor = true;
-            buttonStart.Click += buttonStart_Click;
+            buttonStart.Click += ButtonStart_Click;
             // 
             // textBoxTimeline
             // 
@@ -84,8 +84,8 @@
             textBoxTimeline.ScrollBars = ScrollBars.Vertical;
             textBoxTimeline.Size = new Size(280, 198);
             textBoxTimeline.TabIndex = 4;
-            textBoxTimeline.MouseEnter += textBoxTimeline_MouseEnter;
-            textBoxTimeline.MouseLeave += textBoxTimeline_MouseLeave;
+            textBoxTimeline.MouseEnter += TextBoxTimeline_MouseEnter;
+            textBoxTimeline.MouseLeave += TextBoxTimeline_MouseLeave;
             // 
             // buttonStop
             // 
@@ -97,7 +97,7 @@
             buttonStop.Size = new Size(23, 23);
             buttonStop.TabIndex = 3;
             buttonStop.UseVisualStyleBackColor = true;
-            buttonStop.Click += buttonStop_Click;
+            buttonStop.Click += ButtonStop_Click;
             // 
             // textBoxPost
             // 
@@ -109,7 +109,7 @@
             textBoxPost.PlaceholderText = "Hello Nostr!";
             textBoxPost.Size = new Size(201, 23);
             textBoxPost.TabIndex = 6;
-            textBoxPost.KeyDown += textBoxPost_KeyDown;
+            textBoxPost.KeyDown += TextBoxPost_KeyDown;
             // 
             // buttonPost
             // 
@@ -121,7 +121,7 @@
             buttonPost.Size = new Size(23, 23);
             buttonPost.TabIndex = 7;
             buttonPost.UseVisualStyleBackColor = true;
-            buttonPost.Click += buttonPost_Click;
+            buttonPost.Click += ButtonPost_Click;
             // 
             // buttonSetting
             // 
@@ -132,7 +132,7 @@
             buttonSetting.Size = new Size(23, 23);
             buttonSetting.TabIndex = 8;
             buttonSetting.UseVisualStyleBackColor = true;
-            buttonSetting.Click += buttonSetting_Click;
+            buttonSetting.Click += ButtonSetting_Click;
             // 
             // checkBoxPostBar
             // 
@@ -143,7 +143,7 @@
             checkBoxPostBar.Size = new Size(15, 14);
             checkBoxPostBar.TabIndex = 5;
             checkBoxPostBar.UseVisualStyleBackColor = true;
-            checkBoxPostBar.CheckedChanged += checkBoxPostBar_CheckedChanged;
+            checkBoxPostBar.CheckedChanged += CheckBoxPostBar_CheckedChanged;
             // 
             // FormMain
             // 

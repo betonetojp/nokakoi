@@ -10,12 +10,12 @@
             InitializeComponent();
         }
 
-        private void buttonPost_Click(object sender, EventArgs e)
+        private void ButtonPost_Click(object sender, EventArgs e)
         {
             if (null != _formMain)
             {
                 _formMain.textBoxPost.Text = textBoxPost.Text;
-                _formMain.buttonPost_Click(sender, e);
+                _formMain.ButtonPost_Click(sender, e);
             }
         }
 
@@ -78,11 +78,11 @@
             }
         }
 
-        private void textBoxPost_KeyDown(object sender, KeyEventArgs e)
+        private void TextBoxPost_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyData == (Keys.Enter | Keys.Control))
             {
-                buttonPost_Click(sender, e);
+                ButtonPost_Click(sender, e);
             }
         }
     }

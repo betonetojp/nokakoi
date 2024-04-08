@@ -21,6 +21,8 @@ namespace nokakoi
         [JsonPropertyName("picture")]
         public string? Picture { get; set; }
         */
+        [JsonPropertyName("mute")]
+        public bool Mute { get; set; }
     }
 
     public static class Tools
