@@ -30,7 +30,6 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormMain));
             textBoxRelay = new TextBox();
-            buttonConnect = new Button();
             buttonStart = new Button();
             textBoxTimeline = new TextBox();
             buttonStop = new Button();
@@ -48,24 +47,12 @@
             textBoxRelay.MaxLength = 256;
             textBoxRelay.Name = "textBoxRelay";
             textBoxRelay.PlaceholderText = "wss://";
-            textBoxRelay.Size = new Size(193, 23);
+            textBoxRelay.Size = new Size(222, 23);
             textBoxRelay.TabIndex = 0;
-            // 
-            // buttonConnect
-            // 
-            buttonConnect.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            buttonConnect.Image = Properties.Resources.icons8_connect_16;
-            buttonConnect.Location = new Point(211, 12);
-            buttonConnect.Name = "buttonConnect";
-            buttonConnect.Size = new Size(23, 23);
-            buttonConnect.TabIndex = 1;
-            buttonConnect.UseVisualStyleBackColor = true;
-            buttonConnect.Click += ButtonConnect_Click;
             // 
             // buttonStart
             // 
             buttonStart.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            buttonStart.Enabled = false;
             buttonStart.Image = Properties.Resources.icons8_start_16;
             buttonStart.Location = new Point(240, 12);
             buttonStart.Name = "buttonStart";
@@ -157,7 +144,6 @@
             Controls.Add(buttonStop);
             Controls.Add(textBoxTimeline);
             Controls.Add(buttonStart);
-            Controls.Add(buttonConnect);
             Controls.Add(textBoxRelay);
             Icon = (Icon)resources.GetObject("$this.Icon");
             MinimumSize = new Size(200, 200);
@@ -174,7 +160,6 @@
         #endregion
 
         private TextBox textBoxRelay;
-        private Button buttonConnect;
         private Button buttonStart;
         private TextBox textBoxTimeline;
         private Button buttonStop;

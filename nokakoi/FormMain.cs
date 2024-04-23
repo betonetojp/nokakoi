@@ -117,56 +117,18 @@ namespace nokakoi
         }
         #endregion
 
-        #region Connectボタン
-        // Connectボタン
-        private void ButtonConnect_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                _ = ConnectAsync();
-
-                textBoxRelay.ForeColor = SystemColors.GrayText;
-                buttonConnect.Enabled = false;
-                buttonStart.Enabled = true;
-                buttonStart.Focus();
-                textBoxTimeline.Text = string.Empty;
-                textBoxTimeline.Text = "> Connect." + Environment.NewLine + textBoxTimeline.Text;
-            }
-            catch (Exception ex)
-            {
-                Debug.Print(ex.ToString());
-                textBoxTimeline.Text = "> Could not connect." + Environment.NewLine + textBoxTimeline.Text;
-            }
-        }
-        #endregion
-
-        #region 接続処理
-        /// <summary>
-        /// 接続処理
-        /// </summary>
-        /// <returns></returns>
-        private async Task ConnectAsync()
-        {
-            //_subscriptionId = Guid.NewGuid().ToString("N");
-            if (null == _client)
-            {
-                _client = new NostrClient(new Uri(textBoxRelay.Text));
-                await _client.Connect();
-                _client.EventsReceived += OnClientOnEventsReceived;
-            }
-            else if (WebSocketState.CloseReceived < _client.State)
-            {
-                await _client.Connect();
-            }
-        }
-        #endregion
-
         #region Startボタン
         // Startボタン
-        private void ButtonStart_Click(object sender, EventArgs e)
+        private async void ButtonStart_Click(object sender, EventArgs e)
         {
             try
             {
+                await ConnectAsync();
+
+                textBoxRelay.ForeColor = SystemColors.GrayText;
+                textBoxTimeline.Text = string.Empty;
+                textBoxTimeline.Text = "> Connect." + Environment.NewLine + textBoxTimeline.Text;
+
                 Subscribe();
 
                 buttonStart.Enabled = false;
@@ -182,6 +144,26 @@ namespace nokakoi
             {
                 Debug.Print(ex.ToString());
                 textBoxTimeline.Text = "> Could not start." + Environment.NewLine + textBoxTimeline.Text;
+            }
+        }
+        #endregion
+
+        #region 接続処理
+        /// <summary>
+        /// 接続処理
+        /// </summary>
+        /// <returns></returns>
+        private async Task ConnectAsync()
+        {
+            if (null == _client)
+            {
+                _client = new NostrClient(new Uri(textBoxRelay.Text));
+                await _client.Connect();
+                _client.EventsReceived += OnClientOnEventsReceived;
+            }
+            else if (WebSocketState.CloseReceived < _client.State)
+            {
+                await _client.Connect();
             }
         }
         #endregion
@@ -429,8 +411,8 @@ namespace nokakoi
                 _client = null;
 
                 textBoxRelay.ForeColor = SystemColors.WindowText;
-                buttonConnect.Enabled = true;
-                buttonConnect.Focus();
+                buttonStart.Enabled = true;
+                buttonStart.Focus();
                 buttonStop.Enabled = false;
                 textBoxPost.Enabled = false;
                 buttonPost.Enabled = false;
@@ -763,11 +745,16 @@ namespace nokakoi
         /// <returns>ユーザー表示名</returns>
         private string GetUserName(string publicKeyHex)
         {
+            /*
             // 辞書にない場合プロフィールを購読する
             if (!_users.TryGetValue(publicKeyHex, out User? user))
             {
                 SubscribeProfiles([publicKeyHex]);
             }
+            */
+            // kind 0 を毎回購読するように変更（頻繁にdisplay_name等を変更するユーザーがいるため）
+            _users.TryGetValue(publicKeyHex, out User? user);
+            SubscribeProfiles([publicKeyHex]);
 
             // 情報があれば表示名を取得
             string? userName = "????";
@@ -802,7 +789,7 @@ namespace nokakoi
             return false;
         }
         #endregion
-        
+
         #region 閉じる
         // 閉じる
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
