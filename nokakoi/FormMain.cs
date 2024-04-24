@@ -1,5 +1,6 @@
 using NNostr.Client;
 using NNostr.Client.Protocols;
+using nokakoi.Properties;
 using NTextCat;
 using NTextCat.Commons;
 using SSTPLib;
@@ -329,6 +330,11 @@ namespace nokakoi
 
                             // エスケープ解除（↑SSPにはエスケープされたまま送る）
                             content = Regex.Unescape(content);
+
+                            // デスクトップ通知
+                            var keywordNotifier = new KeywordNotifier();
+                            keywordNotifier.CheckPost(userName, content);
+
                             // 改行をスペースに置き換え
                             content = content.Replace('\n', ' ');
                             // 本文カット
