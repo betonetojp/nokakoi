@@ -1,5 +1,6 @@
 using NNostr.Client;
 using NNostr.Client.Protocols;
+using nokakoi.Properties;
 using NTextCat;
 using NTextCat.Commons;
 using SSTPLib;
