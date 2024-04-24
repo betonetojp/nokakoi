@@ -16,8 +16,8 @@ namespace nokakoi
             public Size Size { get; set; } = new Size(320, 320);
             public string Relay { get; set; } = "wss://yabu.me";
             public bool TopMost { get; set; } = false;
-            public int CutLength { get; set; } = 20;
-            public int CutNameLength { get; set; } = 10;
+            public int CutLength { get; set; } = 40;
+            public int CutNameLength { get; set; } = 8;
             public double Opacity { get; set; } = 1.00;
             public bool DisplayTime { get; set; } = true;
             public bool AddShortcode { get; set; } = true;
