@@ -46,10 +46,10 @@ keywords.jsonは以下のようになります。無い場合は自動で作成�
     [
         "nokakoi",
         ":n:"
-  ],
-  "balloon": true,
-  "open_file": true,
-  "file_name": "https://nostter.app/"
+    ],
+    "balloon": true,
+    "open_file": true,
+    "file_name": "https://nostter.app/"
 }
 ※↑はデフォルト設定から変更した例です。
 
