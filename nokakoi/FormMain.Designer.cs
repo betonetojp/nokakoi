@@ -64,13 +64,16 @@
             // textBoxTimeline
             // 
             textBoxTimeline.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxTimeline.BackColor = SystemColors.Window;
             textBoxTimeline.Location = new Point(12, 41);
             textBoxTimeline.MaxLength = 0;
             textBoxTimeline.Multiline = true;
             textBoxTimeline.Name = "textBoxTimeline";
+            textBoxTimeline.ReadOnly = true;
             textBoxTimeline.ScrollBars = ScrollBars.Vertical;
             textBoxTimeline.Size = new Size(280, 198);
             textBoxTimeline.TabIndex = 4;
+            textBoxTimeline.TabStop = false;
             textBoxTimeline.MouseEnter += TextBoxTimeline_MouseEnter;
             textBoxTimeline.MouseLeave += TextBoxTimeline_MouseLeave;
             // 
@@ -146,6 +149,7 @@
             Controls.Add(buttonStart);
             Controls.Add(textBoxRelay);
             Icon = (Icon)resources.GetObject("$this.Icon");
+            KeyPreview = true;
             MinimumSize = new Size(200, 200);
             Name = "FormMain";
             StartPosition = FormStartPosition.Manual;
@@ -153,6 +157,7 @@
             TopMost = true;
             FormClosing += FormMain_FormClosing;
             Load += FormMain_Load;
+            KeyDown += FormMain_KeyDown;
             ResumeLayout(false);
             PerformLayout();
         }

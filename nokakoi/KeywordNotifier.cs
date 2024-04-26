@@ -14,7 +14,7 @@ namespace nokakoi
             _keywords = [];
             _notifyIcon = new NotifyIcon()
             {
-                Icon = Resources.nokakoi
+                Icon = Resources.nokakoi,
             };
 
             var jsonPath = "keywords.json";
@@ -46,6 +46,20 @@ namespace nokakoi
                     _notifyIcon.BalloonTipTitle = userName;
                     _notifyIcon.BalloonTipText = post;
                     _notifyIcon.ShowBalloonTip(3000);
+                    //_notifyIcon.BalloonTipClicked += (sender, e) =>
+                    //{
+                    //    var app = new ProcessStartInfo
+                    //    {
+                    //        FileName = "https://nostter.app/search?q=" + keyword,
+                    //        UseShellExecute = true
+                    //    };
+                    //    Process.Start(app);
+                    //    _notifyIcon.Visible = false;
+                    //};
+                    //_notifyIcon.BalloonTipClosed += (sender, e) =>
+                    //{
+                    //    _notifyIcon.Visible = false;
+                    //};
                     _notifyIcon.Visible = false;
                 }
             }

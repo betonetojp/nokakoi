@@ -85,5 +85,19 @@
                 ButtonPost_Click(sender, e);
             }
         }
+
+        private void FormPostBar_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F11)
+            {
+                FormPostBar_DoubleClick(sender, e);
+                // フォーカスキープ
+                Activate();
+            }
+            if (e.KeyCode == Keys.F12)
+            {
+                Close();
+            }
+        }
     }
 }

@@ -69,6 +69,8 @@ namespace nokakoi
         };
 
         private string _ghostName = string.Empty;
+
+        KeywordNotifier keywordNotifier = new KeywordNotifier();
         #endregion
 
         #region コンストラクタ
@@ -331,7 +333,7 @@ namespace nokakoi
                             content = Regex.Unescape(content);
 
                             // デスクトップ通知
-                            var keywordNotifier = new KeywordNotifier();
+                            //var keywordNotifier = new KeywordNotifier();
                             keywordNotifier.CheckPost(userName, content);
 
                             // 改行をスペースに置き換え
@@ -544,7 +546,7 @@ namespace nokakoi
             TopMost = _formSetting.checkBoxTopMost.Checked;
             if (!int.TryParse(_formSetting.textBoxCutLength.Text, out _cutLength))
             {
-                _cutLength = 20;
+                _cutLength = 40;
             }
             else if (_cutLength < 1)
             {
@@ -552,7 +554,7 @@ namespace nokakoi
             }
             if (!int.TryParse(_formSetting.textBoxCutNameLength.Text, out _cutNameLength))
             {
-                _cutNameLength = 20;
+                _cutNameLength = 8;
             }
             else if (_cutNameLength < 1)
             {
@@ -851,5 +853,17 @@ namespace nokakoi
             }
         }
         #endregion
+
+        private void FormMain_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F11 || e.KeyCode == Keys.F12)
+            {
+                checkBoxPostBar.Checked = !checkBoxPostBar.Checked;
+            }
+            if (e.KeyCode == Keys.Escape)
+            {
+                ButtonSetting_Click(sender, e);
+            }
+        }
     }
 }

@@ -65,6 +65,7 @@
             Controls.Add(buttonPost);
             Controls.Add(textBoxPost);
             Icon = (Icon)resources.GetObject("$this.Icon");
+            KeyPreview = true;
             MaximizeBox = false;
             MaximumSize = new Size(480, 74);
             MinimizeBox = false;
@@ -77,6 +78,7 @@
             FormClosing += FormPostBar_FormClosing;
             Shown += FormPostBar_Shown;
             DoubleClick += FormPostBar_DoubleClick;
+            KeyDown += FormPostBar_KeyDown;
             MouseClick += FormPostBar_MouseClick;
             MouseDown += FormPostBar_MouseDown;
             MouseMove += FormPostBar_MouseMove;
