@@ -1,4 +1,3 @@
-using Microsoft.VisualBasic.Devices;
 using NNostr.Client;
 using NNostr.Client.Protocols;
 using NTextCat;
