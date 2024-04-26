@@ -1,32 +1,58 @@
 using nokakoi.Properties;
 using System.Diagnostics;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Unicode;
 
 namespace nokakoi
 {
+    public class NotifierSettings
+    {
+        [JsonPropertyName("keywords")]
+        public List<string> Keywords { get; set; } = [];
+        [JsonPropertyName("balloon")]
+        public bool Balloon { get; set; } = true;
+        [JsonPropertyName("open_file")]
+        public bool Open { get; set; } = false;
+        [JsonPropertyName("file_name")]
+        public string FileName { get; set; } = "https://njump.me/";
+    }
+
     public class KeywordNotifier
     {
-        private readonly List<string> _keywords;
         private readonly NotifyIcon _notifyIcon;
+        private readonly List<string> _keywords = [];
+        private readonly bool _shouldShowBalloon = true;
+        public bool ShouldOpenFile { get; set; } = false;
+        public string FileName { get; set; } = "https://njump.me/";
 
         public KeywordNotifier()
         {
-            _keywords = [];
             _notifyIcon = new NotifyIcon()
             {
-                Icon = Resources.nokakoi,
+                Icon = Resources.nokakoi
+            };
+            NotifierSettings? notifierSettings;
+            var jsonPath = "keywords.json";
+            var options = new JsonSerializerOptions
+            {
+                Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+                WriteIndented = true,
             };
 
-            var jsonPath = "keywords.json";
             if (File.Exists(jsonPath))
             {
-                var json = File.ReadAllText(jsonPath);
                 try
                 {
-                    var data = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(json);
-                    if (data != null)
+                    var jsonContent = File.ReadAllText(jsonPath);
+                    notifierSettings = JsonSerializer.Deserialize<NotifierSettings>(jsonContent, options);
+                    if (notifierSettings != null)
                     {
-                        _keywords = data["keywords"];
+                        _keywords = notifierSettings.Keywords;
+                        _shouldShowBalloon = notifierSettings.Balloon;
+                        ShouldOpenFile = notifierSettings.Open;
+                        FileName = notifierSettings.FileName;
                     }
                 }
                 catch (Exception ex)
@@ -34,35 +60,44 @@ namespace nokakoi
                     Debug.WriteLine(ex.Message);
                 }
             }
+
+            notifierSettings = new NotifierSettings()
+            {
+                Keywords = _keywords,
+                Balloon = _shouldShowBalloon,
+                Open = ShouldOpenFile,
+                FileName = FileName
+            };
+
+            try
+            {
+                var jsonContent = JsonSerializer.Serialize(notifierSettings, options);
+                File.WriteAllText(jsonPath, jsonContent);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
         }
 
-        public void CheckPost(string userName, string post)
+        public bool CheckPost(string post)
         {
             foreach (var keyword in _keywords)
             {
                 if (post.Contains(keyword))
                 {
-                    _notifyIcon.Visible = true;
-                    _notifyIcon.BalloonTipTitle = userName;
-                    _notifyIcon.BalloonTipText = post;
-                    _notifyIcon.ShowBalloonTip(3000);
-                    //_notifyIcon.BalloonTipClicked += (sender, e) =>
-                    //{
-                    //    var app = new ProcessStartInfo
-                    //    {
-                    //        FileName = "https://nostter.app/search?q=" + keyword,
-                    //        UseShellExecute = true
-                    //    };
-                    //    Process.Start(app);
-                    //    _notifyIcon.Visible = false;
-                    //};
-                    //_notifyIcon.BalloonTipClosed += (sender, e) =>
-                    //{
-                    //    _notifyIcon.Visible = false;
-                    //};
-                    _notifyIcon.Visible = false;
+                    if (_shouldShowBalloon)
+                    {
+                        _notifyIcon.Visible = true;
+                        _notifyIcon.BalloonTipTitle = "Keyword Notifier : " + keyword;
+                        _notifyIcon.BalloonTipText = post;
+                        _notifyIcon.ShowBalloonTip(3000);
+                        _notifyIcon.Visible = false;
+                    }
+                    return true;
                 }
             }
+            return false;
         }
     }
 }

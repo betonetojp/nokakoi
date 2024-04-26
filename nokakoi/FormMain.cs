@@ -1,3 +1,4 @@
+using Microsoft.VisualBasic.Devices;
 using NNostr.Client;
 using NNostr.Client.Protocols;
 using NTextCat;
@@ -69,8 +70,7 @@ namespace nokakoi
         };
 
         private string _ghostName = string.Empty;
-
-        KeywordNotifier keywordNotifier = new KeywordNotifier();
+        private readonly KeywordNotifier _keywordNotifier = new();
         #endregion
 
         #region コンストラクタ
@@ -332,9 +332,29 @@ namespace nokakoi
                             // エスケープ解除（↑SSPにはエスケープされたまま送る）
                             content = Regex.Unescape(content);
 
-                            // デスクトップ通知
-                            //var keywordNotifier = new KeywordNotifier();
-                            keywordNotifier.CheckPost(userName, content);
+                            // キーワード通知
+                            if (_keywordNotifier.CheckPost(content) && _keywordNotifier.ShouldOpenFile)
+                            {
+                                NIP19.NostrEventNote nostrEventNote = new()
+                                {
+                                    EventId = nostrEvent.Id,
+                                    Relays = [textBoxRelay.Text]
+                                };
+                                var nevent = nostrEventNote.ToNIP19();
+                                var app = new ProcessStartInfo
+                                {
+                                    FileName = _keywordNotifier.FileName + nevent,
+                                    UseShellExecute = true
+                                };
+                                try
+                                {
+                                    Process.Start(app);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine(ex.Message);
+                                }
+                            }
 
                             // 改行をスペースに置き換え
                             content = content.Replace('\n', ' ');
@@ -828,6 +848,7 @@ namespace nokakoi
         private void FormMain_Load(object sender, EventArgs e)
         {
             _formPostBar.ShowDialog();
+            ButtonStart_Click(sender, e);
         }
         #endregion
 
