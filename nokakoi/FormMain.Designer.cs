@@ -99,7 +99,6 @@
             textBoxPost.PlaceholderText = "Hello Nostr!";
             textBoxPost.Size = new Size(201, 23);
             textBoxPost.TabIndex = 6;
-            textBoxPost.KeyDown += TextBoxPost_KeyDown;
             // 
             // buttonPost
             // 
@@ -137,8 +136,9 @@
             // 
             // FormMain
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
-            AutoScaleMode = AutoScaleMode.Font;
+            AcceptButton = buttonPost;
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(304, 281);
             Controls.Add(checkBoxPostBar);
             Controls.Add(buttonSetting);
@@ -152,6 +152,7 @@
             KeyPreview = true;
             MinimumSize = new Size(200, 200);
             Name = "FormMain";
+            SizeGripStyle = SizeGripStyle.Show;
             StartPosition = FormStartPosition.Manual;
             Text = "nokakoi";
             TopMost = true;
