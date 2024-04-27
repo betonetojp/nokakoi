@@ -37,20 +37,19 @@
             // 
             textBoxPost.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxPost.Enabled = false;
-            textBoxPost.Location = new Point(12, 0);
+            textBoxPost.Location = new Point(12, 12);
             textBoxPost.MaxLength = 1024;
             textBoxPost.Name = "textBoxPost";
-            textBoxPost.PlaceholderText = "Hello Nostr!";
-            textBoxPost.Size = new Size(171, 23);
+            textBoxPost.PlaceholderText = "nokakoi";
+            textBoxPost.Size = new Size(131, 23);
             textBoxPost.TabIndex = 6;
-            textBoxPost.KeyDown += TextBoxPost_KeyDown;
             // 
             // buttonPost
             // 
             buttonPost.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             buttonPost.Enabled = false;
             buttonPost.Image = Properties.Resources.icons8_create_16;
-            buttonPost.Location = new Point(189, 0);
+            buttonPost.Location = new Point(149, 12);
             buttonPost.Name = "buttonPost";
             buttonPost.Size = new Size(23, 23);
             buttonPost.TabIndex = 7;
@@ -59,21 +58,25 @@
             // 
             // FormPostBar
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
-            AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(224, 35);
+            AcceptButton = buttonPost;
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            ClientSize = new Size(184, 52);
+            ControlBox = false;
             Controls.Add(buttonPost);
             Controls.Add(textBoxPost);
+            FormBorderStyle = FormBorderStyle.SizableToolWindow;
             Icon = (Icon)resources.GetObject("$this.Icon");
             KeyPreview = true;
             MaximizeBox = false;
-            MaximumSize = new Size(480, 74);
+            MaximumSize = new Size(480, 68);
             MinimizeBox = false;
-            MinimumSize = new Size(200, 74);
+            MinimumSize = new Size(200, 68);
             Name = "FormPostBar";
+            ShowIcon = false;
             ShowInTaskbar = false;
+            SizeGripStyle = SizeGripStyle.Show;
             StartPosition = FormStartPosition.Manual;
-            Text = "Post bar";
             TopMost = true;
             FormClosing += FormPostBar_FormClosing;
             Shown += FormPostBar_Shown;

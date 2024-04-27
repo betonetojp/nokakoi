@@ -25,7 +25,5 @@ namespace nokakoi
             }
             textBoxNokakoiKey.Text = nokakoiKey;
         }
-
-        
     }
 }

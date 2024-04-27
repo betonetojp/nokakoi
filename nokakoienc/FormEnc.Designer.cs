@@ -69,6 +69,7 @@
             // 
             // textBoxPassword
             // 
+            textBoxPassword.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxPassword.Location = new Point(12, 71);
             textBoxPassword.MaxLength = 256;
             textBoxPassword.Name = "textBoxPassword";
@@ -98,6 +99,7 @@
             // 
             // buttonEnc
             // 
+            buttonEnc.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             buttonEnc.Location = new Point(157, 71);
             buttonEnc.Name = "buttonEnc";
             buttonEnc.Size = new Size(75, 23);
@@ -108,8 +110,8 @@
             // 
             // FormEnc
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
-            AutoScaleMode = AutoScaleMode.Font;
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(244, 221);
             Controls.Add(buttonEnc);
             Controls.Add(textBoxNokakoiKey);
@@ -123,6 +125,7 @@
             MinimizeBox = false;
             MinimumSize = new Size(260, 260);
             Name = "FormEnc";
+            SizeGripStyle = SizeGripStyle.Show;
             StartPosition = FormStartPosition.CenterScreen;
             Text = "nokakoienc";
             ResumeLayout(false);

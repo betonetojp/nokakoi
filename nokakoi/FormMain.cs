@@ -859,21 +859,19 @@ namespace nokakoi
         }
         #endregion
 
-        #region CTRL + ENTERÇ≈ìäçe
-        /// <summary>
-        /// CTRL + ENTERÇ≈ìäçe
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void TextBoxPost_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyData == (Keys.Enter | Keys.Control))
-            {
-                ButtonPost_Click(sender, e);
-            }
-        }
+        #region Åiîpé~ÅjCTRL + ENTERÇ≈ìäçe
+        // CTRL + ENTERÇ≈ìäçe
+        //private void TextBoxPost_KeyDown(object sender, KeyEventArgs e)
+        //{
+        //    if (e.KeyData == (Keys.Enter | Keys.Control))
+        //    {
+        //        ButtonPost_Click(sender, e);
+        //    }
+        //}
         #endregion
 
+        #region âÊñ ï\é¶êÿë÷
+        // âÊñ ï\é¶êÿë÷
         private void FormMain_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.F11 || e.KeyCode == Keys.F12)
@@ -885,5 +883,6 @@ namespace nokakoi
                 ButtonSetting_Click(sender, e);
             }
         }
+        #endregion
     }
 }

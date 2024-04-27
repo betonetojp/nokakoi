@@ -78,13 +78,13 @@
             }
         }
 
-        private void TextBoxPost_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyData == (Keys.Enter | Keys.Control))
-            {
-                ButtonPost_Click(sender, e);
-            }
-        }
+        //private void TextBoxPost_KeyDown(object sender, KeyEventArgs e)
+        //{
+        //    if (e.KeyData == (Keys.Enter | Keys.Control))
+        //    {
+        //        ButtonPost_Click(sender, e);
+        //    }
+        //}
 
         private void FormPostBar_KeyDown(object sender, KeyEventArgs e)
         {

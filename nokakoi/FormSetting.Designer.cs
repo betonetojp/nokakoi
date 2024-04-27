@@ -87,7 +87,7 @@
             // 
             // textBoxPassword
             // 
-            textBoxPassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            textBoxPassword.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxPassword.ImeMode = ImeMode.Disable;
             textBoxPassword.Location = new Point(88, 305);
             textBoxPassword.MaxLength = 256;
@@ -251,7 +251,7 @@
             labelVersion.Name = "labelVersion";
             labelVersion.Size = new Size(37, 15);
             labelVersion.TabIndex = 0;
-            labelVersion.Text = "v0.3.4";
+            labelVersion.Text = "v0.3.5";
             // 
             // labelOpacity
             // 
@@ -301,8 +301,8 @@
             // 
             // FormSetting
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
-            AutoScaleMode = AutoScaleMode.Font;
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(284, 361);
             Controls.Add(label8);
             Controls.Add(label4);
@@ -336,6 +336,7 @@
             MinimumSize = new Size(300, 400);
             Name = "FormSetting";
             ShowInTaskbar = false;
+            SizeGripStyle = SizeGripStyle.Show;
             StartPosition = FormStartPosition.CenterParent;
             Text = "Setting";
             TopMost = true;
