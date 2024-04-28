@@ -78,6 +78,14 @@ namespace nokakoi
         {
             InitializeComponent();
 
+            // ƒ{ƒ^ƒ“‚Ì‰æ‘œ‚ğDPI‚É‡‚í‚¹‚Ä•\¦
+            float scale = CreateGraphics().DpiX / 96f;
+            int size = (int)(16 * scale);
+            buttonStart.Image = new Bitmap(Properties.Resources.icons8_start_16, size, size);
+            buttonStop.Image = new Bitmap(Properties.Resources.icons8_stop_16, size, size);
+            buttonPost.Image = new Bitmap(Properties.Resources.icons8_create_16, size, size);
+            buttonSetting.Image = new Bitmap(Properties.Resources.icons8_setting_16, size, size);
+
             Setting.Load("nokakoi.config");
             _users = Tools.LoadUsers();
 
