@@ -12,7 +12,14 @@
             // ボタンの画像をDPIに合わせて表示
             float scale = CreateGraphics().DpiX / 96f;
             int size = (int)(16 * scale);
-            buttonPost.Image = new Bitmap(Properties.Resources.icons8_create_16, size, size);
+            if (scale < 2.0f)
+            {
+                buttonPost.Image = new Bitmap(Properties.Resources.icons8_create_16, size, size);
+            }
+            else
+            {
+                buttonPost.Image = new Bitmap(Properties.Resources.icons8_create_32, size, size);
+            }
         }
 
         private void ButtonPost_Click(object sender, EventArgs e)

@@ -63,16 +63,6 @@ namespace nokakoi.Properties {
         /// <summary>
         ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
         /// </summary>
-        internal static System.Drawing.Bitmap icons8_connect_16 {
-            get {
-                object obj = ResourceManager.GetObject("icons8-connect-16", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
-        /// </summary>
         internal static System.Drawing.Bitmap icons8_create_16 {
             get {
                 object obj = ResourceManager.GetObject("icons8-create-16", resourceCulture);
@@ -83,9 +73,9 @@ namespace nokakoi.Properties {
         /// <summary>
         ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
         /// </summary>
-        internal static System.Drawing.Bitmap icons8_disconnect_16 {
+        internal static System.Drawing.Bitmap icons8_create_32 {
             get {
-                object obj = ResourceManager.GetObject("icons8-disconnect-16", resourceCulture);
+                object obj = ResourceManager.GetObject("icons8_create_32", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -103,6 +93,16 @@ namespace nokakoi.Properties {
         /// <summary>
         ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
         /// </summary>
+        internal static System.Drawing.Bitmap icons8_setting_32 {
+            get {
+                object obj = ResourceManager.GetObject("icons8_setting_32", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
+        /// </summary>
         internal static System.Drawing.Bitmap icons8_start_16 {
             get {
                 object obj = ResourceManager.GetObject("icons8-start-16", resourceCulture);
@@ -113,9 +113,29 @@ namespace nokakoi.Properties {
         /// <summary>
         ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
         /// </summary>
+        internal static System.Drawing.Bitmap icons8_start_32 {
+            get {
+                object obj = ResourceManager.GetObject("icons8_start_32", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
+        /// </summary>
         internal static System.Drawing.Bitmap icons8_stop_16 {
             get {
                 object obj = ResourceManager.GetObject("icons8-stop-16", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_stop_32 {
+            get {
+                object obj = ResourceManager.GetObject("icons8_stop_32", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
