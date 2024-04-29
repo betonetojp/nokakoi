@@ -35,21 +35,25 @@
             // 
             // textBoxPost
             // 
-            textBoxPost.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxPost.AcceptsReturn = true;
+            textBoxPost.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             textBoxPost.Enabled = false;
             textBoxPost.Location = new Point(12, 12);
             textBoxPost.MaxLength = 1024;
+            textBoxPost.Multiline = true;
             textBoxPost.Name = "textBoxPost";
             textBoxPost.PlaceholderText = "nokakoi";
-            textBoxPost.Size = new Size(131, 23);
+            textBoxPost.ScrollBars = ScrollBars.Vertical;
+            textBoxPost.Size = new Size(231, 92);
             textBoxPost.TabIndex = 6;
+            textBoxPost.KeyDown += TextBoxPost_KeyDown;
             // 
             // buttonPost
             // 
             buttonPost.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             buttonPost.Enabled = false;
             buttonPost.Image = Properties.Resources.icons8_create_16;
-            buttonPost.Location = new Point(149, 12);
+            buttonPost.Location = new Point(249, 12);
             buttonPost.Name = "buttonPost";
             buttonPost.Size = new Size(23, 23);
             buttonPost.TabIndex = 7;
@@ -58,10 +62,9 @@
             // 
             // FormPostBar
             // 
-            AcceptButton = buttonPost;
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = new Size(184, 52);
+            ClientSize = new Size(284, 116);
             ControlBox = false;
             Controls.Add(buttonPost);
             Controls.Add(textBoxPost);
@@ -69,7 +72,7 @@
             Icon = (Icon)resources.GetObject("$this.Icon");
             KeyPreview = true;
             MaximizeBox = false;
-            MaximumSize = new Size(480, 68);
+            MaximumSize = new Size(480, 200);
             MinimizeBox = false;
             MinimumSize = new Size(200, 68);
             Name = "FormPostBar";

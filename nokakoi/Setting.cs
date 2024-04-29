@@ -29,7 +29,7 @@ namespace nokakoi
             public bool ShowOnlyFollowees { get; set; } = false;
             public string NokakoiKey { get; set; } = string.Empty;
             public Point PostBarLocation { get; set; }
-            public Size PostBarSize { get; set; }
+            public Size PostBarSize { get; set; } = new Size(300, 132);
         }
         #endregion
 

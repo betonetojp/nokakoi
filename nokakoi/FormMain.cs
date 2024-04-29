@@ -535,7 +535,7 @@ namespace nokakoi
             var newEvent = new NostrEvent()
             {
                 Kind = 1,
-                Content = textBoxPost.Text + (_addShortcode ? " :" + _shortcode + ":" : string.Empty),
+                Content = textBoxPost.Text.Replace("\r\n", "\\n") + (_addShortcode ? " :" + _shortcode + ":" : string.Empty),
                 Tags = tags
             };
 
@@ -877,15 +877,15 @@ namespace nokakoi
         }
         #endregion
 
-        #region Åiîpé~ÅjCTRL + ENTERÇ≈ìäçe
+        #region CTRL + ENTERÇ≈ìäçe
         // CTRL + ENTERÇ≈ìäçe
-        //private void TextBoxPost_KeyDown(object sender, KeyEventArgs e)
-        //{
-        //    if (e.KeyData == (Keys.Enter | Keys.Control))
-        //    {
-        //        ButtonPost_Click(sender, e);
-        //    }
-        //}
+        private void TextBoxPost_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyData == (Keys.Enter | Keys.Control))
+            {
+                ButtonPost_Click(sender, e);
+            }
+        }
         #endregion
 
         #region âÊñ ï\é¶êÿë÷

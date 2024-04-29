@@ -99,6 +99,7 @@
             textBoxPost.PlaceholderText = "Hello Nostr!";
             textBoxPost.Size = new Size(201, 23);
             textBoxPost.TabIndex = 6;
+            textBoxPost.KeyDown += TextBoxPost_KeyDown;
             // 
             // buttonPost
             // 
@@ -136,7 +137,6 @@
             // 
             // FormMain
             // 
-            AcceptButton = buttonPost;
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(304, 281);
