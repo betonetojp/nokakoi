@@ -159,6 +159,7 @@
             FormClosing += FormMain_FormClosing;
             Load += FormMain_Load;
             KeyDown += FormMain_KeyDown;
+            MouseClick += FormMain_MouseClick;
             ResumeLayout(false);
             PerformLayout();
         }

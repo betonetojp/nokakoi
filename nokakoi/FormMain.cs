@@ -15,6 +15,7 @@ namespace nokakoi
         private readonly TimeSpan _timeSpan = new(0, 0, 0, 0);
         private readonly FormSetting _formSetting = new();
         private readonly FormPostBar _formPostBar = new();
+        private FormUsers _formUsers = new();
 
         private NostrClient? _client;
         /// <summary>
@@ -41,7 +42,7 @@ namespace nokakoi
         /// <summary>
         /// ユーザー辞書
         /// </summary>
-        private readonly Dictionary<string, User?> _users = [];
+        internal readonly Dictionary<string, User?> _users = [];
 
         private int _cutLength;
         private int _cutNameLength;
@@ -133,6 +134,7 @@ namespace nokakoi
 
             _formSetting._formPostBar = _formPostBar;
             _formPostBar._formMain = this;
+            _formUsers._formMain = this;
         }
         #endregion
 
@@ -332,7 +334,7 @@ namespace nokakoi
                                 // 本文カット
                                 if (msg.Length > _cutLength)
                                 {
-                                    msg = $"{msg[.._cutLength]} . . .";//\\u\\p[1]\\s[10]長いよっ！";
+                                    msg = $"{msg[.._cutLength]}...";//\\u\\p[1]\\s[10]長いよっ！";
                                 }
                                 Dictionary<string, string> SSTPHeader = new(_baseSSTPHeader)
                                 {
@@ -378,7 +380,7 @@ namespace nokakoi
                             // 本文カット
                             if (content.Length > _cutLength)
                             {
-                                content = $"{content[.._cutLength]} . . .";
+                                content = $"{content[.._cutLength]}...";
                             }
                             // 画面に表示
                             textBoxTimeline.Text = (iSnokakoi ? "[n]" : string.Empty) + headMark
@@ -801,7 +803,7 @@ namespace nokakoi
             SubscribeProfiles([publicKeyHex]);
 
             // 情報があれば表示名を取得
-            string? userName = "????";
+            string? userName = "???";
             if (null != user)
             {
                 userName = user.DisplayName;
@@ -902,5 +904,21 @@ namespace nokakoi
             }
         }
         #endregion
+
+        private void FormMain_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                if (null == _formUsers || _formUsers.IsDisposed)
+                {
+                    _formUsers = new FormUsers();
+                    _formUsers._formMain = this;
+                }
+                if (!_formUsers.Visible)
+                {
+                    _formUsers.Show(this);
+                }
+            }
+        }
     }
 }
