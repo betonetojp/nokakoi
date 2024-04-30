@@ -15,9 +15,9 @@ namespace nokakoi
         public string? Name { get; set; }
         [JsonPropertyName("display_name")]
         public string? DisplayName { get; set; }
-        /* 今は使わないので削除
         [JsonPropertyName("nip05")]
         public string? Nip05 { get; set; }
+        /* 今は使わないので削除
         [JsonPropertyName("picture")]
         public string? Picture { get; set; }
         */

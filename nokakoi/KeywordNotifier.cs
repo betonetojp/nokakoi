@@ -12,20 +12,29 @@ namespace nokakoi
         [JsonPropertyName("keywords")]
         public List<string> Keywords { get; set; } = [];
         [JsonPropertyName("balloon")]
-        public bool Balloon { get; set; } = true;
+        public bool Balloon { get; set; }
         [JsonPropertyName("open_file")]
-        public bool Open { get; set; } = false;
+        public bool Open { get; set; }
         [JsonPropertyName("file_name")]
-        public string FileName { get; set; } = "https://njump.me/";
+        public string FileName { get; set; } = string.Empty;
     }
 
     public class KeywordNotifier
     {
-        private readonly NotifyIcon _notifyIcon;
+        public NotifierSettings Settings = new();
+
         private readonly List<string> _keywords = [];
         private readonly bool _shouldShowBalloon = true;
-        public bool ShouldOpenFile { get; set; } = false;
-        public string FileName { get; set; } = "https://njump.me/";
+        private readonly bool _shouldOpenFile = false;
+        private readonly string _fileName = "https://njump.me/";
+
+        private readonly NotifyIcon _notifyIcon;
+        private readonly string _jsonPath = "keywords.json";
+        private readonly JsonSerializerOptions _options = new()
+        {
+            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+            WriteIndented = true,
+        };
 
         public KeywordNotifier()
         {
@@ -33,26 +42,19 @@ namespace nokakoi
             {
                 Icon = Resources.nokakoi
             };
-            NotifierSettings? notifierSettings;
-            var jsonPath = "keywords.json";
-            var options = new JsonSerializerOptions
-            {
-                Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
-                WriteIndented = true,
-            };
 
-            if (File.Exists(jsonPath))
+            if (File.Exists(_jsonPath))
             {
                 try
                 {
-                    var jsonContent = File.ReadAllText(jsonPath);
-                    notifierSettings = JsonSerializer.Deserialize<NotifierSettings>(jsonContent, options);
+                    var jsonContent = File.ReadAllText(_jsonPath);
+                    var notifierSettings = JsonSerializer.Deserialize<NotifierSettings>(jsonContent, _options);
                     if (notifierSettings != null)
                     {
                         _keywords = notifierSettings.Keywords;
                         _shouldShowBalloon = notifierSettings.Balloon;
-                        ShouldOpenFile = notifierSettings.Open;
-                        FileName = notifierSettings.FileName;
+                        _shouldOpenFile = notifierSettings.Open;
+                        _fileName = notifierSettings.FileName;
                     }
                 }
                 catch (Exception ex)
@@ -61,18 +63,22 @@ namespace nokakoi
                 }
             }
 
-            notifierSettings = new NotifierSettings()
+            Settings = new NotifierSettings()
             {
                 Keywords = _keywords,
                 Balloon = _shouldShowBalloon,
-                Open = ShouldOpenFile,
-                FileName = FileName
+                Open = _shouldOpenFile,
+                FileName = _fileName
             };
+            SaveSettings();
+        }
 
+        public void SaveSettings()
+        {
             try
             {
-                var jsonContent = JsonSerializer.Serialize(notifierSettings, options);
-                File.WriteAllText(jsonPath, jsonContent);
+                var jsonContent = JsonSerializer.Serialize(Settings, _options);
+                File.WriteAllText(_jsonPath, jsonContent);
             }
             catch (Exception ex)
             {

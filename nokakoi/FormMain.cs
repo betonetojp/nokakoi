@@ -15,7 +15,7 @@ namespace nokakoi
         private readonly TimeSpan _timeSpan = new(0, 0, 0, 0);
         private readonly FormSetting _formSetting = new();
         private readonly FormPostBar _formPostBar = new();
-        private FormUsers _formUsers = new();
+        private FormManiacs _formManiacs = new();
 
         private NostrClient? _client;
         /// <summary>
@@ -42,7 +42,11 @@ namespace nokakoi
         /// <summary>
         /// ユーザー辞書
         /// </summary>
-        internal readonly Dictionary<string, User?> _users = [];
+        internal Dictionary<string, User?> Users = [];
+        /// <summary>
+        /// キーワード通知
+        /// </summary>
+        internal KeywordNotifier Notifier = new();
 
         private int _cutLength;
         private int _cutNameLength;
@@ -70,7 +74,6 @@ namespace nokakoi
         };
 
         private string _ghostName = string.Empty;
-        private readonly KeywordNotifier _keywordNotifier = new();
         #endregion
 
         #region コンストラクタ
@@ -98,7 +101,7 @@ namespace nokakoi
             }
 
             Setting.Load("nokakoi.config");
-            _users = Tools.LoadUsers();
+            Users = Tools.LoadUsers();
 
             Location = Setting.Location;
             if (new Point(0, 0) == Location)
@@ -134,7 +137,7 @@ namespace nokakoi
 
             _formSetting._formPostBar = _formPostBar;
             _formPostBar._formMain = this;
-            _formUsers._formMain = this;
+            _formManiacs._formMain = this;
         }
         #endregion
 
@@ -352,7 +355,7 @@ namespace nokakoi
                             content = Regex.Unescape(content);
 
                             // キーワード通知
-                            if (_keywordNotifier.CheckPost(content) && _keywordNotifier.ShouldOpenFile)
+                            if (Notifier.CheckPost(content) && Notifier.Settings.Open)
                             {
                                 NIP19.NostrEventNote nostrEventNote = new()
                                 {
@@ -362,7 +365,7 @@ namespace nokakoi
                                 var nevent = nostrEventNote.ToNIP19();
                                 var app = new ProcessStartInfo
                                 {
-                                    FileName = _keywordNotifier.FileName + nevent,
+                                    FileName = Notifier.Settings.FileName + nevent,
                                     UseShellExecute = true
                                 };
                                 try
@@ -428,7 +431,7 @@ namespace nokakoi
                         var user = Tools.JsonToUser(contentJson);
 
                         // 辞書に追加（上書き）
-                        _users[nostrEvent.PublicKey] = user;
+                        Users[nostrEvent.PublicKey] = user;
                         Debug.WriteLine($"{nostrEvent.PublicKey} {user?.DisplayName} @{user?.Name}");
                     }
                 }
@@ -799,7 +802,7 @@ namespace nokakoi
             }
             */
             // kind 0 を毎回購読するように変更（頻繁にdisplay_name等を変更するユーザーがいるため）
-            _users.TryGetValue(publicKeyHex, out User? user);
+            Users.TryGetValue(publicKeyHex, out User? user);
             SubscribeProfiles([publicKeyHex]);
 
             // 情報があれば表示名を取得
@@ -825,7 +828,7 @@ namespace nokakoi
         /// <returns>ミュートフラグ</returns>
         private bool IsMuted(string publicKeyHex)
         {
-            if (_users.TryGetValue(publicKeyHex, out User? user))
+            if (Users.TryGetValue(publicKeyHex, out User? user))
             {
                 if (null != user)
                 {
@@ -855,7 +858,8 @@ namespace nokakoi
             Setting.PostBarSize = _formPostBar.Size;
             Setting.Relay = textBoxRelay.Text;
             Setting.Save("nokakoi.config");
-            Tools.SaveUsers(_users);
+            Tools.SaveUsers(Users);
+            Notifier.SaveSettings();
 
             _ds?.Dispose();     // FrmMsgReceiverのThread停止せず1000ms待たされるうえにプロセス残るので…
             Application.Exit(); // ←これで殺す。SSTLibに手を入れた方がいいが、とりあえず。
@@ -902,23 +906,32 @@ namespace nokakoi
             {
                 ButtonSetting_Click(sender, e);
             }
+            if (e.KeyCode == Keys.F10)
+            {
+                var ev = new MouseEventArgs(MouseButtons.Right, 1, 0, 0, 0);
+                FormMain_MouseClick(sender, ev);
+            }
         }
         #endregion
 
+        #region マニアクス表示
         private void FormMain_MouseClick(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right)
             {
-                if (null == _formUsers || _formUsers.IsDisposed)
+                if (null == _formManiacs || _formManiacs.IsDisposed)
                 {
-                    _formUsers = new FormUsers();
-                    _formUsers._formMain = this;
+                    _formManiacs = new FormManiacs
+                    {
+                        _formMain = this
+                    };
                 }
-                if (!_formUsers.Visible)
+                if (!_formManiacs.Visible)
                 {
-                    _formUsers.Show(this);
+                    _formManiacs.Show(this);
                 }
             }
         }
+        #endregion
     }
 }
