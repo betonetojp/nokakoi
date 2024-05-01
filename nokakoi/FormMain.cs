@@ -541,7 +541,12 @@ namespace nokakoi
             var newEvent = new NostrEvent()
             {
                 Kind = 1,
-                Content = textBoxPost.Text.Replace("\r\n", "\\n") + (_addShortcode ? " :" + _shortcode + ":" : string.Empty),
+                Content = textBoxPost.Text
+                            .Replace("\\n", "\r\n") // 本体の改行をポストバーのマルチラインに合わせる（順番大事）
+                            .Replace("\\", "\\\\")  // \を投稿できるようにエスケープ
+                            .Replace("\"", "\\\"")  // "を投稿できるようにエスケープ
+                            .Replace("\r\n", "\\n") // 改行を投稿できるようにエスケープ
+                            + (_addShortcode ? " :" + _shortcode + ":" : string.Empty),
                 Tags = tags
             };
 

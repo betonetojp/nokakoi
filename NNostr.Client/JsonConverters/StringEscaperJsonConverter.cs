@@ -18,7 +18,7 @@ public class StringEscaperJsonConverter : JsonConverter<string?>
             c = value[i];
 
             if (c >= 0 && c <= 31 || c == 34 || c == 39 || c == 60 || c == 62 || c == 92)
-            {
+            {                          //  "          '          <          >          \
                 needEncode = true;
                 break;
             }
