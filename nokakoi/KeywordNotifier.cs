@@ -21,12 +21,12 @@ namespace nokakoi
 
     public class KeywordNotifier
     {
-        public NotifierSettings Settings = new();
+        public NotifierSettings Settings { get; set; } = new();
 
-        private readonly List<string> _keywords = [];
-        private readonly bool _shouldShowBalloon = true;
-        private readonly bool _shouldOpenFile = false;
-        private readonly string _fileName = "https://njump.me/";
+        private List<string> _keywords = [];
+        private bool _shouldShowBalloon = true;
+        private bool _shouldOpenFile = false;
+        private string _fileName = "https://njump.me/";
 
         private readonly NotifyIcon _notifyIcon;
         private readonly string _jsonPath = "keywords.json";
@@ -43,25 +43,7 @@ namespace nokakoi
                 Icon = Resources.nokakoi
             };
 
-            if (File.Exists(_jsonPath))
-            {
-                try
-                {
-                    var jsonContent = File.ReadAllText(_jsonPath);
-                    var notifierSettings = JsonSerializer.Deserialize<NotifierSettings>(jsonContent, _options);
-                    if (notifierSettings != null)
-                    {
-                        _keywords = notifierSettings.Keywords;
-                        _shouldShowBalloon = notifierSettings.Balloon;
-                        _shouldOpenFile = notifierSettings.Open;
-                        _fileName = notifierSettings.FileName;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                }
-            }
+            LoadSettings();
 
             Settings = new NotifierSettings()
             {
@@ -70,6 +52,7 @@ namespace nokakoi
                 Open = _shouldOpenFile,
                 FileName = _fileName
             };
+
             SaveSettings();
         }
 
@@ -83,6 +66,29 @@ namespace nokakoi
             catch (Exception ex)
             {
                 Debug.WriteLine(ex.Message);
+            }
+        }
+
+        public void LoadSettings()
+        {
+            if (File.Exists(_jsonPath))
+            {
+                try
+                {
+                    var jsonContent = File.ReadAllText(_jsonPath);
+                    var settings = JsonSerializer.Deserialize<NotifierSettings>(jsonContent, _options);
+                    if (settings != null)
+                    {
+                        _keywords = settings.Keywords;
+                        _shouldShowBalloon = settings.Balloon;
+                        _shouldOpenFile = settings.Open;
+                        _fileName = settings.FileName;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                }
             }
         }
 

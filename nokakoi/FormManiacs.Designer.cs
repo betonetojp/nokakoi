@@ -54,10 +54,13 @@
             dataGridViewUsers.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridViewUsers.Columns.AddRange(new DataGridViewColumn[] { mute, display_name, name, nip05, pubkey });
             dataGridViewUsers.Location = new Point(12, 12);
+            dataGridViewUsers.MultiSelect = false;
             dataGridViewUsers.Name = "dataGridViewUsers";
             dataGridViewUsers.RowHeadersVisible = false;
+            dataGridViewUsers.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dataGridViewUsers.Size = new Size(440, 325);
             dataGridViewUsers.TabIndex = 0;
+            dataGridViewUsers.SelectionChanged += dataGridViewUsers_SelectionChanged;
             // 
             // mute
             // 

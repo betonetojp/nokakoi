@@ -2,7 +2,7 @@
 {
     public partial class FormPostBar : Form
     {
-        internal FormMain? _formMain;
+        internal FormMain? MainForm;
         private Point _mousePoint;
 
         public FormPostBar()
@@ -24,10 +24,10 @@
 
         private void ButtonPost_Click(object sender, EventArgs e)
         {
-            if (null != _formMain)
+            if (null != MainForm)
             {
-                _formMain.textBoxPost.Text = textBoxPost.Text;
-                _formMain.ButtonPost_Click(sender, e);
+                MainForm.textBoxPost.Text = textBoxPost.Text;
+                MainForm.ButtonPost_Click(sender, e);
             }
         }
 
@@ -52,9 +52,9 @@
         {
             if (e.CloseReason == CloseReason.UserClosing)
             {
-                if (null != _formMain)
+                if (null != MainForm)
                 {
-                    _formMain.checkBoxPostBar.Checked = false;
+                    MainForm.checkBoxPostBar.Checked = false;
                 }
                 Visible = false;
                 e.Cancel = true;
@@ -69,15 +69,15 @@
 
         private void FormPostBar_DoubleClick(object sender, EventArgs e)
         {
-            if (null != _formMain)
+            if (null != MainForm)
             {
-                if (FormWindowState.Minimized == _formMain.WindowState)
+                if (FormWindowState.Minimized == MainForm.WindowState)
                 {
-                    _formMain.WindowState = FormWindowState.Normal;
+                    MainForm.WindowState = FormWindowState.Normal;
                 }
                 else
                 {
-                    _formMain.WindowState = FormWindowState.Minimized;
+                    MainForm.WindowState = FormWindowState.Minimized;
                 }
             }
         }

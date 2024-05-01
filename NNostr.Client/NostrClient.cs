@@ -2,6 +2,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Text.Unicode;
 using System.Threading.Channels;
 
@@ -192,7 +193,8 @@ namespace NNostr.Client
         public async Task PublishEvent(NostrEvent nostrEvent, CancellationToken token = default)
         {
             var payload = JsonSerializer.Serialize(new object[] {"EVENT", nostrEvent});
-            payload = payload.Replace("\\\\n", "\\n"); // Fix for double escaping newlines
+            //payload = payload.Replace("\\\\n", "\\n"); // Å©â¸çsìäçeÇÃÇΩÇﬂÇ…í«â¡ÅB2024-05-01Å´Ç…ïœçX
+            payload = Regex.Unescape(payload); // Fix for double escaping newlines
             await _pendingOutgoingMessages.Writer.WriteAsync(payload, token);
         }
 

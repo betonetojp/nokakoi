@@ -136,8 +136,8 @@ namespace nokakoi
             _formPostBar.Size = Setting.PostBarSize;
 
             _formSetting._formPostBar = _formPostBar;
-            _formPostBar._formMain = this;
-            _formManiacs._formMain = this;
+            _formPostBar.MainForm = this;
+            _formManiacs.MainForm = this;
         }
         #endregion
 
@@ -355,7 +355,8 @@ namespace nokakoi
                             content = Regex.Unescape(content);
 
                             // キーワード通知
-                            if (Notifier.CheckPost(content) && Notifier.Settings.Open)
+                            var settings = Notifier.Settings;
+                            if (Notifier.CheckPost(content) && settings.Open)
                             {
                                 NIP19.NostrEventNote nostrEventNote = new()
                                 {
@@ -365,7 +366,7 @@ namespace nokakoi
                                 var nevent = nostrEventNote.ToNIP19();
                                 var app = new ProcessStartInfo
                                 {
-                                    FileName = Notifier.Settings.FileName + nevent,
+                                    FileName = settings.FileName + nevent,
                                     UseShellExecute = true
                                 };
                                 try
@@ -859,9 +860,9 @@ namespace nokakoi
             Setting.Relay = textBoxRelay.Text;
             Setting.Save("nokakoi.config");
             Tools.SaveUsers(Users);
-            Notifier.SaveSettings();
+            Notifier.SaveSettings(); // 必要ないが更新日時をそろえるため
 
-            _ds?.Dispose();     // FrmMsgReceiverのThread停止せず1000ms待たされるうえにプロセス残るので…
+            _ds.Dispose();      // FrmMsgReceiverのThread停止せず1000ms待たされるうえにプロセス残るので…
             Application.Exit(); // ←これで殺す。SSTLibに手を入れた方がいいが、とりあえず。
         }
         #endregion
@@ -923,7 +924,7 @@ namespace nokakoi
                 {
                     _formManiacs = new FormManiacs
                     {
-                        _formMain = this
+                        MainForm = this
                     };
                 }
                 if (!_formManiacs.Visible)

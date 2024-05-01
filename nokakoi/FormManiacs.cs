@@ -1,10 +1,8 @@
-﻿using Microsoft.VisualBasic.ApplicationServices;
-
-namespace nokakoi
+﻿namespace nokakoi
 {
     public partial class FormManiacs : Form
     {
-        internal FormMain? _formMain;
+        internal FormMain? MainForm;
         public FormManiacs()
         {
             InitializeComponent();
@@ -12,29 +10,30 @@ namespace nokakoi
 
         private void FormUsers_Load(object sender, EventArgs e)
         {
-            if (_formMain != null)
+            if (MainForm != null)
             {
-                foreach (var user in _formMain.Users)
+                foreach (var user in MainForm.Users)
                 {
                     dataGridViewUsers.Rows.Add(user.Value?.Mute, user.Value?.DisplayName, user.Value?.Name, user.Value?.Nip05, user.Key);
                 }
-                checkBoxBalloon.Checked = _formMain.Notifier.Settings.Balloon;
-                checkBoxOpenFile.Checked = _formMain.Notifier.Settings.Open;
-                textBoxFileName.Text = _formMain.Notifier.Settings.FileName;
-                textBoxKeywords.Text = string.Join("\r\n", _formMain.Notifier.Settings.Keywords);
+                var settings = MainForm.Notifier.Settings;
+                checkBoxBalloon.Checked = settings.Balloon;
+                checkBoxOpenFile.Checked = settings.Open;
+                textBoxFileName.Text = settings.FileName;
+                textBoxKeywords.Text = string.Join("\r\n", settings.Keywords);
             }
         }
 
         private void ButtonSave_Click(object sender, EventArgs e)
         {
-            if (_formMain != null)
+            if (MainForm != null)
             {
                 foreach (DataGridViewRow row in dataGridViewUsers.Rows)
                 {
                     if (row.Cells[4].Value != null)
                     {
                         var key = row.Cells[4].Value.ToString();
-                        if (key != null && _formMain.Users.TryGetValue(key, out User? user))
+                        if (key != null && MainForm.Users.TryGetValue(key, out User? user))
                         {
                             if (user != null)
                             {
@@ -43,23 +42,29 @@ namespace nokakoi
                         }
                     }
                 }
-                _formMain.Notifier.Settings.Balloon = checkBoxBalloon.Checked;
-                _formMain.Notifier.Settings.Open = checkBoxOpenFile.Checked;
-                _formMain.Notifier.Settings.FileName = textBoxFileName.Text;
-                _formMain.Notifier.Settings.Keywords = [.. textBoxKeywords.Text.Split(["\r\n"], StringSplitOptions.RemoveEmptyEntries)];
+                var settings = MainForm.Notifier.Settings;
+                settings.Balloon = checkBoxBalloon.Checked;
+                settings.Open = checkBoxOpenFile.Checked;
+                settings.FileName = textBoxFileName.Text;
+                settings.Keywords = [.. textBoxKeywords.Text.Split(["\r\n"], StringSplitOptions.RemoveEmptyEntries)];
             }
             Close();
         }
 
         private void FormManiacs_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (_formMain != null)
+            if (MainForm != null)
             {
-                Tools.SaveUsers(_formMain.Users);
-                _formMain.Notifier.SaveSettings();
-                _formMain.Users = Tools.LoadUsers();
-                _formMain.Notifier = new KeywordNotifier();
+                Tools.SaveUsers(MainForm.Users);
+                MainForm.Notifier.SaveSettings();
+                MainForm.Users = Tools.LoadUsers();
+                MainForm.Notifier = new KeywordNotifier();
             }
+        }
+
+        private void dataGridViewUsers_SelectionChanged(object sender, EventArgs e)
+        {
+            dataGridViewUsers.ClearSelection();
         }
     }
 }
