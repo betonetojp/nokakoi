@@ -58,7 +58,9 @@
             dataGridViewUsers.Name = "dataGridViewUsers";
             dataGridViewUsers.RowHeadersVisible = false;
             dataGridViewUsers.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dataGridViewUsers.ShowCellToolTips = false;
             dataGridViewUsers.Size = new Size(440, 325);
+            dataGridViewUsers.StandardTab = true;
             dataGridViewUsers.TabIndex = 0;
             dataGridViewUsers.SelectionChanged += dataGridViewUsers_SelectionChanged;
             // 
@@ -104,7 +106,7 @@
             buttonSave.Location = new Point(377, 406);
             buttonSave.Name = "buttonSave";
             buttonSave.Size = new Size(75, 23);
-            buttonSave.TabIndex = 1;
+            buttonSave.TabIndex = 5;
             buttonSave.Text = "Save";
             buttonSave.UseVisualStyleBackColor = true;
             buttonSave.Click += ButtonSave_Click;
@@ -116,7 +118,7 @@
             checkBoxBalloon.Location = new Point(12, 356);
             checkBoxBalloon.Name = "checkBoxBalloon";
             checkBoxBalloon.Size = new Size(129, 19);
-            checkBoxBalloon.TabIndex = 2;
+            checkBoxBalloon.TabIndex = 1;
             checkBoxBalloon.Text = "Balloon notification";
             checkBoxBalloon.UseVisualStyleBackColor = true;
             // 
@@ -127,7 +129,7 @@
             checkBoxOpenFile.Location = new Point(12, 381);
             checkBoxOpenFile.Name = "checkBoxOpenFile";
             checkBoxOpenFile.Size = new Size(136, 19);
-            checkBoxOpenFile.TabIndex = 3;
+            checkBoxOpenFile.TabIndex = 2;
             checkBoxOpenFile.Text = "Open file notification";
             checkBoxOpenFile.UseVisualStyleBackColor = true;
             // 
@@ -138,7 +140,7 @@
             labelFileName.Location = new Point(12, 409);
             labelFileName.Name = "labelFileName";
             labelFileName.Size = new Size(57, 15);
-            labelFileName.TabIndex = 4;
+            labelFileName.TabIndex = 0;
             labelFileName.Text = "File name";
             // 
             // textBoxFileName
@@ -147,7 +149,7 @@
             textBoxFileName.Location = new Point(75, 406);
             textBoxFileName.Name = "textBoxFileName";
             textBoxFileName.Size = new Size(138, 23);
-            textBoxFileName.TabIndex = 5;
+            textBoxFileName.TabIndex = 3;
             textBoxFileName.Text = "https://nostter.app/";
             // 
             // textBoxKeywords
@@ -158,7 +160,7 @@
             textBoxKeywords.Name = "textBoxKeywords";
             textBoxKeywords.ScrollBars = ScrollBars.Vertical;
             textBoxKeywords.Size = new Size(152, 54);
-            textBoxKeywords.TabIndex = 7;
+            textBoxKeywords.TabIndex = 4;
             // 
             // labelKeywords
             // 
@@ -167,7 +169,7 @@
             labelKeywords.Location = new Point(219, 357);
             labelKeywords.Name = "labelKeywords";
             labelKeywords.Size = new Size(108, 15);
-            labelKeywords.TabIndex = 8;
+            labelKeywords.TabIndex = 0;
             labelKeywords.Text = "Keywords (per line)";
             // 
             // FormManiacs
