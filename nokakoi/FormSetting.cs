@@ -4,7 +4,7 @@ namespace nokakoi
 {
     public partial class FormSetting : Form
     {
-        internal FormPostBar? _formPostBar;
+        internal FormPostBar? PostBarForm { get; set; }
         public FormSetting()
         {
             InitializeComponent();
@@ -19,10 +19,10 @@ namespace nokakoi
         private void TrackBarOpacity_Scroll(object sender, EventArgs e)
         {
             labelOpacity.Text = $"{trackBarOpacity.Value}%";
-            if (null != Owner && null != _formPostBar)
+            if (null != Owner && null != PostBarForm)
             {
                 Owner.Opacity = trackBarOpacity.Value / 100.0;
-                _formPostBar.Opacity = Owner.Opacity;
+                PostBarForm.Opacity = Owner.Opacity;
             }
         }
 

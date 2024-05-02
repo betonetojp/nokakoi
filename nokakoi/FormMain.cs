@@ -135,7 +135,7 @@ namespace nokakoi
             }
             _formPostBar.Size = Setting.PostBarSize;
 
-            _formSetting._formPostBar = _formPostBar;
+            _formSetting.PostBarForm = _formPostBar;
             _formPostBar.MainForm = this;
             _formManiacs.MainForm = this;
         }
@@ -849,6 +849,16 @@ namespace nokakoi
         // ï¬Ç∂ÇÈ
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
         {
+            if (null != _client && WebSocketState.Open == _client.State)
+            {
+                _ = _client.CloseSubscription(_subscriptionId);
+                _ = _client.CloseSubscription(_getFollowsSubscriptionId);
+                _ = _client.CloseSubscription(_getProfilesSubscriptionId);
+                _ = _client.Disconnect();
+                _client.Dispose();
+                _client = null;
+            }
+
             if (FormWindowState.Normal != WindowState)
             {
                 // ç≈è¨âªç≈ëÂâªèÛë‘ÇÃéûÅAå≥ÇÃà íuÇ∆ëÂÇ´Ç≥Çï€ë∂

@@ -2,7 +2,7 @@
 {
     public partial class FormManiacs : Form
     {
-        internal FormMain? MainForm;
+        internal FormMain? MainForm { get; set; }
         public FormManiacs()
         {
             InitializeComponent();

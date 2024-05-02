@@ -2,7 +2,7 @@
 {
     public partial class FormPostBar : Form
     {
-        internal FormMain? MainForm;
+        internal FormMain? MainForm { get; set; }
         private Point _mousePoint;
 
         public FormPostBar()
