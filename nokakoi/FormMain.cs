@@ -627,6 +627,8 @@ namespace nokakoi
                 _npubHex = string.Empty;
                 //_npub = string.Empty;
                 _followeesHexs.Clear();
+                textBoxPost.PlaceholderText = "Hello Nostr!";
+                _formPostBar.textBoxPost.PlaceholderText = "nokakoi";
 
                 // 秘密鍵と公開鍵取得
                 _nsec = NokakoiCrypt.DecryptNokakoiKey(_nokakoiKey, _password);
@@ -648,6 +650,11 @@ namespace nokakoi
                     }
                     // フォロイーを購読をする
                     SubscribeFollows(_npubHex);
+
+                    var name = GetUserName(_npubHex);
+                    //textBoxTimeline.Text = $"> Login as {name}." + Environment.NewLine + textBoxTimeline.Text;
+                    textBoxPost.PlaceholderText = $"Post as {name}";
+                    _formPostBar.textBoxPost.PlaceholderText = $"Post as {name}";
                 }
             }
             catch (Exception ex)
