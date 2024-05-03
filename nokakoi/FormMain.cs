@@ -17,7 +17,8 @@ namespace nokakoi
         private readonly FormPostBar _formPostBar = new();
         private FormManiacs _formManiacs = new();
 
-        private NostrClient? _client;
+        //private NostrClient? _client;
+        private CompositeNostrClient? _client;
         /// <summary>
         /// タイムライン購読ID
         /// </summary>
@@ -74,6 +75,8 @@ namespace nokakoi
         };
 
         private string _ghostName = string.Empty;
+        // 重複イベントIDを保存するリスト
+        private readonly LinkedList<string> _displayedEventIds = new();
         #endregion
 
         #region コンストラクタ
@@ -181,13 +184,32 @@ namespace nokakoi
         {
             if (null == _client)
             {
-                _client = new NostrClient(new Uri(textBoxRelay.Text));
+                //_client = new NostrClient(new Uri(textBoxRelay.Text));
+                _client = new CompositeNostrClient([new Uri(textBoxRelay.Text),
+                                                    new Uri("wss://nos.lol"),        // テスト
+                                                    new Uri("wss://nostr.mutinywallet.com")]);  // テスト
                 await _client.Connect();
                 _client.EventsReceived += OnClientOnEventsReceived;
             }
-            else if (WebSocketState.CloseReceived < _client.State)
+            //else if (WebSocketState.CloseReceived < _client.State)
+            //{
+            //    await _client.Connect();
+            //}
+            else
             {
-                await _client.Connect();
+                var hasClosed = false;
+                foreach (var state in _client.States)
+                {
+                    if (WebSocketState.CloseReceived < state.Value)
+                    {
+                        hasClosed = true;
+                        break;
+                    }
+                }
+                if (hasClosed)
+                {
+                    await _client.Connect();
+                }
             }
         }
         #endregion
@@ -229,6 +251,18 @@ namespace nokakoi
             {
                 foreach (var nostrEvent in args.events)
                 {
+                    // 複数リレーからの重複イベントを除外
+                    if (_displayedEventIds.Contains(nostrEvent.Id))
+                    {
+                        _displayedEventIds.Remove(nostrEvent.Id);
+                        return;
+                    }
+                    if (_displayedEventIds.Count >= 128)
+                    {
+                        _displayedEventIds.RemoveFirst();
+                    }
+                    _displayedEventIds.AddLast(nostrEvent.Id);
+
                     var content = nostrEvent.Content;
                     if (content != null)
                     {
@@ -638,16 +672,18 @@ namespace nokakoi
                 // ログイン済みの時
                 if (!_npubHex.IsNullOrEmpty())
                 {
-                    if (null == _client)
-                    {
-                        _client = new NostrClient(new Uri(textBoxRelay.Text));
-                        await _client.Connect();
-                        _client.EventsReceived += OnClientOnEventsReceived;
-                    }
-                    else if (WebSocketState.CloseReceived < _client.State)
-                    {
-                        await _client.Connect();
-                    }
+                    //if (null == _client)
+                    //{
+                    //    _client = new NostrClient(new Uri(textBoxRelay.Text));
+                    //    await _client.Connect();
+                    //    _client.EventsReceived += OnClientOnEventsReceived;
+                    //}
+                    //else if (WebSocketState.CloseReceived < _client.State)
+                    //{
+                    //    await _client.Connect();
+                    //}
+                    await ConnectAsync();
+
                     // フォロイーを購読をする
                     SubscribeFollows(_npubHex);
 
@@ -856,15 +892,32 @@ namespace nokakoi
         // 閉じる
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (null != _client && WebSocketState.Open == _client.State)
+            //if (null != _client && WebSocketState.Open == _client.State)
+            //{
+            //    _ = _client.CloseSubscription(_subscriptionId);
+            //    _ = _client.CloseSubscription(_getFollowsSubscriptionId);
+            //    _ = _client.CloseSubscription(_getProfilesSubscriptionId);
+            //    _ = _client.Disconnect();
+            //    _client.Dispose();
+            //    _client = null;
+            //}
+            if (null != _client)
             {
-                _ = _client.CloseSubscription(_subscriptionId);
-                _ = _client.CloseSubscription(_getFollowsSubscriptionId);
-                _ = _client.CloseSubscription(_getProfilesSubscriptionId);
+                foreach (var state in _client.States)
+                {
+                    if (WebSocketState.Open == state.Value)
+                    {
+                        _client.CloseSubscription(_subscriptionId);
+                        _client.CloseSubscription(_getFollowsSubscriptionId);
+                        _client.CloseSubscription(_getProfilesSubscriptionId);
+                        _client.Disconnect();
+                    }
+                }
                 _ = _client.Disconnect();
                 _client.Dispose();
                 _client = null;
             }
+
 
             if (FormWindowState.Normal != WindowState)
             {
