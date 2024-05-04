@@ -14,7 +14,7 @@ namespace nokakoi
         {
             public Point Location { get; set; }
             public Size Size { get; set; } = new Size(320, 320);
-            public string Relay { get; set; } = "wss://yabu.me";
+            //public string Relay { get; set; } = "wss://yabu.me";
             public bool TopMost { get; set; } = false;
             public int CutLength { get; set; } = 40;
             public int CutNameLength { get; set; } = 8;
@@ -56,17 +56,17 @@ namespace nokakoi
                 _data.Size = value;
             }
         }
-        public static string Relay
-        {
-            get
-            {
-                return _data.Relay;
-            }
-            set
-            {
-                _data.Relay = value;
-            }
-        }
+        //public static string Relay
+        //{
+        //    get
+        //    {
+        //        return _data.Relay;
+        //    }
+        //    set
+        //    {
+        //        _data.Relay = value;
+        //    }
+        //}
         public static bool TopMost
         {
             get

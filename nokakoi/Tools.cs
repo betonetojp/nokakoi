@@ -194,12 +194,10 @@ namespace nokakoi
         internal static List<Relay> LoadRelays()
         {
             List<Relay> defaultRelays = [
-                new Relay { Enabled = true, Url = "wss://nos.lol" },
-                new Relay { Enabled = true, Url = "wss://relay.damus.io" },
-                new Relay { Enabled = true, Url = "wss://relay-jp.nostr.wirednet.jp" },
-                new Relay { Enabled = true, Url = "wss://nostr-relay.nokotaro.com" },
-                new Relay { Enabled = true, Url = "wss://yabu.me" },
-                new Relay { Enabled = true, Url = "wss://r.kojira.io" },
+                new Relay { Enabled = true, Url = "wss://nos.lol/" },
+                new Relay { Enabled = true, Url = "wss://relay.damus.io/" },
+                new Relay { Enabled = true, Url = "wss://yabu.me/" },
+                new Relay { Enabled = true, Url = "wss://r.kojira.io/" },
                 ];
 
             // relays.jsonを読み込み

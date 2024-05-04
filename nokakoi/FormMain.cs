@@ -13,11 +13,11 @@ namespace nokakoi
     {
         #region メンバー変数
         private readonly TimeSpan _timeSpan = new(0, 0, 0, 0);
-       
+
         private readonly FormSetting _formSetting = new();
         private readonly FormPostBar _formPostBar = new();
         private FormManiacs _formManiacs = new();
-        private FormRelayList _formRelayList;
+        private FormRelayList _formRelayList = new();
 
         //private NostrClient? _client;
         private CompositeNostrClient? _client;
@@ -79,6 +79,7 @@ namespace nokakoi
         private string _ghostName = string.Empty;
         // 重複イベントIDを保存するリスト
         private readonly LinkedList<string> _displayedEventIds = new();
+        Uri[] _relays = [];
         #endregion
 
         #region コンストラクタ
@@ -116,7 +117,7 @@ namespace nokakoi
                 StartPosition = FormStartPosition.CenterScreen;
             }
             Size = Setting.Size;
-            textBoxRelay.Text = Setting.Relay;
+            //textBoxRelay.Text = Setting.Relay;
             TopMost = Setting.TopMost;
             _cutLength = Setting.CutLength;
             _cutNameLength = Setting.CutNameLength;
@@ -154,9 +155,14 @@ namespace nokakoi
         {
             try
             {
-                await ConnectAsync();
+                int connectCount = await ConnectAsync();
+                if (0 == connectCount)
+                {
+                    textBoxTimeline.Text = "> No relay enabled." + Environment.NewLine + textBoxTimeline.Text;
+                    return;
+                }
 
-                textBoxRelay.ForeColor = SystemColors.GrayText;
+                //textBoxRelay.ForeColor = SystemColors.GrayText;
                 textBoxTimeline.Text = string.Empty;
                 textBoxTimeline.Text = "> Connect." + Environment.NewLine + textBoxTimeline.Text;
 
@@ -184,7 +190,7 @@ namespace nokakoi
         /// 接続処理
         /// </summary>
         /// <returns></returns>
-        private async Task ConnectAsync()
+        private async Task<int> ConnectAsync()
         {
             if (null == _client)
             {
@@ -194,9 +200,24 @@ namespace nokakoi
                 //                                    new Uri("wss://nos.lol"),        // テスト
                 //                                    new Uri("wss://nostr.mutinywallet.com")]);  // テスト
 
-                Uri[] relays = Tools.GetEnabledRelays();
-                textBoxRelay.Text = $"{relays.Count()} relays";
-                _client = new CompositeNostrClient(relays);
+                _relays = Tools.GetEnabledRelays();
+                switch (_relays.Length)
+                {
+                    case 0:
+                        labelRelays.Text = "No relay enabled.";
+                        toolTipRelays.SetToolTip(labelRelays, string.Empty);
+                        return 0;
+                    case 1:
+                        labelRelays.Text = _relays[0].ToString();
+                        toolTipRelays.SetToolTip(labelRelays, string.Join("\n", _relays.Select(r => r.ToString())));
+                        break;
+                    default:
+                        labelRelays.Text = $"{_relays.Length} relays enabled.";
+                        toolTipRelays.SetToolTip(labelRelays, string.Join("\n", _relays.Select(r => r.ToString())));
+                        break;
+                }
+
+                _client = new CompositeNostrClient(_relays);
 
                 await _client.Connect();
                 _client.EventsReceived += OnClientOnEventsReceived;
@@ -221,6 +242,7 @@ namespace nokakoi
                     await _client.Connect();
                 }
             }
+            return _client.States.Count;
         }
         #endregion
 
@@ -256,25 +278,16 @@ namespace nokakoi
         /// <param name="args"></param>
         private void OnClientOnEventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) args)
         {
-            foreach (var nostrEvent in args.events)
-            {
-                // 複数リレーからの重複イベントを除外
-                if (_displayedEventIds.Contains(nostrEvent.Id))
-                {
-                    return;
-                }
-                if (_displayedEventIds.Count >= 128)
-                {
-                    _displayedEventIds.RemoveFirst();
-                }
-                _displayedEventIds.AddLast(nostrEvent.Id);
-            }
-
             // タイムライン購読
             if (args.subscriptionId == _subscriptionId)
             {
                 foreach (var nostrEvent in args.events)
                 {
+                    if (RemoveDisplayedEventIds(nostrEvent.Id))
+                    {
+                        continue;
+                    }
+
                     var content = nostrEvent.Content;
                     if (content != null)
                     {
@@ -404,10 +417,11 @@ namespace nokakoi
                             var settings = Notifier.Settings;
                             if (Notifier.CheckPost(content) && settings.Open)
                             {
+                                var relays = _relays.Select(r => r.ToString()).ToArray();
                                 NIP19.NostrEventNote nostrEventNote = new()
                                 {
                                     EventId = nostrEvent.Id,
-                                    Relays = [textBoxRelay.Text]
+                                    Relays = relays,
                                 };
                                 var nevent = nostrEventNote.ToNIP19();
                                 var app = new ProcessStartInfo
@@ -445,6 +459,11 @@ namespace nokakoi
             {
                 foreach (var nostrEvent in args.events)
                 {
+                    if (RemoveDisplayedEventIds(nostrEvent.Id))
+                    {
+                        continue;
+                    }
+
                     // フォローリスト
                     if (3 == nostrEvent.Kind)
                     {
@@ -468,6 +487,11 @@ namespace nokakoi
             {
                 foreach (var nostrEvent in args.events)
                 {
+                    if (RemoveDisplayedEventIds(nostrEvent.Id))
+                    {
+                        continue;
+                    }
+
                     // プロフィール
                     if (0 == nostrEvent.Kind && null != nostrEvent.Content)
                     {
@@ -506,7 +530,7 @@ namespace nokakoi
                 _client.Dispose();
                 _client = null;
 
-                textBoxRelay.ForeColor = SystemColors.WindowText;
+                //textBoxRelay.ForeColor = SystemColors.WindowText;
                 buttonStart.Enabled = true;
                 buttonStart.Focus();
                 buttonStop.Enabled = false;
@@ -684,7 +708,12 @@ namespace nokakoi
                 // ログイン済みの時
                 if (!_npubHex.IsNullOrEmpty())
                 {
-                    await ConnectAsync();
+                    int connectCount =  await ConnectAsync();
+                    if (0 == connectCount)
+                    {
+                        textBoxTimeline.Text = "> No relay enabled." + Environment.NewLine + textBoxTimeline.Text;
+                        return;
+                    }
 
                     // フォロイーを購読をする
                     SubscribeFollows(_npubHex);
@@ -716,6 +745,26 @@ namespace nokakoi
             Setting.NokakoiKey = _nokakoiKey;
 
             Setting.Save("nokakoi.config");
+        }
+        #endregion
+
+        #region 複数リレーからの重複イベントを除外
+        /// <summary>
+        /// 複数リレーからの重複イベントを除外
+        /// </summary>
+        /// <param name="eventId"></param>
+        private bool RemoveDisplayedEventIds(string eventId)
+        {
+            if (_displayedEventIds.Contains(eventId))
+            {
+                return true;
+            }
+            if (_displayedEventIds.Count >= 128)
+            {
+                _displayedEventIds.RemoveFirst();
+            }
+            _displayedEventIds.AddLast(eventId);
+            return false;
         }
         #endregion
 
@@ -934,7 +983,7 @@ namespace nokakoi
             }
             Setting.PostBarLocation = _formPostBar.Location;
             Setting.PostBarSize = _formPostBar.Size;
-            Setting.Relay = textBoxRelay.Text;
+            //Setting.Relay = textBoxRelay.Text;
             Setting.Save("nokakoi.config");
             Tools.SaveUsers(Users);
             Notifier.SaveSettings(); // 必要ないが更新日時をそろえるため
@@ -1012,6 +1061,7 @@ namespace nokakoi
         }
         #endregion
 
+        #region リレーリスト表示
         private void ButtonRelayList_Click(object sender, EventArgs e)
         {
             _formRelayList = new FormRelayList();
@@ -1022,5 +1072,6 @@ namespace nokakoi
             }
             _formRelayList.Dispose();
         }
+        #endregion
     }
 }

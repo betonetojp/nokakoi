@@ -28,8 +28,8 @@
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormMain));
-            textBoxRelay = new TextBox();
             buttonStart = new Button();
             textBoxTimeline = new TextBox();
             buttonStop = new Button();
@@ -38,18 +38,9 @@
             buttonSetting = new Button();
             checkBoxPostBar = new CheckBox();
             buttonRelayList = new Button();
+            labelRelays = new Label();
+            toolTipRelays = new ToolTip(components);
             SuspendLayout();
-            // 
-            // textBoxRelay
-            // 
-            textBoxRelay.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            textBoxRelay.ImeMode = ImeMode.Disable;
-            textBoxRelay.Location = new Point(12, 12);
-            textBoxRelay.MaxLength = 256;
-            textBoxRelay.Name = "textBoxRelay";
-            textBoxRelay.PlaceholderText = "wss://";
-            textBoxRelay.Size = new Size(193, 23);
-            textBoxRelay.TabIndex = 0;
             // 
             // buttonStart
             // 
@@ -147,11 +138,22 @@
             buttonRelayList.UseVisualStyleBackColor = true;
             buttonRelayList.Click += ButtonRelayList_Click;
             // 
+            // labelRelays
+            // 
+            labelRelays.AutoSize = true;
+            labelRelays.ForeColor = SystemColors.GrayText;
+            labelRelays.Location = new Point(12, 16);
+            labelRelays.Name = "labelRelays";
+            labelRelays.Size = new Size(59, 15);
+            labelRelays.TabIndex = 9;
+            labelRelays.Text = "Relay info";
+            // 
             // FormMain
             // 
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(304, 281);
+            Controls.Add(labelRelays);
             Controls.Add(buttonRelayList);
             Controls.Add(checkBoxPostBar);
             Controls.Add(buttonSetting);
@@ -160,7 +162,6 @@
             Controls.Add(buttonStop);
             Controls.Add(textBoxTimeline);
             Controls.Add(buttonStart);
-            Controls.Add(textBoxRelay);
             Icon = (Icon)resources.GetObject("$this.Icon");
             KeyPreview = true;
             MinimumSize = new Size(200, 200);
@@ -178,8 +179,6 @@
         }
 
         #endregion
-
-        private TextBox textBoxRelay;
         private Button buttonStart;
         private TextBox textBoxTimeline;
         private Button buttonStop;
@@ -188,5 +187,7 @@
         internal TextBox textBoxPost;
         internal CheckBox checkBoxPostBar;
         private Button buttonRelayList;
+        private Label labelRelays;
+        private ToolTip toolTipRelays;
     }
 }
