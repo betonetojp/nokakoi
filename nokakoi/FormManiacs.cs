@@ -16,6 +16,7 @@
                 {
                     dataGridViewUsers.Rows.Add(user.Value?.Mute, user.Value?.DisplayName, user.Value?.Name, user.Value?.Nip05, user.Key);
                 }
+                dataGridViewUsers.ClearSelection();
                 var settings = MainForm.Notifier.Settings;
                 checkBoxBalloon.Checked = settings.Balloon;
                 checkBoxOpenFile.Checked = settings.Open;
@@ -64,7 +65,7 @@
 
         private void dataGridViewUsers_SelectionChanged(object sender, EventArgs e)
         {
-            dataGridViewUsers.ClearSelection();
+            //dataGridViewUsers.ClearSelection();
         }
     }
 }

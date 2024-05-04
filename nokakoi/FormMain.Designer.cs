@@ -37,6 +37,7 @@
             buttonPost = new Button();
             buttonSetting = new Button();
             checkBoxPostBar = new CheckBox();
+            buttonRelayList = new Button();
             SuspendLayout();
             // 
             // textBoxRelay
@@ -47,7 +48,7 @@
             textBoxRelay.MaxLength = 256;
             textBoxRelay.Name = "textBoxRelay";
             textBoxRelay.PlaceholderText = "wss://";
-            textBoxRelay.Size = new Size(222, 23);
+            textBoxRelay.Size = new Size(193, 23);
             textBoxRelay.TabIndex = 0;
             // 
             // buttonStart
@@ -135,11 +136,23 @@
             checkBoxPostBar.UseVisualStyleBackColor = true;
             checkBoxPostBar.CheckedChanged += CheckBoxPostBar_CheckedChanged;
             // 
+            // buttonRelayList
+            // 
+            buttonRelayList.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            buttonRelayList.Image = Properties.Resources.icons8_list_16;
+            buttonRelayList.Location = new Point(211, 12);
+            buttonRelayList.Name = "buttonRelayList";
+            buttonRelayList.Size = new Size(23, 23);
+            buttonRelayList.TabIndex = 1;
+            buttonRelayList.UseVisualStyleBackColor = true;
+            buttonRelayList.Click += ButtonRelayList_Click;
+            // 
             // FormMain
             // 
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(304, 281);
+            Controls.Add(buttonRelayList);
             Controls.Add(checkBoxPostBar);
             Controls.Add(buttonSetting);
             Controls.Add(buttonPost);
@@ -174,5 +187,6 @@
         private Button buttonSetting;
         internal TextBox textBoxPost;
         internal CheckBox checkBoxPostBar;
+        private Button buttonRelayList;
     }
 }

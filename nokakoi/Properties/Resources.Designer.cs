@@ -65,7 +65,7 @@ namespace nokakoi.Properties {
         /// </summary>
         internal static System.Drawing.Bitmap icons8_create_16 {
             get {
-                object obj = ResourceManager.GetObject("icons8-create-16", resourceCulture);
+                object obj = ResourceManager.GetObject("icons8_create_16", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -83,9 +83,29 @@ namespace nokakoi.Properties {
         /// <summary>
         ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
         /// </summary>
+        internal static System.Drawing.Bitmap icons8_list_16 {
+            get {
+                object obj = ResourceManager.GetObject("icons8_list_16", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_list_32 {
+            get {
+                object obj = ResourceManager.GetObject("icons8_list_32", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   型 System.Drawing.Bitmap のローカライズされたリソースを検索します。
+        /// </summary>
         internal static System.Drawing.Bitmap icons8_setting_16 {
             get {
-                object obj = ResourceManager.GetObject("icons8-setting-16", resourceCulture);
+                object obj = ResourceManager.GetObject("icons8_setting_16", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -105,7 +125,7 @@ namespace nokakoi.Properties {
         /// </summary>
         internal static System.Drawing.Bitmap icons8_start_16 {
             get {
-                object obj = ResourceManager.GetObject("icons8-start-16", resourceCulture);
+                object obj = ResourceManager.GetObject("icons8_start_16", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -125,7 +145,7 @@ namespace nokakoi.Properties {
         /// </summary>
         internal static System.Drawing.Bitmap icons8_stop_16 {
             get {
-                object obj = ResourceManager.GetObject("icons8-stop-16", resourceCulture);
+                object obj = ResourceManager.GetObject("icons8_stop_16", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

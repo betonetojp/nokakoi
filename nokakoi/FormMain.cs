@@ -13,9 +13,11 @@ namespace nokakoi
     {
         #region メンバー変数
         private readonly TimeSpan _timeSpan = new(0, 0, 0, 0);
+       
         private readonly FormSetting _formSetting = new();
         private readonly FormPostBar _formPostBar = new();
         private FormManiacs _formManiacs = new();
+        private FormRelayList _formRelayList;
 
         //private NostrClient? _client;
         private CompositeNostrClient? _client;
@@ -90,6 +92,7 @@ namespace nokakoi
             int size = (int)(16 * scale);
             if (scale < 2.0f)
             {
+                buttonRelayList.Image = new Bitmap(Properties.Resources.icons8_list_16, size, size);
                 buttonStart.Image = new Bitmap(Properties.Resources.icons8_start_16, size, size);
                 buttonStop.Image = new Bitmap(Properties.Resources.icons8_stop_16, size, size);
                 buttonPost.Image = new Bitmap(Properties.Resources.icons8_create_16, size, size);
@@ -97,6 +100,7 @@ namespace nokakoi
             }
             else
             {
+                buttonRelayList.Image = new Bitmap(Properties.Resources.icons8_list_32, size, size);
                 buttonStart.Image = new Bitmap(Properties.Resources.icons8_start_32, size, size);
                 buttonStop.Image = new Bitmap(Properties.Resources.icons8_stop_32, size, size);
                 buttonPost.Image = new Bitmap(Properties.Resources.icons8_create_32, size, size);
@@ -185,9 +189,15 @@ namespace nokakoi
             if (null == _client)
             {
                 //_client = new NostrClient(new Uri(textBoxRelay.Text));
-                _client = new CompositeNostrClient([new Uri(textBoxRelay.Text),
-                                                    new Uri("wss://nos.lol"),        // テスト
-                                                    new Uri("wss://nostr.mutinywallet.com")]);  // テスト
+
+                //_client = new CompositeNostrClient([new Uri(textBoxRelay.Text),
+                //                                    new Uri("wss://nos.lol"),        // テスト
+                //                                    new Uri("wss://nostr.mutinywallet.com")]);  // テスト
+
+                Uri[] relays = Tools.GetEnabledRelays();
+                textBoxRelay.Text = $"{relays.Count()} relays";
+                _client = new CompositeNostrClient(relays);
+
                 await _client.Connect();
                 _client.EventsReceived += OnClientOnEventsReceived;
             }
@@ -246,23 +256,25 @@ namespace nokakoi
         /// <param name="args"></param>
         private void OnClientOnEventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) args)
         {
+            foreach (var nostrEvent in args.events)
+            {
+                // 複数リレーからの重複イベントを除外
+                if (_displayedEventIds.Contains(nostrEvent.Id))
+                {
+                    return;
+                }
+                if (_displayedEventIds.Count >= 128)
+                {
+                    _displayedEventIds.RemoveFirst();
+                }
+                _displayedEventIds.AddLast(nostrEvent.Id);
+            }
+
             // タイムライン購読
             if (args.subscriptionId == _subscriptionId)
             {
                 foreach (var nostrEvent in args.events)
                 {
-                    // 複数リレーからの重複イベントを除外
-                    if (_displayedEventIds.Contains(nostrEvent.Id))
-                    {
-                        _displayedEventIds.Remove(nostrEvent.Id);
-                        return;
-                    }
-                    if (_displayedEventIds.Count >= 128)
-                    {
-                        _displayedEventIds.RemoveFirst();
-                    }
-                    _displayedEventIds.AddLast(nostrEvent.Id);
-
                     var content = nostrEvent.Content;
                     if (content != null)
                     {
@@ -336,19 +348,19 @@ namespace nokakoi
                                 continue;
                             }
 
-                            // 日本語限定表示オンので日本語じゃない時は表示しない
+                            // 日本語限定表示オンで日本語じゃない時は表示しない
                             if (_showOnlyJapanese && "jpn" != DetermineLanguage(content))
                             {
                                 continue;
                             }
 
-                            // フォロイー限定表示オンのでフォロイーじゃない時は表示しない
+                            // フォロイー限定表示オンでフォロイーじゃない時は表示しない
                             if (_showOnlyFollowees && !_followeesHexs.Contains(nostrEvent.PublicKey))
                             {
                                 continue;
                             }
 
-                            // ミュートされている時は表示しない
+                            // ミュートしている時は表示しない
                             if (IsMuted(nostrEvent.PublicKey))
                             {
                                 continue;
@@ -672,16 +684,6 @@ namespace nokakoi
                 // ログイン済みの時
                 if (!_npubHex.IsNullOrEmpty())
                 {
-                    //if (null == _client)
-                    //{
-                    //    _client = new NostrClient(new Uri(textBoxRelay.Text));
-                    //    await _client.Connect();
-                    //    _client.EventsReceived += OnClientOnEventsReceived;
-                    //}
-                    //else if (WebSocketState.CloseReceived < _client.State)
-                    //{
-                    //    await _client.Connect();
-                    //}
                     await ConnectAsync();
 
                     // フォロイーを購読をする
@@ -1009,5 +1011,16 @@ namespace nokakoi
             }
         }
         #endregion
+
+        private void ButtonRelayList_Click(object sender, EventArgs e)
+        {
+            _formRelayList = new FormRelayList();
+            if (_formRelayList.ShowDialog(this) == DialogResult.OK)
+            {
+                ButtonStop_Click(sender, e);
+                ButtonStart_Click(sender, e);
+            }
+            _formRelayList.Dispose();
+        }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using NBitcoin.Secp256k1;
 using NNostr.Client;
 using NNostr.Client.Protocols;
+using NTextCat.Commons;
 using System.Diagnostics;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -25,6 +26,14 @@ namespace nokakoi
         public bool Mute { get; set; }
     }
 
+    public class Relay
+    {
+        [JsonPropertyName("enabled")]
+        public bool Enabled { get; set; }
+        [JsonPropertyName("url")]
+        public string? Url { get; set; }
+    }
+
     public static class Tools
     {
         /// <summary>
@@ -42,6 +51,24 @@ namespace nokakoi
             {
                 var user = JsonSerializer.Deserialize<User>(json, GetOption());
                 return user;
+            }
+            catch (JsonException e)
+            {
+                Debug.WriteLine(e.Message);
+                return null;
+            }
+        }
+
+        public static Relay? JsonToRelay(string json)
+        {
+            if (string.IsNullOrEmpty(json))
+            {
+                return null;
+            }
+            try
+            {
+                var relay = JsonSerializer.Deserialize<Relay>(json, GetOption());
+                return relay;
             }
             catch (JsonException e)
             {
@@ -147,6 +174,73 @@ namespace nokakoi
                 Debug.WriteLine(e.Message);
                 return [];
             }
+        }
+
+        internal static void SaveRelays(List<Relay> relays)
+        {
+            // relays.jsonに保存
+            var filePath = "relays.json";
+            try
+            {
+                var jsonContent = JsonSerializer.Serialize(relays, GetOption());
+                File.WriteAllText(filePath, jsonContent);
+            }
+            catch (JsonException e)
+            {
+                Debug.WriteLine(e.Message);
+            }
+        }
+
+        internal static List<Relay> LoadRelays()
+        {
+            List<Relay> defaultRelays = [
+                new Relay { Enabled = true, Url = "wss://nos.lol" },
+                new Relay { Enabled = true, Url = "wss://relay.damus.io" },
+                new Relay { Enabled = true, Url = "wss://relay-jp.nostr.wirednet.jp" },
+                new Relay { Enabled = true, Url = "wss://nostr-relay.nokotaro.com" },
+                new Relay { Enabled = true, Url = "wss://yabu.me" },
+                new Relay { Enabled = true, Url = "wss://r.kojira.io" },
+                ];
+
+            // relays.jsonを読み込み
+            var filePath = "relays.json";
+            if (!File.Exists(filePath))
+            {
+                return defaultRelays;
+            }
+            try
+            {
+                var jsonContent = File.ReadAllText(filePath);
+                var relays = JsonSerializer.Deserialize<List<Relay>>(jsonContent, GetOption());
+                if (null != relays)
+                {
+                    return relays;
+                }
+                return [];
+            }
+            catch (JsonException e)
+            {
+                Debug.WriteLine(e.Message);
+                return [];
+            }
+        }
+
+        internal static Uri[] GetEnabledRelays()
+        {
+            return GetEnabledRelays(LoadRelays());
+        }
+
+        internal static Uri[] GetEnabledRelays(List<Relay> relays)
+        {
+            List<Uri> enabledRelays = [];
+            foreach (var relay in relays)
+            {
+                if (relay.Enabled && null != relay.Url)
+                {
+                    enabledRelays.Add(new Uri(relay.Url));
+                }
+            }
+            return [.. enabledRelays];
         }
     }
 }

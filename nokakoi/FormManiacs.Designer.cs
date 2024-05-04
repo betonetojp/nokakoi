@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormManiacs));
             dataGridViewUsers = new DataGridView();
             mute = new DataGridViewCheckBoxColumn();
@@ -51,6 +52,14 @@
             dataGridViewUsers.AllowUserToDeleteRows = false;
             dataGridViewUsers.AllowUserToResizeRows = false;
             dataGridViewUsers.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = SystemColors.Control;
+            dataGridViewCellStyle1.Font = new Font("Yu Gothic UI", 9F);
+            dataGridViewCellStyle1.ForeColor = SystemColors.WindowText;
+            dataGridViewCellStyle1.SelectionBackColor = SystemColors.Highlight;
+            dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
+            dataGridViewUsers.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
             dataGridViewUsers.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridViewUsers.Columns.AddRange(new DataGridViewColumn[] { mute, display_name, name, nip05, pubkey });
             dataGridViewUsers.Location = new Point(12, 12);
@@ -77,6 +86,7 @@
             display_name.MinimumWidth = 20;
             display_name.Name = "display_name";
             display_name.ReadOnly = true;
+            display_name.Width = 110;
             // 
             // name
             // 
@@ -84,6 +94,7 @@
             name.MinimumWidth = 20;
             name.Name = "name";
             name.ReadOnly = true;
+            name.Width = 110;
             // 
             // nip05
             // 
@@ -91,6 +102,7 @@
             nip05.MinimumWidth = 20;
             nip05.Name = "nip05";
             nip05.ReadOnly = true;
+            nip05.Width = 110;
             // 
             // pubkey
             // 
@@ -200,16 +212,16 @@
 
         private DataGridView dataGridViewUsers;
         private Button buttonSave;
-        private DataGridViewCheckBoxColumn mute;
-        private DataGridViewTextBoxColumn display_name;
-        private DataGridViewTextBoxColumn name;
-        private DataGridViewTextBoxColumn nip05;
-        private DataGridViewTextBoxColumn pubkey;
         private CheckBox checkBoxBalloon;
         private CheckBox checkBoxOpenFile;
         private Label labelFileName;
         private TextBox textBoxFileName;
         private TextBox textBoxKeywords;
         private Label labelKeywords;
+        private DataGridViewCheckBoxColumn mute;
+        private DataGridViewTextBoxColumn display_name;
+        private DataGridViewTextBoxColumn name;
+        private DataGridViewTextBoxColumn nip05;
+        private DataGridViewTextBoxColumn pubkey;
     }
 }
