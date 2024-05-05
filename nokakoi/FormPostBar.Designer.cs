@@ -37,6 +37,7 @@
             // 
             textBoxPost.AcceptsReturn = true;
             textBoxPost.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxPost.BorderStyle = BorderStyle.FixedSingle;
             textBoxPost.Enabled = false;
             textBoxPost.Location = new Point(12, 12);
             textBoxPost.MaxLength = 1024;

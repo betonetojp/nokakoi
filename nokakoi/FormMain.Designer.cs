@@ -56,14 +56,15 @@
             // textBoxTimeline
             // 
             textBoxTimeline.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            textBoxTimeline.BackColor = SystemColors.Window;
+            textBoxTimeline.BackColor = SystemColors.Control;
+            textBoxTimeline.BorderStyle = BorderStyle.FixedSingle;
             textBoxTimeline.Location = new Point(12, 41);
             textBoxTimeline.MaxLength = 0;
             textBoxTimeline.Multiline = true;
             textBoxTimeline.Name = "textBoxTimeline";
             textBoxTimeline.ReadOnly = true;
             textBoxTimeline.ScrollBars = ScrollBars.Vertical;
-            textBoxTimeline.Size = new Size(280, 198);
+            textBoxTimeline.Size = new Size(280, 199);
             textBoxTimeline.TabIndex = 5;
             textBoxTimeline.TabStop = false;
             textBoxTimeline.MouseEnter += TextBoxTimeline_MouseEnter;
@@ -84,6 +85,7 @@
             // textBoxPost
             // 
             textBoxPost.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxPost.BorderStyle = BorderStyle.FixedSingle;
             textBoxPost.Enabled = false;
             textBoxPost.Location = new Point(33, 246);
             textBoxPost.MaxLength = 1024;
@@ -129,7 +131,6 @@
             // 
             // buttonRelayList
             // 
-            buttonRelayList.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             buttonRelayList.Image = Properties.Resources.icons8_list_16;
             buttonRelayList.Location = new Point(12, 12);
             buttonRelayList.Name = "buttonRelayList";

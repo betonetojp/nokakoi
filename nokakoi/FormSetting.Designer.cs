@@ -60,6 +60,7 @@
             // textBoxNokakoiKey
             // 
             textBoxNokakoiKey.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxNokakoiKey.BorderStyle = BorderStyle.FixedSingle;
             textBoxNokakoiKey.ImeMode = ImeMode.Disable;
             textBoxNokakoiKey.Location = new Point(88, 276);
             textBoxNokakoiKey.MaxLength = 136;
@@ -69,6 +70,7 @@
             // 
             // textBoxCutLength
             // 
+            textBoxCutLength.BorderStyle = BorderStyle.FixedSingle;
             textBoxCutLength.ImeMode = ImeMode.Disable;
             textBoxCutLength.Location = new Point(100, 37);
             textBoxCutLength.MaxLength = 4;
@@ -88,6 +90,7 @@
             // textBoxPassword
             // 
             textBoxPassword.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxPassword.BorderStyle = BorderStyle.FixedSingle;
             textBoxPassword.ImeMode = ImeMode.Disable;
             textBoxPassword.Location = new Point(88, 305);
             textBoxPassword.MaxLength = 256;
@@ -149,6 +152,7 @@
             // 
             // textBoxShortcode
             // 
+            textBoxShortcode.BorderStyle = BorderStyle.FixedSingle;
             textBoxShortcode.ImeMode = ImeMode.Disable;
             textBoxShortcode.Location = new Point(154, 118);
             textBoxShortcode.Name = "textBoxShortcode";
@@ -228,6 +232,7 @@
             // textBoxEmojiUrl
             // 
             textBoxEmojiUrl.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxEmojiUrl.BorderStyle = BorderStyle.FixedSingle;
             textBoxEmojiUrl.ImeMode = ImeMode.Disable;
             textBoxEmojiUrl.Location = new Point(78, 147);
             textBoxEmojiUrl.Name = "textBoxEmojiUrl";
@@ -283,6 +288,7 @@
             // 
             // textBoxCutNameLength
             // 
+            textBoxCutNameLength.BorderStyle = BorderStyle.FixedSingle;
             textBoxCutNameLength.ImeMode = ImeMode.Disable;
             textBoxCutNameLength.Location = new Point(100, 66);
             textBoxCutNameLength.MaxLength = 4;
