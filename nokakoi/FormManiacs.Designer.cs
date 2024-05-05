@@ -158,6 +158,7 @@
             // textBoxFileName
             // 
             textBoxFileName.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            textBoxFileName.BorderStyle = BorderStyle.FixedSingle;
             textBoxFileName.Location = new Point(75, 406);
             textBoxFileName.Name = "textBoxFileName";
             textBoxFileName.Size = new Size(138, 23);
@@ -167,6 +168,7 @@
             // textBoxKeywords
             // 
             textBoxKeywords.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxKeywords.BorderStyle = BorderStyle.FixedSingle;
             textBoxKeywords.Location = new Point(219, 375);
             textBoxKeywords.Multiline = true;
             textBoxKeywords.Name = "textBoxKeywords";
