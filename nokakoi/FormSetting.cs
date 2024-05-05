@@ -29,13 +29,11 @@ namespace nokakoi
         private void LinkLabelIcons8_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             linkLabelIcons8.LinkVisited = true;
-
             var app = new ProcessStartInfo
             {
                 FileName = "https://icons8.com",
                 UseShellExecute = true
             };
-
             Process.Start(app);
         }
 

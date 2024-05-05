@@ -19,7 +19,6 @@ namespace nokakoi
         private FormManiacs _formManiacs = new();
         private FormRelayList _formRelayList = new();
 
-        //private NostrClient? _client;
         private CompositeNostrClient? _client;
         /// <summary>
         /// タイムライン購読ID
@@ -117,7 +116,6 @@ namespace nokakoi
                 StartPosition = FormStartPosition.CenterScreen;
             }
             Size = Setting.Size;
-            //textBoxRelay.Text = Setting.Relay;
             TopMost = Setting.TopMost;
             _cutLength = Setting.CutLength;
             _cutNameLength = Setting.CutNameLength;
@@ -162,7 +160,6 @@ namespace nokakoi
                     return;
                 }
 
-                //textBoxRelay.ForeColor = SystemColors.GrayText;
                 textBoxTimeline.Text = string.Empty;
                 textBoxTimeline.Text = "> Connect." + Environment.NewLine + textBoxTimeline.Text;
 
@@ -194,17 +191,11 @@ namespace nokakoi
         {
             if (null == _client)
             {
-                //_client = new NostrClient(new Uri(textBoxRelay.Text));
-
-                //_client = new CompositeNostrClient([new Uri(textBoxRelay.Text),
-                //                                    new Uri("wss://nos.lol"),        // テスト
-                //                                    new Uri("wss://nostr.mutinywallet.com")]);  // テスト
-
                 _relays = Tools.GetEnabledRelays();
                 switch (_relays.Length)
                 {
                     case 0:
-                        labelRelays.Text = "No relay enabled.";
+                        labelRelays.Text = "0 relays";
                         toolTipRelays.SetToolTip(labelRelays, string.Empty);
                         return 0;
                     case 1:
@@ -212,7 +203,7 @@ namespace nokakoi
                         toolTipRelays.SetToolTip(labelRelays, string.Join("\n", _relays.Select(r => r.ToString())));
                         break;
                     default:
-                        labelRelays.Text = $"{_relays.Length} relays enabled.";
+                        labelRelays.Text = $"{_relays.Length} relays";
                         toolTipRelays.SetToolTip(labelRelays, string.Join("\n", _relays.Select(r => r.ToString())));
                         break;
                 }
@@ -222,10 +213,6 @@ namespace nokakoi
                 await _client.Connect();
                 _client.EventsReceived += OnClientOnEventsReceived;
             }
-            //else if (WebSocketState.CloseReceived < _client.State)
-            //{
-            //    await _client.Connect();
-            //}
             else
             {
                 var hasClosed = false;
@@ -530,7 +517,6 @@ namespace nokakoi
                 _client.Dispose();
                 _client = null;
 
-                //textBoxRelay.ForeColor = SystemColors.WindowText;
                 buttonStart.Enabled = true;
                 buttonStart.Focus();
                 buttonStop.Enabled = false;
@@ -708,7 +694,7 @@ namespace nokakoi
                 // ログイン済みの時
                 if (!_npubHex.IsNullOrEmpty())
                 {
-                    int connectCount =  await ConnectAsync();
+                    int connectCount = await ConnectAsync();
                     if (0 == connectCount)
                     {
                         textBoxTimeline.Text = "> No relay enabled." + Environment.NewLine + textBoxTimeline.Text;
@@ -943,15 +929,6 @@ namespace nokakoi
         // 閉じる
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
         {
-            //if (null != _client && WebSocketState.Open == _client.State)
-            //{
-            //    _ = _client.CloseSubscription(_subscriptionId);
-            //    _ = _client.CloseSubscription(_getFollowsSubscriptionId);
-            //    _ = _client.CloseSubscription(_getProfilesSubscriptionId);
-            //    _ = _client.Disconnect();
-            //    _client.Dispose();
-            //    _client = null;
-            //}
             if (null != _client)
             {
                 foreach (var state in _client.States)
@@ -983,7 +960,6 @@ namespace nokakoi
             }
             Setting.PostBarLocation = _formPostBar.Location;
             Setting.PostBarSize = _formPostBar.Size;
-            //Setting.Relay = textBoxRelay.Text;
             Setting.Save("nokakoi.config");
             Tools.SaveUsers(Users);
             Notifier.SaveSettings(); // 必要ないが更新日時をそろえるため

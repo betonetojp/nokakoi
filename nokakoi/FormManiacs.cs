@@ -62,10 +62,5 @@
                 MainForm.Notifier = new KeywordNotifier();
             }
         }
-
-        private void dataGridViewUsers_SelectionChanged(object sender, EventArgs e)
-        {
-            //dataGridViewUsers.ClearSelection();
-        }
     }
 }

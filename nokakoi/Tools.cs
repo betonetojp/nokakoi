@@ -1,7 +1,6 @@
 ﻿using NBitcoin.Secp256k1;
 using NNostr.Client;
 using NNostr.Client.Protocols;
-using NTextCat.Commons;
 using System.Diagnostics;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -194,10 +193,12 @@ namespace nokakoi
         internal static List<Relay> LoadRelays()
         {
             List<Relay> defaultRelays = [
-                new Relay { Enabled = true, Url = "wss://nos.lol/" },
-                new Relay { Enabled = true, Url = "wss://relay.damus.io/" },
                 new Relay { Enabled = true, Url = "wss://yabu.me/" },
                 new Relay { Enabled = true, Url = "wss://r.kojira.io/" },
+                new Relay { Enabled = true, Url = "wss://bostr.nokotaro.com" },
+                new Relay { Enabled = false, Url = "wss://nos.lol/" },
+                new Relay { Enabled = false, Url = "wss://relay.damus.io/" },
+                new Relay { Enabled = false, Url = "wss://nostr.mutinywallet.com/" },
                 ];
 
             // relays.jsonを読み込み
