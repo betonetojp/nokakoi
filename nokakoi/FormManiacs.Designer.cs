@@ -71,7 +71,6 @@
             dataGridViewUsers.Size = new Size(440, 325);
             dataGridViewUsers.StandardTab = true;
             dataGridViewUsers.TabIndex = 0;
-            dataGridViewUsers.SelectionChanged += dataGridViewUsers_SelectionChanged;
             // 
             // mute
             // 
