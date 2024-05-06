@@ -42,7 +42,7 @@ namespace nokakoi
         {
             if (MainForm != null)
             {
-                Dictionary<string, User?> users = new();
+                Dictionary<string, User?> users = [];
                 foreach (DataGridViewRow row in dataGridViewUsers.Rows)
                 {
                     var pubkey = (string)row.Cells["pubkey"].Value;
@@ -81,7 +81,7 @@ namespace nokakoi
             }
         }
 
-        private void buttonDelete_Click(object sender, EventArgs e)
+        private void ButtonDelete_Click(object sender, EventArgs e)
         {
             foreach (DataGridViewRow row in dataGridViewUsers.SelectedRows)
             {
@@ -89,7 +89,7 @@ namespace nokakoi
             }
         }
 
-        private void buttonReload_Click(object sender, EventArgs e)
+        private void ButtonReload_Click(object sender, EventArgs e)
         {
             FormUsers_Load(sender, e);
         }

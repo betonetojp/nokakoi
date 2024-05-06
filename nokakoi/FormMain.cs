@@ -487,19 +487,19 @@ namespace nokakoi
                         // エスケープされているので解除
                         var contentJson = Regex.Unescape(nostrEvent.Content);
 
-                        var user = Tools.JsonToUser(contentJson, nostrEvent.CreatedAt);
-                        if (null != user)
+                        var newUserData = Tools.JsonToUser(contentJson, nostrEvent.CreatedAt);
+                        if (null != newUserData)
                         {
                             DateTimeOffset? time = DateTimeOffset.MinValue;
-                            if (null != Users[nostrEvent.PublicKey]?.CreatedAt) // 以前のusers.json対策
+                            if (Users.TryGetValue(nostrEvent.PublicKey, out User? oldUserData))
                             {
-                                time = Users[nostrEvent.PublicKey]?.CreatedAt;
+                                time = oldUserData?.CreatedAt;
                             }
-                            if (time < user.CreatedAt)
+                            if (time < newUserData.CreatedAt)
                             {
                                 // 辞書に追加（上書き）
-                                Users[nostrEvent.PublicKey] = user;
-                                Debug.WriteLine($"{nostrEvent.PublicKey} {user?.DisplayName} @{user?.Name}");
+                                Users[nostrEvent.PublicKey] = newUserData;
+                                Debug.WriteLine($"{nostrEvent.PublicKey} {newUserData?.DisplayName} @{newUserData?.Name}");
                             }
                             // 取得日更新
                             if (Users.TryGetValue(nostrEvent.PublicKey, out User? value) && null != value)

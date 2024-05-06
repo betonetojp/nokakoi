@@ -149,7 +149,7 @@
             buttonDelete.TabIndex = 2;
             buttonDelete.Text = "Delete";
             buttonDelete.UseVisualStyleBackColor = true;
-            buttonDelete.Click += buttonDelete_Click;
+            buttonDelete.Click += ButtonDelete_Click;
             // 
             // buttonReload
             // 
@@ -160,7 +160,7 @@
             buttonReload.TabIndex = 3;
             buttonReload.Text = "Reload";
             buttonReload.UseVisualStyleBackColor = true;
-            buttonReload.Click += buttonReload_Click;
+            buttonReload.Click += ButtonReload_Click;
             // 
             // mute
             // 
