@@ -329,7 +329,7 @@ namespace nokakoi
                                     };
                                     string sstpmsg = _SSTPMethod + "\r\n" + String.Join("\r\n", SSTPHeader.Select(kvp => kvp.Key + ": " + kvp.Value)) + "\r\n\r\n";
                                     string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
-                                    Debug.WriteLine(r);
+                                    //Debug.WriteLine(r);
                                 }
                                 // 画面に表示
                                 textBoxTimeline.Text = "+" + (_displayTime ? timeString : string.Empty)
@@ -394,7 +394,7 @@ namespace nokakoi
                                 };
                                 string sstpmsg = _SSTPMethod + "\r\n" + String.Join("\r\n", SSTPHeader.Select(kvp => kvp.Key + ": " + kvp.Value)) + "\r\n\r\n";
                                 string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
-                                Debug.WriteLine(r);
+                                //Debug.WriteLine(r);
                             }
 
                             // エスケープ解除（↑SSPにはエスケープされたまま送る）
@@ -437,6 +437,7 @@ namespace nokakoi
                             textBoxTimeline.Text = (iSnokakoi ? "[n]" : string.Empty) + headMark
                                                  + (_displayTime ? $"{timeString} {userName}{Environment.NewLine}" : string.Empty)
                                                  + " " + content + Environment.NewLine + textBoxTimeline.Text;
+                            Debug.WriteLine($"{timeString} {userName} {content}");
                         }
                     }
                 }
@@ -495,16 +496,13 @@ namespace nokakoi
                             {
                                 time = oldUserData?.CreatedAt;
                             }
-                            if (null == time || time < newUserData.CreatedAt)
+                            if (null == time || (time < newUserData.CreatedAt))
                             {
+                                newUserData.LastActivity = DateTime.Now;
                                 // 辞書に追加（上書き）
                                 Users[nostrEvent.PublicKey] = newUserData;
-                                Debug.WriteLine($"{nostrEvent.PublicKey} {newUserData?.DisplayName} @{newUserData?.Name}");
-                            }
-                            // 取得日更新
-                            if (Users.TryGetValue(nostrEvent.PublicKey, out User? value) && null != value)
-                            {
-                                value.LastActivity = DateTime.Now;
+                                Debug.WriteLine($"cratedAt updated {time} -> {newUserData.CreatedAt}");
+                                Debug.WriteLine($"プロフィール更新 {newUserData.LastActivity} {newUserData.DisplayName} {newUserData.Name}");
                             }
                         }
                     }
@@ -848,12 +846,12 @@ namespace nokakoi
             if (names.Length > 0)
             {
                 _ghostName = names.First(); // とりあえず先頭で
-                Debug.Print(_ghostName);
+                //Debug.Print(_ghostName);
             }
             else
             {
                 _ghostName = string.Empty;
-                Debug.Print("ゴーストがいません");
+                //Debug.Print("ゴーストがいません");
             }
         }
         #endregion
@@ -918,6 +916,9 @@ namespace nokakoi
                 {
                     userName = $"@{user.Name}";
                 }
+                // 取得日更新
+                user.LastActivity = DateTime.Now;
+                Debug.WriteLine($"ユーザー名取得 {user.LastActivity} {user.DisplayName} {user.Name}");
             }
             return userName;
         }
