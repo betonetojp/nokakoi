@@ -40,11 +40,12 @@
             buttonDelete = new Button();
             buttonReload = new Button();
             mute = new DataGridViewCheckBoxColumn();
-            last_updated = new DataGridViewTextBoxColumn();
+            last_activity = new DataGridViewTextBoxColumn();
             display_name = new DataGridViewTextBoxColumn();
             name = new DataGridViewTextBoxColumn();
             nip05 = new DataGridViewTextBoxColumn();
             pubkey = new DataGridViewTextBoxColumn();
+            created_at = new DataGridViewTextBoxColumn();
             ((System.ComponentModel.ISupportInitialize)dataGridViewUsers).BeginInit();
             SuspendLayout();
             // 
@@ -55,7 +56,7 @@
             dataGridViewUsers.AllowUserToResizeRows = false;
             dataGridViewUsers.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dataGridViewUsers.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewUsers.Columns.AddRange(new DataGridViewColumn[] { mute, last_updated, display_name, name, nip05, pubkey });
+            dataGridViewUsers.Columns.AddRange(new DataGridViewColumn[] { mute, last_activity, display_name, name, nip05, pubkey, created_at });
             dataGridViewUsers.Location = new Point(12, 12);
             dataGridViewUsers.Name = "dataGridViewUsers";
             dataGridViewUsers.RowHeadersVisible = false;
@@ -120,20 +121,20 @@
             // 
             // textBoxKeywords
             // 
-            textBoxKeywords.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxKeywords.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             textBoxKeywords.BorderStyle = BorderStyle.FixedSingle;
-            textBoxKeywords.Location = new Point(219, 353);
+            textBoxKeywords.Location = new Point(219, 372);
             textBoxKeywords.Multiline = true;
             textBoxKeywords.Name = "textBoxKeywords";
             textBoxKeywords.ScrollBars = ScrollBars.Vertical;
-            textBoxKeywords.Size = new Size(152, 76);
+            textBoxKeywords.Size = new Size(152, 57);
             textBoxKeywords.TabIndex = 7;
             // 
             // labelKeywords
             // 
             labelKeywords.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             labelKeywords.AutoSize = true;
-            labelKeywords.Location = new Point(219, 335);
+            labelKeywords.Location = new Point(219, 354);
             labelKeywords.Name = "labelKeywords";
             labelKeywords.Size = new Size(108, 15);
             labelKeywords.TabIndex = 0;
@@ -170,14 +171,14 @@
             mute.SortMode = DataGridViewColumnSortMode.Automatic;
             mute.Width = 59;
             // 
-            // last_updated
+            // last_activity
             // 
-            last_updated.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-            last_updated.HeaderText = "last_updated";
-            last_updated.MinimumWidth = 20;
-            last_updated.Name = "last_updated";
-            last_updated.ReadOnly = true;
-            last_updated.Width = 99;
+            last_activity.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            last_activity.HeaderText = "last activity";
+            last_activity.MinimumWidth = 20;
+            last_activity.Name = "last_activity";
+            last_activity.ReadOnly = true;
+            last_activity.Width = 91;
             // 
             // display_name
             // 
@@ -211,6 +212,15 @@
             pubkey.Name = "pubkey";
             pubkey.ReadOnly = true;
             pubkey.Width = 71;
+            // 
+            // created_at
+            // 
+            created_at.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            created_at.HeaderText = "created_at";
+            created_at.MinimumWidth = 20;
+            created_at.Name = "created_at";
+            created_at.ReadOnly = true;
+            created_at.Width = 86;
             // 
             // FormManiacs
             // 
@@ -251,10 +261,11 @@
         private Button buttonDelete;
         private Button buttonReload;
         private DataGridViewCheckBoxColumn mute;
-        private DataGridViewTextBoxColumn last_updated;
+        private DataGridViewTextBoxColumn last_activity;
         private DataGridViewTextBoxColumn display_name;
         private DataGridViewTextBoxColumn name;
         private DataGridViewTextBoxColumn nip05;
         private DataGridViewTextBoxColumn pubkey;
+        private DataGridViewTextBoxColumn created_at;
     }
 }

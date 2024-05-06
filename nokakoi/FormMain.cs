@@ -480,20 +480,32 @@ namespace nokakoi
                     }
 
                     // プロフィール
-                    if (0 == nostrEvent.Kind && null != nostrEvent.Content)
+                    if (0 == nostrEvent.Kind && null != nostrEvent.Content && null != nostrEvent.PublicKey)
                     {
                         //// ※nostrEvent.Contentがnullになってしまう特定ユーザーがいる。ライブラリの問題か。
 
                         // エスケープされているので解除
                         var contentJson = Regex.Unescape(nostrEvent.Content);
-                        var user = Tools.JsonToUser(contentJson);
 
-                        // 辞書に追加（上書き）
+                        var user = Tools.JsonToUser(contentJson, nostrEvent.CreatedAt);
                         if (null != user)
                         {
-                            user.LastUpdated = DateTime.Now;
-                            Users[nostrEvent.PublicKey] = user;
-                            Debug.WriteLine($"{nostrEvent.PublicKey} {user?.DisplayName} @{user?.Name}");
+                            DateTimeOffset? time = DateTimeOffset.MinValue;
+                            if (null != Users[nostrEvent.PublicKey]?.CreatedAt) // 以前のusers.json対策
+                            {
+                                time = Users[nostrEvent.PublicKey]?.CreatedAt;
+                            }
+                            if (time < user.CreatedAt)
+                            {
+                                // 辞書に追加（上書き）
+                                Users[nostrEvent.PublicKey] = user;
+                                Debug.WriteLine($"{nostrEvent.PublicKey} {user?.DisplayName} @{user?.Name}");
+                            }
+                            // 取得日更新
+                            if (Users.TryGetValue(nostrEvent.PublicKey, out User? value) && null != value)
+                            {
+                                value.LastActivity = DateTime.Now;
+                            }
                         }
                     }
                 }
