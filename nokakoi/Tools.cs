@@ -13,7 +13,7 @@ namespace nokakoi
     {
         [JsonPropertyName("mute")]
         public bool Mute { get; set; }
-        [JsonPropertyName("last_updated")]
+        [JsonPropertyName("last_activity")]
         public DateTime? LastActivity { get; set; }
         [JsonPropertyName("name")]
         public string? Name { get; set; }
