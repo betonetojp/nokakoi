@@ -24,7 +24,8 @@ namespace nokakoi
         [JsonPropertyName("mute")]
         public bool Mute { get; set; }
         [JsonPropertyName("last_updated")]
-        public DateTime? LastUpdated { get; set; }
+        public DateTime? LastActivity { get; set; }
+        public DateTimeOffset? CreatedAt { get; set; }
     }
 
     public class Relay
@@ -40,20 +41,25 @@ namespace nokakoi
         /// <summary>
         /// JSONからユーザーを作成
         /// </summary>
-        /// <param name="json">kind:0のcontent JSON</param>
+        /// <param name="contentJson">kind:0のcontent JSON</param>
+        /// <param name="createdAt">kind:0の作成日時</param>
         /// <returns>ユーザー</returns>
-        public static User? JsonToUser(string json)
+        public static User? JsonToUser(string contentJson, DateTimeOffset? createdAt)
         {
-            if (string.IsNullOrEmpty(json))
+            if (string.IsNullOrEmpty(contentJson))
             {
                 return null;
             }
             try
             {
-                var user = JsonSerializer.Deserialize<User>(json, GetOption());
-                if (null != user && null != user.Nip05 && user.Nip05.Contains("mostr"))
+                var user = JsonSerializer.Deserialize<User>(contentJson, GetOption());
+                if (null != user)
                 {
-                    user.Mute = true;
+                    user.CreatedAt = createdAt;
+                    if (null != user.Nip05 && user.Nip05.Contains("mostr"))
+                    {
+                        user.Mute = true;
+                    }
                 }
                 return user;
             }

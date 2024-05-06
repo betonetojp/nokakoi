@@ -19,15 +19,16 @@ namespace nokakoi
                 {
                     dataGridViewUsers.Rows.Add(
                         user.Value?.Mute,
-                        user.Value?.LastUpdated,
+                        user.Value?.LastActivity,
                         user.Value?.DisplayName,
                         user.Value?.Name,
                         user.Value?.Nip05,
-                        user.Key
+                        user.Key,
+                        user.Value?.CreatedAt
                         );
 
                 }
-                dataGridViewUsers.Sort(dataGridViewUsers.Columns["last_updated"], ListSortDirection.Descending);
+                dataGridViewUsers.Sort(dataGridViewUsers.Columns["last_activity"], ListSortDirection.Descending);
                 dataGridViewUsers.ClearSelection();
                 var settings = MainForm.Notifier.Settings;
                 checkBoxBalloon.Checked = settings.Balloon;
@@ -53,7 +54,8 @@ namespace nokakoi
                             DisplayName = (string)row.Cells["display_name"].Value,
                             Name = (string)row.Cells["name"].Value,
                             Nip05 = (string)row.Cells["nip05"].Value,
-                            LastUpdated = (DateTime?)row.Cells["last_updated"].Value ?? null
+                            LastActivity = (DateTime?)row.Cells["last_activity"].Value ?? null,
+                            CreatedAt = (DateTimeOffset?)row.Cells["created_at"].Value ?? null
                         };
                         users.Add(pubkey, user);
                     }
