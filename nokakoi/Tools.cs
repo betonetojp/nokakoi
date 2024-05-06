@@ -23,6 +23,8 @@ namespace nokakoi
         */
         [JsonPropertyName("mute")]
         public bool Mute { get; set; }
+        [JsonPropertyName("last_updated")]
+        public DateTime? LastUpdated { get; set; }
     }
 
     public class Relay
@@ -49,6 +51,10 @@ namespace nokakoi
             try
             {
                 var user = JsonSerializer.Deserialize<User>(json, GetOption());
+                if (null != user && null != user.Nip05 && user.Nip05.Contains("mostr"))
+                {
+                    user.Mute = true;
+                }
                 return user;
             }
             catch (JsonException e)

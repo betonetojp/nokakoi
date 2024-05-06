@@ -1,4 +1,6 @@
-﻿namespace nokakoi
+﻿using System.ComponentModel;
+
+namespace nokakoi
 {
     public partial class FormManiacs : Form
     {
@@ -12,10 +14,20 @@
         {
             if (MainForm != null)
             {
+                dataGridViewUsers.Rows.Clear();
                 foreach (var user in MainForm.Users)
                 {
-                    dataGridViewUsers.Rows.Add(user.Value?.Mute, user.Value?.DisplayName, user.Value?.Name, user.Value?.Nip05, user.Key);
+                    dataGridViewUsers.Rows.Add(
+                        user.Value?.Mute,
+                        user.Value?.LastUpdated,
+                        user.Value?.DisplayName,
+                        user.Value?.Name,
+                        user.Value?.Nip05,
+                        user.Key
+                        );
+
                 }
+                dataGridViewUsers.Sort(dataGridViewUsers.Columns["last_updated"], ListSortDirection.Descending);
                 dataGridViewUsers.ClearSelection();
                 var settings = MainForm.Notifier.Settings;
                 checkBoxBalloon.Checked = settings.Balloon;
@@ -29,20 +41,24 @@
         {
             if (MainForm != null)
             {
+                Dictionary<string, User?> users = new();
                 foreach (DataGridViewRow row in dataGridViewUsers.Rows)
                 {
-                    if (row.Cells[4].Value != null)
+                    var pubkey = (string)row.Cells["pubkey"].Value;
+                    if (null != pubkey)
                     {
-                        var key = row.Cells[4].Value.ToString();
-                        if (key != null && MainForm.Users.TryGetValue(key, out User? user))
+                        var user = new User
                         {
-                            if (user != null)
-                            {
-                                user.Mute = (bool)row.Cells[0].Value;
-                            }
-                        }
+                            Mute = (bool)(row.Cells["mute"].Value ?? false),
+                            DisplayName = (string)row.Cells["display_name"].Value,
+                            Name = (string)row.Cells["name"].Value,
+                            Nip05 = (string)row.Cells["nip05"].Value,
+                            LastUpdated = (DateTime?)row.Cells["last_updated"].Value ?? null
+                        };
+                        users.Add(pubkey, user);
                     }
                 }
+                MainForm.Users = users;
                 var settings = MainForm.Notifier.Settings;
                 settings.Balloon = checkBoxBalloon.Checked;
                 settings.Open = checkBoxOpenFile.Checked;
@@ -61,6 +77,19 @@
                 MainForm.Users = Tools.LoadUsers();
                 MainForm.Notifier = new KeywordNotifier();
             }
+        }
+
+        private void buttonDelete_Click(object sender, EventArgs e)
+        {
+            foreach (DataGridViewRow row in dataGridViewUsers.SelectedRows)
+            {
+                dataGridViewUsers.Rows.Remove(row);
+            }
+        }
+
+        private void buttonReload_Click(object sender, EventArgs e)
+        {
+            FormUsers_Load(sender, e);
         }
     }
 }

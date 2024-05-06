@@ -27,7 +27,7 @@ namespace nokakoi
         /// <summary>
         /// フォロイー購読ID
         /// </summary>
-        private readonly string _getFollowsSubscriptionId = Guid.NewGuid().ToString("N");
+        private readonly string _getFolloweesSubscriptionId = Guid.NewGuid().ToString("N");
         /// <summary>
         /// プロフィール購読ID
         /// </summary>
@@ -442,7 +442,7 @@ namespace nokakoi
                 }
             }
             // フォロイー購読
-            else if (args.subscriptionId == _getFollowsSubscriptionId)
+            else if (args.subscriptionId == _getFolloweesSubscriptionId)
             {
                 foreach (var nostrEvent in args.events)
                 {
@@ -465,7 +465,7 @@ namespace nokakoi
                             }
                         }
                         // プロフィールを購読する
-                        SubscribeProfiles([.. _followeesHexs]);
+                        //SubscribeProfiles([.. _followeesHexs]);
                     }
                 }
             }
@@ -489,8 +489,12 @@ namespace nokakoi
                         var user = Tools.JsonToUser(contentJson);
 
                         // 辞書に追加（上書き）
-                        Users[nostrEvent.PublicKey] = user;
-                        Debug.WriteLine($"{nostrEvent.PublicKey} {user?.DisplayName} @{user?.Name}");
+                        if (null != user)
+                        {
+                            user.LastUpdated = DateTime.Now;
+                            Users[nostrEvent.PublicKey] = user;
+                            Debug.WriteLine($"{nostrEvent.PublicKey} {user?.DisplayName} @{user?.Name}");
+                        }
                     }
                 }
             }
@@ -509,7 +513,7 @@ namespace nokakoi
             try
             {
                 _ = _client.CloseSubscription(_subscriptionId);
-                _ = _client.CloseSubscription(_getFollowsSubscriptionId);
+                _ = _client.CloseSubscription(_getFolloweesSubscriptionId);
                 _ = _client.CloseSubscription(_getProfilesSubscriptionId);
                 textBoxTimeline.Text = "> Close subscription." + Environment.NewLine + textBoxTimeline.Text;
                 _ = _client.Disconnect();
@@ -704,8 +708,9 @@ namespace nokakoi
                     // フォロイーを購読をする
                     SubscribeFollows(_npubHex);
 
+                    // ログインユーザー表示名取得
                     var name = GetUserName(_npubHex);
-                    //textBoxTimeline.Text = $"> Login as {name}." + Environment.NewLine + textBoxTimeline.Text;
+                    textBoxTimeline.Text = $"> Login as {name}." + Environment.NewLine + textBoxTimeline.Text;
                     textBoxPost.PlaceholderText = $"Post as {name}";
                     _formPostBar.textBoxPost.PlaceholderText = $"Post as {name}";
                 }
@@ -767,7 +772,7 @@ namespace nokakoi
             }
 
             _ = _client.CreateSubscription(
-                    _getFollowsSubscriptionId,
+                    _getFolloweesSubscriptionId,
                     [
                         new NostrSubscriptionFilter
                         {
@@ -888,8 +893,8 @@ namespace nokakoi
             }
             */
             // kind 0 を毎回購読するように変更（頻繁にdisplay_name等を変更するユーザーがいるため）
-            Users.TryGetValue(publicKeyHex, out User? user);
             SubscribeProfiles([publicKeyHex]);
+            Users.TryGetValue(publicKeyHex, out User? user);
 
             // 情報があれば表示名を取得
             string? userName = "???";
@@ -936,7 +941,7 @@ namespace nokakoi
                     if (WebSocketState.Open == state.Value)
                     {
                         _client.CloseSubscription(_subscriptionId);
-                        _client.CloseSubscription(_getFollowsSubscriptionId);
+                        _client.CloseSubscription(_getFolloweesSubscriptionId);
                         _client.CloseSubscription(_getProfilesSubscriptionId);
                         _client.Disconnect();
                     }
