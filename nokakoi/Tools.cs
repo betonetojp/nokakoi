@@ -11,6 +11,10 @@ namespace nokakoi
 {
     public class User
     {
+        [JsonPropertyName("mute")]
+        public bool Mute { get; set; }
+        [JsonPropertyName("last_updated")]
+        public DateTime? LastActivity { get; set; }
         [JsonPropertyName("name")]
         public string? Name { get; set; }
         [JsonPropertyName("display_name")]
@@ -21,10 +25,6 @@ namespace nokakoi
         [JsonPropertyName("picture")]
         public string? Picture { get; set; }
         */
-        [JsonPropertyName("mute")]
-        public bool Mute { get; set; }
-        [JsonPropertyName("last_updated")]
-        public DateTime? LastActivity { get; set; }
         public DateTimeOffset? CreatedAt { get; set; }
     }
 

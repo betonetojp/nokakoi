@@ -906,9 +906,9 @@ namespace nokakoi
             */
             // kind 0 を毎回購読するように変更（頻繁にdisplay_name等を変更するユーザーがいるため）
             SubscribeProfiles([publicKeyHex]);
-            Users.TryGetValue(publicKeyHex, out User? user);
 
             // 情報があれば表示名を取得
+            Users.TryGetValue(publicKeyHex, out User? user);
             string? userName = "???";
             if (null != user)
             {
