@@ -495,7 +495,7 @@ namespace nokakoi
                             {
                                 time = oldUserData?.CreatedAt;
                             }
-                            if (time < newUserData.CreatedAt)
+                            if (null == time || time < newUserData.CreatedAt)
                             {
                                 // Ž«‘‚É’Ç‰Áiã‘‚«j
                                 Users[nostrEvent.PublicKey] = newUserData;
