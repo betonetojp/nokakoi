@@ -270,7 +270,7 @@ namespace nokakoi
             {
                 foreach (var nostrEvent in args.events)
                 {
-                    if (RemoveDisplayedEventIds(nostrEvent.Id))
+                    if (RemoveCompletedEventIds(nostrEvent.Id))
                     {
                         continue;
                     }
@@ -447,7 +447,7 @@ namespace nokakoi
             {
                 foreach (var nostrEvent in args.events)
                 {
-                    if (RemoveDisplayedEventIds(nostrEvent.Id))
+                    if (RemoveCompletedEventIds(nostrEvent.Id))
                     {
                         continue;
                     }
@@ -475,7 +475,7 @@ namespace nokakoi
             {
                 foreach (var nostrEvent in args.events)
                 {
-                    if (RemoveDisplayedEventIds(nostrEvent.Id))
+                    if (RemoveCompletedEventIds(nostrEvent.Id))
                     {
                         continue;
                     }
@@ -488,20 +488,25 @@ namespace nokakoi
                         // エスケープされているので解除
                         var contentJson = Regex.Unescape(nostrEvent.Content);
 
-                        var newUserData = Tools.JsonToUser(contentJson, nostrEvent.CreatedAt);
+                        var newUserData = Tools.JsonToUser(contentJson, nostrEvent.CreatedAt); // Mostrをミュートしない設定を付ける？
                         if (null != newUserData)
                         {
-                            DateTimeOffset? time = DateTimeOffset.MinValue;
-                            if (Users.TryGetValue(nostrEvent.PublicKey, out User? oldUserData))
+                            DateTimeOffset? cratedAt = DateTimeOffset.MinValue;
+                            if (Users.TryGetValue(nostrEvent.PublicKey, out User? existingUserData))
                             {
-                                time = oldUserData?.CreatedAt;
+                                cratedAt = existingUserData?.CreatedAt;
                             }
-                            if (null == time || (time < newUserData.CreatedAt))
+                            if (false == existingUserData?.Mute)
+                            {
+                                // 既にミュートオフのMostrアカウントのミュートを解除
+                                newUserData.Mute = false;
+                            }
+                            if (null == cratedAt || (cratedAt < newUserData.CreatedAt))
                             {
                                 newUserData.LastActivity = DateTime.Now;
                                 // 辞書に追加（上書き）
                                 Users[nostrEvent.PublicKey] = newUserData;
-                                Debug.WriteLine($"cratedAt updated {time} -> {newUserData.CreatedAt}");
+                                Debug.WriteLine($"cratedAt updated {cratedAt} -> {newUserData.CreatedAt}");
                                 Debug.WriteLine($"プロフィール更新 {newUserData.LastActivity} {newUserData.DisplayName} {newUserData.Name}");
                             }
                         }
@@ -749,12 +754,12 @@ namespace nokakoi
         }
         #endregion
 
-        #region 複数リレーからの重複イベントを除外
+        #region 複数リレーからの処理済みイベントを除外
         /// <summary>
-        /// 複数リレーからの重複イベントを除外
+        /// 複数リレーからの処理済みイベントを除外
         /// </summary>
         /// <param name="eventId"></param>
-        private bool RemoveDisplayedEventIds(string eventId)
+        private bool RemoveCompletedEventIds(string eventId)
         {
             if (_displayedEventIds.Contains(eventId))
             {
@@ -769,9 +774,9 @@ namespace nokakoi
         }
         #endregion
 
-        #region フォロイー購読処理
+        #region フォロイー購読
         /// <summary>
-        /// フォロイー購読処理
+        /// フォロイー購読
         /// </summary>
         /// <param name="author"></param>
         private void SubscribeFollows(string author)
@@ -794,9 +799,9 @@ namespace nokakoi
         }
         #endregion
 
-        #region プロフィール購読処理
+        #region プロフィール購読
         /// <summary>
-        /// プロフィール購読処理
+        /// プロフィール購読
         /// </summary>
         /// <param name="authors"></param>
         private void SubscribeProfiles(string[] authors)

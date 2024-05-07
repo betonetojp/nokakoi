@@ -30,6 +30,13 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormManiacs));
             dataGridViewUsers = new DataGridView();
+            mute = new DataGridViewCheckBoxColumn();
+            last_activity = new DataGridViewTextBoxColumn();
+            display_name = new DataGridViewTextBoxColumn();
+            name = new DataGridViewTextBoxColumn();
+            nip05 = new DataGridViewTextBoxColumn();
+            pubkey = new DataGridViewTextBoxColumn();
+            created_at = new DataGridViewTextBoxColumn();
             buttonSave = new Button();
             checkBoxBalloon = new CheckBox();
             checkBoxOpenFile = new CheckBox();
@@ -39,13 +46,6 @@
             labelKeywords = new Label();
             buttonDelete = new Button();
             buttonReload = new Button();
-            mute = new DataGridViewCheckBoxColumn();
-            last_activity = new DataGridViewTextBoxColumn();
-            display_name = new DataGridViewTextBoxColumn();
-            name = new DataGridViewTextBoxColumn();
-            nip05 = new DataGridViewTextBoxColumn();
-            pubkey = new DataGridViewTextBoxColumn();
-            created_at = new DataGridViewTextBoxColumn();
             ((System.ComponentModel.ISupportInitialize)dataGridViewUsers).BeginInit();
             SuspendLayout();
             // 
@@ -65,102 +65,6 @@
             dataGridViewUsers.Size = new Size(440, 291);
             dataGridViewUsers.StandardTab = true;
             dataGridViewUsers.TabIndex = 1;
-            // 
-            // buttonSave
-            // 
-            buttonSave.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            buttonSave.Location = new Point(377, 406);
-            buttonSave.Name = "buttonSave";
-            buttonSave.Size = new Size(75, 23);
-            buttonSave.TabIndex = 8;
-            buttonSave.Text = "Save";
-            buttonSave.UseVisualStyleBackColor = true;
-            buttonSave.Click += ButtonSave_Click;
-            // 
-            // checkBoxBalloon
-            // 
-            checkBoxBalloon.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            checkBoxBalloon.AutoSize = true;
-            checkBoxBalloon.Location = new Point(12, 353);
-            checkBoxBalloon.Name = "checkBoxBalloon";
-            checkBoxBalloon.Size = new Size(129, 19);
-            checkBoxBalloon.TabIndex = 4;
-            checkBoxBalloon.Text = "Balloon notification";
-            checkBoxBalloon.UseVisualStyleBackColor = true;
-            // 
-            // checkBoxOpenFile
-            // 
-            checkBoxOpenFile.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            checkBoxOpenFile.AutoSize = true;
-            checkBoxOpenFile.Location = new Point(12, 381);
-            checkBoxOpenFile.Name = "checkBoxOpenFile";
-            checkBoxOpenFile.Size = new Size(136, 19);
-            checkBoxOpenFile.TabIndex = 5;
-            checkBoxOpenFile.Text = "Open file notification";
-            checkBoxOpenFile.UseVisualStyleBackColor = true;
-            // 
-            // labelFileName
-            // 
-            labelFileName.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            labelFileName.AutoSize = true;
-            labelFileName.Location = new Point(12, 409);
-            labelFileName.Name = "labelFileName";
-            labelFileName.Size = new Size(57, 15);
-            labelFileName.TabIndex = 0;
-            labelFileName.Text = "File name";
-            // 
-            // textBoxFileName
-            // 
-            textBoxFileName.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            textBoxFileName.BorderStyle = BorderStyle.FixedSingle;
-            textBoxFileName.Location = new Point(75, 406);
-            textBoxFileName.Name = "textBoxFileName";
-            textBoxFileName.Size = new Size(138, 23);
-            textBoxFileName.TabIndex = 6;
-            textBoxFileName.Text = "https://nostter.app/";
-            // 
-            // textBoxKeywords
-            // 
-            textBoxKeywords.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            textBoxKeywords.BorderStyle = BorderStyle.FixedSingle;
-            textBoxKeywords.Location = new Point(219, 372);
-            textBoxKeywords.Multiline = true;
-            textBoxKeywords.Name = "textBoxKeywords";
-            textBoxKeywords.ScrollBars = ScrollBars.Vertical;
-            textBoxKeywords.Size = new Size(152, 57);
-            textBoxKeywords.TabIndex = 7;
-            // 
-            // labelKeywords
-            // 
-            labelKeywords.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            labelKeywords.AutoSize = true;
-            labelKeywords.Location = new Point(219, 354);
-            labelKeywords.Name = "labelKeywords";
-            labelKeywords.Size = new Size(108, 15);
-            labelKeywords.TabIndex = 0;
-            labelKeywords.Text = "Keywords (per line)";
-            // 
-            // buttonDelete
-            // 
-            buttonDelete.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            buttonDelete.Location = new Point(12, 309);
-            buttonDelete.Name = "buttonDelete";
-            buttonDelete.Size = new Size(75, 23);
-            buttonDelete.TabIndex = 2;
-            buttonDelete.Text = "Delete";
-            buttonDelete.UseVisualStyleBackColor = true;
-            buttonDelete.Click += ButtonDelete_Click;
-            // 
-            // buttonReload
-            // 
-            buttonReload.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            buttonReload.Location = new Point(377, 309);
-            buttonReload.Name = "buttonReload";
-            buttonReload.Size = new Size(75, 23);
-            buttonReload.TabIndex = 3;
-            buttonReload.Text = "Reload";
-            buttonReload.UseVisualStyleBackColor = true;
-            buttonReload.Click += ButtonReload_Click;
             // 
             // mute
             // 
@@ -221,6 +125,102 @@
             created_at.Name = "created_at";
             created_at.ReadOnly = true;
             created_at.Width = 86;
+            // 
+            // buttonSave
+            // 
+            buttonSave.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            buttonSave.Location = new Point(377, 406);
+            buttonSave.Name = "buttonSave";
+            buttonSave.Size = new Size(75, 23);
+            buttonSave.TabIndex = 8;
+            buttonSave.Text = "Save";
+            buttonSave.UseVisualStyleBackColor = true;
+            buttonSave.Click += ButtonSave_Click;
+            // 
+            // checkBoxBalloon
+            // 
+            checkBoxBalloon.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            checkBoxBalloon.AutoSize = true;
+            checkBoxBalloon.Location = new Point(170, 356);
+            checkBoxBalloon.Name = "checkBoxBalloon";
+            checkBoxBalloon.Size = new Size(129, 19);
+            checkBoxBalloon.TabIndex = 5;
+            checkBoxBalloon.Text = "Balloon notification";
+            checkBoxBalloon.UseVisualStyleBackColor = true;
+            // 
+            // checkBoxOpenFile
+            // 
+            checkBoxOpenFile.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            checkBoxOpenFile.AutoSize = true;
+            checkBoxOpenFile.Location = new Point(170, 381);
+            checkBoxOpenFile.Name = "checkBoxOpenFile";
+            checkBoxOpenFile.Size = new Size(136, 19);
+            checkBoxOpenFile.TabIndex = 6;
+            checkBoxOpenFile.Text = "Open file notification";
+            checkBoxOpenFile.UseVisualStyleBackColor = true;
+            // 
+            // labelFileName
+            // 
+            labelFileName.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            labelFileName.AutoSize = true;
+            labelFileName.Location = new Point(170, 410);
+            labelFileName.Name = "labelFileName";
+            labelFileName.Size = new Size(57, 15);
+            labelFileName.TabIndex = 0;
+            labelFileName.Text = "File name";
+            // 
+            // textBoxFileName
+            // 
+            textBoxFileName.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            textBoxFileName.BorderStyle = BorderStyle.FixedSingle;
+            textBoxFileName.Location = new Point(233, 406);
+            textBoxFileName.Name = "textBoxFileName";
+            textBoxFileName.Size = new Size(126, 23);
+            textBoxFileName.TabIndex = 7;
+            textBoxFileName.Text = "https://nostter.app/";
+            // 
+            // textBoxKeywords
+            // 
+            textBoxKeywords.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            textBoxKeywords.BorderStyle = BorderStyle.FixedSingle;
+            textBoxKeywords.Location = new Point(12, 372);
+            textBoxKeywords.Multiline = true;
+            textBoxKeywords.Name = "textBoxKeywords";
+            textBoxKeywords.ScrollBars = ScrollBars.Vertical;
+            textBoxKeywords.Size = new Size(152, 57);
+            textBoxKeywords.TabIndex = 4;
+            // 
+            // labelKeywords
+            // 
+            labelKeywords.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            labelKeywords.AutoSize = true;
+            labelKeywords.Location = new Point(12, 354);
+            labelKeywords.Name = "labelKeywords";
+            labelKeywords.Size = new Size(108, 15);
+            labelKeywords.TabIndex = 0;
+            labelKeywords.Text = "Keywords (per line)";
+            // 
+            // buttonDelete
+            // 
+            buttonDelete.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            buttonDelete.Location = new Point(12, 309);
+            buttonDelete.Name = "buttonDelete";
+            buttonDelete.Size = new Size(75, 23);
+            buttonDelete.TabIndex = 2;
+            buttonDelete.Text = "Delete";
+            buttonDelete.UseVisualStyleBackColor = true;
+            buttonDelete.Click += ButtonDelete_Click;
+            // 
+            // buttonReload
+            // 
+            buttonReload.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            buttonReload.Location = new Point(377, 309);
+            buttonReload.Name = "buttonReload";
+            buttonReload.Size = new Size(75, 23);
+            buttonReload.TabIndex = 3;
+            buttonReload.Text = "Reload";
+            buttonReload.UseVisualStyleBackColor = true;
+            buttonReload.Click += ButtonReload_Click;
             // 
             // FormManiacs
             // 

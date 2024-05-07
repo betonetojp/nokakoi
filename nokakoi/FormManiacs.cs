@@ -26,7 +26,6 @@ namespace nokakoi
                         user.Key,
                         user.Value?.CreatedAt
                         );
-
                 }
                 dataGridViewUsers.Sort(dataGridViewUsers.Columns["last_activity"], ListSortDirection.Descending);
                 dataGridViewUsers.ClearSelection();

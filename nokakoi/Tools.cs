@@ -44,7 +44,7 @@ namespace nokakoi
         /// <param name="contentJson">kind:0のcontent JSON</param>
         /// <param name="createdAt">kind:0の作成日時</param>
         /// <returns>ユーザー</returns>
-        public static User? JsonToUser(string contentJson, DateTimeOffset? createdAt)
+        public static User? JsonToUser(string contentJson, DateTimeOffset? createdAt, bool shouldMuteMostr = true)
         {
             if (string.IsNullOrEmpty(contentJson))
             {
@@ -56,7 +56,7 @@ namespace nokakoi
                 if (null != user)
                 {
                     user.CreatedAt = createdAt;
-                    if (null != user.Nip05 && user.Nip05.Contains("mostr"))
+                    if (shouldMuteMostr && null != user.Nip05 && user.Nip05.Contains("mostr"))
                     {
                         user.Mute = true;
                     }
