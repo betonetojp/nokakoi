@@ -45,7 +45,7 @@
             textBoxPost.Name = "textBoxPost";
             textBoxPost.PlaceholderText = "nokakoi";
             textBoxPost.ScrollBars = ScrollBars.Vertical;
-            textBoxPost.Size = new Size(231, 92);
+            textBoxPost.Size = new Size(251, 80);
             textBoxPost.TabIndex = 6;
             textBoxPost.KeyDown += TextBoxPost_KeyDown;
             // 
@@ -54,7 +54,7 @@
             buttonPost.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             buttonPost.Enabled = false;
             buttonPost.Image = Properties.Resources.icons8_create_16;
-            buttonPost.Location = new Point(249, 12);
+            buttonPost.Location = new Point(269, 12);
             buttonPost.Name = "buttonPost";
             buttonPost.Size = new Size(23, 23);
             buttonPost.TabIndex = 7;
@@ -65,7 +65,7 @@
             // 
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = new Size(284, 116);
+            ClientSize = new Size(304, 104);
             ControlBox = false;
             Controls.Add(buttonPost);
             Controls.Add(textBoxPost);
@@ -73,7 +73,7 @@
             Icon = (Icon)resources.GetObject("$this.Icon");
             KeyPreview = true;
             MaximizeBox = false;
-            MaximumSize = new Size(480, 200);
+            MaximumSize = new Size(480, 240);
             MinimizeBox = false;
             MinimumSize = new Size(200, 68);
             Name = "FormPostBar";

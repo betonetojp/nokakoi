@@ -30,6 +30,13 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormManiacs));
             dataGridViewUsers = new DataGridView();
+            mute = new DataGridViewCheckBoxColumn();
+            last_activity = new DataGridViewTextBoxColumn();
+            display_name = new DataGridViewTextBoxColumn();
+            name = new DataGridViewTextBoxColumn();
+            nip05 = new DataGridViewTextBoxColumn();
+            pubkey = new DataGridViewTextBoxColumn();
+            created_at = new DataGridViewTextBoxColumn();
             buttonSave = new Button();
             checkBoxBalloon = new CheckBox();
             checkBoxOpenFile = new CheckBox();
@@ -39,13 +46,6 @@
             labelKeywords = new Label();
             buttonDelete = new Button();
             buttonReload = new Button();
-            mute = new DataGridViewCheckBoxColumn();
-            last_activity = new DataGridViewTextBoxColumn();
-            display_name = new DataGridViewTextBoxColumn();
-            name = new DataGridViewTextBoxColumn();
-            nip05 = new DataGridViewTextBoxColumn();
-            pubkey = new DataGridViewTextBoxColumn();
-            created_at = new DataGridViewTextBoxColumn();
             ((System.ComponentModel.ISupportInitialize)dataGridViewUsers).BeginInit();
             SuspendLayout();
             // 
@@ -65,6 +65,65 @@
             dataGridViewUsers.Size = new Size(440, 291);
             dataGridViewUsers.StandardTab = true;
             dataGridViewUsers.TabIndex = 1;
+            // 
+            // mute
+            // 
+            mute.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            mute.HeaderText = "Mute";
+            mute.MinimumWidth = 20;
+            mute.Name = "mute";
+            mute.SortMode = DataGridViewColumnSortMode.Automatic;
+            mute.Width = 60;
+            // 
+            // last_activity
+            // 
+            last_activity.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            last_activity.HeaderText = "Last activity";
+            last_activity.MinimumWidth = 20;
+            last_activity.Name = "last_activity";
+            last_activity.ReadOnly = true;
+            last_activity.Width = 94;
+            // 
+            // display_name
+            // 
+            display_name.HeaderText = "display_name";
+            display_name.MinimumWidth = 20;
+            display_name.Name = "display_name";
+            display_name.ReadOnly = true;
+            display_name.Width = 110;
+            // 
+            // name
+            // 
+            name.HeaderText = "name";
+            name.MinimumWidth = 20;
+            name.Name = "name";
+            name.ReadOnly = true;
+            name.Width = 110;
+            // 
+            // nip05
+            // 
+            nip05.HeaderText = "nip05";
+            nip05.MinimumWidth = 20;
+            nip05.Name = "nip05";
+            nip05.ReadOnly = true;
+            nip05.Width = 110;
+            // 
+            // pubkey
+            // 
+            pubkey.HeaderText = "pubkey";
+            pubkey.MinimumWidth = 20;
+            pubkey.Name = "pubkey";
+            pubkey.ReadOnly = true;
+            pubkey.Width = 110;
+            // 
+            // created_at
+            // 
+            created_at.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            created_at.HeaderText = "created_at";
+            created_at.MinimumWidth = 20;
+            created_at.Name = "created_at";
+            created_at.ReadOnly = true;
+            created_at.Width = 86;
             // 
             // buttonSave
             // 
@@ -161,65 +220,6 @@
             buttonReload.Text = "Reload";
             buttonReload.UseVisualStyleBackColor = true;
             buttonReload.Click += ButtonReload_Click;
-            // 
-            // mute
-            // 
-            mute.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-            mute.HeaderText = "Mute";
-            mute.MinimumWidth = 20;
-            mute.Name = "mute";
-            mute.SortMode = DataGridViewColumnSortMode.Automatic;
-            mute.Width = 60;
-            // 
-            // last_activity
-            // 
-            last_activity.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-            last_activity.HeaderText = "Last activity";
-            last_activity.MinimumWidth = 20;
-            last_activity.Name = "last_activity";
-            last_activity.ReadOnly = true;
-            last_activity.Width = 94;
-            // 
-            // display_name
-            // 
-            display_name.HeaderText = "display_name";
-            display_name.MinimumWidth = 20;
-            display_name.Name = "display_name";
-            display_name.ReadOnly = true;
-            display_name.Width = 110;
-            // 
-            // name
-            // 
-            name.HeaderText = "name";
-            name.MinimumWidth = 20;
-            name.Name = "name";
-            name.ReadOnly = true;
-            name.Width = 110;
-            // 
-            // nip05
-            // 
-            nip05.HeaderText = "nip05";
-            nip05.MinimumWidth = 20;
-            nip05.Name = "nip05";
-            nip05.ReadOnly = true;
-            nip05.Width = 110;
-            // 
-            // pubkey
-            // 
-            pubkey.HeaderText = "pubkey";
-            pubkey.MinimumWidth = 20;
-            pubkey.Name = "pubkey";
-            pubkey.ReadOnly = true;
-            pubkey.Width = 110;
-            // 
-            // created_at
-            // 
-            created_at.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-            created_at.HeaderText = "created_at";
-            created_at.MinimumWidth = 20;
-            created_at.Name = "created_at";
-            created_at.ReadOnly = true;
-            created_at.Width = 86;
             // 
             // FormManiacs
             // 
