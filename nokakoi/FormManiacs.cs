@@ -24,7 +24,8 @@ namespace nokakoi
                         user.Value?.Name,
                         user.Value?.Nip05,
                         user.Key,
-                        user.Value?.CreatedAt
+                        user.Value?.CreatedAt,
+                        user.Value?.Language
                         );
                 }
                 dataGridViewUsers.Sort(dataGridViewUsers.Columns["last_activity"], ListSortDirection.Descending);
@@ -34,6 +35,7 @@ namespace nokakoi
                 checkBoxOpenFile.Checked = settings.Open;
                 textBoxFileName.Text = settings.FileName;
                 textBoxKeywords.Text = string.Join("\r\n", settings.Keywords);
+                checkBoxMuteMostr.Checked = settings.MuteMostr;
             }
         }
 
@@ -54,7 +56,8 @@ namespace nokakoi
                             Name = (string)row.Cells["name"].Value,
                             Nip05 = (string)row.Cells["nip05"].Value,
                             LastActivity = (DateTime?)row.Cells["last_activity"].Value ?? null,
-                            CreatedAt = (DateTimeOffset?)row.Cells["created_at"].Value ?? null
+                            CreatedAt = (DateTimeOffset?)row.Cells["created_at"].Value ?? null,
+                            Language = (string)row.Cells["language"].Value
                         };
                         users.Add(pubkey, user);
                     }
@@ -65,6 +68,7 @@ namespace nokakoi
                 settings.Open = checkBoxOpenFile.Checked;
                 settings.FileName = textBoxFileName.Text;
                 settings.Keywords = [.. textBoxKeywords.Text.Split(["\r\n"], StringSplitOptions.RemoveEmptyEntries)];
+                settings.MuteMostr = checkBoxMuteMostr.Checked;
             }
             Close();
         }

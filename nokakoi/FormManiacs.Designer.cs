@@ -37,6 +37,7 @@
             nip05 = new DataGridViewTextBoxColumn();
             pubkey = new DataGridViewTextBoxColumn();
             created_at = new DataGridViewTextBoxColumn();
+            language = new DataGridViewTextBoxColumn();
             buttonSave = new Button();
             checkBoxBalloon = new CheckBox();
             checkBoxOpenFile = new CheckBox();
@@ -46,6 +47,7 @@
             labelKeywords = new Label();
             buttonDelete = new Button();
             buttonReload = new Button();
+            checkBoxMuteMostr = new CheckBox();
             ((System.ComponentModel.ISupportInitialize)dataGridViewUsers).BeginInit();
             SuspendLayout();
             // 
@@ -56,7 +58,7 @@
             dataGridViewUsers.AllowUserToResizeRows = false;
             dataGridViewUsers.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dataGridViewUsers.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewUsers.Columns.AddRange(new DataGridViewColumn[] { mute, last_activity, display_name, name, nip05, pubkey, created_at });
+            dataGridViewUsers.Columns.AddRange(new DataGridViewColumn[] { mute, last_activity, display_name, name, nip05, pubkey, created_at, language });
             dataGridViewUsers.Location = new Point(12, 12);
             dataGridViewUsers.Name = "dataGridViewUsers";
             dataGridViewUsers.RowHeadersVisible = false;
@@ -125,13 +127,22 @@
             created_at.ReadOnly = true;
             created_at.Width = 86;
             // 
+            // language
+            // 
+            language.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            language.HeaderText = "Language";
+            language.MinimumWidth = 20;
+            language.Name = "language";
+            language.ReadOnly = true;
+            language.Width = 84;
+            // 
             // buttonSave
             // 
             buttonSave.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             buttonSave.Location = new Point(377, 406);
             buttonSave.Name = "buttonSave";
             buttonSave.Size = new Size(75, 23);
-            buttonSave.TabIndex = 8;
+            buttonSave.TabIndex = 9;
             buttonSave.Text = "Save";
             buttonSave.UseVisualStyleBackColor = true;
             buttonSave.Click += ButtonSave_Click;
@@ -143,7 +154,7 @@
             checkBoxBalloon.Location = new Point(170, 356);
             checkBoxBalloon.Name = "checkBoxBalloon";
             checkBoxBalloon.Size = new Size(129, 19);
-            checkBoxBalloon.TabIndex = 5;
+            checkBoxBalloon.TabIndex = 6;
             checkBoxBalloon.Text = "Balloon notification";
             checkBoxBalloon.UseVisualStyleBackColor = true;
             // 
@@ -154,7 +165,7 @@
             checkBoxOpenFile.Location = new Point(170, 381);
             checkBoxOpenFile.Name = "checkBoxOpenFile";
             checkBoxOpenFile.Size = new Size(136, 19);
-            checkBoxOpenFile.TabIndex = 6;
+            checkBoxOpenFile.TabIndex = 7;
             checkBoxOpenFile.Text = "Open file notification";
             checkBoxOpenFile.UseVisualStyleBackColor = true;
             // 
@@ -175,7 +186,7 @@
             textBoxFileName.Location = new Point(233, 406);
             textBoxFileName.Name = "textBoxFileName";
             textBoxFileName.Size = new Size(126, 23);
-            textBoxFileName.TabIndex = 7;
+            textBoxFileName.TabIndex = 8;
             textBoxFileName.Text = "https://nostter.app/";
             // 
             // textBoxKeywords
@@ -187,7 +198,7 @@
             textBoxKeywords.Name = "textBoxKeywords";
             textBoxKeywords.ScrollBars = ScrollBars.Vertical;
             textBoxKeywords.Size = new Size(152, 73);
-            textBoxKeywords.TabIndex = 4;
+            textBoxKeywords.TabIndex = 5;
             // 
             // labelKeywords
             // 
@@ -216,16 +227,28 @@
             buttonReload.Location = new Point(377, 309);
             buttonReload.Name = "buttonReload";
             buttonReload.Size = new Size(75, 23);
-            buttonReload.TabIndex = 3;
+            buttonReload.TabIndex = 4;
             buttonReload.Text = "Reload";
             buttonReload.UseVisualStyleBackColor = true;
             buttonReload.Click += ButtonReload_Click;
+            // 
+            // checkBoxMuteMostr
+            // 
+            checkBoxMuteMostr.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            checkBoxMuteMostr.AutoSize = true;
+            checkBoxMuteMostr.Location = new Point(170, 313);
+            checkBoxMuteMostr.Name = "checkBoxMuteMostr";
+            checkBoxMuteMostr.Size = new Size(147, 19);
+            checkBoxMuteMostr.TabIndex = 3;
+            checkBoxMuteMostr.Text = "Mute posts from Mostr";
+            checkBoxMuteMostr.UseVisualStyleBackColor = true;
             // 
             // FormManiacs
             // 
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(464, 441);
+            Controls.Add(checkBoxMuteMostr);
             Controls.Add(buttonReload);
             Controls.Add(buttonDelete);
             Controls.Add(labelKeywords);
@@ -267,5 +290,7 @@
         private DataGridViewTextBoxColumn nip05;
         private DataGridViewTextBoxColumn pubkey;
         private DataGridViewTextBoxColumn created_at;
+        private CheckBox checkBoxMuteMostr;
+        private DataGridViewTextBoxColumn language;
     }
 }

@@ -25,7 +25,10 @@ namespace nokakoi
         [JsonPropertyName("picture")]
         public string? Picture { get; set; }
         */
+        [JsonPropertyName("created_at")] 
         public DateTimeOffset? CreatedAt { get; set; }
+        [JsonPropertyName("language")] 
+        public string? Language { get; set; }
     }
 
     public class Relay

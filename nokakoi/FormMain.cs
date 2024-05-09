@@ -339,8 +339,14 @@ namespace nokakoi
                         // テキストノート
                         if (1 == nostrEvent.Kind)
                         {
-                            var c = nostrEvent.GetTaggedData("client");
-                            var iSnokakoi = -1 < Array.IndexOf(c, "nokakoi");
+                            var userClient = nostrEvent.GetTaggedData("client");
+                            var iSnokakoi = -1 < Array.IndexOf(userClient, "nokakoi");
+                            var lang = DetermineLanguage(content);
+                            if (Users.TryGetValue(nostrEvent.PublicKey, out User? user) && null != user)
+                            {
+                                // 言語判定結果を更新（既存ユーザー）
+                                user.Language = lang;
+                            }
 
                             // nokakoi限定表示オンでnokakoiじゃない時は表示しない
                             if (_showOnlyTagged && !iSnokakoi)
@@ -349,7 +355,7 @@ namespace nokakoi
                             }
 
                             // 日本語限定表示オンで日本語じゃない時は表示しない
-                            if (_showOnlyJapanese && "jpn" != DetermineLanguage(content))
+                            if (_showOnlyJapanese && "jpn" != lang)
                             {
                                 continue;
                             }
@@ -488,7 +494,7 @@ namespace nokakoi
                         // エスケープされているので解除
                         var contentJson = Regex.Unescape(nostrEvent.Content);
 
-                        var newUserData = Tools.JsonToUser(contentJson, nostrEvent.CreatedAt); // Mostrをミュートしない設定を付ける？
+                        var newUserData = Tools.JsonToUser(contentJson, nostrEvent.CreatedAt, Notifier.Settings.MuteMostr);
                         if (null != newUserData)
                         {
                             DateTimeOffset? cratedAt = DateTimeOffset.MinValue;
