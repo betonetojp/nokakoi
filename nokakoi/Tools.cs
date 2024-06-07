@@ -21,10 +21,8 @@ namespace nokakoi
         public string? DisplayName { get; set; }
         [JsonPropertyName("nip05")]
         public string? Nip05 { get; set; }
-        /* 今は使わないので削除
         [JsonPropertyName("picture")]
         public string? Picture { get; set; }
-        */
         [JsonPropertyName("created_at")] 
         public DateTimeOffset? CreatedAt { get; set; }
         [JsonPropertyName("language")] 

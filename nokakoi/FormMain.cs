@@ -11,7 +11,7 @@ namespace nokakoi
 {
     public partial class FormMain : Form
     {
-        #region メンバー変数
+        #region フィールド
         private readonly TimeSpan _timeSpan = new(0, 0, 0, 0);
 
         private readonly FormSetting _formSetting = new();
@@ -404,7 +404,7 @@ namespace nokakoi
                             }
 
                             // エスケープ解除（↑SSPにはエスケープされたまま送る）
-                            content = Regex.Unescape(content);
+                            //content = Regex.Unescape(content); // NNostr 0.0.49で余分な'\'が付かなくなった！
 
                             // キーワード通知
                             var settings = Notifier.Settings;
@@ -515,6 +515,14 @@ namespace nokakoi
                                 Debug.WriteLine($"cratedAt updated {cratedAt} -> {newUserData.CreatedAt}");
                                 Debug.WriteLine($"プロフィール更新 {newUserData.LastActivity} {newUserData.DisplayName} {newUserData.Name}");
                             }
+                            // ユーザー表示データ更新
+                            if (Users.TryGetValue(nostrEvent.PublicKey, out User? value) && null != value)
+                            {
+                                value.Name = newUserData.Name;
+                                value.DisplayName = newUserData.DisplayName;
+                                value.Nip05 = newUserData.Nip05;
+                                value.Picture = newUserData.Picture;
+                            }
                         }
                     }
                 }
@@ -624,9 +632,11 @@ namespace nokakoi
                 Kind = 1,
                 Content = textBoxPost.Text
                             .Replace("\\n", "\r\n") // 本体の改行をポストバーのマルチラインに合わせる（順番大事）
-                            .Replace("\\", "\\\\")  // \を投稿できるようにエスケープ
-                            .Replace("\"", "\\\"")  // "を投稿できるようにエスケープ
-                            .Replace("\r\n", "\\n") // 改行を投稿できるようにエスケープ
+                            // ↓NNostr 0.0.49で修正された！
+                            //.Replace("\\", "\\\\")  // \を投稿できるようにエスケープ
+                            //.Replace("\"", "\\\"")  // "を投稿できるようにエスケープ
+                            //.Replace("\r\n", "\\n") // 改行を投稿できるようにエスケープ
+                            .Replace("\r\n", "\n")
                             + (_addShortcode ? " :" + _shortcode + ":" : string.Empty),
                 Tags = tags
             };
