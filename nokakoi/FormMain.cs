@@ -5,7 +5,6 @@ using NTextCat.Commons;
 using SSTPLib;
 using System.Diagnostics;
 using System.Net.WebSockets;
-using System.Text.RegularExpressions;
 
 namespace nokakoi
 {
@@ -327,7 +326,7 @@ namespace nokakoi
                                         { "Reference1", "reaction" }, // kind
                                         { "Reference2", content }, // content
                                         { "Reference3", user?.Name ?? "???" }, // name
-                                        { "Reference4", user?.DisplayName ?? "???" }, // display_name
+                                        { "Reference4", user?.DisplayName ?? "" }, // display_name
                                         { "Reference5", user?.Picture ?? "https://betoneto.win/media/nokakoi_gray.png" }, // picture
                                         { "Script", $"{speaker}リアクション {userName}\\n{content}\\e" }
                                     };
@@ -348,8 +347,8 @@ namespace nokakoi
                             var lang = DetermineLanguage(content);
                             if (Users.TryGetValue(nostrEvent.PublicKey, out User? user) && null != user)
                             {
-                                // 言語判定結果を更新（既存ユーザー）
-                                user.Language = lang;
+                                //// 言語判定結果を更新（既存ユーザー）
+                                //user.Language = lang;
                             }
 
                             // nokakoi限定表示オンでnokakoiじゃない時は表示しない
@@ -400,7 +399,7 @@ namespace nokakoi
                                     { "Reference1", "note" },
                                     { "Reference2", content }, // content
                                     { "Reference3", user?.Name ?? "???" }, // name
-                                    { "Reference4", user?.DisplayName ?? "???" }, // display_name
+                                    { "Reference4", user?.DisplayName ?? "" }, // display_name
                                     { "Reference5", user?.Picture ?? "https://betoneto.win/media/nokakoi_gray.png" }, // picture
                                     { "Script", $"{speaker}{userName}\\n{msg}\\e" }
                                 };
@@ -408,9 +407,6 @@ namespace nokakoi
                                 string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
                                 //Debug.WriteLine(r);
                             }
-
-                            // エスケープ解除（↑SSPにはエスケープされたまま送る）
-                            //content = Regex.Unescape(content); // NNostr 0.0.49で余分な'\'が付かなくなった！
 
                             // キーワード通知
                             var settings = Notifier.Settings;
@@ -459,11 +455,6 @@ namespace nokakoi
             {
                 foreach (var nostrEvent in args.events)
                 {
-                    if (RemoveCompletedEventIds(nostrEvent.Id))
-                    {
-                        continue;
-                    }
-
                     // フォローリスト
                     if (3 == nostrEvent.Kind)
                     {
@@ -497,9 +488,6 @@ namespace nokakoi
                     {
                         //// ※nostrEvent.Contentがnullになってしまう特定ユーザーがいる。ライブラリの問題か。
 
-                        // エスケープされているので解除
-                        //var contentJson = Regex.Unescape(nostrEvent.Content); // NNostr 0.0.49で余分な'\'が付かなくなった！
-
                         var newUserData = Tools.JsonToUser(nostrEvent.Content, nostrEvent.CreatedAt, Notifier.Settings.MuteMostr);
                         if (null != newUserData)
                         {
@@ -520,12 +508,6 @@ namespace nokakoi
                                 Users[nostrEvent.PublicKey] = newUserData;
                                 Debug.WriteLine($"cratedAt updated {cratedAt} -> {newUserData.CreatedAt}");
                                 Debug.WriteLine($"プロフィール更新 {newUserData.LastActivity} {newUserData.DisplayName} {newUserData.Name}");
-                            }
-                            // picture追加（旧users.jsonにpictureを挿入するため）
-                            if (Users.TryGetValue(nostrEvent.PublicKey, out User? value) && null != value)
-                            {
-                                value.Picture = newUserData.Picture;
-                                Debug.WriteLine($"picture追加 {value.Name} {value.Picture} ");
                             }
                         }
                     }
