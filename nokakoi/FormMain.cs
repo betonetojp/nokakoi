@@ -69,9 +69,9 @@ namespace nokakoi
         private readonly string _SSTPMethod = "NOTIFY SSTP/1.1";
         private readonly Dictionary<string, string> _baseSSTPHeader = new(){
             {"Charset","UTF-8"},
-            {"SecurityLevel","external"},
+            {"SecurityLevel","local"},
             {"Sender","nokakoi"},
-            {"Option","nobreak"},
+            {"Option","nobreak,notranslate"},
             {"Event","OnNostr"},
             {"Reference0","Nostr/0.3"}
         };
@@ -328,7 +328,7 @@ namespace nokakoi
                                         { "Reference2", content }, // content
                                         { "Reference3", user?.Name ?? "???" }, // name
                                         { "Reference4", user?.DisplayName ?? "???" }, // display_name
-                                        { "Reference5", user?.Picture ?? "" }, // picture
+                                        { "Reference5", user?.Picture ?? "https://betoneto.win/media/nokakoi_gray.png" }, // picture
                                         { "Script", $"{speaker}ƒŠƒAƒNƒVƒ‡ƒ“ {userName}\\n{content}\\e" }
                                     };
                                     string sstpmsg = _SSTPMethod + "\r\n" + String.Join("\r\n", SSTPHeader.Select(kvp => kvp.Key + ": " + kvp.Value)) + "\r\n\r\n";
@@ -401,7 +401,7 @@ namespace nokakoi
                                     { "Reference2", content }, // content
                                     { "Reference3", user?.Name ?? "???" }, // name
                                     { "Reference4", user?.DisplayName ?? "???" }, // display_name
-                                    { "Reference5", user?.Picture ?? "" }, // picture
+                                    { "Reference5", user?.Picture ?? "https://betoneto.win/media/nokakoi_gray.png" }, // picture
                                     { "Script", $"{speaker}{userName}\\n{msg}\\e" }
                                 };
                                 string sstpmsg = _SSTPMethod + "\r\n" + String.Join("\r\n", SSTPHeader.Select(kvp => kvp.Key + ": " + kvp.Value)) + "\r\n\r\n";
