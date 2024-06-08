@@ -69,10 +69,11 @@ namespace nokakoi
         private readonly string _SSTPMethod = "NOTIFY SSTP/1.1";
         private readonly Dictionary<string, string> _baseSSTPHeader = new(){
             {"Charset","UTF-8"},
+            {"SecurityLevel","external"},
             {"Sender","nokakoi"},
-            {"Option","nobreak,notranslate"},
+            {"Option","nobreak"},
             {"Event","OnNostr"},
-            {"Reference0","Nostr/0.2"}
+            {"Reference0","Nostr/0.3"}
         };
 
         private string _ghostName = string.Empty;
@@ -308,6 +309,7 @@ namespace nokakoi
                             // ログイン済みで自分へのリアクション
                             if (!_npubHex.IsNullOrEmpty() && nostrEvent.GetTaggedPublicKeys().Contains(_npubHex))
                             {
+                                Users.TryGetValue(nostrEvent.PublicKey, out User? user);
                                 // ユーザー表示名取得
                                 string userName = GetUserName(nostrEvent.PublicKey);
                                 // ユーザー表示名カット
@@ -322,10 +324,12 @@ namespace nokakoi
                                     SearchGhost();
                                     Dictionary<string, string> SSTPHeader = new(_baseSSTPHeader)
                                     {
-                                        { "Reference1", "reaction" },
-                                        { "Reference2", content },
-                                        { "Reference3", userName },
-                                        { "Script", $"{speaker}リアクション {userName} {content}\\e" }
+                                        { "Reference1", "reaction" }, // kind
+                                        { "Reference2", content }, // content
+                                        { "Reference3", user?.Name ?? "???" }, // name
+                                        { "Reference4", user?.DisplayName ?? "???" }, // display_name
+                                        { "Reference5", user?.Picture ?? "" }, // picture
+                                        { "Script", $"{speaker}リアクション {userName}\\n{content}\\e" }
                                     };
                                     string sstpmsg = _SSTPMethod + "\r\n" + String.Join("\r\n", SSTPHeader.Select(kvp => kvp.Key + ": " + kvp.Value)) + "\r\n\r\n";
                                     string r = _ds.GetSSTPResponse(_ghostName, sstpmsg);
@@ -394,8 +398,10 @@ namespace nokakoi
                                 Dictionary<string, string> SSTPHeader = new(_baseSSTPHeader)
                                 {
                                     { "Reference1", "note" },
-                                    { "Reference2", content },
-                                    { "Reference3", userName },
+                                    { "Reference2", content }, // content
+                                    { "Reference3", user?.Name ?? "???" }, // name
+                                    { "Reference4", user?.DisplayName ?? "???" }, // display_name
+                                    { "Reference5", user?.Picture ?? "" }, // picture
                                     { "Script", $"{speaker}{userName}\\n{msg}\\e" }
                                 };
                                 string sstpmsg = _SSTPMethod + "\r\n" + String.Join("\r\n", SSTPHeader.Select(kvp => kvp.Key + ": " + kvp.Value)) + "\r\n\r\n";
@@ -492,9 +498,9 @@ namespace nokakoi
                         //// ※nostrEvent.Contentがnullになってしまう特定ユーザーがいる。ライブラリの問題か。
 
                         // エスケープされているので解除
-                        var contentJson = Regex.Unescape(nostrEvent.Content);
+                        //var contentJson = Regex.Unescape(nostrEvent.Content); // NNostr 0.0.49で余分な'\'が付かなくなった！
 
-                        var newUserData = Tools.JsonToUser(contentJson, nostrEvent.CreatedAt, Notifier.Settings.MuteMostr);
+                        var newUserData = Tools.JsonToUser(nostrEvent.Content, nostrEvent.CreatedAt, Notifier.Settings.MuteMostr);
                         if (null != newUserData)
                         {
                             DateTimeOffset? cratedAt = DateTimeOffset.MinValue;
@@ -515,13 +521,11 @@ namespace nokakoi
                                 Debug.WriteLine($"cratedAt updated {cratedAt} -> {newUserData.CreatedAt}");
                                 Debug.WriteLine($"プロフィール更新 {newUserData.LastActivity} {newUserData.DisplayName} {newUserData.Name}");
                             }
-                            // ユーザー表示データ更新
+                            // picture追加（旧users.jsonにpictureを挿入するため）
                             if (Users.TryGetValue(nostrEvent.PublicKey, out User? value) && null != value)
                             {
-                                value.Name = newUserData.Name;
-                                value.DisplayName = newUserData.DisplayName;
-                                value.Nip05 = newUserData.Nip05;
                                 value.Picture = newUserData.Picture;
+                                Debug.WriteLine($"picture追加 {value.Name} {value.Picture} ");
                             }
                         }
                     }
