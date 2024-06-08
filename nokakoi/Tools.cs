@@ -1,5 +1,6 @@
 ﻿using NBitcoin.Secp256k1;
 using NNostr.Client;
+using NNostr.Client.JsonConverters;
 using NNostr.Client.Protocols;
 using System.Diagnostics;
 using System.Text.Encodings.Web;
@@ -23,7 +24,8 @@ namespace nokakoi
         public string? Nip05 { get; set; }
         [JsonPropertyName("picture")]
         public string? Picture { get; set; }
-        [JsonPropertyName("created_at")] 
+        [JsonPropertyName("created_at")]
+        [JsonConverter(typeof(UnixTimestampSecondsJsonConverter))]
         public DateTimeOffset? CreatedAt { get; set; }
         [JsonPropertyName("language")] 
         public string? Language { get; set; }
