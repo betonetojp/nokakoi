@@ -20,13 +20,13 @@ namespace nokakoi
                     dataGridViewUsers.Rows.Add(
                         user.Value?.Mute,
                         user.Value?.LastActivity,
+                        user.Key,
                         user.Value?.DisplayName,
                         user.Value?.Name,
                         user.Value?.Nip05,
                         user.Value?.Picture,
-                        user.Key,
-                        user.Value?.CreatedAt,
-                        user.Value?.Language
+                        user.Value?.CreatedAt
+                        //user.Value?.Language
                         );
                 }
                 dataGridViewUsers.Sort(dataGridViewUsers.Columns["last_activity"], ListSortDirection.Descending);
@@ -59,7 +59,7 @@ namespace nokakoi
                             Picture = (string)row.Cells["picture"].Value,
                             LastActivity = (DateTime?)row.Cells["last_activity"].Value ?? null,
                             CreatedAt = (DateTimeOffset?)row.Cells["created_at"].Value ?? null,
-                            Language = (string)row.Cells["language"].Value
+                            //Language = (string)row.Cells["language"].Value
                         };
                         users.Add(pubkey, user);
                     }

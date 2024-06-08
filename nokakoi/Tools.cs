@@ -27,8 +27,8 @@ namespace nokakoi
         [JsonPropertyName("created_at")]
         [JsonConverter(typeof(UnixTimestampSecondsJsonConverter))]
         public DateTimeOffset? CreatedAt { get; set; }
-        [JsonPropertyName("language")] 
-        public string? Language { get; set; }
+        //[JsonPropertyName("language")] 
+        //public string? Language { get; set; }
     }
 
     public class Relay

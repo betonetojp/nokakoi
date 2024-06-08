@@ -5,7 +5,6 @@ using NTextCat.Commons;
 using SSTPLib;
 using System.Diagnostics;
 using System.Net.WebSockets;
-using System.Text.RegularExpressions;
 
 namespace nokakoi
 {
@@ -348,8 +347,8 @@ namespace nokakoi
                             var lang = DetermineLanguage(content);
                             if (Users.TryGetValue(nostrEvent.PublicKey, out User? user) && null != user)
                             {
-                                // 言語判定結果を更新（既存ユーザー）
-                                user.Language = lang;
+                                //// 言語判定結果を更新（既存ユーザー）
+                                //user.Language = lang;
                             }
 
                             // nokakoi限定表示オンでnokakoiじゃない時は表示しない
@@ -459,11 +458,6 @@ namespace nokakoi
             {
                 foreach (var nostrEvent in args.events)
                 {
-                    if (RemoveCompletedEventIds(nostrEvent.Id))
-                    {
-                        continue;
-                    }
-
                     // フォローリスト
                     if (3 == nostrEvent.Kind)
                     {
@@ -520,12 +514,6 @@ namespace nokakoi
                                 Users[nostrEvent.PublicKey] = newUserData;
                                 Debug.WriteLine($"cratedAt updated {cratedAt} -> {newUserData.CreatedAt}");
                                 Debug.WriteLine($"プロフィール更新 {newUserData.LastActivity} {newUserData.DisplayName} {newUserData.Name}");
-                            }
-                            // picture追加（旧users.jsonにpictureを挿入するため）
-                            if (Users.TryGetValue(nostrEvent.PublicKey, out User? value) && null != value)
-                            {
-                                value.Picture = newUserData.Picture;
-                                Debug.WriteLine($"picture追加 {value.Name} {value.Picture} ");
                             }
                         }
                     }

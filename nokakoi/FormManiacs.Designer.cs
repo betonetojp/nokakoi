@@ -42,13 +42,12 @@
             checkBoxMuteMostr = new CheckBox();
             mute = new DataGridViewCheckBoxColumn();
             last_activity = new DataGridViewTextBoxColumn();
+            pubkey = new DataGridViewTextBoxColumn();
             display_name = new DataGridViewTextBoxColumn();
             name = new DataGridViewTextBoxColumn();
             nip05 = new DataGridViewTextBoxColumn();
             picture = new DataGridViewTextBoxColumn();
-            pubkey = new DataGridViewTextBoxColumn();
             created_at = new DataGridViewTextBoxColumn();
-            language = new DataGridViewTextBoxColumn();
             ((System.ComponentModel.ISupportInitialize)dataGridViewUsers).BeginInit();
             SuspendLayout();
             // 
@@ -59,7 +58,7 @@
             dataGridViewUsers.AllowUserToResizeRows = false;
             dataGridViewUsers.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dataGridViewUsers.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewUsers.Columns.AddRange(new DataGridViewColumn[] { mute, last_activity, display_name, name, nip05, picture, pubkey, created_at, language });
+            dataGridViewUsers.Columns.AddRange(new DataGridViewColumn[] { mute, last_activity, pubkey, display_name, name, nip05, picture, created_at });
             dataGridViewUsers.Location = new Point(12, 12);
             dataGridViewUsers.Name = "dataGridViewUsers";
             dataGridViewUsers.RowHeadersVisible = false;
@@ -194,6 +193,15 @@
             last_activity.ReadOnly = true;
             last_activity.Width = 94;
             // 
+            // pubkey
+            // 
+            pubkey.AutoSizeMode = DataGridViewAutoSizeColumnMode.ColumnHeader;
+            pubkey.HeaderText = "pubkey";
+            pubkey.MinimumWidth = 20;
+            pubkey.Name = "pubkey";
+            pubkey.ReadOnly = true;
+            pubkey.Width = 71;
+            // 
             // display_name
             // 
             display_name.HeaderText = "display_name";
@@ -226,14 +234,6 @@
             picture.ReadOnly = true;
             picture.Width = 110;
             // 
-            // pubkey
-            // 
-            pubkey.HeaderText = "pubkey";
-            pubkey.MinimumWidth = 20;
-            pubkey.Name = "pubkey";
-            pubkey.ReadOnly = true;
-            pubkey.Width = 110;
-            // 
             // created_at
             // 
             created_at.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
@@ -242,15 +242,6 @@
             created_at.Name = "created_at";
             created_at.ReadOnly = true;
             created_at.Width = 86;
-            // 
-            // language
-            // 
-            language.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-            language.HeaderText = "Language";
-            language.MinimumWidth = 20;
-            language.Name = "language";
-            language.ReadOnly = true;
-            language.Width = 84;
             // 
             // FormManiacs
             // 
@@ -292,15 +283,14 @@
         private Label labelKeywords;
         private Button buttonDelete;
         private Button buttonReload;
+        private CheckBox checkBoxMuteMostr;
         private DataGridViewCheckBoxColumn mute;
         private DataGridViewTextBoxColumn last_activity;
         private DataGridViewTextBoxColumn display_name;
         private DataGridViewTextBoxColumn name;
         private DataGridViewTextBoxColumn nip05;
+        private DataGridViewTextBoxColumn picture;
         private DataGridViewTextBoxColumn pubkey;
         private DataGridViewTextBoxColumn created_at;
-        private CheckBox checkBoxMuteMostr;
-        private DataGridViewTextBoxColumn language;
-        private DataGridViewTextBoxColumn picture;
     }
 }
