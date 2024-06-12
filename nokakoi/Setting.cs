@@ -29,6 +29,7 @@ namespace nokakoi
             public string NokakoiKey { get; set; } = string.Empty;
             public Point PostBarLocation { get; set; }
             public Size PostBarSize { get; set; } = new Size(300, 132);
+            public string UnkownPicture { get; set; } = string.Empty;
         }
         #endregion
 
@@ -218,6 +219,17 @@ namespace nokakoi
             set
             {
                 _data.PostBarSize = value;
+            }
+        }
+        public static string UnkownPicture
+        {
+            get
+            {
+                return _data.UnkownPicture;
+            }
+            set
+            {
+                _data.UnkownPicture = value;
             }
         }
         #endregion

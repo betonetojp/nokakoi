@@ -294,12 +294,12 @@ namespace nokakoi
 
                         // フォロイーチェック
                         string headMark = "-";
-                        string speaker = "\\u\\p[1]\\s[10]";
+                        string speaker = "\\1"; //"\\u\\p[1]\\s[10]";
                         if (_followeesHexs.Contains(nostrEvent.PublicKey))
                         {
                             headMark = "*";
-                            // さくら側がしゃべる
-                            speaker = "\\h\\p[0]\\s[0]";
+                            // 本体側がしゃべる
+                            speaker = "\\0"; //"\\h\\p[0]\\s[0]";
                         }
 
                         // リアクション
@@ -326,8 +326,8 @@ namespace nokakoi
                                         { "Reference1", "reaction" }, // kind
                                         { "Reference2", content }, // content
                                         { "Reference3", user?.Name ?? "???" }, // name
-                                        { "Reference4", user?.DisplayName ?? "" }, // display_name
-                                        { "Reference5", user?.Picture ?? "https://betoneto.win/media/nokakoi_gray.png" }, // picture
+                                        { "Reference4", user?.DisplayName ?? string.Empty }, // display_name
+                                        { "Reference5", user?.Picture ?? Setting.UnkownPicture }, // picture
                                         { "Script", $"{speaker}リアクション {userName}\\n{content}\\e" }
                                     };
                                     string sstpmsg = _SSTPMethod + "\r\n" + String.Join("\r\n", SSTPHeader.Select(kvp => kvp.Key + ": " + kvp.Value.Replace("\n", "\\n"))) + "\r\n\r\n";
@@ -399,8 +399,8 @@ namespace nokakoi
                                     { "Reference1", "note" },
                                     { "Reference2", content }, // content
                                     { "Reference3", user?.Name ?? "???" }, // name
-                                    { "Reference4", user?.DisplayName ?? "" }, // display_name
-                                    { "Reference5", user?.Picture ?? "https://betoneto.win/media/nokakoi_gray.png" }, // picture
+                                    { "Reference4", user?.DisplayName ?? string.Empty }, // display_name
+                                    { "Reference5", user?.Picture ?? Setting.UnkownPicture }, // picture
                                     { "Script", $"{speaker}{userName}\\n{msg}\\e" }
                                 };
                                 string sstpmsg = _SSTPMethod + "\r\n" + String.Join("\r\n", SSTPHeader.Select(kvp => kvp.Key + ": " + kvp.Value.Replace("\n", "\\n"))) + "\r\n\r\n";

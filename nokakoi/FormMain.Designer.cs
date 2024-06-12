@@ -141,11 +141,12 @@
             // 
             // labelRelays
             // 
-            labelRelays.AutoSize = true;
+            labelRelays.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            labelRelays.AutoEllipsis = true;
             labelRelays.ForeColor = SystemColors.GrayText;
             labelRelays.Location = new Point(41, 16);
             labelRelays.Name = "labelRelays";
-            labelRelays.Size = new Size(59, 15);
+            labelRelays.Size = new Size(164, 15);
             labelRelays.TabIndex = 0;
             labelRelays.Text = "Relay info";
             // 
