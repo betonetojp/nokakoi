@@ -9,12 +9,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "nokakoienc", "nokakoienc\no
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "nokakoiCrypt", "nokakoiCrypt\nokakoiCrypt.csproj", "{947AD1EE-BDE0-4AF9-A264-F43F341A99E2}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "text", "text", "{A649D266-F338-47A5-8650-A9E72C74D2DB}"
-	ProjectSection(SolutionItems) = preProject
-		LICENSE = LICENSE
-		readme.txt = readme.txt
-	EndProjectSection
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SSTPLib", "SSTPLib\SSTPLib.csproj", "{D0149312-39B0-4B33-8CA2-53B8E1BB864E}"
 EndProject
 Global

@@ -182,9 +182,10 @@
             // 
             // label5
             // 
+            label5.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             label5.AutoSize = true;
             label5.ForeColor = SystemColors.GrayText;
-            label5.Location = new Point(99, 337);
+            label5.Location = new Point(99, 357);
             label5.Name = "label5";
             label5.Size = new Size(126, 15);
             label5.TabIndex = 0;
@@ -192,8 +193,9 @@
             // 
             // linkLabelIcons8
             // 
+            linkLabelIcons8.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             linkLabelIcons8.AutoSize = true;
-            linkLabelIcons8.Location = new Point(231, 337);
+            linkLabelIcons8.Location = new Point(231, 357);
             linkLabelIcons8.Name = "linkLabelIcons8";
             linkLabelIcons8.Size = new Size(41, 15);
             linkLabelIcons8.TabIndex = 15;
@@ -251,12 +253,13 @@
             // 
             // labelVersion
             // 
+            labelVersion.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             labelVersion.AutoSize = true;
-            labelVersion.Location = new Point(12, 337);
+            labelVersion.Location = new Point(12, 357);
             labelVersion.Name = "labelVersion";
             labelVersion.Size = new Size(37, 15);
             labelVersion.TabIndex = 0;
-            labelVersion.Text = "v0.4.3";
+            labelVersion.Text = "v0.4.4";
             // 
             // labelOpacity
             // 
@@ -309,7 +312,7 @@
             // 
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = new Size(284, 361);
+            ClientSize = new Size(284, 381);
             Controls.Add(label8);
             Controls.Add(label4);
             Controls.Add(textBoxCutNameLength);
@@ -339,7 +342,7 @@
             KeyPreview = true;
             MaximizeBox = false;
             MinimizeBox = false;
-            MinimumSize = new Size(300, 400);
+            MinimumSize = new Size(300, 420);
             Name = "FormSetting";
             ShowInTaskbar = false;
             SizeGripStyle = SizeGripStyle.Show;
