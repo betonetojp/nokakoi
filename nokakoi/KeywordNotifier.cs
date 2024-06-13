@@ -32,7 +32,7 @@ namespace nokakoi
         private bool _muteMostr = true;
 
         private readonly NotifyIcon _notifyIcon;
-        private readonly string _jsonPath = "keywords.json";
+        private readonly string _keywordsJsonPath = Path.Combine(Application.StartupPath, "keywords.json");
         private readonly JsonSerializerOptions _options = new()
         {
             Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
@@ -65,7 +65,7 @@ namespace nokakoi
             try
             {
                 var jsonContent = JsonSerializer.Serialize(Settings, _options);
-                File.WriteAllText(_jsonPath, jsonContent);
+                File.WriteAllText(_keywordsJsonPath, jsonContent);
             }
             catch (Exception ex)
             {
@@ -75,11 +75,11 @@ namespace nokakoi
 
         public void LoadSettings()
         {
-            if (File.Exists(_jsonPath))
+            if (File.Exists(_keywordsJsonPath))
             {
                 try
                 {
-                    var jsonContent = File.ReadAllText(_jsonPath);
+                    var jsonContent = File.ReadAllText(_keywordsJsonPath);
                     var settings = JsonSerializer.Deserialize<NotifierSettings>(jsonContent, _options);
                     if (settings != null)
                     {

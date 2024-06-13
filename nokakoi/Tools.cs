@@ -41,6 +41,9 @@ namespace nokakoi
 
     public static class Tools
     {
+        private static readonly string _usersJsonPath = Path.Combine(Application.StartupPath, "users.json");
+        private static readonly string _relaysJsonPath = Path.Combine(Application.StartupPath, "relays.json");
+
         /// <summary>
         /// JSONからユーザーを作成
         /// </summary>
@@ -149,11 +152,10 @@ namespace nokakoi
         internal static void SaveUsers(Dictionary<string, User?> users)
         {
             // users.jsonに保存
-            var filePath = "users.json";
             try
             {
                 var jsonContent = JsonSerializer.Serialize(users, GetOption());
-                File.WriteAllText(filePath, jsonContent);
+                File.WriteAllText(_usersJsonPath, jsonContent);
             }
             catch (JsonException e)
             {
@@ -168,14 +170,13 @@ namespace nokakoi
         internal static Dictionary<string, User?> LoadUsers()
         {
             // users.jsonを読み込み
-            var filePath = "users.json";
-            if (!File.Exists(filePath))
+            if (!File.Exists(_usersJsonPath))
             {
                 return [];
             }
             try
             {
-                var jsonContent = File.ReadAllText(filePath);
+                var jsonContent = File.ReadAllText(_usersJsonPath);
                 var users = JsonSerializer.Deserialize<Dictionary<string, User?>>(jsonContent, GetOption());
                 if (null != users)
                 {
@@ -193,11 +194,10 @@ namespace nokakoi
         internal static void SaveRelays(List<Relay> relays)
         {
             // relays.jsonに保存
-            var filePath = "relays.json";
             try
             {
                 var jsonContent = JsonSerializer.Serialize(relays, GetOption());
-                File.WriteAllText(filePath, jsonContent);
+                File.WriteAllText(_relaysJsonPath, jsonContent);
             }
             catch (JsonException e)
             {
@@ -217,14 +217,13 @@ namespace nokakoi
                 ];
 
             // relays.jsonを読み込み
-            var filePath = "relays.json";
-            if (!File.Exists(filePath))
+            if (!File.Exists(_relaysJsonPath))
             {
                 return defaultRelays;
             }
             try
             {
-                var jsonContent = File.ReadAllText(filePath);
+                var jsonContent = File.ReadAllText(_relaysJsonPath);
                 var relays = JsonSerializer.Deserialize<List<Relay>>(jsonContent, GetOption());
                 if (null != relays)
                 {
