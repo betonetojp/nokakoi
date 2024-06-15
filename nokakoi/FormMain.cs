@@ -74,7 +74,8 @@ namespace nokakoi
             {"Sender","nokakoi"},
             {"Option","nobreak,notranslate"},
             {"Event","OnNostr"},
-            {"Reference0","Nostr/0.3"}
+            //{"Reference0","Nostr/0.3"}
+            {"Reference0","Nostr/0.4"}
         };
 
         private string _ghostName = string.Empty;
@@ -322,14 +323,23 @@ namespace nokakoi
                                 // SSP‚É‘—‚é
                                 if (null != _ds)
                                 {
+                                    NIP19.NostrEventNote nostrEventNote = new()
+                                    {
+                                        EventId = nostrEvent.Id,
+                                        Relays = [string.Empty],
+                                    };
+                                    var nevent = nostrEventNote.ToNIP19();
                                     SearchGhost();
                                     Dictionary<string, string> SSTPHeader = new(_baseSSTPHeader)
                                     {
-                                        { "Reference1", "reaction" }, // kind
+                                        //{ "Reference1", "reaction" }, // kind
+                                        { "Reference1", "7" }, // kind
                                         { "Reference2", content }, // content
                                         { "Reference3", user?.Name ?? "???" }, // name
                                         { "Reference4", user?.DisplayName ?? string.Empty }, // display_name
                                         { "Reference5", user?.Picture ?? Setting.UnkownPicture }, // picture
+                                        { "Reference6", nevent }, // nevent1...
+                                        { "Reference7", nostrEvent.PublicKey.ConvertToNpub() }, // npub1...
                                         { "Script", $"{speaker}ƒŠƒAƒNƒVƒ‡ƒ“ {userName}\\n{content}\\e" }
                                     };
                                     string sstpmsg = _SSTPMethod + "\r\n" + String.Join("\r\n", SSTPHeader.Select(kvp => kvp.Key + ": " + kvp.Value.Replace("\n", "\\n"))) + "\r\n\r\n";
@@ -388,6 +398,12 @@ namespace nokakoi
                             // SSP‚É‘—‚é
                             if (null != _ds)
                             {
+                                NIP19.NostrEventNote nostrEventNote = new()
+                                {
+                                    EventId = nostrEvent.Id,
+                                    Relays = [string.Empty],
+                                };
+                                var nevent = nostrEventNote.ToNIP19();
                                 SearchGhost();
 
                                 string msg = content;
@@ -398,11 +414,14 @@ namespace nokakoi
                                 }
                                 Dictionary<string, string> SSTPHeader = new(_baseSSTPHeader)
                                 {
-                                    { "Reference1", "note" },
+                                    //{ "Reference1", "note" },
+                                    { "Reference1", "1" }, // kind
                                     { "Reference2", content }, // content
                                     { "Reference3", user?.Name ?? "???" }, // name
                                     { "Reference4", user?.DisplayName ?? string.Empty }, // display_name
                                     { "Reference5", user?.Picture ?? Setting.UnkownPicture }, // picture
+                                    { "Reference6", nevent }, // nevent1...
+                                    { "Reference7", nostrEvent.PublicKey.ConvertToNpub() }, // npub1...
                                     { "Script", $"{speaker}{userName}\\n{msg}\\e" }
                                 };
                                 string sstpmsg = _SSTPMethod + "\r\n" + String.Join("\r\n", SSTPHeader.Select(kvp => kvp.Key + ": " + kvp.Value.Replace("\n", "\\n"))) + "\r\n\r\n";
@@ -414,11 +433,11 @@ namespace nokakoi
                             var settings = Notifier.Settings;
                             if (Notifier.CheckPost(content) && settings.Open)
                             {
-                                var relays = _relays.Select(r => r.ToString()).ToArray();
+                                //var relays = _relays.Select(r => r.ToString()).ToArray();
                                 NIP19.NostrEventNote nostrEventNote = new()
                                 {
                                     EventId = nostrEvent.Id,
-                                    Relays = relays,
+                                    Relays = [string.Empty],
                                 };
                                 var nevent = nostrEventNote.ToNIP19();
                                 var app = new ProcessStartInfo
