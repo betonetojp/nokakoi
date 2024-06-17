@@ -3,9 +3,9 @@ using System.Text.Encodings.Web;
 
 namespace nokakoi
 {
-    public class NoEscapingJavaScriptEncoder : JavaScriptEncoder
+    public class NoEscapingJsonEncoder : JavaScriptEncoder
     {
-        public static JavaScriptEncoder NoEscaping { get; } = new NoEscapingJavaScriptEncoder();
+        public static JavaScriptEncoder NoEscaping { get; } = new NoEscapingJsonEncoder();
 
         public override int MaxOutputCharactersPerInputCharacter => 12;
 

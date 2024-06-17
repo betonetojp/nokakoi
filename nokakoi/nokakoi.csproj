@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Compile Remove="NoEscapingJavaScriptEncoder.cs" />
+    <Compile Remove="NoEscapingJsonEncoder.cs" />
   </ItemGroup>
 
   <ItemGroup>
