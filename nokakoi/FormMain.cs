@@ -11,28 +11,14 @@ namespace nokakoi
     public partial class FormMain : Form
     {
         #region フィールド
-        private readonly string _configPath = Path.Combine(Application.StartupPath, "nokakoi.config");
+        private readonly NostrAccess _nostrAccess = new();
 
-        private readonly TimeSpan _timeSpan = new(0, 0, 0, 0);
+        private readonly string _configPath = Path.Combine(Application.StartupPath, "nokakoi.config");
 
         private readonly FormSetting _formSetting = new();
         private readonly FormPostBar _formPostBar = new();
         private FormManiacs _formManiacs = new();
         private FormRelayList _formRelayList = new();
-
-        private CompositeNostrClient? _client;
-        /// <summary>
-        /// タイムライン購読ID
-        /// </summary>
-        private readonly string _subscriptionId = Guid.NewGuid().ToString("N");
-        /// <summary>
-        /// フォロイー購読ID
-        /// </summary>
-        private readonly string _getFolloweesSubscriptionId = Guid.NewGuid().ToString("N");
-        /// <summary>
-        /// プロフィール購読ID
-        /// </summary>
-        private readonly string _getProfilesSubscriptionId = Guid.NewGuid().ToString("N");
 
         private string _nsec = string.Empty;
         //private string _npub = string.Empty;
@@ -74,14 +60,12 @@ namespace nokakoi
             {"Sender","nokakoi"},
             {"Option","nobreak,notranslate"},
             {"Event","OnNostr"},
-            //{"Reference0","Nostr/0.3"}
             {"Reference0","Nostr/0.4"}
         };
 
         private string _ghostName = string.Empty;
         // 重複イベントIDを保存するリスト
         private readonly LinkedList<string> _displayedEventIds = new();
-        Uri[] _relays = [];
         #endregion
 
         #region コンストラクタ
@@ -156,7 +140,35 @@ namespace nokakoi
         {
             try
             {
-                int connectCount = await ConnectAsync();
+                int connectCount;
+                if (null != _nostrAccess.Clients)
+                {
+                    connectCount = await _nostrAccess.ConnectAsync();
+                }
+                else
+                {
+                    connectCount = await _nostrAccess.ConnectAsync();
+                    switch (connectCount)
+                    {
+                        case 0:
+                            labelRelays.Text = "0 relays";
+                            toolTipRelays.SetToolTip(labelRelays, string.Empty);
+                            break;
+                        case 1:
+                            labelRelays.Text = _nostrAccess.Relays[0].ToString();
+                            toolTipRelays.SetToolTip(labelRelays, string.Join("\n", _nostrAccess.Relays.Select(r => r.ToString())));
+                            break;
+                        default:
+                            labelRelays.Text = $"{_nostrAccess.Relays.Length} relays";
+                            toolTipRelays.SetToolTip(labelRelays, string.Join("\n", _nostrAccess.Relays.Select(r => r.ToString())));
+                            break;
+                    }
+                    if (null != _nostrAccess.Clients)
+                    {
+                        _nostrAccess.Clients.EventsReceived += OnClientOnEventsReceived;
+                    }
+                }
+
                 if (0 == connectCount)
                 {
                     textBoxTimeline.Text = "> No relay enabled." + Environment.NewLine + textBoxTimeline.Text;
@@ -166,7 +178,7 @@ namespace nokakoi
                 textBoxTimeline.Text = string.Empty;
                 textBoxTimeline.Text = "> Connect." + Environment.NewLine + textBoxTimeline.Text;
 
-                Subscribe();
+                _nostrAccess.Subscribe();
 
                 buttonStart.Enabled = false;
                 buttonStop.Enabled = true;
@@ -176,87 +188,23 @@ namespace nokakoi
                 _formPostBar.textBoxPost.Enabled = true;
                 _formPostBar.buttonPost.Enabled = true;
                 textBoxTimeline.Text = "> Create subscription." + Environment.NewLine + textBoxTimeline.Text;
+
+                // ログイン済みの時
+                if (!string.IsNullOrEmpty(_npubHex))
+                {
+                    // フォロイーを購読をする
+                    _nostrAccess.SubscribeFollows(_npubHex);
+
+                    // ログインユーザー表示名取得
+                    var name = GetUserName(_npubHex);
+                    textBoxTimeline.Text = $"> Login as {name}." + Environment.NewLine + textBoxTimeline.Text;
+                }
             }
             catch (Exception ex)
             {
                 Debug.Print(ex.ToString());
                 textBoxTimeline.Text = "> Could not start." + Environment.NewLine + textBoxTimeline.Text;
             }
-        }
-        #endregion
-
-        #region 接続処理
-        /// <summary>
-        /// 接続処理
-        /// </summary>
-        /// <returns></returns>
-        private async Task<int> ConnectAsync()
-        {
-            if (null == _client)
-            {
-                _relays = Tools.GetEnabledRelays();
-                switch (_relays.Length)
-                {
-                    case 0:
-                        labelRelays.Text = "0 relays";
-                        toolTipRelays.SetToolTip(labelRelays, string.Empty);
-                        return 0;
-                    case 1:
-                        labelRelays.Text = _relays[0].ToString();
-                        toolTipRelays.SetToolTip(labelRelays, string.Join("\n", _relays.Select(r => r.ToString())));
-                        break;
-                    default:
-                        labelRelays.Text = $"{_relays.Length} relays";
-                        toolTipRelays.SetToolTip(labelRelays, string.Join("\n", _relays.Select(r => r.ToString())));
-                        break;
-                }
-
-                _client = new CompositeNostrClient(_relays);
-
-                await _client.Connect();
-                _client.EventsReceived += OnClientOnEventsReceived;
-            }
-            else
-            {
-                var hasClosed = false;
-                foreach (var state in _client.States)
-                {
-                    if (WebSocketState.CloseReceived < state.Value)
-                    {
-                        hasClosed = true;
-                        break;
-                    }
-                }
-                if (hasClosed)
-                {
-                    await _client.Connect();
-                }
-            }
-            return _client.States.Count;
-        }
-        #endregion
-
-        #region タイムライン購読処理
-        /// <summary>
-        /// タイムライン購読処理
-        /// </summary>
-        private void Subscribe()
-        {
-            if (null == _client)
-            {
-                return;
-            }
-
-            _ = _client.CreateSubscription(
-                    _subscriptionId,
-                    [
-                        new NostrSubscriptionFilter()
-                        {
-                            Kinds = [1,7], // 1: テキストノート, 7: リアクション
-                            Since = DateTimeOffset.Now - _timeSpan,
-                        }
-                    ]
-                 );
         }
         #endregion
 
@@ -269,7 +217,7 @@ namespace nokakoi
         private void OnClientOnEventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) args)
         {
             // タイムライン購読
-            if (args.subscriptionId == _subscriptionId)
+            if (args.subscriptionId == _nostrAccess.SubscriptionId)
             {
                 foreach (var nostrEvent in args.events)
                 {
@@ -472,7 +420,7 @@ namespace nokakoi
                 }
             }
             // フォロイー購読
-            else if (args.subscriptionId == _getFolloweesSubscriptionId)
+            else if (args.subscriptionId == _nostrAccess.GetFolloweesSubscriptionId)
             {
                 foreach (var nostrEvent in args.events)
                 {
@@ -493,7 +441,7 @@ namespace nokakoi
                 }
             }
             // プロフィール購読
-            else if (args.subscriptionId == _getProfilesSubscriptionId)
+            else if (args.subscriptionId == _nostrAccess.GetProfilesSubscriptionId)
             {
                 //// ※nostrEventが返ってこない特定ユーザーがいる。ライブラリの問題か。
                 foreach (var nostrEvent in args.events)
@@ -538,21 +486,20 @@ namespace nokakoi
         // Stopボタン
         private void ButtonStop_Click(object sender, EventArgs e)
         {
-            if (null == _client)
+            if (null == _nostrAccess.Clients)
             {
                 return;
             }
 
             try
             {
-                _ = _client.CloseSubscription(_subscriptionId);
-                _ = _client.CloseSubscription(_getFolloweesSubscriptionId);
-                _ = _client.CloseSubscription(_getProfilesSubscriptionId);
+                _nostrAccess.CloseSubscriptions();
                 textBoxTimeline.Text = "> Close subscription." + Environment.NewLine + textBoxTimeline.Text;
-                _ = _client.Disconnect();
+
+                _ = _nostrAccess.Clients.Disconnect();
                 textBoxTimeline.Text = "> Disconnect." + Environment.NewLine + textBoxTimeline.Text;
-                _client.Dispose();
-                _client = null;
+                _nostrAccess.Clients.Dispose();
+                _nostrAccess.Clients = null;
 
                 buttonStart.Enabled = true;
                 buttonStart.Focus();
@@ -616,7 +563,7 @@ namespace nokakoi
         /// <returns></returns>
         private async Task PostAsync()
         {
-            if (null == _client)
+            if (null == _nostrAccess.Clients)
             {
                 return;
             }
@@ -635,11 +582,7 @@ namespace nokakoi
             {
                 Kind = 1,
                 Content = textBoxPost.Text
-                            .Replace("\\n", "\r\n") // 本体の改行をポストバーのマルチラインに合わせる（順番大事）
-                            // ↓NNostr 0.0.49で修正された！
-                            //.Replace("\\", "\\\\")  // \を投稿できるようにエスケープ
-                            //.Replace("\"", "\\\"")  // "を投稿できるようにエスケープ
-                            //.Replace("\r\n", "\\n") // 改行を投稿できるようにエスケープ
+                            //.Replace("\\n", "\r\n") // 本体の改行をポストバーのマルチラインに合わせる→廃止
                             .Replace("\r\n", "\n")
                             + (_addShortcode ? " :" + _shortcode + ":" : string.Empty),
                 Tags = tags
@@ -652,7 +595,7 @@ namespace nokakoi
                 // sign the event
                 await newEvent.ComputeIdAndSignAsync(key);
                 // send the event
-                await _client.SendEventsAndWaitUntilReceived([newEvent], CancellationToken.None);
+                await _nostrAccess.Clients.SendEventsAndWaitUntilReceived([newEvent], CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -733,7 +676,7 @@ namespace nokakoi
                 // ログイン済みの時
                 if (!_npubHex.IsNullOrEmpty())
                 {
-                    int connectCount = await ConnectAsync();
+                    int connectCount = await _nostrAccess.ConnectAsync();
                     if (0 == connectCount)
                     {
                         textBoxTimeline.Text = "> No relay enabled." + Environment.NewLine + textBoxTimeline.Text;
@@ -741,7 +684,7 @@ namespace nokakoi
                     }
 
                     // フォロイーを購読をする
-                    SubscribeFollows(_npubHex);
+                    _nostrAccess.SubscribeFollows(_npubHex);
 
                     // ログインユーザー表示名取得
                     var name = GetUserName(_npubHex);
@@ -791,56 +734,6 @@ namespace nokakoi
             }
             _displayedEventIds.AddLast(eventId);
             return false;
-        }
-        #endregion
-
-        #region フォロイー購読
-        /// <summary>
-        /// フォロイー購読
-        /// </summary>
-        /// <param name="author"></param>
-        private void SubscribeFollows(string author)
-        {
-            if (null == _client)
-            {
-                return;
-            }
-
-            _ = _client.CreateSubscription(
-                    _getFolloweesSubscriptionId,
-                    [
-                        new NostrSubscriptionFilter
-                        {
-                            Kinds = [3],
-                            Authors = [author]
-                        }
-                    ]
-                 );
-        }
-        #endregion
-
-        #region プロフィール購読
-        /// <summary>
-        /// プロフィール購読
-        /// </summary>
-        /// <param name="authors"></param>
-        private void SubscribeProfiles(string[] authors)
-        {
-            if (null == _client)
-            {
-                return;
-            }
-
-            _ = _client.CreateSubscription(
-                    _getProfilesSubscriptionId,
-                    [
-                        new NostrSubscriptionFilter
-                        {
-                            Kinds = [0],
-                            Authors = authors
-                        }
-                    ]
-                 );
         }
         #endregion
 
@@ -928,7 +821,7 @@ namespace nokakoi
             }
             */
             // kind 0 を毎回購読するように変更（頻繁にdisplay_name等を変更するユーザーがいるため）
-            SubscribeProfiles([publicKeyHex]);
+            _nostrAccess.SubscribeProfiles([publicKeyHex]);
 
             // 情報があれば表示名を取得
             Users.TryGetValue(publicKeyHex, out User? user);
@@ -972,23 +865,8 @@ namespace nokakoi
         // 閉じる
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (null != _client)
-            {
-                foreach (var state in _client.States)
-                {
-                    if (WebSocketState.Open == state.Value)
-                    {
-                        _client.CloseSubscription(_subscriptionId);
-                        _client.CloseSubscription(_getFolloweesSubscriptionId);
-                        _client.CloseSubscription(_getProfilesSubscriptionId);
-                        _client.Disconnect();
-                    }
-                }
-                _ = _client.Disconnect();
-                _client.Dispose();
-                _client = null;
-            }
-
+            _nostrAccess.CloseSubscriptions();
+            _nostrAccess.DisconnectAndDispose();
 
             if (FormWindowState.Normal != WindowState)
             {
