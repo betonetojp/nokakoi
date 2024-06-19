@@ -10,7 +10,7 @@ namespace nokakoi
             InitializeComponent();
         }
 
-        private void FormUsers_Load(object sender, EventArgs e)
+        private void FormManiacs_Load(object sender, EventArgs e)
         {
             if (MainForm != null)
             {
@@ -96,7 +96,7 @@ namespace nokakoi
 
         private void ButtonReload_Click(object sender, EventArgs e)
         {
-            FormUsers_Load(sender, e);
+            FormManiacs_Load(sender, e);
         }
     }
 }
