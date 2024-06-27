@@ -18,7 +18,6 @@ namespace nokakoi
             public int CutLength { get; set; } = 40;
             public int CutNameLength { get; set; } = 8;
             public double Opacity { get; set; } = 1.00;
-            public bool DisplayTime { get; set; } = true;
             public bool AddShortcode { get; set; } = true;
             public string Shortcode { get; set; } = "n";
             public string EmojiUrl { get; set; } = "https://betoneto.win/media/nokakoi.png";
@@ -27,9 +26,9 @@ namespace nokakoi
             public bool ShowOnlyJapanese { get; set; } = false;
             public bool ShowOnlyFollowees { get; set; } = false;
             public string NokakoiKey { get; set; } = string.Empty;
+            public bool AutoReaction { get; set; } = false;
             public Point PostBarLocation { get; set; }
             public Size PostBarSize { get; set; } = new Size(300, 132);
-            public string UnkownPicture { get; set; } = string.Empty;
         }
         #endregion
 
@@ -98,17 +97,6 @@ namespace nokakoi
             set
             {
                 _data.Opacity = value;
-            }
-        }
-        public static bool DisplayTime
-        {
-            get
-            {
-                return _data.DisplayTime;
-            }
-            set
-            {
-                _data.DisplayTime = value;
             }
         }
         public static bool AddShortcode
@@ -199,6 +187,17 @@ namespace nokakoi
                 _data.NokakoiKey = value;
             }
         }
+        public static bool AutoReaction
+        {
+            get
+            {
+                return _data.AutoReaction;
+            }
+            set
+            {
+                _data.AutoReaction = value;
+            }
+        }
         public static Point PostBarLocation
         {
             get
@@ -219,17 +218,6 @@ namespace nokakoi
             set
             {
                 _data.PostBarSize = value;
-            }
-        }
-        public static string UnkownPicture
-        {
-            get
-            {
-                return _data.UnkownPicture;
-            }
-            set
-            {
-                _data.UnkownPicture = value;
             }
         }
         #endregion
