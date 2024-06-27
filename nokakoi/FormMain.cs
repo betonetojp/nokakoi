@@ -39,7 +39,6 @@ namespace nokakoi
 
         private int _cutLength;
         private int _cutNameLength;
-        private bool _displayTime;
         private bool _addShortcode;
         private string _shortcode = string.Empty;
         private string _emojiUrl = string.Empty;
@@ -48,6 +47,7 @@ namespace nokakoi
         private bool _showOnlyJapanese;
         private bool _showOnlyFollowees;
         private string _nokakoiKey = string.Empty;
+        private bool _autoReaction;
         private string _password = string.Empty;
 
         private double _tempOpacity = 1.00;
@@ -112,7 +112,6 @@ namespace nokakoi
                 Opacity = 1;
             }
             _formPostBar.Opacity = Opacity;
-            _displayTime = Setting.DisplayTime;
             _addShortcode = Setting.AddShortcode;
             _shortcode = Setting.Shortcode;
             _emojiUrl = Setting.EmojiUrl;
@@ -121,6 +120,7 @@ namespace nokakoi
             _showOnlyJapanese = Setting.ShowOnlyJapanese;
             _showOnlyFollowees = Setting.ShowOnlyFollowees;
             _nokakoiKey = Setting.NokakoiKey;
+            _autoReaction = Setting.AutoReaction;
             _formPostBar.Location = Setting.PostBarLocation;
             if (new Point(0, 0) == _formPostBar.Location)
             {
@@ -285,7 +285,7 @@ namespace nokakoi
                                         { "Reference2", content }, // content
                                         { "Reference3", user?.Name ?? "???" }, // name
                                         { "Reference4", user?.DisplayName ?? string.Empty }, // display_name
-                                        { "Reference5", user?.Picture ?? Setting.UnkownPicture }, // picture
+                                        { "Reference5", user?.Picture ?? string.Empty }, // picture
                                         { "Reference6", nevent }, // nevent1...
                                         { "Reference7", nostrEvent.PublicKey.ConvertToNpub() }, // npub1...
                                         { "Script", $"{speaker}リアクション {userName}\\n{content}\\e" }
@@ -295,8 +295,7 @@ namespace nokakoi
                                     //Debug.WriteLine(r);
                                 }
                                 // 画面に表示
-                                textBoxTimeline.Text = "+" + (_displayTime ? timeString : string.Empty)
-                                             + " " + userName + " " + content + Environment.NewLine + textBoxTimeline.Text;
+                                textBoxTimeline.Text = "+" + timeString + " " + userName + " " + content + Environment.NewLine + textBoxTimeline.Text;
                             }
                         }
                         // テキストノート
@@ -335,6 +334,12 @@ namespace nokakoi
                                 continue;
                             }
 
+                            // オートリアクション
+                            if (_autoReaction)
+                            {
+                                _ = ReactionAsync(nostrEvent.Id, nostrEvent.PublicKey);
+                            }
+
                             // ユーザー表示名取得（ユーザー辞書メモリ節約のため↑のフラグ処理後に）
                             string userName = GetUserName(nostrEvent.PublicKey);
                             // ユーザー表示名カット
@@ -367,7 +372,7 @@ namespace nokakoi
                                     { "Reference2", content }, // content
                                     { "Reference3", user?.Name ?? "???" }, // name
                                     { "Reference4", user?.DisplayName ?? string.Empty }, // display_name
-                                    { "Reference5", user?.Picture ?? Setting.UnkownPicture }, // picture
+                                    { "Reference5", user?.Picture ?? string.Empty }, // picture
                                     { "Reference6", nevent }, // nevent1...
                                     { "Reference7", nostrEvent.PublicKey.ConvertToNpub() }, // npub1...
                                     { "Script", $"{speaker}{userName}\\n{msg}\\e" }
@@ -379,27 +384,35 @@ namespace nokakoi
 
                             // キーワード通知
                             var settings = Notifier.Settings;
-                            if (Notifier.CheckPost(content) && settings.Open)
+                            if (Notifier.CheckPost(content))
                             {
-                                //var relays = _relays.Select(r => r.ToString()).ToArray();
-                                NIP19.NostrEventNote nostrEventNote = new()
+                                if (settings.Reaction)
                                 {
-                                    EventId = nostrEvent.Id,
-                                    Relays = [string.Empty],
-                                };
-                                var nevent = nostrEventNote.ToNIP19();
-                                var app = new ProcessStartInfo
-                                {
-                                    FileName = settings.FileName + nevent,
-                                    UseShellExecute = true
-                                };
-                                try
-                                {
-                                    Process.Start(app);
+                                    _ = ReactionAsync(nostrEvent.Id, nostrEvent.PublicKey);
                                 }
-                                catch (Exception ex)
+
+                                if (settings.Open)
                                 {
-                                    Debug.WriteLine(ex.Message);
+                                    //var relays = _relays.Select(r => r.ToString()).ToArray();
+                                    NIP19.NostrEventNote nostrEventNote = new()
+                                    {
+                                        EventId = nostrEvent.Id,
+                                        Relays = [string.Empty],
+                                    };
+                                    var nevent = nostrEventNote.ToNIP19();
+                                    var app = new ProcessStartInfo
+                                    {
+                                        FileName = settings.FileName + nevent,
+                                        UseShellExecute = true
+                                    };
+                                    try
+                                    {
+                                        Process.Start(app);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Debug.WriteLine(ex.Message);
+                                    }
                                 }
                             }
 
@@ -412,7 +425,7 @@ namespace nokakoi
                             }
                             // 画面に表示
                             textBoxTimeline.Text = (iSnokakoi ? "[n]" : string.Empty) + headMark
-                                                 + (_displayTime ? $"{timeString} {userName}{Environment.NewLine}" : string.Empty)
+                                                 + $"{timeString} {userName}{Environment.NewLine}"
                                                  + " " + content + Environment.NewLine + textBoxTimeline.Text;
                             Debug.WriteLine($"{timeString} {userName} {content}");
                         }
@@ -606,6 +619,47 @@ namespace nokakoi
         }
         #endregion
 
+        private async Task ReactionAsync(string e, string p)
+        {
+            if (null == _nostrAccess.Clients)
+            {
+                return;
+            }
+            // create tags
+            List<NostrEventTag> tags = [];
+            tags.Add(new NostrEventTag() { TagIdentifier = "e", Data = [e] });
+            tags.Add(new NostrEventTag() { TagIdentifier = "p", Data = [p] });
+            //tags.Add(new NostrEventTag() { TagIdentifier = "k", Data = ["1"] });
+            //tags.Add(new NostrEventTag() { TagIdentifier = "emoji", Data = [$"{_shortcode}", $"{_emojiUrl}"] });
+            if (_addClient)
+            {
+                tags.Add(new NostrEventTag() { TagIdentifier = "client", Data = ["nokakoi"] });
+            }
+            // create a new event
+            var newEvent = new NostrEvent()
+            {
+                Kind = 7,
+                //Content = $":{_shortcode}:",
+                Content = "+",
+                Tags = tags
+            };
+
+            try
+            {
+                // load from an nsec string
+                var key = _nsec.FromNIP19Nsec();
+                // sign the event
+                await newEvent.ComputeIdAndSignAsync(key);
+                // send the event
+                await _nostrAccess.Clients.SendEventsAndWaitUntilReceived([newEvent], CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                textBoxTimeline.Text = "> Decryption failed." + Environment.NewLine + textBoxTimeline.Text;
+            }
+        }
+
         #region Settingボタン
         // Settingボタン
         private async void ButtonSetting_Click(object sender, EventArgs e)
@@ -615,7 +669,6 @@ namespace nokakoi
             _formSetting.textBoxCutLength.Text = _cutLength.ToString();
             _formSetting.textBoxCutNameLength.Text = _cutNameLength.ToString();
             _formSetting.trackBarOpacity.Value = (int)(Opacity * 100);
-            _formSetting.checkBoxDisplayTime.Checked = _displayTime;
             _formSetting.checkBoxAddEndTag.Checked = _addShortcode;
             _formSetting.textBoxShortcode.Text = _shortcode;
             _formSetting.textBoxEmojiUrl.Text = _emojiUrl;
@@ -624,6 +677,7 @@ namespace nokakoi
             _formSetting.checkBoxShowOnlyJapanese.Checked = _showOnlyJapanese;
             _formSetting.checkBoxShowOnlyFollowees.Checked = _showOnlyFollowees;
             _formSetting.textBoxNokakoiKey.Text = _nokakoiKey;
+            _formSetting.checkBoxAutoReaction.Checked = _autoReaction;
             _formSetting.textBoxPassword.Text = _password;
 
             // 開く
@@ -649,7 +703,6 @@ namespace nokakoi
             }
             Opacity = _formSetting.trackBarOpacity.Value / 100.0;
             _formPostBar.Opacity = Opacity;
-            _displayTime = _formSetting.checkBoxDisplayTime.Checked;
             _addShortcode = _formSetting.checkBoxAddEndTag.Checked;
             _shortcode = _formSetting.textBoxShortcode.Text;
             _emojiUrl = _formSetting.textBoxEmojiUrl.Text;
@@ -658,6 +711,7 @@ namespace nokakoi
             _showOnlyJapanese = _formSetting.checkBoxShowOnlyJapanese.Checked;
             _showOnlyFollowees = _formSetting.checkBoxShowOnlyFollowees.Checked;
             _nokakoiKey = _formSetting.textBoxNokakoiKey.Text;
+            _autoReaction = _formSetting.checkBoxAutoReaction.Checked;
             _password = _formSetting.textBoxPassword.Text;
             try
             {
@@ -704,7 +758,6 @@ namespace nokakoi
             Setting.CutLength = _cutLength;
             Setting.CutNameLength = _cutNameLength;
             Setting.Opacity = Opacity;
-            Setting.DisplayTime = _displayTime;
             Setting.AddShortcode = _addShortcode;
             Setting.Shortcode = _shortcode;
             Setting.EmojiUrl = _emojiUrl;
@@ -713,6 +766,7 @@ namespace nokakoi
             Setting.ShowOnlyJapanese = _showOnlyJapanese;
             Setting.ShowOnlyFollowees = _showOnlyFollowees;
             Setting.NokakoiKey = _nokakoiKey;
+            Setting.AutoReaction = _autoReaction;
 
             Setting.Save(_configPath);
         }

@@ -37,6 +37,7 @@ namespace nokakoi
                 textBoxFileName.Text = settings.FileName;
                 textBoxKeywords.Text = string.Join("\r\n", settings.Keywords);
                 checkBoxMuteMostr.Checked = settings.MuteMostr;
+                checkBoxReaction.Checked = settings.Reaction;
             }
         }
 
@@ -71,6 +72,7 @@ namespace nokakoi
                 settings.FileName = textBoxFileName.Text;
                 settings.Keywords = [.. textBoxKeywords.Text.Split(["\r\n"], StringSplitOptions.RemoveEmptyEntries)];
                 settings.MuteMostr = checkBoxMuteMostr.Checked;
+                settings.Reaction = checkBoxReaction.Checked;
             }
             Close();
         }

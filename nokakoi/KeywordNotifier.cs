@@ -18,7 +18,9 @@ namespace nokakoi
         [JsonPropertyName("file_name")]
         public string FileName { get; set; } = string.Empty;
         [JsonPropertyName("mute_mostr")]
-        public bool MuteMostr { get; set; } = true;
+        public bool MuteMostr { get; set; }
+        [JsonPropertyName("reaction")]
+        public bool Reaction { get; set; }
     }
 
     public class KeywordNotifier
@@ -29,7 +31,8 @@ namespace nokakoi
         private bool _shouldShowBalloon = true;
         private bool _shouldOpenFile = false;
         private string _fileName = "https://njump.me/";
-        private bool _muteMostr = true;
+        private bool _muteMostr = false;
+        private bool _reaction = false;
 
         private readonly NotifyIcon _notifyIcon;
         private readonly string _keywordsJsonPath = Path.Combine(Application.StartupPath, "keywords.json");
@@ -54,7 +57,8 @@ namespace nokakoi
                 Balloon = _shouldShowBalloon,
                 Open = _shouldOpenFile,
                 FileName = _fileName,
-                MuteMostr = _muteMostr
+                MuteMostr = _muteMostr,
+                Reaction = _reaction
             };
 
             SaveSettings();
@@ -88,6 +92,7 @@ namespace nokakoi
                         _shouldOpenFile = settings.Open;
                         _fileName = settings.FileName;
                         _muteMostr = settings.MuteMostr;
+                        _reaction = settings.Reaction;
                     }
                 }
                 catch (Exception ex)
