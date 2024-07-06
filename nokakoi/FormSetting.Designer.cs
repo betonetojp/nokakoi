@@ -54,6 +54,7 @@
             textBoxCutNameLength = new TextBox();
             label8 = new Label();
             checkBoxAutoReaction = new CheckBox();
+            checkBoxSendDSSTP = new CheckBox();
             ((System.ComponentModel.ISupportInitialize)trackBarOpacity).BeginInit();
             SuspendLayout();
             // 
@@ -188,7 +189,7 @@
             linkLabelIcons8.Location = new Point(231, 337);
             linkLabelIcons8.Name = "linkLabelIcons8";
             linkLabelIcons8.Size = new Size(41, 15);
-            linkLabelIcons8.TabIndex = 15;
+            linkLabelIcons8.TabIndex = 16;
             linkLabelIcons8.TabStop = true;
             linkLabelIcons8.Text = "Icons8";
             linkLabelIcons8.LinkClicked += LinkLabelIcons8_LinkClicked;
@@ -249,7 +250,7 @@
             labelVersion.Name = "labelVersion";
             labelVersion.Size = new Size(37, 15);
             labelVersion.TabIndex = 0;
-            labelVersion.Text = "v0.4.7";
+            labelVersion.Text = "v0.4.8";
             // 
             // labelOpacity
             // 
@@ -305,15 +306,29 @@
             checkBoxAutoReaction.Location = new Point(174, 310);
             checkBoxAutoReaction.Name = "checkBoxAutoReaction";
             checkBoxAutoReaction.Size = new Size(98, 19);
-            checkBoxAutoReaction.TabIndex = 14;
+            checkBoxAutoReaction.TabIndex = 15;
             checkBoxAutoReaction.Text = "Auto reaction";
             checkBoxAutoReaction.UseVisualStyleBackColor = true;
+            // 
+            // checkBoxSendDSSTP
+            // 
+            checkBoxSendDSSTP.AutoSize = true;
+            checkBoxSendDSSTP.Checked = true;
+            checkBoxSendDSSTP.CheckState = CheckState.Checked;
+            checkBoxSendDSSTP.ForeColor = SystemColors.ControlDark;
+            checkBoxSendDSSTP.Location = new Point(12, 310);
+            checkBoxSendDSSTP.Name = "checkBoxSendDSSTP";
+            checkBoxSendDSSTP.Size = new Size(88, 19);
+            checkBoxSendDSSTP.TabIndex = 14;
+            checkBoxSendDSSTP.Text = "Send DSSTP";
+            checkBoxSendDSSTP.UseVisualStyleBackColor = true;
             // 
             // FormSetting
             // 
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(284, 361);
+            Controls.Add(checkBoxSendDSSTP);
             Controls.Add(checkBoxAutoReaction);
             Controls.Add(label8);
             Controls.Add(label4);
@@ -385,5 +400,6 @@
         internal TextBox textBoxCutNameLength;
         private Label label8;
         internal CheckBox checkBoxAutoReaction;
+        internal CheckBox checkBoxSendDSSTP;
     }
 }
