@@ -20,12 +20,13 @@ namespace nokakoi
             public double Opacity { get; set; } = 1.00;
             public bool AddShortcode { get; set; } = true;
             public string Shortcode { get; set; } = "n";
-            public string EmojiUrl { get; set; } = "https://betoneto.win/media/nokakoi.png";
+            public string EmojiUrl { get; set; } = "https://nokakoi.com/media/nokakoi.png";
             public bool AddClient { get; set; } = true;
             public bool ShowOnlyTagged { get; set; } = false;
             public bool ShowOnlyJapanese { get; set; } = false;
             public bool ShowOnlyFollowees { get; set; } = false;
             public string NokakoiKey { get; set; } = string.Empty;
+            public bool SendDSSTP { get; set; } = true;
             public bool AutoReaction { get; set; } = false;
             public Point PostBarLocation { get; set; }
             public Size PostBarSize { get; set; } = new Size(300, 132);
@@ -185,6 +186,17 @@ namespace nokakoi
             set
             {
                 _data.NokakoiKey = value;
+            }
+        }
+        public static bool SendDSSTP
+        {
+            get
+            {
+                return _data.SendDSSTP;
+            }
+            set
+            {
+                _data.SendDSSTP = value;
             }
         }
         public static bool AutoReaction

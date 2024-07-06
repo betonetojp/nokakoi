@@ -4,7 +4,6 @@ using NTextCat;
 using NTextCat.Commons;
 using SSTPLib;
 using System.Diagnostics;
-using System.Net.WebSockets;
 
 namespace nokakoi
 {
@@ -47,6 +46,7 @@ namespace nokakoi
         private bool _showOnlyJapanese;
         private bool _showOnlyFollowees;
         private string _nokakoiKey = string.Empty;
+        private bool _sendDSSTP = true;
         private bool _autoReaction;
         private string _password = string.Empty;
 
@@ -120,6 +120,7 @@ namespace nokakoi
             _showOnlyJapanese = Setting.ShowOnlyJapanese;
             _showOnlyFollowees = Setting.ShowOnlyFollowees;
             _nokakoiKey = Setting.NokakoiKey;
+            _sendDSSTP = Setting.SendDSSTP;
             _autoReaction = Setting.AutoReaction;
             _formPostBar.Location = Setting.PostBarLocation;
             if (new Point(0, 0) == _formPostBar.Location)
@@ -269,7 +270,7 @@ namespace nokakoi
                                 }
 
                                 // SSPに送る
-                                if (null != _ds)
+                                if (_sendDSSTP && null != _ds)
                                 {
                                     NIP19.NostrEventNote nostrEventNote = new()
                                     {
@@ -280,7 +281,6 @@ namespace nokakoi
                                     SearchGhost();
                                     Dictionary<string, string> SSTPHeader = new(_baseSSTPHeader)
                                     {
-                                        //{ "Reference1", "reaction" }, // kind
                                         { "Reference1", "7" }, // kind
                                         { "Reference2", content }, // content
                                         { "Reference3", user?.Name ?? "???" }, // name
@@ -342,6 +342,13 @@ namespace nokakoi
 
                             // ユーザー表示名取得（ユーザー辞書メモリ節約のため↑のフラグ処理後に）
                             string userName = GetUserName(nostrEvent.PublicKey);
+
+                            // ユーザーが見つからない時は表示しない
+                            if (null == user)
+                            {
+                                continue;
+                            }
+
                             // ユーザー表示名カット
                             if (userName.Length > _cutNameLength)
                             {
@@ -349,7 +356,7 @@ namespace nokakoi
                             }
 
                             // SSPに送る
-                            if (null != _ds)
+                            if (_sendDSSTP && null != _ds)
                             {
                                 NIP19.NostrEventNote nostrEventNote = new()
                                 {
@@ -367,7 +374,6 @@ namespace nokakoi
                                 }
                                 Dictionary<string, string> SSTPHeader = new(_baseSSTPHeader)
                                 {
-                                    //{ "Reference1", "note" },
                                     { "Reference1", "1" }, // kind
                                     { "Reference2", content }, // content
                                     { "Reference3", user?.Name ?? "???" }, // name
@@ -393,7 +399,6 @@ namespace nokakoi
 
                                 if (settings.Open)
                                 {
-                                    //var relays = _relays.Select(r => r.ToString()).ToArray();
                                     NIP19.NostrEventNote nostrEventNote = new()
                                     {
                                         EventId = nostrEvent.Id,
@@ -456,7 +461,6 @@ namespace nokakoi
             // プロフィール購読
             else if (args.subscriptionId == _nostrAccess.GetProfilesSubscriptionId)
             {
-                //// ※nostrEventが返ってこない特定ユーザーがいる。ライブラリの問題か。
                 foreach (var nostrEvent in args.events)
                 {
                     if (RemoveCompletedEventIds(nostrEvent.Id))
@@ -677,6 +681,7 @@ namespace nokakoi
             _formSetting.checkBoxShowOnlyJapanese.Checked = _showOnlyJapanese;
             _formSetting.checkBoxShowOnlyFollowees.Checked = _showOnlyFollowees;
             _formSetting.textBoxNokakoiKey.Text = _nokakoiKey;
+            _formSetting.checkBoxSendDSSTP.Checked = _sendDSSTP;
             _formSetting.checkBoxAutoReaction.Checked = _autoReaction;
             _formSetting.textBoxPassword.Text = _password;
 
@@ -711,6 +716,7 @@ namespace nokakoi
             _showOnlyJapanese = _formSetting.checkBoxShowOnlyJapanese.Checked;
             _showOnlyFollowees = _formSetting.checkBoxShowOnlyFollowees.Checked;
             _nokakoiKey = _formSetting.textBoxNokakoiKey.Text;
+            _sendDSSTP = _formSetting.checkBoxSendDSSTP.Checked;
             _autoReaction = _formSetting.checkBoxAutoReaction.Checked;
             _password = _formSetting.textBoxPassword.Text;
             try
@@ -766,6 +772,7 @@ namespace nokakoi
             Setting.ShowOnlyJapanese = _showOnlyJapanese;
             Setting.ShowOnlyFollowees = _showOnlyFollowees;
             Setting.NokakoiKey = _nokakoiKey;
+            Setting.SendDSSTP = _sendDSSTP;
             Setting.AutoReaction = _autoReaction;
 
             Setting.Save(_configPath);
