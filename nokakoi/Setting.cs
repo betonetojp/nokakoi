@@ -18,15 +18,15 @@ namespace nokakoi
             public int CutLength { get; set; } = 40;
             public int CutNameLength { get; set; } = 8;
             public double Opacity { get; set; } = 1.00;
-            public bool AddShortcode { get; set; } = true;
+            public bool AddShortcode { get; set; } = false;
             public string Shortcode { get; set; } = "n";
             public string EmojiUrl { get; set; } = "https://nokakoi.com/media/nokakoi.png";
-            public bool AddClient { get; set; } = true;
+            public bool AddClient { get; set; } = false;
             public bool ShowOnlyTagged { get; set; } = false;
             public bool ShowOnlyJapanese { get; set; } = false;
             public bool ShowOnlyFollowees { get; set; } = false;
             public string NokakoiKey { get; set; } = string.Empty;
-            public bool SendDSSTP { get; set; } = true;
+            public bool SendDSSTP { get; set; } = false;
             public bool AutoReaction { get; set; } = false;
             public Point PostBarLocation { get; set; }
             public Size PostBarSize { get; set; } = new Size(300, 132);

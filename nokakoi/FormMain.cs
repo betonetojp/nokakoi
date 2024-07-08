@@ -541,7 +541,7 @@ namespace nokakoi
         {
             if (0 == _formSetting.textBoxNokakoiKey.TextLength || 0 == _formSetting.textBoxPassword.TextLength)
             {
-                textBoxTimeline.Text = "> Please set noskoi-key and password." + Environment.NewLine + textBoxTimeline.Text;
+                textBoxTimeline.Text = "> Please set nokakoi key and password." + Environment.NewLine + textBoxTimeline.Text;
                 return;
             }
             if (0 == textBoxPost.TextLength)
