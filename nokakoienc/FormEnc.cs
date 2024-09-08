@@ -1,4 +1,6 @@
-namespace nokakoi
+using nokakoiCrypt;
+
+namespace nokakoienc
 {
     public partial class FormEnc : Form
     {
@@ -10,7 +12,7 @@ namespace nokakoi
         }
 
         // Encƒ{ƒ^ƒ“
-        private void buttonEnc_Click(object sender, EventArgs e)
+        private void ButtonEnc_Click(object sender, EventArgs e)
         {
             string nsec = textBoxNsec.Text;
             string password = textBoxPassword.Text;

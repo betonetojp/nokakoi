@@ -82,6 +82,7 @@
             // 
             // buttonDelete
             // 
+            buttonDelete.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             buttonDelete.Location = new Point(12, 226);
             buttonDelete.Name = "buttonDelete";
             buttonDelete.Size = new Size(75, 23);

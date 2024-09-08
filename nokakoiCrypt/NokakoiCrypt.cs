@@ -1,7 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 
-namespace nokakoi
+namespace nokakoiCrypt
 {
     public static class NokakoiCrypt
     {
@@ -119,7 +119,7 @@ namespace nokakoi
             {
                 bs.Add(Convert.ToByte(str.Substring(i * 2, 2), 16));
             }
-            
+
             return bs.ToArray();
         }
     }

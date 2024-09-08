@@ -49,6 +49,12 @@
             // 選択された行を削除
             foreach (DataGridViewRow row in dataGridViewRelayList.SelectedRows)
             {
+                // 新規行は無視
+                if (row.IsNewRow)
+                {
+                    continue;
+                }
+
                 dataGridViewRelayList.Rows.Remove(row);
             }
         }

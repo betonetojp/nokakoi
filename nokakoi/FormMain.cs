@@ -1,5 +1,6 @@
 using NNostr.Client;
 using NNostr.Client.Protocols;
+using nokakoiCrypt;
 using NTextCat;
 using NTextCat.Commons;
 using SSTPLib;
@@ -38,16 +39,11 @@ namespace nokakoi
 
         private int _cutLength;
         private int _cutNameLength;
-        private bool _addShortcode;
-        private string _shortcode = string.Empty;
-        private string _emojiUrl = string.Empty;
         private bool _addClient;
-        private bool _showOnlyTagged;
         private bool _showOnlyJapanese;
         private bool _showOnlyFollowees;
         private string _nokakoiKey = string.Empty;
         private bool _sendDSSTP = true;
-        private bool _autoReaction;
         private string _password = string.Empty;
 
         private double _tempOpacity = 1.00;
@@ -111,17 +107,13 @@ namespace nokakoi
             {
                 Opacity = 1;
             }
+            _tempOpacity = Opacity;
             _formPostBar.Opacity = Opacity;
-            _addShortcode = Setting.AddShortcode;
-            _shortcode = Setting.Shortcode;
-            _emojiUrl = Setting.EmojiUrl;
             _addClient = Setting.AddClient;
-            _showOnlyTagged = Setting.ShowOnlyTagged;
             _showOnlyJapanese = Setting.ShowOnlyJapanese;
             _showOnlyFollowees = Setting.ShowOnlyFollowees;
             _nokakoiKey = Setting.NokakoiKey;
             _sendDSSTP = Setting.SendDSSTP;
-            _autoReaction = Setting.AutoReaction;
             _formPostBar.Location = Setting.PostBarLocation;
             if (new Point(0, 0) == _formPostBar.Location)
             {
@@ -310,12 +302,6 @@ namespace nokakoi
                                 //user.Language = lang;
                             }
 
-                            // nokakoi限定表示オンでnokakoiじゃない時は表示しない
-                            if (_showOnlyTagged && !iSnokakoi)
-                            {
-                                continue;
-                            }
-
                             // 日本語限定表示オンで日本語じゃない時は表示しない
                             if (_showOnlyJapanese && "jpn" != lang)
                             {
@@ -332,12 +318,6 @@ namespace nokakoi
                             if (IsMuted(nostrEvent.PublicKey))
                             {
                                 continue;
-                            }
-
-                            // オートリアクション
-                            if (_autoReaction)
-                            {
-                                _ = ReactionAsync(nostrEvent.Id, nostrEvent.PublicKey);
                             }
 
                             // ユーザー表示名取得（ユーザー辞書メモリ節約のため↑のフラグ処理後に）
@@ -591,18 +571,13 @@ namespace nokakoi
             {
                 tags.Add(new NostrEventTag() { TagIdentifier = "client", Data = ["nokakoi"] });
             }
-            if (_addShortcode)
-            {
-                tags.Add(new NostrEventTag() { TagIdentifier = "emoji", Data = [$"{_shortcode}", $"{_emojiUrl}"] });
-            }
             // create a new event
             var newEvent = new NostrEvent()
             {
                 Kind = 1,
                 Content = textBoxPost.Text
                             //.Replace("\\n", "\r\n") // 本体の改行をポストバーのマルチラインに合わせる→廃止
-                            .Replace("\r\n", "\n")
-                            + (_addShortcode ? " :" + _shortcode + ":" : string.Empty),
+                            .Replace("\r\n", "\n"),
                 Tags = tags
             };
 
@@ -623,6 +598,7 @@ namespace nokakoi
         }
         #endregion
 
+        #region リアクション処理
         private async Task ReactionAsync(string e, string p)
         {
             if (null == _nostrAccess.Clients)
@@ -663,26 +639,23 @@ namespace nokakoi
                 textBoxTimeline.Text = "> Decryption failed." + Environment.NewLine + textBoxTimeline.Text;
             }
         }
+        #endregion
 
         #region Settingボタン
         // Settingボタン
         private async void ButtonSetting_Click(object sender, EventArgs e)
         {
             // 開く前
+            Opacity = _tempOpacity;
             _formSetting.checkBoxTopMost.Checked = TopMost;
             _formSetting.textBoxCutLength.Text = _cutLength.ToString();
             _formSetting.textBoxCutNameLength.Text = _cutNameLength.ToString();
             _formSetting.trackBarOpacity.Value = (int)(Opacity * 100);
-            _formSetting.checkBoxAddEndTag.Checked = _addShortcode;
-            _formSetting.textBoxShortcode.Text = _shortcode;
-            _formSetting.textBoxEmojiUrl.Text = _emojiUrl;
             _formSetting.checkBoxAddClient.Checked = _addClient;
-            _formSetting.checkBoxShowOnlyTagged.Checked = _showOnlyTagged;
             _formSetting.checkBoxShowOnlyJapanese.Checked = _showOnlyJapanese;
             _formSetting.checkBoxShowOnlyFollowees.Checked = _showOnlyFollowees;
             _formSetting.textBoxNokakoiKey.Text = _nokakoiKey;
             _formSetting.checkBoxSendDSSTP.Checked = _sendDSSTP;
-            _formSetting.checkBoxAutoReaction.Checked = _autoReaction;
             _formSetting.textBoxPassword.Text = _password;
 
             // 開く
@@ -707,17 +680,13 @@ namespace nokakoi
                 _cutNameLength = 1;
             }
             Opacity = _formSetting.trackBarOpacity.Value / 100.0;
+            _tempOpacity = Opacity;
             _formPostBar.Opacity = Opacity;
-            _addShortcode = _formSetting.checkBoxAddEndTag.Checked;
-            _shortcode = _formSetting.textBoxShortcode.Text;
-            _emojiUrl = _formSetting.textBoxEmojiUrl.Text;
             _addClient = _formSetting.checkBoxAddClient.Checked;
-            _showOnlyTagged = _formSetting.checkBoxShowOnlyTagged.Checked;
             _showOnlyJapanese = _formSetting.checkBoxShowOnlyJapanese.Checked;
             _showOnlyFollowees = _formSetting.checkBoxShowOnlyFollowees.Checked;
             _nokakoiKey = _formSetting.textBoxNokakoiKey.Text;
             _sendDSSTP = _formSetting.checkBoxSendDSSTP.Checked;
-            _autoReaction = _formSetting.checkBoxAutoReaction.Checked;
             _password = _formSetting.textBoxPassword.Text;
             try
             {
@@ -764,16 +733,11 @@ namespace nokakoi
             Setting.CutLength = _cutLength;
             Setting.CutNameLength = _cutNameLength;
             Setting.Opacity = Opacity;
-            Setting.AddShortcode = _addShortcode;
-            Setting.Shortcode = _shortcode;
-            Setting.EmojiUrl = _emojiUrl;
             Setting.AddClient = _addClient;
-            Setting.ShowOnlyTagged = _showOnlyTagged;
             Setting.ShowOnlyJapanese = _showOnlyJapanese;
             Setting.ShowOnlyFollowees = _showOnlyFollowees;
             Setting.NokakoiKey = _nokakoiKey;
             Setting.SendDSSTP = _sendDSSTP;
-            Setting.AutoReaction = _autoReaction;
 
             Setting.Save(_configPath);
         }
@@ -801,14 +765,14 @@ namespace nokakoi
 
         #region 透明解除処理
         // マウス入った時
-        private void TextBoxTimeline_MouseEnter(object sender, EventArgs e)
+        private void Control_MouseEnter(object sender, EventArgs e)
         {
             _tempOpacity = Opacity;
             Opacity = 1.00;
         }
 
         // マウス出た時
-        private void TextBoxTimeline_MouseLeave(object sender, EventArgs e)
+        private void Control_MouseLeave(object sender, EventArgs e)
         {
             Opacity = _tempOpacity;
         }

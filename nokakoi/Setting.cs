@@ -10,6 +10,9 @@ namespace nokakoi
         private static Data _data = new();
 
         #region データクラス
+        /// <summary>
+        /// 設定データクラス
+        /// </summary>
         public class Data
         {
             public Point Location { get; set; }
@@ -18,16 +21,11 @@ namespace nokakoi
             public int CutLength { get; set; } = 40;
             public int CutNameLength { get; set; } = 8;
             public double Opacity { get; set; } = 1.00;
-            public bool AddShortcode { get; set; } = false;
-            public string Shortcode { get; set; } = "n";
-            public string EmojiUrl { get; set; } = "https://nokakoi.com/media/nokakoi.png";
-            public bool AddClient { get; set; } = false;
-            public bool ShowOnlyTagged { get; set; } = false;
+            public bool AddClient { get; set; } = true;
             public bool ShowOnlyJapanese { get; set; } = false;
             public bool ShowOnlyFollowees { get; set; } = false;
             public string NokakoiKey { get; set; } = string.Empty;
             public bool SendDSSTP { get; set; } = false;
-            public bool AutoReaction { get; set; } = false;
             public Point PostBarLocation { get; set; }
             public Size PostBarSize { get; set; } = new Size(300, 132);
         }
@@ -100,39 +98,6 @@ namespace nokakoi
                 _data.Opacity = value;
             }
         }
-        public static bool AddShortcode
-        {
-            get
-            {
-                return _data.AddShortcode;
-            }
-            set
-            {
-                _data.AddShortcode = value;
-            }
-        }
-        public static string Shortcode
-        {
-            get
-            {
-                return _data.Shortcode;
-            }
-            set
-            {
-                _data.Shortcode = value;
-            }
-        }
-        public static string EmojiUrl
-        {
-            get
-            {
-                return _data.EmojiUrl;
-            }
-            set
-            {
-                _data.EmojiUrl = value;
-            }
-        }
         public static bool AddClient
         {
             get
@@ -142,17 +107,6 @@ namespace nokakoi
             set
             {
                 _data.AddClient = value;
-            }
-        }
-        public static bool ShowOnlyTagged
-        {
-            get
-            {
-                return _data.ShowOnlyTagged;
-            }
-            set
-            {
-                _data.ShowOnlyTagged = value;
             }
         }
         public static bool ShowOnlyJapanese
@@ -197,17 +151,6 @@ namespace nokakoi
             set
             {
                 _data.SendDSSTP = value;
-            }
-        }
-        public static bool AutoReaction
-        {
-            get
-            {
-                return _data.AutoReaction;
-            }
-            set
-            {
-                _data.AutoReaction = value;
             }
         }
         public static Point PostBarLocation

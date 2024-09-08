@@ -100,5 +100,13 @@ namespace nokakoi
         {
             FormManiacs_Load(sender, e);
         }
+
+        private void FormManiacs_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F10)
+            {
+                Close();
+            }
+        }
     }
 }

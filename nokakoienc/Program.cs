@@ -1,4 +1,4 @@
-namespace nokakoi
+namespace nokakoienc
 {
     internal static class Program
     {

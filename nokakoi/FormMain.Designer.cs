@@ -67,8 +67,8 @@
             textBoxTimeline.Size = new Size(280, 199);
             textBoxTimeline.TabIndex = 5;
             textBoxTimeline.TabStop = false;
-            textBoxTimeline.MouseEnter += TextBoxTimeline_MouseEnter;
-            textBoxTimeline.MouseLeave += TextBoxTimeline_MouseLeave;
+            textBoxTimeline.MouseEnter += Control_MouseEnter;
+            textBoxTimeline.MouseLeave += Control_MouseLeave;
             // 
             // buttonStop
             // 
@@ -149,6 +149,7 @@
             labelRelays.Size = new Size(164, 15);
             labelRelays.TabIndex = 0;
             labelRelays.Text = "Relay info";
+            labelRelays.MouseClick += FormMain_MouseClick;
             // 
             // FormMain
             // 

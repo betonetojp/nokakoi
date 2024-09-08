@@ -1,4 +1,4 @@
-﻿namespace nokakoi
+﻿namespace nokakoienc
 {
     partial class FormEnc
     {
@@ -106,7 +106,7 @@
             buttonEnc.TabIndex = 4;
             buttonEnc.Text = "Enc";
             buttonEnc.UseVisualStyleBackColor = true;
-            buttonEnc.Click += buttonEnc_Click;
+            buttonEnc.Click += ButtonEnc_Click;
             // 
             // FormEnc
             // 

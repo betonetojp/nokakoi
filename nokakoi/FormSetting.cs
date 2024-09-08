@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using nokakoiCrypt;
+using System.Diagnostics;
 
 namespace nokakoi
 {
