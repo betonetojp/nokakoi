@@ -276,6 +276,7 @@
             KeyPreview = true;
             MinimumSize = new Size(480, 480);
             Name = "FormManiacs";
+            SizeGripStyle = SizeGripStyle.Show;
             StartPosition = FormStartPosition.CenterScreen;
             Text = "Mute and keyword notification";
             FormClosing += FormManiacs_FormClosing;

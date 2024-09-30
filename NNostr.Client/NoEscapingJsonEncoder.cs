@@ -1,8 +1,11 @@
 ﻿using System.Text;
 using System.Text.Encodings.Web;
 
-namespace nokakoi
+namespace NNostr.Client
 {
+    /// <summary>
+    /// 絵文字をエスケープしないようにするエンコーダー
+    /// </summary>
     public class NoEscapingJsonEncoder : JavaScriptEncoder
     {
         public static JavaScriptEncoder NoEscaping { get; } = new NoEscapingJsonEncoder();
