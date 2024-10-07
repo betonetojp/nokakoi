@@ -16,10 +16,12 @@ namespace nokakoi
         public bool Mute { get; set; }
         [JsonPropertyName("last_activity")]
         public DateTime? LastActivity { get; set; }
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
+        [JsonPropertyName("petname")]
+        public string? PetName { get; set; }
         [JsonPropertyName("display_name")]
         public string? DisplayName { get; set; }
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
         [JsonPropertyName("nip05")]
         public string? Nip05 { get; set; }
         [JsonPropertyName("picture")]

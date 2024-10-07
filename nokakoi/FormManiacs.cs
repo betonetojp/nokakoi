@@ -20,9 +20,10 @@ namespace nokakoi
                     dataGridViewUsers.Rows.Add(
                         user.Value?.Mute,
                         user.Value?.LastActivity,
-                        user.Key,
+                        user.Value?.PetName,
                         user.Value?.DisplayName,
                         user.Value?.Name,
+                        user.Key,
                         user.Value?.Nip05,
                         user.Value?.Picture,
                         user.Value?.CreatedAt
@@ -54,11 +55,12 @@ namespace nokakoi
                         var user = new User
                         {
                             Mute = (bool)(row.Cells["mute"].Value ?? false),
+                            LastActivity = (DateTime?)row.Cells["last_activity"].Value ?? null,
+                            PetName = (string)row.Cells["petname"].Value,
                             DisplayName = (string)row.Cells["display_name"].Value,
                             Name = (string)row.Cells["name"].Value,
                             Nip05 = (string)row.Cells["nip05"].Value,
                             Picture = (string)row.Cells["picture"].Value,
-                            LastActivity = (DateTime?)row.Cells["last_activity"].Value ?? null,
                             CreatedAt = (DateTimeOffset?)row.Cells["created_at"].Value ?? null,
                             //Language = (string)row.Cells["language"].Value
                         };
