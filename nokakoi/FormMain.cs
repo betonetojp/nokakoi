@@ -209,9 +209,9 @@ namespace nokakoi
         /// <param name="args"></param>
         private void OnClientOnEventsReceived(object? sender, (string subscriptionId, NostrEvent[] events) args)
         {
-            // タイムライン購読
             if (args.subscriptionId == _nostrAccess.SubscriptionId)
             {
+                #region タイムライン購読
                 foreach (var nostrEvent in args.events)
                 {
                     if (RemoveCompletedEventIds(nostrEvent.Id))
@@ -246,7 +246,7 @@ namespace nokakoi
                             speaker = "\\0"; //"\\h\\p[0]\\s[0]";
                         }
 
-                        // リアクション
+                        #region リアクション
                         if (7 == nostrEvent.Kind)
                         {
                             // ログイン済みで自分へのリアクション
@@ -290,7 +290,9 @@ namespace nokakoi
                                 textBoxTimeline.Text = "+" + timeString + " " + userName + " " + content + Environment.NewLine + textBoxTimeline.Text;
                             }
                         }
-                        // テキストノート
+                        #endregion
+
+                        #region テキストノート
                         if (1 == nostrEvent.Kind)
                         {
                             var userClient = nostrEvent.GetTaggedData("client");
@@ -414,12 +416,14 @@ namespace nokakoi
                                                  + " " + content + Environment.NewLine + textBoxTimeline.Text;
                             Debug.WriteLine($"{timeString} {userName} {content}");
                         }
+                        #endregion
                     }
                 }
+                #endregion
             }
-            // フォロイー購読
             else if (args.subscriptionId == _nostrAccess.GetFolloweesSubscriptionId)
             {
+                #region フォロイー購読
                 foreach (var nostrEvent in args.events)
                 {
                     // フォローリスト
@@ -446,10 +450,11 @@ namespace nokakoi
                         }
                     }
                 }
+                #endregion
             }
-            // プロフィール購読
             else if (args.subscriptionId == _nostrAccess.GetProfilesSubscriptionId)
             {
+                #region プロフィール購読
                 foreach (var nostrEvent in args.events)
                 {
                     if (RemoveCompletedEventIds(nostrEvent.Id))
@@ -486,6 +491,7 @@ namespace nokakoi
                         }
                     }
                 }
+                #endregion
             }
         }
         #endregion
