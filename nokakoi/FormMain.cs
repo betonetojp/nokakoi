@@ -48,7 +48,7 @@ namespace nokakoi
 
         private double _tempOpacity = 1.00;
 
-        private readonly DSSTPSender _ds = new("SakuraUnicode");
+        private static readonly DSSTPSender _ds = new("SakuraUnicode");
         private readonly string _SSTPMethod = "NOTIFY SSTP/1.1";
         private readonly Dictionary<string, string> _baseSSTPHeader = new(){
             {"Charset","UTF-8"},
@@ -428,11 +428,20 @@ namespace nokakoi
                         var tags = nostrEvent.Tags;
                         foreach (var tag in tags)
                         {
-                            // 公開鍵を保存
                             if ("p" == tag.TagIdentifier)
                             {
-                                // 先頭を公開鍵と決めつけているが…
+                                // 公開鍵をハッシュに保存
                                 _followeesHexs.Add(tag.Data[0]);
+
+                                // petnameをユーザー辞書に保存
+                                if (2 < tag.Data.Count)
+                                {
+                                    Users.TryGetValue(tag.Data[0], out User? user);
+                                    if (null != user)
+                                    {
+                                        user.PetName = tag.Data[2];
+                                    }
+                                }
                             }
                         }
                     }
@@ -467,6 +476,7 @@ namespace nokakoi
                             if (null == cratedAt || (cratedAt < newUserData.CreatedAt))
                             {
                                 newUserData.LastActivity = DateTime.Now;
+                                newUserData.PetName = existingUserData?.PetName;
                                 Tools.SaveUsers(Users);
                                 // 辞書に追加（上書き）
                                 Users[nostrEvent.PublicKey] = newUserData;
@@ -858,12 +868,14 @@ namespace nokakoi
                 // display_nameが無い場合は@nameとする
                 if (null == userName || string.Empty == userName)
                 {
-                    userName = $"@{user.Name}";
+                    //userName = $"@{user.Name}";
+                    userName = $"{user.Name}";
                 }
                 // petnameがある場合は📛petnameとする
                 if (!user.PetName.IsNullOrEmpty())
                 {
-                    userName = $"📛{user.PetName}";
+                    //userName = $"📛{user.PetName}";
+                    userName = $"{user.PetName}";
                 }
                 // 取得日更新
                 user.LastActivity = DateTime.Now;
