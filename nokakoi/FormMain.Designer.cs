@@ -167,7 +167,7 @@
             Controls.Add(buttonStart);
             Icon = (Icon)resources.GetObject("$this.Icon");
             KeyPreview = true;
-            MinimumSize = new Size(200, 200);
+            MinimumSize = new Size(240, 240);
             Name = "FormMain";
             SizeGripStyle = SizeGripStyle.Show;
             StartPosition = FormStartPosition.Manual;
