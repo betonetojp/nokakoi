@@ -229,12 +229,13 @@ namespace NNostr.Client
         public async Task ConnectAndWaitUntilConnected(CancellationToken connectionCancellationToken = default,
             CancellationToken lifetimeCancellationToken = default)
         {
-           
             if (WebSocket?.State == WebSocketState.Open)
             {
                 return;
             }
 
+            _cts?.Cancel();
+            _cts?.Dispose();
             _cts = CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellationToken);
 
             WebSocket?.Dispose();
@@ -252,7 +253,11 @@ namespace NNostr.Client
 
         protected virtual async Task<WebSocket> Connect()
         {
-            _statusListenerTokenSource?.Cancel();
+            if (_statusListenerTokenSource != null)
+            {
+                _statusListenerTokenSource.Cancel();
+                _statusListenerTokenSource.Dispose();
+            }
             _statusListenerTokenSource = new CancellationTokenSource();
             _ = ListenForWebsocketChanges(_statusListenerTokenSource.Token);
             var r = new ClientWebSocket();

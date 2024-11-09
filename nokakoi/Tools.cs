@@ -180,7 +180,7 @@ namespace nokakoi
             {
                 var jsonContent = File.ReadAllText(_usersJsonPath);
                 var users = JsonSerializer.Deserialize<Dictionary<string, User?>>(jsonContent, GetOption());
-                if (null != users)
+                if (users != null)
                 {
                     return users;
                 }
@@ -225,7 +225,7 @@ namespace nokakoi
             {
                 var jsonContent = File.ReadAllText(_relaysJsonPath);
                 var relays = JsonSerializer.Deserialize<List<Relay>>(jsonContent, GetOption());
-                if (null != relays)
+                if (relays != null)
                 {
                     return relays;
                 }
@@ -248,7 +248,7 @@ namespace nokakoi
             List<Uri> enabledRelays = [];
             foreach (var relay in relays)
             {
-                if (relay.Enabled && null != relay.Url)
+                if (relay.Enabled && relay.Url != null)
                 {
                     enabledRelays.Add(new Uri(relay.Url));
                 }
