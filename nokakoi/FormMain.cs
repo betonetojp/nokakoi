@@ -374,7 +374,7 @@ namespace nokakoi
                             {
                                 if (settings.Reaction)
                                 {
-                                    _ = ReactionAsync(nostrEvent.Id, nostrEvent.PublicKey);
+                                    await ReactionAsync(nostrEvent.Id, nostrEvent.PublicKey);
                                 }
 
                                 if (settings.Open)
