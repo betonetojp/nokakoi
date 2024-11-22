@@ -187,7 +187,7 @@ namespace nokakoi
                     await NostrAccess.SubscribeFollowsAsync(_npubHex);
 
                     // ログインユーザー表示名取得
-                    var name = GetUserNameAsync(_npubHex);
+                    var name = GetUserName(_npubHex);
                     textBoxTimeline.Text = $"> Login as {name}." + Environment.NewLine + textBoxTimeline.Text;
                 }
             }
@@ -252,7 +252,7 @@ namespace nokakoi
                             {
                                 Users.TryGetValue(nostrEvent.PublicKey, out User? user);
                                 // ユーザー表示名取得
-                                string userName = await GetUserNameAsync(nostrEvent.PublicKey);
+                                string userName = GetUserName(nostrEvent.PublicKey);
                                 // ユーザー表示名カット
                                 if (userName.Length > _cutNameLength)
                                 {
@@ -321,7 +321,7 @@ namespace nokakoi
                             }
 
                             // ユーザー表示名取得（ユーザー辞書メモリ節約のため↑のフラグ処理後に）
-                            string userName = await GetUserNameAsync(nostrEvent.PublicKey);
+                            string userName = GetUserName(nostrEvent.PublicKey);
 
                             // ユーザーが見つからない時は表示しない
                             if (null == user)
@@ -731,7 +731,7 @@ namespace nokakoi
                     await NostrAccess.SubscribeFollowsAsync(_npubHex);
 
                     // ログインユーザー表示名取得
-                    var name = await GetUserNameAsync(_npubHex);
+                    var name = GetUserName(_npubHex);
                     textBoxTimeline.Text = $"> Login as {name}." + Environment.NewLine + textBoxTimeline.Text;
                     textBoxPost.PlaceholderText = $"Post as {name}";
                     _formPostBar.textBoxPost.PlaceholderText = $"Post as {name}";
@@ -851,40 +851,28 @@ namespace nokakoi
         /// </summary>
         /// <param name="publicKeyHex">公開鍵HEX</param>
         /// <returns>ユーザー表示名</returns>
-        private async Task<string> GetUserNameAsync(string publicKeyHex)
+        private string GetUserName(string publicKeyHex)
         {
-            /*
-            // 辞書にない場合プロフィールを購読する
-            if (!_users.TryGetValue(publicKeyHex, out User? user))
-            {
-                SubscribeProfiles([publicKeyHex]);
-            }
-            */
-            // kind 0 を毎回購読するように変更（頻繁にdisplay_name等を変更するユーザーがいるため）
-            await NostrAccess.SubscribeProfilesAsync([publicKeyHex]);
-
             // 情報があれば表示名を取得
             Users.TryGetValue(publicKeyHex, out User? user);
             string? userName = "???";
-            if (null != user)
+            if (user != null)
             {
                 userName = user.DisplayName;
-                // display_nameが無い場合は@nameとする
-                if (null == userName || string.Empty == userName)
+                // display_nameが無い場合はnameとする
+                if (string.IsNullOrEmpty(userName))
                 {
-                    //userName = $"@{user.Name}";
                     userName = $"{user.Name}";
                 }
-                // petnameがある場合は📛petnameとする
-                if (!user.PetName.IsNullOrEmpty())
+                // petnameがある場合はpetnameとする
+                if (!string.IsNullOrEmpty(user.PetName))
                 {
-                    //userName = $"📛{user.PetName}";
                     userName = $"{user.PetName}";
                 }
                 // 取得日更新
                 user.LastActivity = DateTime.Now;
                 Tools.SaveUsers(Users);
-                Debug.WriteLine($"ユーザー名取得 {user.LastActivity} {user.DisplayName} {user.Name}");
+                Debug.WriteLine($"ユーザー名取得: {user.DisplayName} @{user.Name} 📛{user.PetName}");
             }
             return userName;
         }

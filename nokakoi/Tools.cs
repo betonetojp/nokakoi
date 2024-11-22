@@ -114,7 +114,15 @@ namespace nokakoi
         /// <returns>npub</returns>
         public static string GetNpub(this string nsec)
         {
-            return nsec.FromNIP19Nsec().CreateXOnlyPubKey().ToNIP19();
+            try
+            {
+                return nsec.FromNIP19Nsec().CreateXOnlyPubKey().ToNIP19();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                return string.Empty;
+            }
         }
 
         /// <summary>
@@ -124,17 +132,47 @@ namespace nokakoi
         /// <returns>npub(HEX)</returns>
         public static string GetNpubHex(this string nsec)
         {
-            return nsec.FromNIP19Nsec().CreateXOnlyPubKey().ToHex();
+            try
+            {
+                return nsec.FromNIP19Nsec().CreateXOnlyPubKey().ToHex();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                return string.Empty;
+            }
         }
 
         /// <summary>
-        /// npubをHEXに変換する
+        /// npubまたはnprofileのpubkeyをHEXに変換する
         /// </summary>
-        /// <param name="npub">npub</param>
+        /// <param name="npubOrNprofile">npub</param>
         /// <returns>HEX</returns>
-        public static string ConvertToHex(this string npub)
+        public static string ConvertToHex(this string npubOrNprofile)
         {
-            return npub.FromNIP19Npub().ToHex();
+            try
+            {
+                // npubが"npub"で始まるとき
+                if (npubOrNprofile.StartsWith("npub"))
+                {
+                    return npubOrNprofile.FromNIP19Npub().ToHex();
+                }
+                // npubが"nprofile"で始まるとき
+                else if (npubOrNprofile.StartsWith("nprofile"))
+                {
+                    var profile = (NIP19.NosteProfileNote?)npubOrNprofile.FromNIP19Note();
+                    if (profile != null)
+                    {
+                        return profile.PubKey;
+                    }
+                }
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                return string.Empty;
+            }
         }
 
         /// <summary>
@@ -144,7 +182,15 @@ namespace nokakoi
         /// <returns>npub</returns>
         public static string ConvertToNpub(this string hex)
         {
-            return ECXOnlyPubKey.Create(hex.FromHex()).ToNIP19();
+            try
+            {
+                return ECXOnlyPubKey.Create(hex.FromHex()).ToNIP19();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                return string.Empty;
+            }
         }
 
         /// <summary>
