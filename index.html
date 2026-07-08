@@ -19,11 +19,11 @@
   </style>
   <script src="https://cdn.jsdelivr.net/npm/nostr-tools@2.9.4/lib/nostr.bundle.min.js?v=20251006-2" crossorigin="anonymous" defer data-cfasync="false"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" crossorigin="anonymous" defer data-cfasync="false"></script>
-  <link rel="icon" type="image/png" href="/app/icon/nokakoi.png">
-  <link rel="shortcut icon" type="image/png" href="/app/icon/nokakoi.png">
-  <link rel="apple-touch-icon" href="/app/icon/nokakoi.png">
+  <link rel="icon" type="image/png" href="icon/nokakoi.png">
+  <link rel="shortcut icon" type="image/png" href="icon/nokakoi.png">
+  <link rel="apple-touch-icon" href="icon/nokakoi.png">
   <!-- PWA: Web App Manifest -->
-  <link rel="manifest" href="/app/manifest.json">
+  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#ffeaf5">
   <script>
     // 動的にツールバー色を切り替える（ライト: ピンク / ダーク: 黒）
@@ -84,7 +84,7 @@
   </script>
   <header class="topbar">
     <div class="brand">
-      <img src="/app/icon/nokakoi.png" data-i18n-alt="brand" class="brand-icon">
+      <img src="icon/nokakoi.png" data-i18n-alt="brand" class="brand-icon">
       <span class="brand-text" data-i18n="brand">nokakoi</span>
     </div>
     <nav class="actions">
@@ -583,7 +583,7 @@
         <button type="button" class="quick-reaction" data-reaction="👀">👀</button>
         <button type="button" class="quick-reaction" data-reaction="🙏">🙏</button>
         <button type="button" class="quick-reaction" data-reaction=":nokakoi:">
-          <img src="/app/icon/nokakoi.png" alt=":nokakoi:" style="width: 20px; height: 20px;">
+          <img src="icon/nokakoi.png" alt=":nokakoi:" style="width: 20px; height: 20px;">
         </button>
       </div>
       <label for="reactionInput" style="display: block; margin-bottom: 4px; font-size: 0.9em;" data-i18n="reaction.input.placeholder">リアクション文字</label>
@@ -859,8 +859,9 @@
       window.addEventListener('load', () => {
         // 自動ログイン系モーダルを先に表示できるよう、SW 登録を少し遅延
         setTimeout(() => {
-          navigator.serviceWorker.register('/app/sw.js', {
-            scope: '/app/'
+          const basePath = location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
+          navigator.serviceWorker.register(basePath + 'sw.js', {
+            scope: basePath
           })
             .then((registration) => {
               swLog('Registered:', registration.scope);
