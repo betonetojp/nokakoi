@@ -554,11 +554,12 @@ body.simple-display-mode #profileEvents .event:not(.event-selected) .event-top-r
 }
 .event-name-primary {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: baseline;
   gap: 4px;
   max-width: 100%;
   line-height: 1.25;
+  min-width: 0;
 }
 .event-name-status {
   font-size: 0.85em;
@@ -593,15 +594,20 @@ body.theme-light .event-actions-react .btn-react[data-reacted="true"] {
   align-items: center;
   justify-content: space-between;
   margin-top: 6px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 .event-time-kind {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .event-time-kind .time {
   font-size: 0.85em;
   color: var(--muted);
+  flex: 0 0 auto;
 }
 .event-time-kind .btn-kind {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -612,15 +618,32 @@ body.theme-light .event-actions-react .btn-react[data-reacted="true"] {
   padding: 2px 6px;
   cursor: pointer;
   transition: color 0.2s, background 0.2s, border-color 0.2s;
+  flex: 0 0 auto;
 }
 .event-time-kind .btn-kind:hover {
   color: #fbbf24;
   background: rgba(251, 191, 36, 0.15);
   border-color: #fbbf24;
 }
+.client-badge {
+  display: inline-block;
+  text-align: left;
+  vertical-align: middle;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 0.8em;
+  margin-left: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+}
 .event-actions-bottom {
   display: flex;
   gap: 6px;
+  flex: 0 0 auto;
 }
 .event-actions-bottom button {
   background: transparent;
@@ -650,6 +673,11 @@ evhead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   color: var(--accent);
   cursor: pointer;
   transition: color 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .name:hover {
   color: #9fb0ff;
@@ -660,6 +688,11 @@ evhead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   font-size: 0.85em;
   color: var(--muted);
   margin-left: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .pk { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: .8em; color: var(--muted); }
 .kind { font-size: .75em; color: var(--muted); margin-left: auto; }
@@ -1351,12 +1384,16 @@ body.theme-light .topbar a.secondary:hover {
   gap: 6px;
   min-width: 0;
   max-width: 100%;
+  flex-wrap: nowrap;
 }
 #profileDisplayName .petname {
   flex-shrink: 0;
+  white-space: nowrap;
   color: var(--accent);
   font-weight: 600;
   font-size: 0.95em;
+  display: inline-flex;
+  align-items: center;
 }
 .petname-badge {
   display: inline-block;
@@ -1369,6 +1406,7 @@ body.theme-light .topbar a.secondary:hover {
   mask-repeat: no-repeat;
   margin-right: 4px;
   vertical-align: -0.15em;
+  flex-shrink: 0;
 }
 #profileDisplayName .profile-display-name-text {
   min-width: 0;

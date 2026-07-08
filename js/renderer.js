@@ -287,13 +287,6 @@ export async function applyClientBadgeToContainer(container) {
         b.style.color = color;
         // 枠線色も文字色に合わせる
         b.style.border = '1px solid ' + color;
-        // 時刻表示に縦位置を合わせる
-        b.style.padding = '0 6px';
-        b.style.borderRadius = '6px';
-        b.style.fontSize = '0.8em';
-        b.style.marginLeft = '4px';
-        b.style.display = 'inline-flex';
-        b.style.alignItems = 'center';
         // kindボタンがあれば高さを合わせる
         try {
           const kindBtn = container.querySelector('.btn-kind');
@@ -315,7 +308,7 @@ export async function applyClientBadgeToContainer(container) {
           b.style.lineHeight = '20px';
           b.style.verticalAlign = 'middle';
         }
-        b.textContent = truncateByGraphemeVisible(name, 10);
+        b.textContent = name;
       } catch (e) { }
     });
   } catch (e) { }
@@ -1474,7 +1467,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
       names = { main: hash, sub: '' };
     }
   } else {
-    names = displayNameWithUsername(state, pk, nip19);
+    names = displayNameWithUsername(state, pk, nip19, { noTruncate: true });
   }
 
   let statusHtml = '<span class="user-status event-name-status" data-pubkey="' + pk + '" style="display:none;"></span>';

@@ -346,7 +346,7 @@ export function displayName(state, pubkey, nip19) {
  */
 export function updateNameDom(state, pubkey, nip19) {
   const nodes = document.querySelectorAll('.name[data-pubkey="' + pubkey + '"]');
-  const names = displayNameWithUsername(state, pubkey, nip19);
+  const names = displayNameWithUsername(state, pubkey, nip19, { noTruncate: true });
 
   nodes.forEach(function (el) {
     // kind:20000(omochat) は nタグ/ハッシュ表示を優先するため、
@@ -383,6 +383,7 @@ export function displayNameWithUsername(state, pubkey, nip19, options = {}) {
   const prof = state.profiles.get(pubkey);
   const names = getNamesFromMeta(prof);
   const usePetname = options.usePetname !== false;
+  const noTruncate = options.noTruncate === true;
 
   // 名前がなくロード中でなければプロフィールロード
   if (!names.displayName && (!prof || (!prof.loading && !prof.loaded))) {
@@ -418,7 +419,8 @@ export function displayNameWithUsername(state, pubkey, nip19, options = {}) {
         const pet = state.followPetnames.get(pubkey);
         if (pet) {
           // 特殊マーカー付きで petname を表示
-          return { main: '\u200B📛' + truncateName(pet), sub: '' };
+          const displayPet = noTruncate ? pet : truncateName(pet);
+          return { main: '\u200B📛' + displayPet, sub: '' };
         }
       }
     } catch (e) { }
@@ -426,11 +428,20 @@ export function displayNameWithUsername(state, pubkey, nip19, options = {}) {
 
   const fallback = npubShort(pubkey, nip19);
   if (names.displayName && names.username) {
-    return { main: truncateName(names.displayName), sub: truncateName(names.username) };
+    return {
+      main: noTruncate ? names.displayName : truncateName(names.displayName),
+      sub: noTruncate ? names.username : truncateName(names.username)
+    };
   } else if (names.displayName) {
-    return { main: truncateName(names.displayName), sub: '' };
+    return {
+      main: noTruncate ? names.displayName : truncateName(names.displayName),
+      sub: ''
+    };
   } else {
-    return { main: truncateName(fallback), sub: '' };
+    return {
+      main: noTruncate ? fallback : truncateName(fallback),
+      sub: ''
+    };
   }
 }
 
