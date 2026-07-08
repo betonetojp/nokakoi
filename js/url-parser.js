@@ -2,7 +2,7 @@
 // URLパーサーとリンク化処理
 // ============================================================================
 
-import { escapeHtml, truncateName } from './utils.js';
+import { escapeHtml, truncateName, replaceBadgeEmoji } from './utils.js';
 import { showMediaViewer } from './media-viewer.js';
 import { t } from './i18n.js';
 import { MAX_PREVIEW_LENGTH, MAX_PREVIEW_LINES } from './constants.js';
@@ -1060,7 +1060,7 @@ async function renderEventQuote(state, event, nip19, settings = {}) {
   } else {
     quoteContentHtml = `<span class="reply-preview-text">${linkifyText(content, event.tags || [], { inlineMedia: false })}</span>`;
   }
-  const quotedLabel = t('quote.label', { author: escapeHtml(author) });
+  const quotedLabel = replaceBadgeEmoji(t('quote.label', { author: escapeHtml(author) }));
   return '<div class="event-quote">' +
     '<div class="event-quote-header">' +
     '<span class="reply-marker"><img src="icon/note.png" alt="' + escapeHtml(t('quote.icon_alt') || '引用') + '" class="icon"/></span>' +
