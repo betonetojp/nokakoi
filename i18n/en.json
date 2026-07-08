@@ -52,7 +52,7 @@
   "channel.unknown": "Channel",
   "showHomeRepost16": "Show generic reposts from follows in home",
   "disableBlink": "Disable blink notifications",
-  "mentionBackgroundNotification": "Browser notifications",
+  "mentionBackgroundNotification": "Browser notifications (for PC)",
   "mentionBackgroundNotification.permission_denied": "Notification permission was denied. Allow notifications in your browser settings.",
   "fetchFollowEmoji": "Also fetch emoji sets referenced by followees' kind:10030",
   "showProfileReactions": "Show reactions in profile feed",
