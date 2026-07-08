@@ -1,0 +1,12 @@
+{
+  "name": "nokakoi-app",
+  "version": "1.87.1",
+  "description": "Nostr Web Client",
+  "scripts": {
+    "start": "http-server -p 8000",
+    "dev": "http-server -p 8000 -c-1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

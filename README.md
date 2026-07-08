@@ -1,11 +1,14 @@
 # nokakoi web client
 
-`/app` 配下で動作するNostr Webクライアントの実装。
+Nostr Webクライアントの実装。
 
 ## 公開URL
 
-- App: `https://nokakoi.com/app/`
-- Gyouza Tool: `https://nokakoi.com/app/gyouza/`
+- **テスト環境 (GitHub Pages)**: `https://betonetojp.github.io/nokakoi/`
+- **本番環境 (nokakoi.com)**: `https://nokakoi.com/app/`
+
+> [!NOTE]
+> 本リポジトリは公開テスト用のリポジトリです。本リポジトリの最新コミットは GitHub Pages に自動でデプロイされ、動作確認ができます。テストで問題がなければ、非公開の本体リポジトリ (`nokakoi.com`) に同期スクリプトを使って取り込まれ、正式版として本番環境に反映されます。
 
 ## 機能
 
@@ -23,30 +26,31 @@
 
 - Node.js
 
-### セットアップ（リポジトリルートで実行）
+### セットアップ
 
 ```bash
 npm install
 ```
 
-### ローカル起動（リポジトリルートで実行）
+### ローカル起動
 
 ```bash
-# 通常キャッシュ
+# 通常キャッシュあり
 npm start
 
 # 開発向け（キャッシュ無効）
 npm run dev
 ```
 
-確認URL: `http://localhost:8000/app/`
+ローカル確認URL: `http://localhost:8000/`
 
-> 本アプリはES Modulesを使用するため、`file://` での直接起動は不可。HTTPサーバー経由で検証すること。
+> [!WARNING]
+> 本アプリはES Modulesを使用するため、`file://` での直接起動はできません。必ず上記のようにローカルHTTPサーバー経由で検証してください。
 
 ## ディレクトリ構成
 
 ```text
-app/
+nokakoi/
 ├── index.html              # メインUI
 ├── style.css               # スタイル
 ├── sw.js                   # Service Worker
@@ -67,26 +71,6 @@ app/
     ├── i18n.js             # 多言語
     └── ...
 ```
-
-## テスト / 検査（リポジトリルートで実行）
-
-```bash
-npm test
-npm run test:preview-length
-npm run test:reaction
-npm run scan:i18n
-```
-
-## バージョン管理
-
-バージョンソースは `app/js/version.js`。
-
-```bash
-npm run version:update
-npm run version:check
-```
-
-詳細は `../docs/VERSION_MANAGEMENT.md` を参照。
 
 ## 開発ルール
 
