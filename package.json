@@ -4,7 +4,9 @@
   "description": "Nostr Web Client",
   "scripts": {
     "start": "http-server -p 8000",
-    "dev": "http-server -p 8000 -c-1"
+    "dev": "http-server -p 8000 -c-1",
+    "version:update": "node scripts/update-version.js",
+    "version:check": "node scripts/update-version.js --check"
   },
   "devDependencies": {
     "http-server": "^14.1.1"
