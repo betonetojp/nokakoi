@@ -4,7 +4,8 @@
 
 import { t } from './i18n.js';
 import {
-  getRegisteredTextShortcodeVariant
+  getRegisteredTextShortcodeVariant,
+  resolveCustomEmoji
 } from './custom-emoji-store.js';
 
 /**
@@ -56,6 +57,20 @@ export function resolveReactionCustomEmoji(reaction) {
       };
     }
   } catch (e) { logWarn('[Utils] getRegisteredTextShortcodeVariant 失敗:', e); }
+
+  try {
+    const customEmojis = (typeof window !== 'undefined' && window.__customEmojis instanceof Map) ? window.__customEmojis : null;
+    if (customEmojis) {
+      const resolved = resolveCustomEmoji(customEmojis, shortcode);
+      if (resolved && resolved.url) {
+        return {
+          shortcode,
+          url: String(resolved.url),
+          address: resolved.address ? String(resolved.address) : ''
+        };
+      }
+    }
+  } catch (e) { logWarn('[Utils] resolveCustomEmoji 失敗:', e); }
 
   if (shortcode === 'nokakoi') {
     let iconUrl = 'icon/nokakoi.png';

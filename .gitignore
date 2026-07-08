@@ -4,3 +4,5 @@
 !icon/
 !js/
 !scripts/
+/.vs
+/node_modules
