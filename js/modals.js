@@ -330,14 +330,12 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
           statusEl.textContent = t('reaction.saved');
           statusEl.style.color = '#4caf50';
         }
-        console.log('[Reaction] 保存成功:', getReactionContent(reactionValue));
       } else {
         // localStorage 未反映でも settingsManager 更新済みなので成功扱い
         if (statusEl) {
           statusEl.textContent = t('reaction.saved');
           statusEl.style.color = '#4caf50';
         }
-        console.log('[Reaction] 保存: settingsManager を更新（localStorage 反映待ち）');
       }
     } else {
       // appSettings がなくても settingsManager 更新済みなので成功扱い
@@ -345,7 +343,6 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
         statusEl.textContent = t('reaction.saved');
         statusEl.style.color = '#4caf50';
       }
-      console.log('[Reaction] 保存: localStorage 未生成のため settingsManager のみ更新');
     }
   };
 

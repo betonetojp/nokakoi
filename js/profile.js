@@ -116,7 +116,11 @@ export function initializeProfileCache(state) {
     }
   }
 
-  console.log('[Profile] キャッシュから', cached.size, '件のプロフィールを読み込みました');
+  try {
+    if (typeof window !== 'undefined' && window.__nokakoiDebug) {
+      console.debug('[Profile] キャッシュから', cached.size, '件のプロフィールを読み込みました');
+    }
+  } catch (e) { }
 }
 
 /**

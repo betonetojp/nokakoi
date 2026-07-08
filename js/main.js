@@ -1401,7 +1401,7 @@ function restartFeeds(fullReset = false) {
   // relay 層の unsubscribe 前に購読を安全に停止する。
   try {
     try {
-      const fetcherKeys = ['_globalFetcher', '_homeFetcher', '_mentionsFetcher', '_meFetcher', '_bitchatFetcher'];
+      const fetcherKeys = ['_globalFetcher', '_homeFetcher', '_homeOmochatFetcher', '_mentionsFetcher', '_meFetcher', '_bitchatFetcher'];
       for (const k of fetcherKeys) {
         try {
           const f = state && state[k];

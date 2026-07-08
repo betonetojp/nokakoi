@@ -1888,6 +1888,14 @@ body.theme-light .tab.blink:not(.active) {
   box-shadow: 0 0 10px var(--accent, rgba(124,147,255,0.18));
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .scroll-to-top.has-new,
+  .tab.blink:not(.active),
+  body.theme-light .tab.blink:not(.active) {
+    animation: none;
+  }
+}
+
 /* カスタム絵文字のベース設定（文脈別サイズ指定を許容） */
 .custom-emoji {
   display: inline-block;

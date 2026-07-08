@@ -8,6 +8,7 @@ import { t } from './i18n.js';
 import { MAX_PREVIEW_LENGTH, MAX_PREVIEW_LINES } from './constants.js';
 import { findEventById, cacheEvent } from './state.js';
 import { getNip19 as getNip19Compat } from './nostr-compat.js';
+import { getReadRelays } from './relay.js';
 
 /**
  * URL検出用の正規表現
@@ -655,8 +656,7 @@ async function handleNostrUri(uri) {
               const relays = sanitizeRelays(rawRelays);
 
               if (relays && relays.length > 0) {
-                event = await state.pool.get(relays, { ids: [eventId] });
-                if (event) cacheEvent(state, event);
+                event = await fetchQuoteEventById(state, relays, eventId);
               }
             }
 
@@ -731,6 +731,185 @@ async function updateNostrNpubLinks(container) {
 /**
  * Nostrノートリンクの内容プレビューとnevent引用表示を更新
  */
+const _quoteFetchInflight = new Map();
+const QUOTE_BATCH_TIMEOUT_MS = 4000;
+
+function relaySetKey(relays) {
+  return (relays || []).slice().sort().join('\0');
+}
+
+function resolveQuoteRelays(quoteEl, state) {
+  const defaultRelays = sanitizeRelays(getReadRelays(state.relays));
+  if (quoteEl && quoteEl.dataset && quoteEl.dataset.relays) {
+    try {
+      const relayHints = JSON.parse(quoteEl.dataset.relays);
+      if (Array.isArray(relayHints) && relayHints.length > 0) {
+        const sanitizedHints = sanitizeRelays(relayHints);
+        if (sanitizedHints.length > 0) return sanitizedHints;
+      }
+    } catch (e) { }
+  }
+  return defaultRelays;
+}
+
+function eventFetchKey(eventId, relays) {
+  return `id:${eventId}:${relaySetKey(relays)}`;
+}
+
+function naddrFetchKey(kind, pubkey, identifier, relays) {
+  return `naddr:${kind}:${pubkey}:${identifier}:${relaySetKey(relays)}`;
+}
+
+async function fetchQuoteEventById(state, relays, eventId) {
+  if (!eventId || !state?.pool || !relays?.length) return null;
+  const cached = findEventById(state, eventId);
+  if (cached) return cached;
+
+  const key = eventFetchKey(eventId, relays);
+  if (_quoteFetchInflight.has(key)) return _quoteFetchInflight.get(key);
+
+  const promise = state.pool.get(relays, { ids: [eventId] })
+    .then((ev) => {
+      if (ev) cacheEvent(state, ev);
+      return ev || null;
+    })
+    .catch(() => null)
+    .finally(() => {
+      _quoteFetchInflight.delete(key);
+    });
+
+  _quoteFetchInflight.set(key, promise);
+  return promise;
+}
+
+async function fetchQuoteEventByNaddr(state, relays, kind, pubkey, identifier) {
+  if (!state?.pool || !relays?.length || isNaN(kind) || !pubkey || identifier === undefined) return null;
+
+  const key = naddrFetchKey(kind, pubkey, identifier, relays);
+  if (_quoteFetchInflight.has(key)) return _quoteFetchInflight.get(key);
+
+  const promise = state.pool.get(relays, { authors: [pubkey], kinds: [kind], '#d': [identifier] })
+    .then((ev) => {
+      if (ev) cacheEvent(state, ev);
+      return ev || null;
+    })
+    .catch(() => null)
+    .finally(() => {
+      _quoteFetchInflight.delete(key);
+    });
+
+  _quoteFetchInflight.set(key, promise);
+  return promise;
+}
+
+async function prefetchQuoteEventIds(state, relays, eventIds) {
+  const uniqueIds = [...new Set(eventIds)].filter(Boolean);
+  const missing = uniqueIds.filter((id) => {
+    if (findEventById(state, id)) return false;
+    if (_quoteFetchInflight.has(eventFetchKey(id, relays))) return false;
+    return true;
+  });
+
+  if (!missing.length) {
+    await Promise.all(uniqueIds.map((id) => {
+      const inflight = _quoteFetchInflight.get(eventFetchKey(id, relays));
+      return inflight || Promise.resolve();
+    }));
+    return;
+  }
+
+  if (missing.length === 1) {
+    await fetchQuoteEventById(state, relays, missing[0]);
+    return;
+  }
+
+  const batchKey = `batch:${relaySetKey(relays)}:${missing.slice().sort().join(',')}`;
+  if (_quoteFetchInflight.has(batchKey)) {
+    await _quoteFetchInflight.get(batchKey);
+    return;
+  }
+
+  let finishBatch;
+  const batchPromise = new Promise((resolve) => { finishBatch = resolve; });
+  _quoteFetchInflight.set(batchKey, batchPromise);
+
+  for (const id of missing) {
+    const ikey = eventFetchKey(id, relays);
+    if (_quoteFetchInflight.has(ikey)) continue;
+    const tracked = batchPromise
+      .then(() => findEventById(state, id) || null)
+      .finally(() => { _quoteFetchInflight.delete(ikey); });
+    _quoteFetchInflight.set(ikey, tracked);
+  }
+
+  const pending = new Set(missing);
+  let unsub = null;
+  const timer = setTimeout(done, QUOTE_BATCH_TIMEOUT_MS);
+  function done() {
+    clearTimeout(timer);
+    try { if (typeof unsub === 'function') unsub(); } catch (e) { }
+    finishBatch();
+    _quoteFetchInflight.delete(batchKey);
+  }
+
+  try {
+    unsub = state.pool.subscribeMany(relays, [{ ids: missing }], {
+      onevent(ev) {
+        if (!ev?.id || !pending.has(ev.id)) return;
+        pending.delete(ev.id);
+        cacheEvent(state, ev);
+        if (pending.size === 0) done();
+      },
+      oneose: done
+    });
+  } catch (e) {
+    done();
+  }
+
+  await batchPromise;
+}
+
+async function prefetchQuotesForElements(state, quoteElements) {
+  const prefetchByRelay = new Map();
+
+  for (const quoteEl of quoteElements) {
+    const eventId = quoteEl.dataset.eventId;
+    const naddrKind = quoteEl.dataset.naddrKind;
+    const ownerEventEl = quoteEl.closest && quoteEl.closest('.event[data-event-id]');
+    const ownerEventId = ownerEventEl && ownerEventEl.dataset ? ownerEventEl.dataset.eventId : null;
+    if (eventId && ownerEventId && ownerEventId === eventId) continue;
+    if (!eventId && !naddrKind) continue;
+
+    const relays = resolveQuoteRelays(quoteEl, state);
+    if (!relays.length) continue;
+    const rk = relaySetKey(relays);
+    if (!prefetchByRelay.has(rk)) {
+      prefetchByRelay.set(rk, { relays, ids: [], naddrs: [] });
+    }
+    const group = prefetchByRelay.get(rk);
+
+    if (eventId) {
+      group.ids.push(eventId);
+    } else if (naddrKind) {
+      const kind = parseInt(naddrKind, 10);
+      const pubkey = quoteEl.dataset.naddrPubkey;
+      const identifier = quoteEl.dataset.naddrIdentifier;
+      if (!isNaN(kind) && pubkey && identifier !== undefined) {
+        group.naddrs.push({ kind, pubkey, identifier });
+      }
+    }
+  }
+
+  const tasks = [];
+  for (const { relays, ids, naddrs } of prefetchByRelay.values()) {
+    if (ids.length) tasks.push(prefetchQuoteEventIds(state, relays, ids));
+    for (const na of naddrs) {
+      tasks.push(fetchQuoteEventByNaddr(state, relays, na.kind, na.pubkey, na.identifier));
+    }
+  }
+  if (tasks.length) await Promise.all(tasks);
+}
+
 async function updateNostrNoteLinks(container, showEventModal, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager, recursionState = null) {
   if (!container) return;
   const globalState = window.__nostrState;
@@ -744,7 +923,9 @@ async function updateNostrNoteLinks(container, showEventModal, state, nip19, rea
   if (depth > maxDepth) return;
 
   // noteリンクと引用要素（note1, nevent1, naddr1）を処理
-  const quoteElements = container.querySelectorAll('.nostr-quote');
+  const quoteElements = Array.from(container.querySelectorAll('.nostr-quote'));
+  await prefetchQuotesForElements(state, quoteElements);
+
   for (const quoteEl of quoteElements) {
     const eventId = quoteEl.dataset.eventId;
     const naddrKind = quoteEl.dataset.naddrKind;
@@ -787,33 +968,18 @@ async function resolveAndRenderQuote(quoteEl, container, showEventModal, state, 
       event = findEventById(state, eventId);
     }
 
-    // イベントキャッシュがない場合、リレーから取得
+    // イベントキャッシュがない場合、リレーから取得（in-flight dedup / batch 済み）
     if (!event) {
-      const { getReadRelays } = await import('./relay.js');
-      const defaultRelays = sanitizeRelays(getReadRelays(state.relays));
-      let relays = defaultRelays;
-      if (quoteEl.dataset.relays) {
-        try {
-          const relayHints = JSON.parse(quoteEl.dataset.relays);
-          if (Array.isArray(relayHints) && relayHints.length > 0) {
-            const sanitizedHints = sanitizeRelays(relayHints);
-            // ヒントに有効なリレーがあれば優先。不正な値のみで全滅した場合は既定の読み取りリレーへフォールバック
-            if (sanitizedHints.length > 0) relays = sanitizedHints;
-          }
-        } catch (e) { }
-      }
-
-      if (relays && relays.length > 0) {
+      const relays = resolveQuoteRelays(quoteEl, state);
+      if (relays.length > 0) {
         if (eventId) {
-          event = await state.pool.get(relays, { ids: [eventId] });
-          if (event) cacheEvent(state, event);
+          event = await fetchQuoteEventById(state, relays, eventId);
         } else if (naddrKind) {
           const kind = parseInt(naddrKind, 10);
           const pubkey = quoteEl.dataset.naddrPubkey;
           const identifier = quoteEl.dataset.naddrIdentifier;
           if (!isNaN(kind) && pubkey && identifier !== undefined) {
-            event = await state.pool.get(relays, { authors: [pubkey], kinds: [kind], '#d': [identifier] });
-            if (event) cacheEvent(state, event);
+            event = await fetchQuoteEventByNaddr(state, relays, kind, pubkey, identifier);
           }
         }
       }

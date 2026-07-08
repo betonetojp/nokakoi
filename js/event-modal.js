@@ -184,7 +184,6 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       }
     }
     // kind:30023のみマークダウン解釈（==で型を許容）
-    console.log('[EventModal] event.kind を確認', event.kind, typeof event.kind);
     if (event.kind == 30023) {
       parseMarkdownSafe(event.content || '').then(html => {
         contentEl.innerHTML = (replyHtml ? replyHtml : '') + html;
