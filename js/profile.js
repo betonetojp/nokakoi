@@ -3,7 +3,8 @@
 // ============================================================================
 
 import { profileIndexerRelay } from './relay.js';
-import { truncateName } from './utils.js';
+import { truncateName, escapeHtml, replaceBadgeEmoji } from './utils.js';
+
 import { getNip19 as getNip19Compat } from './nostr-compat.js';
 
 const PROFILE_CACHE_KEY = 'nostr_profiles_cache';
@@ -300,7 +301,7 @@ export function displayName(state, pubkey, nip19) {
   try {
     if (state && state.followPetnames && state.followPetnames.has(pubkey)) {
       const pet = state.followPetnames.get(pubkey);
-      if (pet) return '📛' + pet;
+      if (pet) return '\u200B📛' + pet;
     }
   } catch (e) { }
 
@@ -352,7 +353,11 @@ export function updateNameDom(state, pubkey, nip19) {
     }
 
     // メイン名更新
-    el.textContent = names.main;
+    if (names.main && names.main.includes('\u200B📛')) {
+      el.innerHTML = replaceBadgeEmoji(escapeHtml(names.main));
+    } else {
+      el.textContent = names.main;
+    }
     // ユーザー名更新または追加
     let usernameSpan = el.nextElementSibling;
     if (usernameSpan && usernameSpan.classList.contains('username')) {
@@ -409,7 +414,7 @@ export function displayNameWithUsername(state, pubkey, nip19, options = {}) {
         const pet = state.followPetnames.get(pubkey);
         if (pet) {
           // 特殊マーカー付きで petname を表示
-          return { main: '📛' + truncateName(pet), sub: '' };
+          return { main: '\u200B📛' + truncateName(pet), sub: '' };
         }
       }
     } catch (e) { }

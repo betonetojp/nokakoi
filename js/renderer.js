@@ -1,4 +1,4 @@
-import { escapeHtml, fmtTime, truncateName, truncateByGraphemeVisible, processHiddenTagChars, buildReactionEmojiTags, getReactionContent, getReactionEmojiTags } from './utils.js';
+import { escapeHtml, fmtTime, truncateName, truncateByGraphemeVisible, processHiddenTagChars, buildReactionEmojiTags, getReactionContent, getReactionEmojiTags, replaceBadgeEmoji } from './utils.js';
 import { findEventById } from './state.js';
 import { displayName, displayNameWithUsername, loadUserStatus } from './profile.js';
 import { showReactionModal, showConfirmModal } from './modals.js';
@@ -415,21 +415,21 @@ export function renderReplyContext(state, ev, nip19, settings) {
       return '<div class="reply-to"><span class="reply-marker">' + reactionDisplay + '</span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + label + '</span></span><div class="reply-to-content" data-event-id="' + reactionContentEventId + '">' + reactionContentHtml + '</div></div>';
     }
     const label = t('reaction.label', { author: escapeHtml(replyToAuthor) });
-    return '<div class="reply-to"><span class="reply-marker">' + reactionDisplay + '</span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + label + '</span></span><div class="reply-to-content" data-event-id="' + reactionContentEventId + '">' + reactionContentHtml + '</div></div>';
+    return '<div class="reply-to"><span class="reply-marker">' + reactionDisplay + '</span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + replaceBadgeEmoji(label) + '</span></span><div class="reply-to-content" data-event-id="' + reactionContentEventId + '">' + reactionContentHtml + '</div></div>';
   } else if (ev.kind === 6 || ev.kind === 16) {
     if (isOpaqueAuthor) {
       const label = t('repost');
       return '<div class="reply-to repost"><span class="reply-marker"><img src="icon/repost.png" alt="' + escapeHtml(t('repost')) + '" class="icon"/></span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + label + '</span></span><div class="reply-to-content" data-event-id="' + (replyToEvent.id || '') + '">' + replyContentHtml + '</div></div>';
     }
     const label = t('repost.label', { author: escapeHtml(replyToAuthor) });
-    return '<div class="reply-to repost"><span class="reply-marker"><img src="icon/repost.png" alt="' + escapeHtml(t('repost')) + '" class="icon"/></span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + label + '</span></span><div class="reply-to-content" data-event-id="' + (replyToEvent.id || '') + '">' + replyContentHtml + '</div></div>';
+    return '<div class="reply-to repost"><span class="reply-marker"><img src="icon/repost.png" alt="' + escapeHtml(t('repost')) + '" class="icon"/></span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + replaceBadgeEmoji(label) + '</span></span><div class="reply-to-content" data-event-id="' + (replyToEvent.id || '') + '">' + replyContentHtml + '</div></div>';
   } else {
     if (isOpaqueAuthor) {
       const label = t('reply');
       return '<div class="reply-to"><span class="reply-marker"><img src="icon/reply.png" alt="' + escapeHtml(t('reply')) + '" class="icon"/></span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + label + '</span></span><div class="reply-to-content" data-event-id="' + (replyToEvent.id || '') + '">' + replyContentHtml + '</div></div>';
     }
     const label = t('reply.label', { author: escapeHtml(replyToAuthor) });
-    return '<div class="reply-to"><span class="reply-marker"><img src="icon/reply.png" alt="' + escapeHtml(t('reply')) + '" class="icon"/></span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + label + '</span></span><div class="reply-to-content" data-event-id="' + (replyToEvent.id || '') + '">' + replyContentHtml + '</div></div>';
+    return '<div class="reply-to"><span class="reply-marker"><img src="icon/reply.png" alt="' + escapeHtml(t('reply')) + '" class="icon"/></span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + replaceBadgeEmoji(label) + '</span></span><div class="reply-to-content" data-event-id="' + (replyToEvent.id || '') + '">' + replyContentHtml + '</div></div>';
   }
 }
 
@@ -715,7 +715,7 @@ function buildEventNameBlockHtml(state, ev, settings, names, statusHtml) {
     }
   }
 
-  let namePrimaryHtml = '<span class="name" data-pubkey="' + pk + '">' + escapeHtml(names.main) + '</span>';
+  let namePrimaryHtml = '<span class="name" data-pubkey="' + pk + '">' + replaceBadgeEmoji(escapeHtml(names.main)) + '</span>';
   if (ev.kind === 20000) {
     const hash = (pk && pk.length >= 4) ? '#' + pk.slice(-4) : '';
     if (hash) {
@@ -1672,12 +1672,12 @@ try {
             const name = nameEl ? nameEl.textContent : el.textContent || '';
             const parent = el.closest('.reply-to');
             if (parent && parent.classList.contains('repost')) {
-              el.innerHTML = '<span class="reply-author-name">' + escapeHtml(name) + '</span> ' + '<span>' + t('repost') + '</span>';
+              el.innerHTML = '<span class="reply-author-name">' + replaceBadgeEmoji(escapeHtml(name)) + '</span> ' + '<span>' + t('repost') + '</span>';
             } else if (parent && parent.querySelector('.reply-marker') && parent.querySelector('.reply-marker').innerText.trim()) {
               // reaction の場合
-              el.innerHTML = '<span class="reply-author-name">' + escapeHtml(name) + '</span> ' + '<span>' + t('reaction.button.title') + '</span>';
+              el.innerHTML = '<span class="reply-author-name">' + replaceBadgeEmoji(escapeHtml(name)) + '</span> ' + '<span>' + t('reaction.button.title') + '</span>';
             } else {
-              el.innerHTML = '<span class="reply-author-name">' + escapeHtml(name) + '</span> ' + '<span>' + t('reply') + '</span>';
+              el.innerHTML = '<span class="reply-author-name">' + replaceBadgeEmoji(escapeHtml(name)) + '</span> ' + '<span>' + t('reply') + '</span>';
             }
           } catch (e) { }
         });

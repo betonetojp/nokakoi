@@ -135,7 +135,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     try {
       const pet = (state && state.followPetnames && state.followPetnames.get && state.followPetnames.get(pubkey)) || '';
       if (pet && String(pet).trim()) {
-        html += '<span class="petname">📛' + escapeHtml(String(pet).trim()) + '</span>';
+        html += '<span class="petname"><span class="icon petname-badge" role="img" aria-label="Badge"></span>' + escapeHtml(String(pet).trim()) + '</span>';
       }
     } catch (e) { }
     html += '<span class="profile-display-name-text" title="' + escapeHtml(displayName) + '">' + escapeHtml(displayName) + '</span>';

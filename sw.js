@@ -5,7 +5,7 @@
 
 // バージョンは app/js/version.js で一元管理
 // サービスワーカー用にここにもコピー（リリース時は手動で更新・version.jsと一致させること）
-const CACHE_VERSION = 'v1.87.1';
+const CACHE_VERSION = 'v1.87.2';
 const CACHE_NAME = `nokakoi-${CACHE_VERSION}`;
 
 // ローカル開発時のみ詳細ログを有効化
@@ -37,6 +37,7 @@ const STATIC_ASSETS = [
   'icon/reply.png',
   'icon/repost.png',
   'icon/star.png',
+  'icon/badge.png',
   'icon/up.png',
   // JS Modules
   'js/main.js',

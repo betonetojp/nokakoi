@@ -112,6 +112,15 @@ export function escapeHtml(text) {
 }
 
 /**
+ * システムペットネームのマーカー（\u200B📛）を badge.png 画像タグに置換
+ */
+export function replaceBadgeEmoji(html) {
+  if (typeof html !== 'string') return html;
+  return html.replace(/\u200B📛/g, '<span class="icon petname-badge" role="img" aria-label="📛"></span>');
+}
+
+
+/**
  * タイムスタンプをローカル時刻文字列に変換
  */
 export function fmtTime(ts) {

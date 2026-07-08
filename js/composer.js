@@ -2,7 +2,7 @@
 // 投稿欄管理
 // ============================================================================
 
-import { $, escapeHtml, truncateName, truncateByGraphemeVisible, logWarn } from './utils.js';
+import { $, escapeHtml, truncateName, truncateByGraphemeVisible, logWarn, replaceBadgeEmoji } from './utils.js';
 import { displayName } from './profile.js';
 import { t, applyTranslations } from './i18n.js';
 import { attachEmojiShortcodeSuggest } from './emoji-shortcode-suggest.js';
@@ -78,7 +78,7 @@ export function setReplyTarget(state, event, nip19) {
   const contentShort = content.length > 100 ? content.substring(0, 100) + '...' : content;
 
   replyContextContent.innerHTML =
-    '<span class="reply-author">' + escapeHtml(authorName) + '</span>: ' +
+    '<span class="reply-author">' + replaceBadgeEmoji(escapeHtml(authorName)) + '</span>: ' +
     escapeHtml(contentShort);
 
   // プレースホルダー更新
@@ -137,7 +137,7 @@ export function setQuoteTarget(state, event, nip19) {
   const content = (event.content || '').split('\n')[0];
   const contentShort = content.length > 100 ? content.substring(0,100) + '...' : content;
 
-  replyContextContent.innerHTML = '<span class="reply-author">' + escapeHtml(authorName) + '</span>: ' + escapeHtml(contentShort);
+  replyContextContent.innerHTML = '<span class="reply-author">' + replaceBadgeEmoji(escapeHtml(authorName)) + '</span>: ' + escapeHtml(contentShort);
 
   noteInput.focus();
 }
@@ -320,7 +320,7 @@ try {
             }
             const content = (currentReplyTarget.content || '').split('\n')[0];
             const contentShort = content.length > 100 ? content.substring(0, 100) + '...' : content;
-            replyContextContent.innerHTML = '<span class="reply-author">' + escapeHtml(authorName) + '</span>: ' + escapeHtml(contentShort);
+            replyContextContent.innerHTML = '<span class="reply-author">' + replaceBadgeEmoji(escapeHtml(authorName)) + '</span>: ' + escapeHtml(contentShort);
             replyContext.hidden = false;
           } catch (e) { }
         }

@@ -1358,6 +1358,18 @@ body.theme-light .topbar a.secondary:hover {
   font-weight: 600;
   font-size: 0.95em;
 }
+.petname-badge {
+  display: inline-block;
+  background-color: currentColor;
+  -webkit-mask-image: url('icon/badge.png');
+  mask-image: url('icon/badge.png');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  margin-right: 4px;
+  vertical-align: -0.15em;
+}
 #profileDisplayName .profile-display-name-text {
   min-width: 0;
   flex: 1;

@@ -2,7 +2,7 @@
 // 単一イベント詳細モーダル表示
 // ============================================================================
 
-import { escapeHtml, fmtTime, processHiddenTagChars } from './utils.js';
+import { escapeHtml, fmtTime, processHiddenTagChars, replaceBadgeEmoji } from './utils.js';
 import { displayNameWithUsername } from './profile.js';
 import { showJsonModal } from './json-modal.js';
 import { linkifyText, fitCustomEmoji, updateNostrNpubLinks, updateNostrNoteLinks, linkifyNostrUri } from './url-parser.js';
@@ -155,7 +155,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
     } else {
       names = event.pubkey && state ? displayNameWithUsername(state, event.pubkey, nip19) : { main: event.pubkey, sub: '' };
     }
-    let nameHtml = '<span class="name" data-pubkey="' + escapeHtml(event.pubkey || '') + '" style="font-weight:600;font-size:0.95em;color:var(--accent);cursor:pointer;">' + escapeHtml(names.main) + '</span>';
+    let nameHtml = '<span class="name" data-pubkey="' + escapeHtml(event.pubkey || '') + '" style="font-weight:600;font-size:0.95em;color:var(--accent);cursor:pointer;">' + replaceBadgeEmoji(escapeHtml(names.main)) + '</span>';
     if (names.sub) {
       nameHtml += '<span class="username" style="font-weight:400;font-size:0.85em;color:var(--muted);margin-left:4px;">@' + escapeHtml(names.sub) + '</span>';
     }
