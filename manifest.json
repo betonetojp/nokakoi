@@ -1,0 +1,23 @@
+{
+  "name": "nokakoi",
+  "short_name": "nokakoi",
+  "description": "軽量なNostrクライアント",
+  "lang": "ja",
+  "categories": ["social"],
+  "start_url": "/app/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffeaf5",
+  "icons": [
+    {
+      "src": "/app/icon/nokakoi-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/app/icon/nokakoi-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="description" content="軽量なNostrクライアント">
+  <title>nokakoi</title>
+  <link rel="stylesheet" href="./style.css?v=1.87.1">
+  <style>
+    /* Android のネイティブのプル・トゥ・リフレッシュを有効にし、iOS のスムーズスクロールも維持 */
+    html, body, #feeds {
+      /* overscroll を抑制しない（ネイティブのプル・トゥ・リフレッシュを有効化） */
+      /* overscroll-behavior-y: contain; */
+      -webkit-overflow-scrolling: touch;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/nostr-tools@2.9.4/lib/nostr.bundle.min.js?v=20251006-2" crossorigin="anonymous" defer data-cfasync="false"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" crossorigin="anonymous" defer data-cfasync="false"></script>
+  <link rel="icon" type="image/png" href="/app/icon/nokakoi.png">
+  <link rel="shortcut icon" type="image/png" href="/app/icon/nokakoi.png">
+  <link rel="apple-touch-icon" href="/app/icon/nokakoi.png">
+  <!-- PWA: Web App Manifest -->
+  <link rel="manifest" href="/app/manifest.json">
+  <meta name="theme-color" content="#ffeaf5">
+  <script>
+    // 動的にツールバー色を切り替える（ライト: ピンク / ダーク: 黒）
+    (function(){
+      function updateThemeColor(){
+        try{
+          var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if(!meta){ meta = document.createElement('meta'); meta.name = 'theme-color'; document.head.appendChild(meta); }
+          meta.content = dark ? '#232633' : '#ffeaf5';
+        }catch(e){}
+      }
+      updateThemeColor();
+      try{
+        var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+        if(mq && typeof mq.addEventListener === 'function') mq.addEventListener('change', updateThemeColor);
+        else if(mq && typeof mq.addListener === 'function') mq.addListener(updateThemeColor);
+      }catch(e){}
+    })();
+  </script>
+  <!-- iOS Safari: standalone display -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+</head>
+<body>
+  <script>
+    // --vh を設定して、モバイルのアドレスバー表示/非表示による 100vh のズレを補正
+    function setVhCssVar() {
+      try {
+        var vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', vh + 'px');
+      } catch (e) { }
+    }
+    // 初期設定と変化時の再設定
+    window.addEventListener('load', setVhCssVar);
+    window.addEventListener('resize', setVhCssVar);
+    window.addEventListener('orientationchange', setVhCssVar);
+    if (window.visualViewport && typeof window.visualViewport.addEventListener === 'function') {
+      window.visualViewport.addEventListener('resize', setVhCssVar);
+    }
+
+    // モーダル表示時にリロード/Topへボタンを非表示
+    function toggleScrollToTopBtnForModal() {
+      var btn = document.getElementById('scrollToTopBtn');
+      var modals = document.querySelectorAll('.modal');
+      var anyOpen = Array.from(modals).some(function(m) { return !m.hasAttribute('hidden') && m.style.display !== 'none'; });
+      if (btn) btn.style.display = anyOpen ? 'none' : '';
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      var modals = document.querySelectorAll('.modal');
+      modals.forEach(function(modal) {
+        var observer = new MutationObserver(toggleScrollToTopBtnForModal);
+        observer.observe(modal, { attributes: true, attributeFilter: ['hidden', 'style'] });
+      });
+      toggleScrollToTopBtnForModal();
+    });
+  </script>
+  <header class="topbar">
+    <div class="brand">
+      <img src="/app/icon/nokakoi.png" data-i18n-alt="brand" class="brand-icon">
+      <span class="brand-text" data-i18n="brand">nokakoi</span>
+    </div>
+    <nav class="actions">
+      <span id="loginLabel" class="muted" data-i18n="login.select">ログイン選択</span>
+      <button id="nsecLoginBtn" class="secondary" type="button" data-i18n="login.nsec">nsec</button>
+      <button id="nip46LoginBtn" class="secondary" type="button" data-i18n="login.nip46">NIP-46</button>
+      <button id="loginBtn" type="button" data-i18n="login.nip07">NIP-07</button>
+      <span id="userInfo" class="muted" style="display:inline; margin-left:8px;"></span>
+      <button id="logoutBtn" class="secondary" hidden type="button" data-i18n="logout">ログアウト</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="panel">
+      <details id="relayPanel">
+        <summary data-i18n="relays.title">リレー設定</summary>
+        <p class="muted" data-i18n="relays.summary">リレーごとにread（読み込み）/write（書き込み）を設定できます。</p>
+        <div id="relayList"></div>
+        <div class="row">
+          <button id="addRelay" class="secondary" type="button" data-i18n="relays.add">リレーを追加</button>
+          <button id="importRelayKind10002" class="secondary" type="button" data-i18n="relays.importKind10002">kind:10002から読み込む</button>
+          <button id="saveRelays" type="button" data-i18n="relays.saveAndReconnect">保存して再接続</button>
+          <button id="resetRelays" class="secondary" type="button" data-i18n="relays.reset">初期値に戻す</button>
+        </div>
+        <div class="row">
+          <button id="openGlobalRelayModalBtn" class="secondary" type="button" data-i18n="globalRelay.title">グローバルリレー設定</button>
+        </div>
+        <div id="relayStatus" class="muted" style="margin-top:6px;"></div>
+      </details>
+    </section>
+
+    <section class="panel">
+      <details id="displayPanel">
+        <summary data-i18n="display.title">表示設定</summary>
+        <div class="mt-12">
+          <label class="setting-row">
+            <span data-i18n="theme.label">テーマ</span>
+            <select id="themeSelect">
+              <option value="system" data-i18n="theme.system">自動（システム）</option>
+              <option value="dark" data-i18n="theme.dark">ダーク</option>
+              <option value="light" data-i18n="theme.light">ライト</option>
+            </select>
+          </label>
+        </div>
+        <div class="mt-12">
+          <label class="setting-row">
+            <span data-i18n="colorTheme.label">カラーテーマ</span>
+            <select id="colorThemeSelect">
+              <option value="pink" data-i18n="colorTheme.pink">ピンク</option>
+              <option value="blue" data-i18n="colorTheme.blue">ブルー</option>
+              <option value="purple" data-i18n="colorTheme.purple">パープル</option>
+              <option value="green" data-i18n="colorTheme.green">グリーン</option>
+              <option value="orange" data-i18n="colorTheme.orange">オレンジ</option>
+              <option value="gray" data-i18n="colorTheme.gray">モノクロ</option>
+            </select>
+          </label>
+        </div>
+        <div class="mt-12">
+          <label class="setting-row">
+            <span>言語 / Language</span>
+            <select id="langSelect">
+              <option value="ja">日本語</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+        </div>
+
+        <!-- タブ設定コンテナ -->
+        <fieldset style="margin-top: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px;">
+          <legend style="font-size: 0.9em; color: var(--muted);" data-i18n="tabs.settings">タブ設定</legend>
+          <div id="tabSettingsList" style="display: flex; flex-direction: column; gap: 4px;"></div>
+        </fieldset>
+        <div style="margin-top: 8px; margin-bottom: 8px; display: flex; gap: 8px;">
+          <button id="openOmochatSettingsModalBtn" class="secondary" type="button" data-i18n="omochat.settings.title">omochat設定</button>
+          <button id="openReactionSettingsModalBtn" class="secondary" type="button" data-i18n="reaction.default.title">リアクション設定</button>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <span data-i18n="previewMaxLength">省略文字数</span>
+            <input type="number" id="previewMaxLengthInput" min="10" max="100000" step="10" style="width:80px;">
+          </label>
+        </div>
+        <div class="mt-12">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="simpleDisplayModeCheck">
+            <span data-i18n="simpleDisplayMode">コンパクト表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showAvatarsCheck" checked>
+            <span data-i18n="showAvatars">プロフィール画像を表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showTimelineMediaCheck" checked>
+            <span data-i18n="showTimelineMedia">画像・動画をインライン表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showCustomEmojiCheck" checked>
+            <span data-i18n="showCustomEmoji">カスタム絵文字を表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showMusicStatusCheck" checked>
+            <span data-i18n="showMusicStatus">Now Playingを表示</span>
+          </label>
+        </div>
+
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showHomeOmochatCheck">
+            <span data-i18n="showHomeOmochat">ホームにomochatを表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showHomeReactionsCheck">
+            <span data-i18n="showHomeReactions">ホームにリアクションを表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showHomeChannelCheck">
+            <span data-i18n="showHomeChannel">ホームにチャンネル投稿を表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showHomeRepost16Check">
+            <span data-i18n="showHomeRepost16">ホームに汎用リポストを表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showProfileReactionsCheck">
+            <span data-i18n="showProfileReactions">プロフィールにリアクションを表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showProfileChannelCheck">
+            <span data-i18n="showProfileChannel">プロフィールにチャンネル投稿を表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showProfileRepost16Check">
+            <span data-i18n="showProfileRepost16">プロフィールに汎用リポストを表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showProfileBannerCheck">
+            <span data-i18n="showProfileBanner">プロフィールにバナーを表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="disableBlinkCheck">
+            <span data-i18n="disableBlink">点滅通知を使用しない</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="fetchFollowEmojiCheck">
+            <span data-i18n="fetchFollowEmoji">フォロイーのkind:10030参照絵文字も取得する</span>
+          </label>
+        </div>
+        <div class="mt-12">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showClientNameCheck" checked>
+            <span data-i18n="showClientName">クライアント名を表示</span>
+          </label>
+        </div>
+        <div class="mt-12">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="attachClientNameCheck" checked>
+            <span data-i18n="attachClientName">投稿にクライアント名を付ける</span>
+          </label>
+        </div>
+        <div class="mt-12">
+          <div class="mt-8 setting-row">
+            <label for="clientNameInput" style="font-size:0.9em;" data-i18n="clientNameLabel">クライアント名</label>
+            <input type="text" id="clientNameInput" value="nokakoi" maxlength="32" style="width:140px;">
+          </div>
+        </div>
+        <div style="margin-top: 12px;">
+          <label for="postLinkTitleInput" style="font-size: 0.9em; margin-right: 8px;" data-i18n="postLinkTitleLabel">投稿連携アプリ名</label>
+          <input type="text" id="postLinkTitleInput" style="width: 160px; font-size: 0.95em;" maxlength="32">
+        </div>
+        <div style="margin-top: 12px;">
+          <label for="postLinkUrlInput" style="font-size: 0.9em; margin-right: 8px;" data-i18n="postLinkUrlLabel">投稿連携URL</label>
+          <input type="text" id="postLinkUrlInput" style="width: 260px; font-size: 0.95em;" maxlength="128">
+          <span id="postLinkSaveStatus" class="muted"></span>
+        </div>
+        <div class="mt-8 setting-row" style="margin-left:16px;">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="postLinkOpenNewTabCheck">
+            <span data-i18n="postlink.open_in_new_tab">新しいタブで開く</span>
+          </label>
+        </div>
+        <div style="margin-top: 16px;">
+          <button id="fetchMuteListBtn" type="button" data-i18n="fetchMuteList">ミュートリストを取得</button>
+          <span id="fetchMuteListStatus" class="muted" style="margin-left:8px;"></span>
+          <div id="muteCounts" style="margin-top:8px; font-size:0.9em;" hidden>
+            <div><span data-i18n="mute.public_label">公開ミュート：</span> <span id="mutePubPublicCount">0</span> users / <span id="muteWordPublicCount">0</span> words</div>
+            <div style="margin-top:4px;"><span data-i18n="mute.private_label">非公開ミュート：</span> <span id="mutePubPrivateCount">0</span> users / <span id="muteWordPrivateCount">0</span> words</div>
+          </div>
+        </div>
+        <div style="margin-top: 24px;">
+          <button id="clearCacheBtn" class="secondary" type="button" data-i18n="clearCache">キャッシュをクリア</button>
+          <span id="clearCacheStatus" class="muted" style="margin-left: 8px;"></span>
+        </div>
+      </details>
+    </section>
+
+    <section id="composer" class="panel composer-floating" hidden>
+      <div id="replyContext" class="reply-context" hidden>
+        <div class="reply-context-header">
+          <span class="reply-context-label" data-i18n="composer.replyLabel">返信先:</span>
+          <span id="changeGeohashLabel" class="change-geohash-label" data-i18n="composer.change_geohash_label" style="display:none; margin-left:8px; color:var(--muted); font-size:0.95em; cursor:pointer;">別のgeohashに投稿</span>
+          <button id="cancelReply" class="btn-cancel-reply" type="button" data-i18n-title="reply.cancelTitle" data-i18n-aria-label="reply.cancelTitle">✕</button>
+        </div>
+        <div id="replyContextContent" class="reply-context-content"></div>
+      </div>
+      <h2 id="composerTitle" data-i18n="composer.title">投稿</h2>
+      <textarea id="noteInput" rows="4" data-i18n="composer.placeholder" placeholder="どんな感じ？"></textarea>
+      <div class="row composer-row">
+        <button id="publishBtn" type="button" data-i18n="publish">投稿する</button>
+        <span id="publishResult" class="muted"></span>
+        <button id="steganographyBtn" class="secondary" type="button" data-i18n-title="steganography.title" style="margin-left:auto;">🥟</button>
+        <button id="ehagakiBtn" class="secondary" type="button" data-i18n="ehagaki">eHagakiで投稿</button>
+      </div>
+    </section>
+
+    <!-- eHagaki モーダル -->
+    <div id="ehagakiModal" class="modal" hidden>
+      <div class="modal-body panel" style="max-width: 600px; min-width: 320px;">
+        <div class="modal-header-row">
+          <h2 style="margin: 0; font-size: 1.1em;" data-i18n="ehagaki">eHagaki</h2>
+          <button id="ehagakiClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+        </div>
+        <iframe id="ehagakiFrame" src="" data-src="" loading="lazy" style="width:100%;height:60vh;min-height:240px;border-radius:8px;border:1px solid var(--border);background:#fff;"
+                allow="local-network-access; local-network; loopback-network"></iframe>
+      </div>
+    </div>
+
+    <!-- 隠し文字埋め込みモーダル -->
+    <div id="steganographyModal" class="modal" hidden>
+      <div class="modal-body panel" style="max-width: 400px;">
+        <div class="modal-header-row">
+          <h2 style="margin: 0; font-size: 1.1em;" data-i18n="steganography.title">隠し文字埋め込み</h2>
+          <button id="steganographyClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label for="steganographyEmoji" style="display: block; margin-bottom: 4px; font-size: 0.9em;" data-i18n="steganography.emoji_label">絵文字</label>
+          <input type="text" id="steganographyEmoji" data-i18n-placeholder="steganography.emoji_placeholder" style="width: 100%; font-size: 1.2em; text-align: center;">
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label for="steganographyText" style="display: block; margin-bottom: 4px; font-size: 0.9em;" data-i18n="steganography.text_label">隠すテキスト</label>
+          <textarea id="steganographyText" rows="3" data-i18n-placeholder="steganography.text_placeholder"></textarea>
+        </div>
+        <div id="steganographyStatus" class="muted" style="margin-bottom: 12px; min-height: 1.2em;"></div>
+        <div class="row">
+          <button id="steganographyConfirm" type="button" data-i18n="steganography.confirm">埋め込む</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ホームタブ クイック表示設定モーダル -->
+    <div id="homeDisplayQuickModal" class="modal" hidden>
+      <div class="modal-body panel" style="max-width: 400px;">
+        <h2 style="margin-top:0;" data-i18n="homeDisplayQuick.title">表示のクイック設定</h2>
+        <div style="margin-top: 12px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="homeDisplayQuickCompactCheck">
+            <span data-i18n="simpleDisplayMode">コンパクト表示</span>
+          </label>
+        </div>
+        <div style="margin-top: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="homeDisplayQuickMediaCheck">
+            <span data-i18n="showTimelineMedia">画像・動画をインライン表示</span>
+          </label>
+        </div>
+        <div style="margin-top: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="homeDisplayQuickReactionsCheck">
+            <span data-i18n="showHomeReactions">ホームにリアクションを表示</span>
+          </label>
+        </div>
+        <div style="margin-top: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="homeDisplayQuickMuteCheck">
+            <span data-i18n="mute.apply">ミュートを適用</span>
+          </label>
+        </div>
+        <div class="row" style="margin-top: 16px;">
+          <button id="homeDisplayQuickCloseBtn" class="secondary" type="button" data-i18n="close">閉じる</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- omochat設定モーダル -->
+    <div id="omochatModal" class="modal" hidden>
+      <div class="modal-body panel" style="max-width: 400px;">
+        <h2 style="margin-top:0;" data-i18n="omochat.settings.title">omochat設定</h2>
+        <p class="muted" style="font-size:0.9em; margin-bottom:12px;" data-i18n="omochat.modal.hint">購読するgeohashを設定できます。</p>
+
+        <label style="display:block; margin-bottom:4px; font-weight:bold;" data-i18n="omochat.geohash.label">geohash (#g)</label>
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+          <input type="text" id="omochatGeohashInput" placeholder="xn, ..." data-i18n-placeholder="omochat.geohash.placeholder" style="flex:1;">
+          <button id="omochatGeohashHistoryBtn" type="button" class="secondary" style="padding:2px 10px; font-size:0.95em;" data-i18n="omochat.geohash_history.btn" title="履歴">履歴</button>
+        </div>
+        <div id="omochatGeohashHistoryPopup" style="display:none; position:absolute; z-index:99999; background:var(--panel); border:1px solid var(--border); border-radius:6px; box-shadow:0 2px 8px #0002; min-width:180px; max-width:320px; max-height:220px; overflow:auto; font-size:0.97em;"></div>
+
+        <!-- 下位geohash表示オプション -->
+        <label style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; cursor: pointer;">
+          <input type="checkbox" id="omochatSubordinateCheck" style="margin-top: 2px;">
+          <div>
+            <div data-i18n="omochat.subordinate.label">配下のgeohashも表示</div>
+            <div class="muted" style="font-size: 0.8em; line-height: 1.3;">
+              <span data-i18n="omochat.subordinate.hint">設定したgeohashで始まる投稿（例: xnならxn77, xn0m7m等）も含めて表示します。</span>
+              <br>
+              <span style="color: var(--accent);" data-i18n="omochat.subordinate.warning">⚠️ 通信量が多くなる可能性があります。</span>
+            </div>
+          </div>
+        </label>
+
+        <!-- リレー設定 -->
+        <details style="margin-top: 16px; margin-bottom: 12px;">
+          <summary data-i18n="omochat.relays.title">リレー設定</summary>
+          <div id="omochatRelayList" style="margin: 8px 0;"></div>
+          <div style="display: flex; gap: 8px;">
+            <button id="omochatAddRelay" class="secondary" type="button" data-i18n="omochat.relays.add">リレーを追加</button>
+            <button id="omochatResetRelays" class="secondary" type="button" data-i18n="omochat.relays.reset">初期値に戻す</button>
+          </div>
+        </details>
+
+        <div class="row">
+          <button id="omochatSaveBtn" type="button" data-i18n="reaction.save">保存</button>
+          <button id="omochatCancelBtn" class="secondary" type="button" data-i18n="cancel">キャンセル</button>
+        </div>
+        <div id="omochatStatus" class="muted" style="margin-top:8px; min-height:1.2em;"></div>
+      </div>
+    </div>
+
+    <section class="tabs">
+      <!-- タブは動的に生成 -->
+    </section>
+
+    <section id="feeds">
+      <div id="feed-home" class="feed active"></div>
+      <div id="feed-global" class="feed"></div>
+      <div id="feed-mentions" class="feed"></div>
+      <div id="feed-me" class="feed"></div>
+      <div id="feed-bitchat" class="feed"></div>
+    </section>
+  </main>
+
+  <!-- nsecログインモーダル -->
+  <div id="nsecModal" class="modal" hidden>
+    <div class="modal-body panel">
+      <form id="nsecForm" onsubmit="return false;">
+      <!-- パスワードマネージャー/アクセシビリティ向けの非表示ユーザー名 -->
+      <input type="text" id="nsec_username" name="username" autocomplete="username" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0; border:0; padding:0; margin:0;" aria-hidden="true">
+      <h2 data-i18n="nsec.modal.title">nsecでログイン</h2>
+      <p class="muted" data-i18n="nsec.modal.hint">秘密鍵を入力してください。</p>
+      <label for="nsecInput" style="display: block; margin-bottom:4px; font-size:0.9em;" data-i18n="nsec.input.label">nsec または16進秘密鍵</label>
+      <input type="password" id="nsecInput" autocomplete="new-password" data-i18n="nsec.input.placeholder" placeholder="nsec1... または hex" style="width:100%; margin-bottom:12px;">
+      <label style="display: flex; align-items: center; gap:6px; margin-bottom:12px; cursor: pointer;">
+        <input type="checkbox" id="saveNsecCheck">
+        <span style="font-size:0.9em;" data-i18n="nsec.saveHint">次回から自動ログイン（暗号化して保存）</span>
+      </label>
+      <div id="autoLoginOptions" style="display: none; margin-bottom:12px; padding-left:24px;">
+        <label style="display: flex; align-items: center; gap:8px; margin-bottom:0; cursor: pointer;">
+          <input type="radio" name="autoLoginMethod" id="radioPasskey" value="passkey">
+          <span style="font-size:0.9em;" data-i18n="nsec.passkey_option">パスキー（指紋認証/PIN）で保護（推奨）</span>
+        </label>
+        <p id="passkeyInfo" class="muted" style="font-size:0.8em; margin:4px 0px 8px; line-height: 1.4;">
+          <span data-i18n="nsec.passkey_info_line1">パスワード不要で、指紋認証やPINで自動ログインできます。</span><br>
+          <span data-i18n="nsec.passkey_info_line2">パスキーは端末ごとに登録されます。</span>
+        </p>
+        <label style="display: flex; align-items: center; gap:8px; margin-bottom:8px; cursor: pointer;">
+          <input type="radio" name="autoLoginMethod" id="radioPassword" value="password">
+          <span style="font-size:0.9em;" data-i18n="nsec.password_option">暗号化パスワード方式</span>
+        </label>
+      </div>
+      <div id="passwordSection" style="display: none; margin-bottom:12px; padding-left:24px;">
+        <label for="nsecPassword" style="display: block; margin-bottom:4px; font-size:0.9em;" data-i18n="nsec.passwordLabel">暗号化パスワード</label>
+        <input type="password" id="nsecPassword" autocomplete="new-password" data-i18n="nsec.password_placeholder" placeholder="パスワード（空欄可）">
+        <p class="muted" style="font-size:0.8em; margin:4px 0px 8px; line-height: 1.4;">
+          <span data-i18n="nsec.password_section_desc_line1">パスワード方式では、入力したパスワードで秘密鍵を暗号化して保存します。</span><br>
+          <span data-i18n="nsec.password_section_desc_line2">次回以降はこのパスワードを入力することで自動ログインできます。</span><br>
+          <span data-i18n="nsec.password_section_desc_line3">パスワード自体は保存されません。暗号化データのみ端末ごとに保存されます。</span>
+        </p>
+      </div>
+      <div class="row">
+        <button id="nsecLoginConfirm" type="button" data-i18n="nsec.login">ログイン</button>
+        <button id="nsecLoginCancel" class="secondary" type="button" data-i18n="cancel">キャンセル</button>
+      </div>
+      <div class="muted" id="nsecLoginStatus" style="margin-top:8px;"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- NIP-46 Nostr Connect ログインモーダル -->
+  <div id="nip46Modal" class="modal" hidden>
+    <div class="modal-body panel" style="max-width: 500px;">
+      <div class="modal-header-row">
+        <h2 style="margin: 0;" data-i18n="nip46.modal.title">Nostr Connect (NIP-46)</h2>
+        <button id="nip46Cancel" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+      </div>
+
+      <!-- タブ切り替え -->
+      <div class="nip46-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
+        <button id="nip46QrTabBtn" class="nip46-tab active" type="button" data-i18n="nip46.tab.qr">QRコード</button>
+        <button id="nip46BunkerTabBtn" class="nip46-tab" type="button" data-i18n="nip46.tab.bunker">bunker://</button>
+        <button id="nip46AppTabBtn" class="nip46-tab" type="button" data-i18n="nip46.tab.app">アプリ起動</button>
+      </div>
+
+      <!-- QRコードタブ -->
+      <div id="nip46QrTab" class="nip46-tab-content">
+        <p class="muted" data-i18n="nip46.qr.hint">nsecBunkerアプリでスキャンしてください</p>
+        <div id="nip46QrCode" style="text-align: center; margin: 16px 0; background: white; padding: 16px; border-radius: 8px;"></div>
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <input type="text" id="nip46ConnectUri" readonly style="flex: 1; font-size: 0.85em;">
+          <button id="nip46CopyUri" type="button" data-i18n="copy">コピー</button>
+        </div>
+      </div>
+
+      <!-- bunker:// タブ -->
+      <div id="nip46BunkerTab" class="nip46-tab-content" hidden>
+        <p class="muted" data-i18n="nip46.bunker.hint">bunker:// URLを入力してください</p>
+        <input type="text" id="nip46BunkerInput" placeholder="bunker://..." style="width: 100%; margin-bottom: 12px;">
+        <button id="nip46BunkerConnect" type="button" data-i18n="nip46.bunker.connect">接続</button>
+      </div>
+
+      <!-- アプリ起動タブ -->
+      <div id="nip46AppTab" class="nip46-tab-content" hidden>
+        <p class="muted" data-i18n="nip46.app.hint">この端末にインストールされているサイナーアプリ（nokandro等）を起動して接続します。</p>
+        <button id="nip46OpenApp" type="button" style="width: 100%; padding: 12px; margin-bottom: 12px;" data-i18n="nip46.app.open">サイナーアプリを起動</button>
+      </div>
+
+      <!-- リレー設定 -->
+      <details id="nip46RelayDetails" style="margin-top: 16px;">
+        <summary data-i18n="nip46.relays.title">NIP-46リレー設定</summary>
+        <p class="muted" style="font-size: 0.85em; margin: 8px 0;" data-i18n="nip46.relays.hint">Nostr Connect通信に使用するリレーを設定します</p>
+        <div id="nip46RelayList" style="margin-bottom: 8px;"></div>
+        <div style="display: flex; gap: 8px;">
+          <button id="nip46AddRelay" class="secondary" type="button" data-i18n="nip46.relays.add">リレー追加</button>
+          <button id="nip46ResetRelays" class="secondary" type="button" data-i18n="nip46.relays.reset">初期値に戻す</button>
+        </div>
+      </details>
+
+      <div id="nip46Status" class="muted" style="margin-top: 12px;"></div>
+    </div>
+  </div>
+
+  <!-- パスワード入力モーダル -->
+  <div id="passwordModal" class="modal" hidden>
+    <div class="modal-body panel">
+      <form id="decryptForm" onsubmit="return false;">
+      <!-- パスワードマネージャー/アクセシビリティ向けの非表示ユーザー名 -->
+      <input type="text" id="decrypt_username" name="username" autocomplete="username" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0; border:0; padding:0; margin:0;" aria-hidden="true">
+      <h2 data-i18n="password.modal.title">パスワード入力</h2>
+      <p class="muted" data-i18n="password.modal.hint">保存されたnsecを復号化するため、パスワードを入力してください。パスワードなしで保存した場合は空欄のままOKを押してください。</p>
+      <label for="decryptPassword" style="display: block; margin-bottom:4px; font-size:0.9em;" data-i18n="password.label">パスワード</label>
+      <input type="password" id="decryptPassword" autocomplete="current-password" data-i18n="password.placeholder" placeholder="パスワード（空欄可）">
+      <div class="row" style="margin-top:12px;">
+        <button id="passwordConfirm" type="button" data-i18n="ok">OK</button>
+        <button id="passwordCancel" class="secondary" type="button" data-i18n="cancel">キャンセル</button>
+      </div>
+      <div class="muted" id="passwordStatus" style="margin-top:8px;"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- リアクション記号入力モーダル -->
+  <div id="reactionModal" class="modal" hidden>
+    <div class="modal-body panel">
+      <div class="modal-header-row">
+        <h2 style="margin: 0;" data-i18n="reaction.default.title">リアクション設定</h2>
+        <button id="reactionClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+      </div>
+      <p class="muted" data-i18n="reaction.modal.hint">リアクション文字を下から選択または好きな文字を入力してください。</p>
+      <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+        <button type="button" class="quick-reaction" data-reaction="+">+</button>
+        <button type="button" class="quick-reaction" data-reaction="🩷">🩷</button>
+        <button type="button" class="quick-reaction" data-reaction="🫂">🫂</button>
+        <button type="button" class="quick-reaction" data-reaction="👀">👀</button>
+        <button type="button" class="quick-reaction" data-reaction="🙏">🙏</button>
+        <button type="button" class="quick-reaction" data-reaction=":nokakoi:">
+          <img src="/app/icon/nokakoi.png" alt=":nokakoi:" style="width: 20px; height: 20px;">
+        </button>
+      </div>
+      <label for="reactionInput" style="display: block; margin-bottom: 4px; font-size: 0.9em;" data-i18n="reaction.input.placeholder">リアクション文字</label>
+      <textarea id="reactionInput" rows="1" style="width: 100%; resize: none; overflow: hidden;"></textarea>
+      <div id="reactionRecentWrap" style="margin-top: 10px;">
+        <div class="muted" style="margin-bottom: 6px; font-size: 0.85em;" data-i18n="reaction.recent.title">最近使ったリアクション</div>
+        <div id="reactionRecentList" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+      </div>
+      <div style="margin-top: 8px;">
+        <span id="reactionStatus" class="muted"></span>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="reactionSave" type="button" data-i18n="reaction.save">保存</button>
+        <button id="reactionSaveAndReact" type="button" data-i18n="reaction.save_and_react" hidden>保存してリアクション</button>
+        <button id="reactionReactOnly" type="button" data-i18n="reaction.react_without_save" hidden>保存せずリアクション</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm dialog modal -->
+  <div id="confirmModal" class="modal" hidden>
+    <div class="modal-body panel">
+      <h2 id="confirmTitle" data-i18n="confirm.title">確認</h2>
+      <p id="confirmMessage" style="margin: 16px 0;"></p>
+      <div class="row">
+        <button id="confirmYes" type="button" data-i18n="confirm.yes">はい</button>
+        <button id="confirmNo" class="secondary" type="button" data-i18n="confirm.no">いいえ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Service Worker Update modal -->
+  <div id="swUpdateModal" class="modal" hidden>
+    <div class="modal-body panel">
+      <h2 data-i18n="update.available">アップデート</h2>
+      <p style="margin: 16px 0;" data-i18n="update.prompt">新しいバージョンがあります。更新しますか？</p>
+      <div class="row">
+        <button id="swUpdateYes" type="button" data-i18n="sw.update.yes">更新する</button>
+        <button id="swUpdateNo" class="secondary" type="button" data-i18n="sw.update.no">後で</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Media viewer modal -->
+  <div id="mediaModal" class="modal" hidden>
+    <div class="modal-body panel" style="max-width: 90vw; max-height: 90vh;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h2 id="mediaTitle" style="margin: 0;" data-i18n="media.title">メディア</h2>
+        <button id="mediaClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div id="mediaContainer" style="max-width: 100%; max-height: 70vh; overflow: auto; text-align: center;">
+        <!-- Media content will be inserted here -->
+      </div>
+      <div style="margin-top: 12px;">
+        <a id="mediaOpenExternal" href="#" target="_blank" rel="noopener" class="muted" data-i18n="ehagaki.open">新しいタブで開く</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- User profile modal -->
+  <div id="profileModal" class="modal" hidden>
+    <div class="modal-body panel">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+        <h2 style="margin: 0;" data-i18n="profile.title">プロフィール</h2>
+        <button id="profileClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div id="profileContent">
+        <div id="profileBannerContainer" style="margin-bottom: 12px; border-radius: 8px; overflow: hidden; display: none;">
+          <img id="profileBanner" src="" alt="banner" style="width: 100%; height: 120px; object-fit: cover; display: block;">
+        </div>
+        <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+          <div id="profilePictureContainer" style="flex-shrink: 0;">
+            <img id="profilePicture" src="" data-i18n-alt="profile.title" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; background: var(--border);">
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div id="profileDisplayName" style="font-size: 1.2em; font-weight: 600; color: var(--text); margin-bottom: 4px;"></div>
+            <div class="profile-username-row" style="margin-bottom: 8px;">
+              <div id="profileFollowStatus" class="muted" style="font-size: 0.8em; display: none;">
+                <span style="background: var(--accent-muted); color: var(--accent); padding: 2px 6px; border-radius: 4px;" data-i18n="profile.follows_you">フォローされています</span>
+              </div>
+              <div id="profileUsername" style="font-size: 0.9em; color: var(--muted);"></div>
+            </div>
+            <div id="profileNpub" style="font-size: 0.8em; color: var(--muted); word-break: break-all;"></div>
+          </div>
+        </div>
+        <div id="profileAbout" style="margin-bottom: 16px; white-space: pre-wrap; word-break: break-word; line-height: 1.5;"></div>
+        <div id="profileStats" style="display: flex; gap: 16px; font-size: 0.9em; color: var(--muted);"></div>
+        <div id="profileEvents" style="margin-top: 24px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JSON viewer modal -->
+  <div id="jsonModal" class="modal" hidden>
+    <div class="modal-body panel" style="max-width: 800px;">
+      <div class="modal-header-row">
+        <h2 style="margin: 0;" data-i18n="json.title">イベントJSON</h2>
+        <button id="jsonClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+      </div>
+      <pre id="jsonContent" style="background: #0f1220; padding: 12px; border-radius: 8px; overflow: auto; max-height: 60vh; font-size: 0.85em; line-height: 1.4;"></pre>
+      <div class="row" style="margin-top: 12px;">
+        <button id="jsonCopy" type="button" data-i18n="json.copy">コピー</button>
+        <span id="jsonCopyStatus" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- イベント詳細モーダル（タイムラインと同じ順序） -->
+  <div id="eventModal" class="modal" hidden style="z-index: 200;">
+    <div class="modal-body panel" style="max-width: 600px;">
+      <div class="modal-header-row">
+        <h2 style="margin: 0;" data-i18n="event.detail.title">イベント詳細</h2>
+        <button id="eventModalClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <div id="eventModalAuthorWrap" style="display: flex; align-items: center;"></div>
+        <div class="event-actions-react" id="eventModalReactWrap"></div>
+      </div>
+      <!-- イベント詳細の本文。profileモーダルと同様にモーダル本体でスクロール制御するため
+           固定の max-height を削除し、必要に応じてモーダル全体が画面いっぱいまで伸びるようにする -->
+      <div id="eventModalContent" style="font-size: 0.9em; color: var(--text); opacity: 0.8; white-space: normal; word-break: break-word; line-height: 1.4;"></div>
+      <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <span id="eventModalTime" style="font-size: 0.85em; color: var(--muted); margin-right: 12px;"></span>
+          <button id="eventModalKind" class="btn-kind" type="button"><span data-i18n="kind">kind</span>:</button>
+        </div>
+        <div class="event-actions-bottom" id="eventModalActionsBottom"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">© 2025<span id="copyrightYear"></span> betoneto<span id="buildInfo" class="muted"></span></footer>
+
+  <!-- ページ先頭へ戻るボタン -->
+  <button id="scrollToTopBtn" class="scroll-to-top" data-i18n-title="scroll.top.title" hidden>
+    <img src="icon/up.png" class="icon-btn" data-i18n-alt="scroll.top.title">
+  </button>
+
+  <!-- デバッグログモーダル -->
+  <div id="debugModal" class="modal" hidden>
+    <div class="modal-body panel" style="max-width: 800px;">
+      <div class="modal-header-row">
+        <h2 style="margin: 0;" data-i18n="debug.title">デバッグ情報</h2>
+        <button id="debugClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+      </div>
+
+      <pre id="debugContent" style="background: #222; color: #eee; padding: 12px; border-radius: 8px; overflow: auto; max-height: 60vh; font-size: 0.85em; line-height: 1.4;"></pre>
+      <div class="row" style="margin-top: 12px;">
+        <button id="debugCopy" type="button" data-i18n="json.copy">コピー</button>
+        <span id="debugCopyStatus" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- フッター情報更新とエラー表示のフォールバック -->
+  <script>
+    (function(){
+      function setInfo(msg){
+        var el = document.getElementById('buildInfo');
+        if (el && !el.textContent) el.textContent = ' · ' + msg;
+      }
+
+      // 詳細付きのグローバルエラーハンドラ
+      window.addEventListener('error', function(e){
+        var errorMsg = 'error';
+        if (e && e.message) {
+          errorMsg += ': ' + e.message;
+          if (e.filename) {
+            errorMsg += ' at ' + e.filename.split('/').pop();
+          }
+          if (e.lineno) {
+            errorMsg += ':' + e.lineno;
+          }
+        }
+        console.error('[Global Error]', e);
+        setInfo(errorMsg);
+      });
+
+      // 未処理 Promise rejection ハンドラ
+      window.addEventListener('unhandledrejection', function(e){
+        var errorMsg = 'promise error';
+        if (e && e.reason) {
+          errorMsg += ': ' + (e.reason.message || e.reason);
+        }
+        console.error('[Promise Rejection]', e);
+        setInfo(errorMsg);
+      });
+
+      document.addEventListener('DOMContentLoaded', function(){
+        setInfo('loaded ' + new Date().toLocaleString());
+        // 著作権年を動的更新
+        try {
+          var yearSpan = document.getElementById('copyrightYear');
+          var currentYear = new Date().getFullYear();
+          if (yearSpan && currentYear > 2025) {
+            yearSpan.textContent = '-' + currentYear;
+          }
+        } catch (e) {}
+        try {
+          // localStorage からカスタム絵文字表示設定を初期化
+          var ce = document.getElementById('showCustomEmojiCheck');
+          if (ce) {
+            var stored = localStorage.getItem('showCustomEmoji');
+            if (stored === '0') ce.checked = false;
+            else ce.checked = true; // 既定で有効
+            ce.addEventListener('change', function() {
+              try {
+                localStorage.setItem('showCustomEmoji', ce.checked ? '1' : '0');
+                // モジュールへ再描画通知
+                window.dispatchEvent(new Event('customEmoji:changed'));
+              } catch (e) {}
+            });
+          }
+        } catch (e) {}
+      });
+    })();
+  </script>
+
+  <!-- デバッグログ出力ポリシー（全モジュール共通） -->
+  <script>
+    (function () {
+      const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+      let storedDebug = false;
+      try {
+        storedDebug = localStorage.getItem('nokakoiDebug') === '1';
+      } catch (e) {
+        // localStorage 非対応環境では無視
+      }
+
+      const debugEnabled = isLocal || storedDebug;
+      try { window.__nokakoiDebug = debugEnabled; } catch (e) { }
+
+      // warn/error は未プレフィックス時のみ [App] を補完して統一する
+      try {
+        if (!window.__nokakoiConsoleWrapped) {
+          const hasPrefix = (msg) => typeof msg === 'string' && /^\[[^\]]+\]/.test(msg);
+          const withDefaultPrefix = (args) => {
+            if (!args || args.length === 0) return ['[App]'];
+            if (hasPrefix(args[0])) return args;
+            if (typeof args[0] === 'string') return [`[App] ${args[0]}`, ...args.slice(1)];
+            return ['[App]', ...args];
+          };
+          const originalWarn = typeof console.warn === 'function' ? console.warn.bind(console) : null;
+          const originalError = typeof console.error === 'function' ? console.error.bind(console) : null;
+          if (originalWarn) console.warn = (...args) => originalWarn(...withDefaultPrefix(args));
+          if (originalError) console.error = (...args) => originalError(...withDefaultPrefix(args));
+          window.__nokakoiConsoleWrapped = true;
+        }
+      } catch (e) {
+        // console が書き換え不可な環境では無視
+      }
+
+      // 本番では console.log / console.debug を抑制し、warn/error は残す
+      if (!debugEnabled) {
+        try {
+          if (typeof console.log === 'function') console.log = function () { };
+          if (typeof console.debug === 'function') console.debug = function () { };
+        } catch (e) {
+          // console が書き換え不可な環境では無視
+        }
+      }
+    })();
+  </script>
+
+  <!-- Service Worker 登録 -->
+  <script>
+    const swDebug = !!window.__nokakoiDebug;
+    const swLog = (...args) => { if (swDebug) console.info('[SW]', ...args); };
+    const swWarn = (...args) => console.warn('[SW]', ...args);
+    const swError = (...args) => console.error('[SW]', ...args);
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        // 自動ログイン系モーダルを先に表示できるよう、SW 登録を少し遅延
+        setTimeout(() => {
+          navigator.serviceWorker.register('/app/sw.js', {
+            scope: '/app/'
+          })
+            .then((registration) => {
+              swLog('Registered:', registration.scope);
+
+              // 既に waiting worker がある場合（前回検知分）、更新モーダルを表示
+              try {
+                if (registration.waiting) {
+                  swLog('registration.waiting present on register');
+                  // UIが落ち着くまで少し待つ
+                  setTimeout(() => {
+                    const modal = document.getElementById('swUpdateModal');
+                    const yesBtn = document.getElementById('swUpdateYes');
+                    const noBtn = document.getElementById('swUpdateNo');
+                    if (modal && yesBtn && noBtn) {
+                      modal.hidden = false;
+                      yesBtn.onclick = () => {
+                        try { registration.waiting.postMessage({ type: 'SKIP_WAITING' }); } catch(e) { swWarn('postMessage failed', e); }
+                      };
+                      noBtn.onclick = () => { modal.hidden = true; };
+                    }
+                  }, 1000);
+                }
+              } catch (e) {
+                swWarn('waiting check failed', e);
+              }
+
+              // 30分ごとに更新確認
+              setInterval(() => {
+                registration.update();
+              }, 30 * 60 * 1000);
+
+              // 更新イベントを監視
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                swLog('Update found');
+
+                newWorker.addEventListener('statechange', () => {
+                  // 新しい Service Worker がインストール済みかつ controller 有効時に更新モーダルを表示
+                  // （初回インストールではなく更新時）。registration.waiting のフォールバックも考慮。
+                  if (newWorker.state === 'installed') {
+                    const isUpdate = !!navigator.serviceWorker.controller || !!registration.waiting;
+                    swLog('installing state=installed, isUpdate=', isUpdate);
+                    if (isUpdate) {
+                      // 新バージョンあり: confirm() ではなくモーダル表示
+                      // パスワード入力など他モーダル優先のため少し待機
+                      setTimeout(() => {
+                        const modal = document.getElementById('swUpdateModal');
+                        const yesBtn = document.getElementById('swUpdateYes');
+                        const noBtn = document.getElementById('swUpdateNo');
+
+                        if (modal && yesBtn && noBtn) {
+                          modal.hidden = false;
+
+                          yesBtn.onclick = () => {
+                            // waiting worker があれば優先して通知
+                            const workerToNotify = registration.waiting || newWorker;
+                            try {
+                              workerToNotify.postMessage({ type: 'SKIP_WAITING' });
+                            } catch (e) {
+                              swWarn('postMessage to worker failed', e);
+                            }
+                          };
+
+                          noBtn.onclick = () => {
+                            modal.hidden = true;
+                          };
+                        }
+                      }, 2000); // 2秒待機
+                    } else {
+                      swLog('First install detected; not showing update modal');
+                    }
+                  }
+                });
+              });
+            })
+            .catch((error) => {
+              swError('Registration failed:', error);
+              // Service Worker 失敗時もアプリ本体は継続（Safari プライベートモード等）
+            });
+
+          // controller change を監視（新 SW 有効化）
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            swLog('Controller changed, reloading...');
+            window.location.reload();
+          });
+        }, 500); // Delay initial registration by 500ms
+      });
+    } else {
+      swWarn('Service Worker not supported in this browser');
+      // Service Worker なしでもアプリは動作継続
+    }
+  </script>
+
+  <script src="./js/main.js?v=1.87.1" type="module" defer crossorigin="anonymous" data-cfasync="false"></script>
+
+</body>
+</html>

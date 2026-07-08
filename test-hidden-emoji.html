@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<!-- 開発用: 隠し文字エンコードの動作確認。本番向けツールは /app/gyouza/ を使用 -->
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>隠し文字埋め込みテスト</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      padding: 20px;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .test-section {
+      margin-bottom: 30px;
+      border: 1px solid #ccc;
+      padding: 15px;
+      border-radius: 5px;
+    }
+    .test-title {
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    .emoji-display {
+      font-size: 48px;
+      margin: 10px 0;
+      padding: 10px;
+      background: #f0f0f0;
+      border-radius: 3px;
+    }
+    .info {
+      font-size: 12px;
+      color: #666;
+      margin: 5px 0;
+    }
+    button {
+      padding: 8px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      margin: 5px 0;
+    }
+    .output {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 3px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>隠し文字埋め込みテスト</h1>
+
+  <div class="test-section">
+    <div class="test-title">テスト1：☀️（修飾子付き絵文字）</div>
+    <button onclick="testEmoji('☀️', '藍', 'test1')">☀️に「藍」を埋め込む</button>
+    <div id="test1-result" class="emoji-display">☀️</div>
+    <div id="test1-info" class="info"></div>
+  </div>
+
+  <div class="test-section">
+    <div class="test-title">テスト2：👨‍👩‍👧‍👦（ZWJシーケンス）</div>
+    <button onclick="testEmoji('👨‍👩‍👧‍👦', '藍', 'test2')">👨‍👩‍👧‍👦に「藍」を埋め込む</button>
+    <div id="test2-result" class="emoji-display">👨‍👩‍👧‍👦</div>
+    <div id="test2-info" class="info"></div>
+  </div>
+
+  <div class="test-section">
+    <div class="test-title">テスト3：🥟（単一コードポイント）</div>
+    <button onclick="testEmoji('🥟', '藍', 'test3')">🥟に「藍」を埋め込む</button>
+    <div id="test3-result" class="emoji-display">🥟</div>
+    <div id="test3-info" class="info"></div>
+  </div>
+
+  <div class="test-section">
+    <div class="test-title">テスト4：✹（U+2739 非絵文字記号・セクシー餃子再現）</div>
+    <button onclick="testEmoji('✹', '🐧', 'test4')">✹に「🐧」を埋め込む</button>
+    <div id="test4-result" class="emoji-display">✹</div>
+    <div id="test4-info" class="info"></div>
+  </div>
+
+  <div class="test-section">
+    <div class="test-title">テスト5：おっ（末尾の書記素に埋め込む）</div>
+    <button onclick="testEmoji('おっ', 'ぱい', 'test5')">おっに「ぱい」を埋め込む</button>
+    <div id="test5-result" class="emoji-display">おっ</div>
+    <div id="test5-info" class="info"></div>
+  </div>
+
+  <div class="test-section">
+    <div class="test-title">処理結果の詳細表示</div>
+    <div id="details-output" class="output">結果がここに表示されます</div>
+  </div>
+
+  <script type="module">
+    import { encodeHiddenTagChars, processHiddenTagChars } from './js/utils.js';
+
+    window.testEmoji = function(emoji, text, testId) {
+      try {
+        // 隠し文字を埋め込む
+        const encoded = encodeHiddenTagChars(emoji, text);
+
+        // 結果表示
+        const resultEl = document.getElementById(`${testId}-result`);
+        resultEl.textContent = encoded;
+
+        // 情報表示
+        const infoEl = document.getElementById(`${testId}-info`);
+        infoEl.innerHTML = `
+          長さ: ${encoded.length}文字 |
+          元の絵文字: ${emoji} (${emoji.length}文字) |
+          隠しテキスト: ${text}
+        `;
+
+        // 詳細出力
+        const detailsEl = document.getElementById('details-output');
+        const codepoints = Array.from(encoded).map((c, i) => {
+          const cp = c.codePointAt(0);
+          const hex = '0x' + cp.toString(16).toUpperCase();
+          const range = (cp >= 0xE0100 && cp <= 0xE01EF) ? '(Tag Char)' : '';
+          return `[${i}]: ${c} ${hex} ${range}`;
+        });
+
+        detailsEl.innerHTML = `
+          <strong>${testId}:</strong> ${emoji} + "${text}" = ${encoded}<br>
+          <strong>コードポイント:</strong><br>
+          ${codepoints.join('<br>')}
+        `;
+
+        // 処理された要素に対して processHiddenTagChars を実行
+        processHiddenTagChars(resultEl);
+      } catch (e) {
+        console.error('テスト失敗:', e);
+        document.getElementById('details-output').innerHTML = `エラー: ${e.message}`;
+      }
+    };
+  </script>
+</body>
+</html>

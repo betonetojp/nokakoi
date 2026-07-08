@@ -1,0 +1,5 @@
+# Disable global ignore for subdirectories in this project
+!gyouza/
+!i18n/
+!icon/
+!js/

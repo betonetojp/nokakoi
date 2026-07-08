@@ -1,0 +1,41 @@
+// 共通定数（フィード・モーダルで共通利用）
+export const EVENTS_TIMEOUT =5000; // ms - safety timeout for per-relay queries
+export const EVENTS_FETCH_LIMIT =20; // 件数:1回のフェッチあたりの件数
+export const EVENTS_MAX =500; // 最大保持件数 / 表示件数
+
+// リレー接続・監視の既定値
+export const RECONNECT_DELAY =5000; // ms - 再接続を試みるまでの待機時間
+export const MAX_RECONNECT_ATTEMPTS =3; // 再接続の最大試行回数
+export const DOWN_PERSIST_MS =5000; // ms - 切断状態が一定時間続いた場合のみ再接続を予約
+
+// 購読スロットリング上限（リレーごと）
+export const MAX_LIVE_PER_RELAY = 5; // リレーごとの同時Live購読数
+export const MAX_ONESHOT_PER_RELAY = 1; // リレーごとの同時ワンショット購読数
+export const MAX_TOTAL_SUB_PER_RELAY = 5; // リレーごとの同時合計購読上限（too many concurrent REQs 対策）
+
+// Post-link（eHagaki）の既定値
+export const POSTLINK_DEFAULT_TITLE = 'eHagaki';
+export const POSTLINK_DEFAULT_URL = 'https://lokuyow.github.io/ehagaki/';
+
+// プレビュー折りたたみの最大文字数（全体共通）
+export const MAX_PREVIEW_LENGTH = 300;
+
+// プレビュー折りたたみの最大行数
+export const MAX_PREVIEW_LINES = 10;
+
+// omochat (BitChat) デフォルトリレー
+export const DEFAULT_OMOCHAT_RELAYS = [
+  'wss://relay.damus.io/',
+  'wss://nos.lol/',
+  'wss://relay.primal.net/',
+  'wss://offchain.pub/',
+  'wss://nostr21.com/',
+  'wss://yabu.me/',
+  //'wss://v-relay.d02.vrtmrz.net/',
+  'wss://relay.purplefrog.cloud/',
+  //'wss://relay01.lnfi.network/',
+  'wss://relay02.lnfi.network/',
+  //'wss://nostr.ps1829.com/',
+  'wss://nostr.middling.mydns.jp/',
+  'wss://relay.homeinhk.xyz/'
+];

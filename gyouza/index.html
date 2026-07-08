@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>セクシー餃子 - nokakoi</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="icon" type="image/png" href="/app/icon/nokakoi.png">
+  <meta name="theme-color" content="#ffeaf5">
+  <style>
+    .gyouza-container {
+      max-width: 640px;
+      padding-bottom: 48px;
+    }
+    .panel-title {
+      margin: 0 0 12px;
+      font-size: 1.1em;
+      font-weight: 600;
+    }
+    .field-label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.9em;
+    }
+    #gyouzaEmoji {
+      width: 100%;
+      font-size: 1.2em;
+      text-align: center;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+    }
+    #gyouzaEmoji::placeholder {
+      color: var(--muted);
+      opacity: 1;
+      font-family: "Segoe UI Symbol", "Noto Sans Symbols2", "Noto Sans JP", sans-serif;
+    }
+    .gyouza-preview {
+      font-size: 2.5rem;
+      line-height: 1.4;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      min-height: 4rem;
+      word-break: break-all;
+    }
+    .gyouza-decode-result {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      min-height: 3rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .gyouza-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .gyouza-info {
+      font-size: 0.85em;
+      margin-top: 8px;
+    }
+    .topbar .brand-link {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+      color: inherit;
+    }
+    body.theme-light .topbar .brand-link {
+      color: var(--accent);
+    }
+  </style>
+  <script>
+    (function () {
+      function updateThemeColor() {
+        try {
+          var dark = !document.body.classList.contains('theme-light');
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.content = dark ? '#232633' : '#ffeaf5';
+        } catch (e) {}
+      }
+      window.__gyouzaUpdateThemeColor = updateThemeColor;
+    })();
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand brand-link" href="/app/">
+      <img class="brand-icon" src="/app/icon/nokakoi.png" alt="" width="24" height="24">
+      <span class="brand-text">🥟 セクシー餃子</span>
+    </a>
+    <div class="actions">
+      <button id="themeToggleBtn" class="secondary" type="button" title="テーマ切替">🌓</button>
+      <a href="/app/" class="secondary topbar-link">nokakoi</a>
+    </div>
+  </header>
+
+  <main class="container gyouza-container">
+    <section class="panel" id="createPanel">
+      <h2 class="panel-title">作成</h2>
+      <div style="margin-bottom: 12px;">
+        <label class="field-label" for="gyouzaEmoji">絵文字</label>
+        <input type="text" id="gyouzaEmoji" placeholder="絵文字を入力" value="🥟">
+      </div>
+      <div style="margin-bottom: 12px;">
+        <label class="field-label" for="gyouzaText">隠すテキスト</label>
+        <textarea id="gyouzaText" rows="3" placeholder="秘密のメッセージ"></textarea>
+      </div>
+      <div id="createStatus" class="muted" style="min-height: 1.2em; margin-bottom: 12px;"></div>
+      <button id="embedBtn" type="button">埋め込む</button>
+    </section>
+
+    <section class="panel" id="previewPanel" hidden>
+      <h2 class="panel-title">プレビュー</h2>
+      <p class="muted" style="margin: 0 0 8px; font-size: 0.9em;">点線の絵文字をクリックすると隠しテキストが表示されます</p>
+      <div id="previewDisplay" class="gyouza-preview"></div>
+      <div id="previewInfo" class="gyouza-info muted"></div>
+      <div class="gyouza-actions">
+        <button id="copyBtn" type="button">コピー</button>
+      </div>
+      <div id="copyStatus" class="muted" style="min-height: 1.2em; margin-top: 8px;"></div>
+    </section>
+
+    <section class="panel" id="decodePanel">
+      <h2 class="panel-title">復号</h2>
+      <p class="muted" style="margin: 0 0 8px; font-size: 0.9em;">Nostr 投稿などからコピーしたテキストを貼り付けて復号できます</p>
+      <div style="margin-bottom: 12px;">
+        <label class="field-label" for="decodeInput">テキスト</label>
+        <textarea id="decodeInput" rows="4" placeholder="隠し文字付きテキストを貼り付け"></textarea>
+      </div>
+      <button id="decodeBtn" type="button">復号</button>
+      <div id="decodeStatus" class="muted" style="min-height: 1.2em; margin: 12px 0 8px;"></div>
+      <div id="decodeResult" class="gyouza-decode-result" hidden></div>
+    </section>
+  </main>
+
+  <script>
+    // エンコード/復号ロジックは app/js/utils.js と同期すること
+    // (getGraphemeClusterEnd, getLastGraphemeClusterRange, encodeHiddenTagChars, processHiddenTagChars)
+
+    function getGraphemeClusterEnd(text) {
+      if (!text) return 0;
+      if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+        try {
+          const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+          for (const segment of segmenter.segment(text)) {
+            return segment.index + segment.segment.length;
+          }
+        } catch (e) {}
+      }
+      const regionalFlagPattern = /[\u{1F1E6}-\u{1F1FF}]{2}/u;
+      const flagMatch = regionalFlagPattern.exec(text);
+      if (flagMatch && flagMatch.index === 0) {
+        return flagMatch[0].length;
+      }
+      const emojiPattern = /(?:[\p{Emoji_Presentation}\p{Extended_Pictographic}](?:\u{FE0E}|\u{FE0F})?(?:\u200D[\p{Emoji_Presentation}\p{Extended_Pictographic}](?:\u{FE0E}|\u{FE0F})?)*)(?:[\u{1F3FB}-\u{1F3FF}])?/u;
+      const match = emojiPattern.exec(text);
+      if (match) {
+        return match[0].length;
+      }
+      return text.length > 0 ? 1 : 0;
+    }
+
+    function getLastGraphemeClusterRange(text) {
+      if (!text) return { start: 0, end: 0 };
+      if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+        try {
+          const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+          let lastSegment = null;
+          for (const segment of segmenter.segment(text)) {
+            lastSegment = segment;
+          }
+          if (lastSegment) {
+            return {
+              start: lastSegment.index,
+              end: lastSegment.index + lastSegment.segment.length,
+            };
+          }
+        } catch (e) {}
+      }
+      let start = 0;
+      let end = 0;
+      while (end < text.length) {
+        start = end;
+        const clusterLength = getGraphemeClusterEnd(text.slice(end));
+        end += clusterLength || 1;
+      }
+      return { start, end };
+    }
+
+    function encodeHiddenTagChars(emoji, hiddenText) {
+      if (!emoji || !hiddenText) return emoji;
+      try {
+        const { start, end } = getLastGraphemeClusterRange(emoji);
+        const prefix = emoji.slice(0, start);
+        const target = emoji.slice(start, end);
+        const suffix = emoji.slice(end);
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(hiddenText);
+        let encoded = prefix + target;
+        for (const byte of bytes) {
+          const cp = byte + 0xE00F0;
+          encoded += String.fromCodePoint(cp);
+        }
+        return encoded + suffix;
+      } catch (e) {
+        console.warn('[Gyouza] encodeHiddenTagChars に失敗', e);
+        return emoji;
+      }
+    }
+
+    function processHiddenTagChars(el) {
+      if (!el) return;
+      const TAG_RE = /[\u{E0100}-\u{E01EF}]/u;
+
+      function decodeTagChars(tagStr) {
+        try {
+          const bytes = [];
+          for (const ch of tagStr) {
+            const cp = ch.codePointAt(0);
+            if (cp >= 0xE0100 && cp <= 0xE01EF) bytes.push(cp - 0xE00F0);
+          }
+          if (bytes.length === 0) return null;
+          return new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+        } catch (e) { return null; }
+      }
+
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+      const textNodes = [];
+      let node;
+      while ((node = walker.nextNode())) {
+        if (TAG_RE.test(node.textContent)) textNodes.push(node);
+      }
+
+      for (const textNode of textNodes) {
+        const text = textNode.textContent;
+        const PATTERN = /([\u{1F1E6}-\u{1F1FF}]{2}|[\p{Emoji_Presentation}\p{Extended_Pictographic}](?:[\u{FE0E}\u{FE0F}]?(?:\u200D[\p{Emoji_Presentation}\p{Extended_Pictographic}][\u{FE0E}\u{FE0F}]?)*)(?:[\u{1F3FB}-\u{1F3FF}])?|[^\u{E0000}-\u{E01FF}\s])([\u{E0100}-\u{E01EF}]+)/gu;
+        let match;
+        let lastIndex = 0;
+        const fragment = document.createDocumentFragment();
+        let found = false;
+
+        while ((match = PATTERN.exec(text)) !== null) {
+          found = true;
+          if (match.index > lastIndex) {
+            fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+          }
+          const visibleEmoji = match[1];
+          const decoded = decodeTagChars(match[2]);
+          if (decoded) {
+            const span = document.createElement('span');
+            span.className = 'steganography-emoji';
+            span.dataset.hidden = decoded;
+            span.title = 'クリックで隠しテキストを表示';
+            span.textContent = visibleEmoji;
+            span.addEventListener('click', function (e) {
+              e.stopPropagation();
+              const existing = span.querySelector('.steganography-revealed');
+              if (existing) {
+                existing.remove();
+                span.classList.remove('steganography-open');
+              } else {
+                const popup = document.createElement('span');
+                popup.className = 'steganography-revealed';
+                popup.textContent = decoded;
+                processHiddenTagChars(popup);
+                span.appendChild(popup);
+                span.classList.add('steganography-open');
+              }
+            });
+            fragment.appendChild(span);
+          } else {
+            fragment.appendChild(document.createTextNode(visibleEmoji));
+          }
+          lastIndex = match.index + match[0].length;
+        }
+
+        if (found) {
+          if (lastIndex < text.length) {
+            fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+          }
+          textNode.parentNode.replaceChild(fragment, textNode);
+        }
+      }
+    }
+
+    function hasHiddenTagChars(text) {
+      return /[\u{E0100}-\u{E01EF}]/u.test(text || '');
+    }
+
+    // --- UI ---
+
+    let currentEncoded = '';
+
+    const emojiInput = document.getElementById('gyouzaEmoji');
+    const textInput = document.getElementById('gyouzaText');
+    const createStatus = document.getElementById('createStatus');
+    const embedBtn = document.getElementById('embedBtn');
+    const previewPanel = document.getElementById('previewPanel');
+    const previewDisplay = document.getElementById('previewDisplay');
+    const previewInfo = document.getElementById('previewInfo');
+    const copyBtn = document.getElementById('copyBtn');
+    const copyStatus = document.getElementById('copyStatus');
+    const decodeInput = document.getElementById('decodeInput');
+    const decodeBtn = document.getElementById('decodeBtn');
+    const decodeStatus = document.getElementById('decodeStatus');
+    const decodeResult = document.getElementById('decodeResult');
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+
+    function applyTheme(mode) {
+      if (mode === 'light') {
+        document.body.classList.add('theme-light');
+      } else if (mode === 'dark') {
+        document.body.classList.remove('theme-light');
+      } else {
+        const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        if (prefersLight) document.body.classList.add('theme-light');
+        else document.body.classList.remove('theme-light');
+      }
+      if (window.__gyouzaUpdateThemeColor) window.__gyouzaUpdateThemeColor();
+    }
+
+    function initTheme() {
+      const saved = localStorage.getItem('gyouzaTheme') || 'system';
+      applyTheme(saved);
+      let mq = null;
+      function setupSystemListener() {
+        if (!window.matchMedia) return;
+        mq = window.matchMedia('(prefers-color-scheme: light)');
+        const listener = () => {
+          if (localStorage.getItem('gyouzaTheme') === 'system') applyTheme('system');
+        };
+        if (mq.addEventListener) mq.addEventListener('change', listener);
+        else if (mq.addListener) mq.addListener(listener);
+      }
+      if (saved === 'system') setupSystemListener();
+
+      themeToggleBtn.addEventListener('click', () => {
+        const order = ['system', 'light', 'dark'];
+        const current = localStorage.getItem('gyouzaTheme') || 'system';
+        const next = order[(order.indexOf(current) + 1) % order.length];
+        localStorage.setItem('gyouzaTheme', next);
+        applyTheme(next);
+        const labels = { system: '🌓 システム', light: '☀️ ライト', dark: '🌙 ダーク' };
+        themeToggleBtn.title = 'テーマ: ' + (labels[next] || next);
+      });
+      const labels = { system: '🌓 システム', light: '☀️ ライト', dark: '🌙 ダーク' };
+      themeToggleBtn.title = 'テーマ: ' + (labels[saved] || saved);
+    }
+
+    function showPreview(encoded) {
+      currentEncoded = encoded;
+      previewDisplay.textContent = encoded;
+      processHiddenTagChars(previewDisplay);
+      previewInfo.textContent = '文字数: ' + encoded.length + '（Unicode Tag 含む）';
+      previewPanel.hidden = false;
+      copyStatus.textContent = '';
+    }
+
+    embedBtn.addEventListener('click', () => {
+      const emoji = (emojiInput.value || '').trim();
+      const text = (textInput.value || '').trim();
+      createStatus.textContent = '';
+      if (!emoji) {
+        createStatus.textContent = '絵文字を入力してください';
+        return;
+      }
+      if (!text) {
+        createStatus.textContent = 'テキストを入力してください';
+        return;
+      }
+      const encoded = encodeHiddenTagChars(emoji, text);
+      showPreview(encoded);
+      createStatus.textContent = '埋め込みました';
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      copyStatus.textContent = '';
+      if (!currentEncoded) return;
+      try {
+        await navigator.clipboard.writeText(currentEncoded);
+        copyStatus.textContent = 'クリップボードにコピーしました';
+      } catch (e) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = currentEncoded;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          copyStatus.textContent = 'クリップボードにコピーしました';
+        } catch (e2) {
+          copyStatus.textContent = 'コピーに失敗しました';
+        }
+      }
+    });
+
+    decodeBtn.addEventListener('click', () => {
+      const text = decodeInput.value || '';
+      decodeStatus.textContent = '';
+      decodeResult.hidden = true;
+      decodeResult.textContent = '';
+
+      if (!text.trim()) {
+        decodeStatus.textContent = 'テキストを入力してください';
+        return;
+      }
+      if (!hasHiddenTagChars(text)) {
+        decodeStatus.textContent = '隠しテキストは見つかりませんでした';
+        return;
+      }
+
+      decodeResult.textContent = text;
+      decodeResult.hidden = false;
+      processHiddenTagChars(decodeResult);
+
+      if (decodeResult.querySelector('.steganography-emoji')) {
+        decodeStatus.textContent = '隠し文字を検出しました。点線の文字をクリックして表示してください';
+      } else {
+        decodeStatus.textContent = '隠しテキストは見つかりませんでした';
+        decodeResult.hidden = true;
+      }
+    });
+
+    initTheme();
+  </script>
+</body>
+</html>
