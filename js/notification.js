@@ -9,6 +9,27 @@ const NOTIF_MIN_INTERVAL = 10000; // ms
 const _lastNotifiedAt = new Map(); // feedId -> timestamp
 export const _notifiedEventIds = new Set();
 
+/** @returns {'off' | 'background'} */
+export function normalizeMentionNotificationMode(mode) {
+  return mode === 'background' ? 'background' : 'off';
+}
+
+/**
+ * OS 通知（Browser Notification）を出してよいか
+ * - off: 出さない
+ * - background: document が hidden のときのみ（アプリ起動中・タブ非表示）
+ */
+export function shouldShowBrowserNotification(mode) {
+  const normalized = normalizeMentionNotificationMode(mode);
+  if (normalized === 'off') return false;
+  try {
+    if (typeof document === 'undefined') return false;
+    return document.visibilityState === 'hidden';
+  } catch (e) {
+    return false;
+  }
+}
+
 /**
  * 通知本文のサニタイズ（改行排除、文字数制限）
  */
@@ -44,11 +65,10 @@ export async function ensureNotificationPermission() {
 /**
  * フィード通知を表示（レートリミットおよび重複防止機能付き）
  */
-export function showFeedNotification(title, options, eventId, feedId) {
+export function showFeedNotification(title, options, eventId, feedId, mode = 'off') {
   try {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
-    // アプリがフォアグラウンド（visible）の時のみアプリ内通知を出す
-    try { if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return; } catch (e) { }
+    if (!shouldShowBrowserNotification(mode)) return;
     const now = Date.now();
     const last = _lastNotifiedAt.get(feedId) || 0;
     if (now - last < NOTIF_MIN_INTERVAL) return; // フィードごとのレートリミット

@@ -52,6 +52,8 @@
   "channel.unknown": "チャンネル",
   "showHomeRepost16": "ホームに汎用リポストを表示",
   "disableBlink": "点滅通知を使用しない",
+  "mentionBackgroundNotification": "ブラウザ通知",
+  "mentionBackgroundNotification.permission_denied": "通知の許可がありません。ブラウザの設定から通知を許可してください。",
   "fetchFollowEmoji": "フォロイーのkind:10030参照絵文字も取得する",
   "showProfileReactions": "プロフィールにリアクションを表示",
   "showProfileChannel": "プロフィールにチャンネル投稿を表示",

@@ -5,6 +5,7 @@ import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH } from
 import { showOmochatSettingsModal } from './modals.js';
 import { clearReplyTarget } from './composer.js';
 import { hideComposerForOverlay, restoreComposerFromOverlay } from './composer-scroll.js';
+import { ensureNotificationPermission } from './notification.js';
 
 // モジュールスコープの settingsManager 参照（setupDisplaySettings で設定）
 let _settingsManagerRef = null;
@@ -893,6 +894,10 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
   // disableBlink チェックボックス
   const disableBlinkCheck = $('disableBlinkCheck');
   if (disableBlinkCheck) disableBlinkCheck.checked = settingsManager.settings.disableBlink === true;
+  const mentionBackgroundNotificationCheck = $('mentionBackgroundNotificationCheck');
+  if (mentionBackgroundNotificationCheck) {
+    mentionBackgroundNotificationCheck.checked = settingsManager.settings.mentionNotificationMode === 'background';
+  }
   // fetchFollowEmoji チェックボックス
   const fetchFollowEmojiCheck = $('fetchFollowEmojiCheck');
   if (fetchFollowEmojiCheck) fetchFollowEmojiCheck.checked = settingsManager.settings.fetchFollowEmoji === true;
@@ -968,6 +973,31 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
           const topBtn = document.getElementById('scrollToTopBtn');
           if (topBtn) topBtn.classList.remove('has-new');
         } catch (e) { }
+      }
+    };
+  }
+
+  if (mentionBackgroundNotificationCheck) {
+    mentionBackgroundNotificationCheck.onchange = async function () {
+      const enabled = mentionBackgroundNotificationCheck.checked;
+      if (!enabled) {
+        settingsManager.set('mentionNotificationMode', 'off');
+        return;
+      }
+      try {
+        const permOk = await ensureNotificationPermission();
+        if (!permOk) {
+          mentionBackgroundNotificationCheck.checked = false;
+          settingsManager.set('mentionNotificationMode', 'off');
+          try {
+            showToast(t('mentionBackgroundNotification.permission_denied'), { type: 'info', duration: 4000 });
+          } catch (e) { }
+          return;
+        }
+        settingsManager.set('mentionNotificationMode', 'background');
+      } catch (e) {
+        mentionBackgroundNotificationCheck.checked = false;
+        settingsManager.set('mentionNotificationMode', 'off');
       }
     };
   }

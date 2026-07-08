@@ -55,6 +55,8 @@ export class SettingsManager {
         showHomeRepost16: (obj && typeof obj.showHomeRepost16 !== 'undefined') ? obj.showHomeRepost16 : false,
         // 点滅通知を無効化（mention タブ点滅 + Top ボタン点滅）
         disableBlink: (obj && typeof obj.disableBlink !== 'undefined') ? obj.disableBlink : false,
+        // メンションの OS 通知: 'off' | 'background'（非表示時のみ）
+        mentionNotificationMode: (obj && obj.mentionNotificationMode === 'background') ? 'background' : 'off',
         // フォロイーの kind:10030 が参照する絵文字セット(kind:30030)も取得する
         fetchFollowEmoji: (obj && typeof obj.fetchFollowEmoji !== 'undefined') ? obj.fetchFollowEmoji : false,
         // profile modal feed で kind:7 を取得するか
@@ -113,6 +115,7 @@ export class SettingsManager {
         showHomeChannel: false,
         showHomeRepost16: false,
         disableBlink: false,
+        mentionNotificationMode: 'off',
         fetchFollowEmoji: false,
         showProfileReactions: false,
         showProfileChannel: false,

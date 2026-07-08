@@ -32,7 +32,7 @@ import { EVENTS_TIMEOUT, EVENTS_FETCH_LIMIT, EVENTS_MAX, DEFAULT_OMOCHAT_RELAYS 
 import { setupFeedFetcher, fetchMore } from './feed-fetcher.js';
 import { showOmochatSettingsModal } from './modals.js';
 import { showReactionModal } from './modals.js';
-import { showFeedNotification, sanitizeNotificationBody, ensureNotificationPermission, _notifiedEventIds } from './notification.js';
+import { showFeedNotification, sanitizeNotificationBody, ensureNotificationPermission, shouldShowBrowserNotification, normalizeMentionNotificationMode, _notifiedEventIds } from './notification.js';
 
 
 
@@ -739,31 +739,33 @@ function addToFeed(feedId, ev, keepLatestCount = null, relay = null) {
                 // 何もしない
               } else if (ev.created_at > lastViewed) {
                 setMentionBlink(true);
-                // アプリが フォアグラウンド にある場合のみページ通知を表示（サーバー不要）
                 try {
-                  // 非アクティブタブかつ通知許可が未拒否なら通知を試行
-                  (async () => {
-                    try {
-                      const permOk = await ensureNotificationPermission();
-                      if (!permOk) return;
-                      // 既に通知済みのイベントはスキップ
-                      if (ev && ev.id && _notifiedEventIds.has(ev.id)) return;
-                      // タイトル: 投稿者名または短縮npub
-                      let authorLabel = '';
+                  const notifMode = normalizeMentionNotificationMode(
+                    settingsManager && settingsManager.get('mentionNotificationMode')
+                  );
+                  if (notifMode === 'background') {
+                    (async () => {
                       try {
-                        if (ev && ev.pubkey && state && state.profiles && state.profiles.get(ev.pubkey)) {
-                          const p = state.profiles.get(ev.pubkey) || {};
-                          authorLabel = (p.display_name || p.name || '');
+                        if (!shouldShowBrowserNotification(notifMode)) return;
+                        const permOk = await ensureNotificationPermission();
+                        if (!permOk) return;
+                        if (ev && ev.id && _notifiedEventIds.has(ev.id)) return;
+                        let authorLabel = '';
+                        try {
+                          if (ev && ev.pubkey && state && state.profiles && state.profiles.get(ev.pubkey)) {
+                            const p = state.profiles.get(ev.pubkey) || {};
+                            authorLabel = (p.display_name || p.name || '');
+                          }
+                        } catch (e) { }
+                        if (!authorLabel && ev && ev.pubkey && typeof nip19 === 'object' && typeof nip19.npubEncode === 'function') {
+                          try { const np = nip19.npubEncode(ev.pubkey); authorLabel = np && np.length > 0 ? (np.length > 12 ? np.slice(0,12) + '…' : np) : ev.pubkey.slice(0,8); } catch (e) { authorLabel = ev.pubkey.slice(0,8); }
                         }
+                        const title = authorLabel ? ('新着: ' + authorLabel) : '新着通知';
+                        const body = sanitizeNotificationBody(ev && ev.content ? ev.content : t('notification.new_item'));
+                        showFeedNotification(title, { body, icon: new URL('../icon/nokakoi-192.png', import.meta.url).href }, ev && ev.id ? ev.id : null, 'mentions', notifMode);
                       } catch (e) { }
-                      if (!authorLabel && ev && ev.pubkey && typeof nip19 === 'object' && typeof nip19.npubEncode === 'function') {
-                        try { const np = nip19.npubEncode(ev.pubkey); authorLabel = np && np.length > 0 ? (np.length > 12 ? np.slice(0,12) + '…' : np) : ev.pubkey.slice(0,8); } catch (e) { authorLabel = ev.pubkey.slice(0,8); }
-                      }
-                      const title = authorLabel ? ('新着: ' + authorLabel) : '新着通知';
-                      const body = sanitizeNotificationBody(ev && ev.content ? ev.content : t('notification.new_item'));
-                      showFeedNotification(title, { body, icon: new URL('../icon/nokakoi-192.png', import.meta.url).href }, ev && ev.id ? ev.id : null, 'mentions');
-                    } catch (e) { }
-                  })();
+                    })();
+                  }
                 } catch (e) { }
               }
             }
