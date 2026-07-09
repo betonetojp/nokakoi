@@ -2,7 +2,7 @@
 // 認証・イベントアクション
 // ============================================================================
 
-import { getPublicKey as getPublicKeyFn, getFinalizeEvent, getKinds } from './nostr-compat.js';
+import { getPublicKey as getPublicKeyFn, getFinalizeEvent, getKinds, getNip19 } from './nostr-compat.js';
 import { awaitAny, buildReactionEmojiTags, getReactionContent, getReactionEmojiTags } from './utils.js';
 import { extractEmojiTagsFromText } from './custom-emoji-store.js';
 import { authenticateWithPasskey, decryptNsecWithPasskey, isWebAuthnSupported } from './webauthn.js';
@@ -19,6 +19,50 @@ export function resolveLoginOrder(state) {
   if (state.signer === 'nip46') return ['nip46'];
   // autoモード: nip07→nsec→nip46の優先順
   return ['nip07', 'nsec', 'nip46'];
+}
+
+/**
+ * 本文中の nostr:npub1... や nostr:nprofile1... から pubkey を抽出し、p タグを追加
+ */
+function addMentionTags(draft) {
+  if (!draft || !draft.content) return;
+  if (draft.kind !== 1 && draft.kind !== 42) return;
+
+  try {
+    const nip19 = getNip19();
+    if (!nip19) return;
+
+    // nostr:(npub|nprofile) にマッチする正規表現
+    const regex = /nostr:(npub1[a-z0-9]+|nprofile1[a-z0-9]+)/gi;
+    let match;
+    const foundPubkeys = new Set();
+
+    while ((match = regex.exec(draft.content)) !== null) {
+      try {
+        const bech32 = match[1];
+        const decoded = nip19.decode(bech32);
+        let pubkey = null;
+        if (decoded.type === 'npub') {
+          pubkey = decoded.data;
+        } else if (decoded.type === 'nprofile') {
+          pubkey = decoded.data.pubkey;
+        }
+
+        if (pubkey && !foundPubkeys.has(pubkey)) {
+          foundPubkeys.add(pubkey);
+          if (!draft.tags) draft.tags = [];
+          const alreadyExists = draft.tags.some(t => Array.isArray(t) && t[0] === 'p' && t[1] === pubkey);
+          if (!alreadyExists) {
+            draft.tags.push(['p', pubkey]);
+          }
+        }
+      } catch (e) {
+        console.warn('[Actions] メンションタグの解析に失敗:', match[0], e);
+      }
+    }
+  } catch (e) {
+    console.warn('[Actions] メンションタグ抽出処理全体でエラー:', e);
+  }
 }
 
 /**
@@ -259,6 +303,8 @@ export async function publishNote(state, content, statusEl, options) {
     } else {
       if (statusEl) statusEl.textContent = t('publish.signed');
     }
+
+    addMentionTags(draft);
 
     const ev = await signEventWithMode(effectiveState, draft);
 
@@ -518,6 +564,8 @@ export async function replyToEvent(state, targetEv, text) {
     } catch (dbe) {
       // エラーを無視
     }
+
+    addMentionTags(draft);
 
     const ev = await signEventWithMode(effectiveState, draft);
 
