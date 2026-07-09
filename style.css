@@ -2023,9 +2023,12 @@ body.theme-light .tab.blink:not(.active) {
 .btn-react,
 .event-actions-react button {
   font-size: inherit !important;
-  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   vertical-align: middle !important;
   padding: 4px 6px !important;
+  line-height: normal !important;
 }
 
 /* icon-btn 画像は小さいまま維持しつつ、reaction 内カスタム絵文字は文字相対で拡縮 */
@@ -2045,20 +2048,20 @@ body.theme-light .tab.blink:not(.active) {
 /* reaction / reply-marker のサイズを周囲テキストに合わせる */
 .reply-marker {
   font-size: 1em !important; /* 周囲テキストに合わせる */
-  line-height: 1; /* 縦位置を揃える */
-  vertical-align: middle;
+  line-height: inherit !important;
+  vertical-align: baseline !important;
+  display: inline !important;
 }
  /* kind:7 で拡大されていた reaction marker をリセット */
 .event[data-kind="7"] .reply-marker {
   font-size: 1em !important;
 }
- /* reply-marker 内カスタム絵文字を em 基準にして文字サイズへ追従 */
 .reply-marker img.custom-emoji,
 .reply-to .reply-marker img.custom-emoji,
 .event[data-kind="7"] .reply-marker img.custom-emoji {
   height: 1em !important;
   width: auto !important;
-  vertical-align: middle !important;
+  vertical-align: -0.15em !important;
   display: inline-block !important;
 }
 

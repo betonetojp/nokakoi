@@ -1271,7 +1271,16 @@ function fitCustomEmoji(container, shortSidePx = 28) {
             // inline group 内の絵文字は短辺基準（px）でサイズ調整
             const inlineGroup = img.closest('.emoji-inline-group');
             const emojiLineAncestor = img.closest('.emoji-line');
-            if (inlineGroup) {
+            const isReaction = img.closest('.reply-marker') || img.closest('.btn-react') || img.closest('.event-actions-react');
+            if (isReaction) {
+              img.style.height = '18px';
+              img.style.width = 'auto';
+              img.style.display = 'inline-block';
+              img.style.verticalAlign = '-0.15em';
+              img.style.margin = '0';
+              img.style.padding = '0';
+              img.style.lineHeight = '1';
+            } else if (inlineGroup) {
               const targetShort = inlineShort;
               img.style.height = targetShort + 'px';
               img.style.width = 'auto';
