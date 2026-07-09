@@ -643,7 +643,17 @@ function addToFeed(feedId, ev, keepLatestCount = null, relay = null) {
     const listBeforeLen = feed.list?.length || 0;
     const topBefore = feed.list?.[0] || null;
     const bottomBefore = listBeforeLen > 0 ? feed.list[listBeforeLen - 1] : null;
-    insertEventSorted(state, feedId, ev);
+    if (histLoading) {
+      insertEventSorted(state, feedId, ev);
+    } else {
+      if (feed && ev.id && !feed.map.has(ev.id)) {
+        feed.map.set(ev.id, ev);
+        feed.list.unshift(ev);
+        if (ev.created_at && ev.created_at > (feed.lastSeen || 0)) {
+          feed.lastSeen = ev.created_at;
+        }
+      }
+    }
     if (ev.kind === 42) {
       try {
         const channelRootId = pickChannelRootId(ev);
@@ -656,7 +666,7 @@ function addToFeed(feedId, ev, keepLatestCount = null, relay = null) {
       const ts = ev.created_at || 0;
       const topTs = topBefore?.created_at || 0;
       const bottomTs = bottomBefore?.created_at || 0;
-      const isPrepend = idx === 0 && (listBeforeLen === 0 || ts >= topTs);
+      const isPrepend = idx === 0;
       const isAppend = idx === listAfterLen - 1 && ts <= bottomTs;
       if (!isPrepend && !isAppend) markFeedPreferFullRender(feedId);
     }

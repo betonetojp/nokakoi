@@ -213,7 +213,7 @@ export function renderFeed(id = 'global', force = false) {
       if (!ev || !ev.id) continue;
       seen.set(ev.id, ev);
     }
-    eventsToRender = Array.from(seen.values()).sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+    eventsToRender = Array.from(seen.values());
   } catch (e) {
     eventsToRender = feed.list || [];
   }
