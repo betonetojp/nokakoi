@@ -622,17 +622,29 @@ async function handleNostrUri(uri) {
     switch (decoded.type) {
       case 'npub':
         if (state) {
-          const { showProfileModal } = await import('./profile-modal.js');
-          if (showProfileModal) {
-            showProfileModal(state, decoded.data, nip19);
+          if (typeof window !== 'undefined' && typeof window.showProfileModalProxy === 'function') {
+            window.showProfileModalProxy(decoded.data);
+          } else {
+            try {
+              const mod = await import('./main.js');
+              if (mod && mod.showProfileModalProxy) {
+                mod.showProfileModalProxy(decoded.data);
+              }
+            } catch (e) { }
           }
         }
         break;
       case 'nprofile':
         if (state) {
-          const { showProfileModal } = await import('./profile-modal.js');
-          if (showProfileModal) {
-            showProfileModal(state, decoded.data.pubkey, nip19);
+          if (typeof window !== 'undefined' && typeof window.showProfileModalProxy === 'function') {
+            window.showProfileModalProxy(decoded.data.pubkey);
+          } else {
+            try {
+              const mod = await import('./main.js');
+              if (mod && mod.showProfileModalProxy) {
+                mod.showProfileModalProxy(decoded.data.pubkey);
+              }
+            } catch (e) { }
           }
         }
         break;

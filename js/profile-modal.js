@@ -28,7 +28,13 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     if (!settingsManager) {
       // settingsManager 未指定時の最小 no-op スタブ（実行時エラー回避）
       settingsManager = {
-        get: function () { return null; },
+        get: function (key) {
+          if (settings && typeof settings[key] !== 'undefined') {
+            return settings[key];
+          }
+          if (key === 'showProfileBanner') return false;
+          return null;
+        },
         set: function () { },
         getUserReaction: function () { return null; },
         saveUserReaction: function () { },
