@@ -33,6 +33,7 @@ import { setupFeedFetcher, fetchMore } from './feed-fetcher.js';
 import { showOmochatSettingsModal } from './modals.js';
 import { showReactionModal } from './modals.js';
 import { showFeedNotification, sanitizeNotificationBody, ensureNotificationPermission, shouldShowBrowserNotification, normalizeMentionNotificationMode, _notifiedEventIds } from './notification.js';
+import { getClosestRelays } from './geo-relay-directory.js';
 
 
 
@@ -253,8 +254,35 @@ try {
 // Nostrツール参照
 const nip19 = getNip19();
 
+// 位置情報に基づくomochatリレーを非同期で更新・計算する
+async function refreshClosestOmochatRelays(geohash) {
+  const isAuto = settingsManager.get('omochatAutoRelays') !== false;
+  if (!isAuto) return false;
+
+  const targetGeohash = geohash || settingsManager.get('omochatGeohash') || 'xn';
+  try {
+    const algo = settingsManager.get('omochatAutoRelayAlgo') || 'merged';
+    const mergeParent = settingsManager.get('omochatMergeParent') === true;
+    const relays = await getClosestRelays(targetGeohash, 5, algo, mergeParent);
+    if (Array.isArray(relays) && relays.length > 0) {
+      settingsManager.set('omochatComputedRelays', relays);
+      return true;
+    }
+  } catch (e) {
+    console.error('[Main] refreshClosestOmochatRelays failed:', e);
+  }
+  return false;
+}
+
 // ユーザー設定の omochat リレーを返し、未設定時は DEFAULT_OMOCHAT_RELAYS へフォールバック
 function getOmochatRelays() {
+  const isAuto = settingsManager.get('omochatAutoRelays') !== false;
+  if (isAuto) {
+    const computed = settingsManager.get('omochatComputedRelays');
+    if (Array.isArray(computed) && computed.length > 0) {
+      return computed.slice();
+    }
+  }
   const saved = settingsManager.get('omochatRelays');
   return Array.isArray(saved) && saved.length > 0 ? saved.slice() : DEFAULT_OMOCHAT_RELAYS.slice();
 }
@@ -1071,8 +1099,7 @@ const showOmochat = settingsManager.get('showOmochat') !== false;
 if (!showOmochat) return; // do not setup feed or connect if disabled
 
 if (!state.feeds['bitchat']) state.feeds['bitchat'] = { list: [], map: new Map() };
-const savedRelays = settingsManager.get('omochatRelays');
-const relays = Array.isArray(savedRelays) && savedRelays.length > 0 ? savedRelays : DEFAULT_OMOCHAT_RELAYS.slice();
+const relays = getOmochatRelays();
 
   const geohash = settingsManager.get('omochatGeohash') || 'xn';
   const subordinate = settingsManager.get('omochatSubordinate') === true;
@@ -1851,6 +1878,20 @@ async function init() {
 
   const SimplePool = SimplePoolProvider();
   relayConnect(state, SimplePool, restartFeeds);
+  // 位置情報リレーの初期計算・キャッシュ更新
+  if (settingsManager.get('omochatAutoRelays') !== false) {
+    const originalRelaysStr = JSON.stringify(settingsManager.get('omochatComputedRelays') || []);
+    refreshClosestOmochatRelays().then(updated => {
+      if (updated) {
+        const newRelaysStr = JSON.stringify(settingsManager.get('omochatComputedRelays') || []);
+        if (originalRelaysStr !== newRelaysStr) {
+          console.log('[Main] Omochat relays updated on boot, reloading feed...');
+          if (typeof window.softReload === 'function') window.softReload();
+        }
+      }
+    });
+  }
+
   // 未ログイン時でもグローバルの履歴/ライブ購読を自動開始
   try {
     const pubkey = localStorage.getItem('pubkey');
@@ -2096,7 +2137,7 @@ try {
 
 // omochat 設定変更時に UI と feed を更新するリスナーを追加
 try {
-  window.addEventListener('omochatSettingsSaved', () => {
+  window.addEventListener('omochatSettingsSaved', async () => {
     try {
       // タブラベルを即時更新（アクティブタブは維持）
       setupTabs(true);
@@ -2110,6 +2151,20 @@ try {
       });
       // 現在設定に基づいてラベル更新
       try { updateGlobalButtonLabel(settingsManager); } catch (e) { }
+
+      // 位置情報リレーの更新処理
+      const isAuto = settingsManager.get('omochatAutoRelays') !== false;
+      if (isAuto) {
+        showToast(t('omochat.relays.updating') || '位置情報リレーを更新中...', { type: 'info' });
+        const originalRelaysStr = JSON.stringify(settingsManager.get('omochatComputedRelays') || []);
+        const updated = await refreshClosestOmochatRelays();
+        if (updated) {
+          const newRelaysStr = JSON.stringify(settingsManager.get('omochatComputedRelays') || []);
+          if (originalRelaysStr !== newRelaysStr) {
+            showToast(t('omochat.relays.updated') || '位置情報リレーを更新しました', { type: 'success' });
+          }
+        }
+      }
 
       // 新しいフィルタ設定を反映するため feed 再読込を実行
       if (typeof window.softReload === 'function') window.softReload();

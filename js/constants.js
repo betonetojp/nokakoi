@@ -25,17 +25,19 @@ export const MAX_PREVIEW_LINES = 10;
 
 // omochat (BitChat) デフォルトリレー
 export const DEFAULT_OMOCHAT_RELAYS = [
+  // --- iOS/Androidアプリのデフォルト（フォールバック）リレー ---
   'wss://relay.damus.io/',
   'wss://nos.lol/',
   'wss://relay.primal.net/',
   'wss://offchain.pub/',
-  'wss://nostr21.com/',
+  'wss://nostr21.com/', // Android用フォールバック
+
+  // --- 地域・開発用カスタムリレー ---
   'wss://yabu.me/',
-  //'wss://v-relay.d02.vrtmrz.net/',
-  'wss://relay.purplefrog.cloud/',
-  //'wss://relay01.lnfi.network/',
-  'wss://relay02.lnfi.network/',
-  //'wss://nostr.ps1829.com/',
+  'wss://staging.yabu.me/',
   'wss://nostr.middling.mydns.jp/',
-  'wss://relay.homeinhk.xyz/'
+  'wss://relay.homeinhk.xyz/',
+  'wss://relay01.lnfi.network/',
+  'wss://relay02.lnfi.network/',
+  'wss://nostr.infero.net/'
 ];

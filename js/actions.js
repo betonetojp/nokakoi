@@ -527,9 +527,14 @@ export async function replyToEvent(state, targetEv, text) {
     if (replyKind === 20000) {
       try {
         const s = JSON.parse(localStorage.getItem('appSettings') || '{}');
-        writeRelays = (s && Array.isArray(s.omochatRelays) && s.omochatRelays.length > 0)
-          ? s.omochatRelays
-          : DEFAULT_OMOCHAT_RELAYS.slice();
+        const isAuto = s && s.omochatAutoRelays !== false;
+        if (isAuto && Array.isArray(s.omochatComputedRelays) && s.omochatComputedRelays.length > 0) {
+          writeRelays = s.omochatComputedRelays.slice();
+        } else if (s && Array.isArray(s.omochatRelays) && s.omochatRelays.length > 0) {
+          writeRelays = s.omochatRelays.slice();
+        } else {
+          writeRelays = DEFAULT_OMOCHAT_RELAYS.slice();
+        }
       } catch (e) {
         writeRelays = DEFAULT_OMOCHAT_RELAYS.slice();
       }

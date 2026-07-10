@@ -5,7 +5,7 @@
 
 // バージョンは app/js/version.js で一元管理
 // サービスワーカー用にここにもコピー（リリース時は手動で更新・version.jsと一致させること）
-const CACHE_VERSION = 'v1.90.0';
+const CACHE_VERSION = 'v1.91.0';
 const CACHE_NAME = `nokakoi-${CACHE_VERSION}`;
 
 // ローカル開発時のみ詳細ログを有効化

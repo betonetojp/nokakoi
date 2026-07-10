@@ -81,6 +81,10 @@ export class SettingsManager {
         omochatGeohashHistory: (obj && Array.isArray(obj.omochatGeohashHistory)) ? obj.omochatGeohashHistory : [],
         // Omochat relays
         omochatRelays: (obj && Array.isArray(obj.omochatRelays)) ? obj.omochatRelays : null,
+        omochatAutoRelays: (obj && typeof obj.omochatAutoRelays !== 'undefined') ? obj.omochatAutoRelays : true,
+        omochatAutoRelayAlgo: (obj && obj.omochatAutoRelayAlgo) || 'merged',
+        omochatMergeParent: (obj && typeof obj.omochatMergeParent !== 'undefined') ? obj.omochatMergeParent : true,
+        omochatComputedRelays: (obj && Array.isArray(obj.omochatComputedRelays)) ? obj.omochatComputedRelays : [],
         // NIP-46 Nostr Connect 設定
         nip46Relays: (obj && Array.isArray(obj.nip46Relays)) ? obj.nip46Relays : DEFAULT_NIP46_RELAYS.slice(),
         // プレビュー最大文字数
@@ -130,6 +134,10 @@ export class SettingsManager {
         omochatSubordinate: false,
         // Omochat geohash 履歴
         omochatGeohashHistory: [],
+        omochatAutoRelays: true,
+        omochatAutoRelayAlgo: 'merged',
+        omochatMergeParent: true,
+        omochatComputedRelays: [],
         // NIP-46 既定値
         nip46Relays: DEFAULT_NIP46_RELAYS.slice(),
         nip46LocalSecretKey: null,

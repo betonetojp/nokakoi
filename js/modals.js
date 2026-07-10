@@ -6,6 +6,7 @@ import { $, buildReactionEmojiTags, buildStoredReactionValue, getReactionContent
 import { t, applyTranslations } from './i18n.js';
 import { DEFAULT_OMOCHAT_RELAYS } from './constants.js';
 import { attachEmojiShortcodeSuggest } from './emoji-shortcode-suggest.js';
+import { getClosestRelays } from './geo-relay-directory.js';
 
 const HIDDEN_TAG_CHARS_RE = /[\u{E0100}-\u{E01EF}]+/gu;
 const RECENT_REACTIONS_KEY = 'recentReactions';
@@ -587,6 +588,18 @@ export function showOmochatSettingsModal(settingsManager) {
   if (subordinateCheck) {
     subordinateCheck.checked = settingsManager.get('omochatSubordinate') === true;
   }
+  const autoRelayCheck = $('#omochatAutoRelayCheck');
+  if (autoRelayCheck) {
+    autoRelayCheck.checked = settingsManager.get('omochatAutoRelays') !== false;
+  }
+  const autoRelayAlgoSelect = $('#omochatAutoRelayAlgoSelect');
+  if (autoRelayAlgoSelect) {
+    autoRelayAlgoSelect.value = settingsManager.get('omochatAutoRelayAlgo') || 'merged';
+  }
+  const mergeParentCheck = $('#omochatMergeParentCheck');
+  if (mergeParentCheck) {
+    mergeParentCheck.checked = settingsManager.get('omochatMergeParent') === true;
+  }
   if (statusEl) statusEl.textContent = '';
 
   modal.hidden = false;
@@ -643,6 +656,7 @@ export function showOmochatSettingsModal(settingsManager) {
       label.onclick = (e) => {
         input.value = gh;
         historyPopup.style.display = 'none';
+        input.dispatchEvent(new Event('input'));
       };
       const delBtn = document.createElement('button');
       delBtn.className = 'btn-remove';
@@ -746,7 +760,72 @@ export function showOmochatSettingsModal(settingsManager) {
       relayListEl.appendChild(row);
     });
   }
-  renderRelayList();
+
+  let activeUpdateId = 0;
+  async function updateRelayListUI() {
+    if (!relayListEl) return;
+    const isAuto = autoRelayCheck ? autoRelayCheck.checked : false;
+    const algoContainer = $('#omochatAutoRelayAlgoContainer');
+    if (algoContainer) {
+      algoContainer.style.display = isAuto ? 'block' : 'none';
+    }
+    const mergeParentContainer = $('#omochatMergeParentContainer');
+    if (mergeParentContainer) {
+      mergeParentContainer.style.display = isAuto ? 'flex' : 'none';
+    }
+
+    if (isAuto) {
+      if (addRelayBtn) addRelayBtn.style.display = 'none';
+      if (resetRelaysBtn) resetRelaysBtn.style.display = 'none';
+
+      const currentGeohash = input.value.trim() || 'xn';
+      const algo = autoRelayAlgoSelect ? autoRelayAlgoSelect.value : 'merged';
+      const mergeParent = mergeParentCheck ? mergeParentCheck.checked : false;
+      const myUpdateId = ++activeUpdateId;
+      relayListEl.innerHTML = '<div class="muted" style="font-size:0.9em;padding:4px;">リレーを計算中...</div>';
+
+      const autoRelays = await getClosestRelays(currentGeohash, 5, algo, mergeParent);
+      if (myUpdateId !== activeUpdateId) return;
+
+      relayListEl.innerHTML = '';
+      if (autoRelays && autoRelays.length > 0) {
+        autoRelays.forEach(relay => {
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:4px;opacity:0.75;';
+          const inp = document.createElement('input');
+          inp.type = 'text';
+          inp.value = relay;
+          inp.style.flex = '1';
+          inp.readOnly = true;
+          row.appendChild(inp);
+          relayListEl.appendChild(row);
+        });
+      } else {
+        relayListEl.innerHTML = '<div class="muted" style="font-size:0.9em;padding:4px;color:var(--accent);">位置情報リレーの取得に失敗しました。フォールバックリレーを使用します。</div>';
+      }
+    } else {
+      if (addRelayBtn) addRelayBtn.style.display = 'block';
+      if (resetRelaysBtn) resetRelaysBtn.style.display = 'block';
+      renderRelayList();
+    }
+  }
+
+  updateRelayListUI();
+
+  if (autoRelayCheck) {
+    autoRelayCheck.onchange = updateRelayListUI;
+  }
+  if (autoRelayAlgoSelect) {
+    autoRelayAlgoSelect.onchange = updateRelayListUI;
+  }
+  if (mergeParentCheck) {
+    mergeParentCheck.onchange = updateRelayListUI;
+  }
+  input.oninput = () => {
+    if (autoRelayCheck && autoRelayCheck.checked) {
+      updateRelayListUI();
+    }
+  };
 
   if (addRelayBtn) {
     addRelayBtn.onclick = () => {
@@ -768,9 +847,21 @@ export function showOmochatSettingsModal(settingsManager) {
     if (subordinateCheck) {
       settingsManager.set('omochatSubordinate', subordinateCheck.checked);
     }
-    // リレー保存（空入力を除外し、1件以上保証）
-    const validRelays = omochatRelays.map(r => r.trim()).filter(r => r.length > 0);
-    settingsManager.set('omochatRelays', validRelays.length > 0 ? validRelays : DEFAULT_OMOCHAT_RELAYS.slice());
+    const isAuto = autoRelayCheck ? autoRelayCheck.checked : false;
+    settingsManager.set('omochatAutoRelays', isAuto);
+
+    const algo = autoRelayAlgoSelect ? autoRelayAlgoSelect.value : 'merged';
+    settingsManager.set('omochatAutoRelayAlgo', algo);
+
+    const mergeParent = mergeParentCheck ? mergeParentCheck.checked : false;
+    settingsManager.set('omochatMergeParent', mergeParent);
+
+    if (!isAuto) {
+      // リレー保存（空入力を除外し、1件以上保証）
+      const validRelays = omochatRelays.map(r => r.trim()).filter(r => r.length > 0);
+      settingsManager.set('omochatRelays', validRelays.length > 0 ? validRelays : DEFAULT_OMOCHAT_RELAYS.slice());
+    }
+
     // 履歴に追加（重複なし、先頭）
     let hist = getGeohashHistory();
     if (val && val.length > 0) {
