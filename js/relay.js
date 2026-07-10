@@ -1143,27 +1143,52 @@ export async function closePoolAndWait(state, timeoutMs = 1000) {
 }
 
 /**
+ * イベントの受信リレー一覧を返す（ev.seenOn と pool.seenOn をマージ）
+ */
+export function getEventSeenOn(state, ev) {
+  if (!ev) return [];
+
+  const merged = [];
+  const seen = new Set();
+
+  function addRelay(url) {
+    if (!url || typeof url !== 'string') return;
+    const norm = normalizeUrl(url);
+    if (!norm || seen.has(norm)) return;
+    seen.add(norm);
+    merged.push(url.trim().replace(/\/+$/, '') || url);
+  }
+
+  if (Array.isArray(ev.seenOn)) {
+    for (const r of ev.seenOn) {
+      if (typeof r === 'string') addRelay(r);
+      else if (r) addRelay(r.url || r.relay || r);
+    }
+  }
+
+  if (state && state.pool && state.pool.seenOn && ev.id) {
+    try {
+      const poolSeen = state.pool.seenOn.get(ev.id);
+      if (poolSeen) {
+        for (const r of poolSeen) {
+          if (typeof r === 'string') addRelay(r);
+          else if (r) addRelay(r.url || r.relay || r);
+        }
+      }
+    } catch (e) { }
+  }
+
+  return merged;
+}
+
+/**
  * イベントの受信リレーリスト（ev.seenOn）から、現在の設定に基づき最適なリレーヒントを決定する
  * 優先順位: 自分の書き込みリレー -> 自分の読み込みリレー -> 最初に受信したリレー -> 空文字
  */
 export function getBestRelayHint(state, ev) {
   if (!ev) return '';
 
-  let seenOn = Array.isArray(ev.seenOn) ? ev.seenOn.slice() : [];
-
-  // もし ev.seenOn が空で、pool.seenOn がある場合、そこから取得を試みる
-  if (seenOn.length === 0 && state && state.pool && state.pool.seenOn) {
-    try {
-      const poolSeen = state.pool.seenOn.get(ev.id);
-      if (poolSeen) {
-        // Set の中身が Relay オブジェクトか url 文字列か異なるため両対応
-        seenOn = Array.from(poolSeen).map(r => {
-          if (typeof r === 'string') return r;
-          return r && (r.url || r.relay || r);
-        }).filter(Boolean);
-      }
-    } catch (e) { }
-  }
+  const seenOn = getEventSeenOn(state, ev);
 
   if (seenOn.length === 0) {
     return '';

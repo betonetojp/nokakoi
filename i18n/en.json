@@ -147,6 +147,8 @@
   "lumilumi.confirm": "Open in lumilumi?",
   "json.title": "Event JSON",
   "json.copy": "Copy",
+  "json.relays_seen_on": "Relays seen on",
+  "json.relays_seen_on.none": "—",
   "sw.update.yes": "Update",
   "sw.update.no": "Later",
   "mute.public_label": "Public mutes:",

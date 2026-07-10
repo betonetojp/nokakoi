@@ -145,6 +145,8 @@
   "lumilumi.confirm": "lumilumiで開きますか？",
   "json.title": "イベントJSON",
   "json.copy": "コピー",
+  "json.relays_seen_on": "受信リレー",
+  "json.relays_seen_on.none": "—",
   "sw.update.yes": "更新する",
   "sw.update.no": "後で",
   "mute.public_label": "公開ミュート：",
