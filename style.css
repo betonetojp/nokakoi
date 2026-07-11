@@ -189,7 +189,10 @@ body {
   max-width: 860px;
   margin: 0 auto;
   padding: 16px;
-  padding-bottom: 220px;
+  padding-bottom: 0px;
+}
+.container:has(.event) {
+  padding-bottom: 120px;
 }
 .panel {
   background: var(--panel);
@@ -486,7 +489,7 @@ select, select:focus {
   pointer-events: none;
 }
 .feed { display: none; }
-.feed.active { display: block; min-height: 100vh; overflow-anchor: none; }
+.feed.active { display: block; min-height: calc(100vh - 100px); overflow-anchor: none; }
 
 /* ===============================
    イベント表示
