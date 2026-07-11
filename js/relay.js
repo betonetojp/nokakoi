@@ -949,8 +949,9 @@ function processSubscribeQueue() {
           onevent: (function () {
             // oneshot は dispatcher をラップし、一定件数または timeout で自動 close
             if (type === 'oneshot') {
-              // 1 relay 偏重で早期 close しないよう relay ごとに件数を管理
-              const perRelayLimit = 20;
+              // 1 relay 偏重で早期 close しないよう relay ごとに件数を管理。
+              // 投稿頻度の高い kind:1 だけで枠が埋まるのを防ぐため、十分大きな上限にする。
+              const perRelayLimit = 200;
               const relayCount = Array.isArray(req.targetRelays) && req.targetRelays.length ? req.targetRelays.length : 1;
               const counts = new Map();
               let total = 0;

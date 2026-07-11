@@ -1244,17 +1244,20 @@ function setupAuthedFeeds() {
     // home: 複数の hist/live フィルタで feed-fetcher を使用
     try {
       const homeHist = [
-        { kinds: [1, 6], authors: follows, limit: EVENTS_FETCH_LIMIT },
+        // 1. フォロイーの全対象投稿（基本の1,6 ＋ オンになっているオプション）を1つに統合
+        { kinds: [1, 6, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
+        // 2. 自分宛ての投稿
         { kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        // 3. 自分自身の投稿
         { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
       ];
-      if (optionalHomeFollowKinds.length > 0) {
-        homeHist.push({ kinds: optionalHomeFollowKinds, authors: follows, limit: EVENTS_FETCH_LIMIT });
-      }
       const sinceLive = Math.floor(Date.now() / 1000);
       const homeLive = [
-        { kinds: [1, 6], authors: follows, since: sinceLive },
+        // 1. フォロイーの全対象投稿（基本の1,6 ＋ オンになっているオプション）を1つに統合
+        { kinds: [1, 6, ...optionalHomeFollowKinds], authors: follows, since: sinceLive },
+        // 2. 自分宛ての投稿
         { kinds: [1, 6, 7], '#p': [pubkey], since: sinceLive },
+        // 3. 自分自身の投稿
         { kinds: [7, 42, 16], authors: [pubkey], since: sinceLive }
       ];
       // follows 向け kind:30315（User Status）監視は表示設定が有効な場合のみ購読
@@ -1263,9 +1266,6 @@ function setupAuthedFeeds() {
           homeLive.push({ kinds: [30315], authors: follows, '#d': ['music'], since: sinceLive });
         }
       } catch (e) { /* ignore */ }
-      if (optionalHomeFollowKinds.length > 0) {
-        homeLive.push({ kinds: optionalHomeFollowKinds, authors: follows, since: sinceLive });
-      }
 
       // history oneshot 購読作成前に read relays があることを確認。
       // 初期ロードで state.relays が空だと取りこぼす可能性があるため

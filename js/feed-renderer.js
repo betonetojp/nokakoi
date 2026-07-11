@@ -245,7 +245,11 @@ export function renderFeed(id = 'global', force = false) {
         if (bottomBar) bottomBar.textContent = t('loading');
 
         const oldest = listForClick[listForClick.length - 1];
-        const until = oldest && oldest.created_at ? oldest.created_at : Math.floor(Date.now() / 1000);
+        // 隙間バグを防ぐため、投稿頻度の高い kind:1 または kind:6 の中での最古のイベント時間を基準にする
+        const oldestTextEvent = listForClick.slice().reverse().find(e => e && (e.kind === 1 || e.kind === 6));
+        const until = oldestTextEvent && oldestTextEvent.created_at 
+          ? oldestTextEvent.created_at 
+          : (oldest && oldest.created_at ? oldest.created_at : Math.floor(Date.now() / 1000));
         const startListLength = listForClick.length;
 
         let filtersToUse = [];
@@ -258,18 +262,19 @@ export function renderFeed(id = 'global', force = false) {
               scheduleRender(id);
               return;
             }
-            const baseFilters = [
-              { kinds: [1, 6], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
-              { kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
-              { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
-            ];
             const optionalHomeFollowKinds = [];
             if (_options.settingsManager.get('showHomeReactions') === true) optionalHomeFollowKinds.push(7);
             if (_options.settingsManager.get('showHomeChannel') === true) optionalHomeFollowKinds.push(42);
             if (_options.settingsManager.get('showHomeRepost16') === true) optionalHomeFollowKinds.push(16);
-            if (optionalHomeFollowKinds.length > 0) {
-              baseFilters.push({ kinds: optionalHomeFollowKinds, authors: followsForMore, limit: EVENTS_FETCH_LIMIT });
-            }
+
+            const baseFilters = [
+              // 1. フォロイーの全対象投稿（基本の1,6 ＋ オンになっているオプション）を1つに統合
+              { kinds: [1, 6, ...optionalHomeFollowKinds], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
+              // 2. 自分宛ての投稿
+              { kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+              // 3. 自分自身の投稿
+              { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
+            ];
             filtersToUse = baseFilters.map(f => Object.assign({}, f, { until: until - 1 }));
           } catch (e) { console.error('[FeedRenderer] home filter err:', e); filtersToUse = []; }
         } else if (id === 'mentions') {
