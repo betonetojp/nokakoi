@@ -1,5 +1,6 @@
 // デバッグモーダル設定（main.js から分離）
 import { t } from './i18n.js';
+import { VERSION } from './version.js';
 export function setupDebugModal(state, settings) {
   document.addEventListener('DOMContentLoaded', function () {
     const brand = document.querySelector('.brand');
@@ -142,6 +143,8 @@ export function setupDebugModal(state, settings) {
         const subscribeQueueLength = relayDebugInfo && typeof relayDebugInfo.queueLength === 'number' ? relayDebugInfo.queueLength : undefined;
 
         let debugObj = {
+          appVersion: VERSION,
+          buildInfo: window.__buildInfo || 'N/A',
           state: prunedState,
           settings: settingsSummary,
           skInfo,

@@ -886,8 +886,6 @@ body.theme-light img.icon-btn {
   text-align: center;
   color: var(--muted);
   padding: 24px;
-  /* iPhoneでキーボード表示時に投稿窓が隠れないよう下部に余白を追加 */
-  padding-bottom: max(24px, calc(60vh));
 }
 
 /* ===============================

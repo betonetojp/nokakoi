@@ -6,14 +6,13 @@
  * タブ切り替え用スワイプジェスチャーのセットアップ
  */
 export function setupTabSwipe() {
-  // フィードが空でもスワイプ可能にするためcontainerを使用
-  const swipeContainer = document.querySelector('.container');
-  if (!swipeContainer) return;
+  if (typeof document === 'undefined') return;
 
   let touchStartX = 0;
   let touchEndX = 0;
   let touchStartY = 0;
   let touchEndY = 0;
+  let touchStartTime = 0;
   let handled = false;
 
   // スワイプ判定の最小距離: 画面幅の18%または120pxのいずれか大きい方を採用（感度を下げる）
@@ -76,35 +75,74 @@ export function setupTabSwipe() {
 
   // タッチイベントハンドラ
   const touchStartHandler = (e) => {
+    const target = e.target;
+    if (!target) return;
+
+    // ボタン、リンク、モーダル内、カスタム絵文字サジェストは除外
+    if (target.closest('button, a, [role="button"], .modal, .emoji-shortcode-suggest')) {
+      return;
+    }
+
+    // 横スクロール可能な要素内でのタッチを除外（テキスト入力欄が横スクロールする場合も自動除外される）
+    let parent = target;
+    while (parent && parent !== document.body) {
+      try {
+        const style = window.getComputedStyle(parent);
+        if ((style.overflowX === 'auto' || style.overflowX === 'scroll') && parent.scrollWidth > parent.clientWidth) {
+          return;
+        }
+      } catch (err) {}
+      parent = parent.parentElement;
+    }
+
     touchStartX = e.changedTouches[0].screenX;
     touchStartY = e.changedTouches[0].screenY;
+    touchStartTime = Date.now();
     handled = false;
   };
 
   const touchEndHandler = (e) => {
     if (handled) return;
+
+    // タッチ開始座標が未設定の場合はスキップ
+    if (touchStartX === 0 && touchStartY === 0) return;
+
+    // タッチ時間が長い（350ms超）場合は長押し・テキスト選択ドラッグとみなしてキャンセル
+    const touchDuration = Date.now() - touchStartTime;
+    if (touchDuration > 350) {
+      touchStartX = 0;
+      touchStartY = 0;
+      return;
+    }
+
+    // テキスト選択範囲が存在する場合はキャンセル
+    const selection = window.getSelection();
+    if (selection && (selection.type === 'Range' || selection.toString().length > 0)) {
+      touchStartX = 0;
+      touchStartY = 0;
+      return;
+    }
+
     handled = true;
     if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
     touchEndX = e.changedTouches[0].screenX;
     touchEndY = e.changedTouches[0].screenY;
     handleSwipe();
+
+    // 座標をリセット
+    touchStartX = 0;
+    touchStartY = 0;
   };
 
   const touchCancelHandler = (e) => {
     handled = true;
+    touchStartX = 0;
+    touchStartY = 0;
     try { if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation(); } catch (err) { }
   };
 
-  // containerにイベントリスナーを追加
-  swipeContainer.addEventListener('touchstart', touchStartHandler, { passive: true });
-  swipeContainer.addEventListener('touchend', touchEndHandler, { passive: true });
-  swipeContainer.addEventListener('touchcancel', touchCancelHandler, { passive: true });
-
-  // フッター要素にも同じイベントリスナーを追加（余白部分でもスワイプ可能にする）
-  const footer = document.querySelector('.footer');
-  if (footer) {
-    footer.addEventListener('touchstart', touchStartHandler, { passive: true });
-    footer.addEventListener('touchend', touchEndHandler, { passive: true });
-    footer.addEventListener('touchcancel', touchCancelHandler, { passive: true });
-  }
+  // documentにイベントリスナーを追加
+  document.addEventListener('touchstart', touchStartHandler, { passive: true });
+  document.addEventListener('touchend', touchEndHandler, { passive: true });
+  document.addEventListener('touchcancel', touchCancelHandler, { passive: true });
 }

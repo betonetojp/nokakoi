@@ -303,8 +303,6 @@ var authGuardInterval = null; // UI guard interval (var to avoid TDZ in some env
  */
 async function updateBuildInfo() {
   try {
-    const el = document.getElementById('buildInfo');
-    if (!el) return;
     const scripts = Array.from(document.scripts || []);
     const getPathname = (src) => {
       try {
@@ -350,7 +348,12 @@ async function updateBuildInfo() {
     if (updatedStr) textParts.unshift(updatedStr);
     if (!textParts.length) textParts.push('loaded ' + new Date().toLocaleString());
 
-    el.textContent = ' · ' + textParts.join(' · ');
+    window.__buildInfo = textParts.join(' · ');
+
+    const el = document.getElementById('buildInfo');
+    if (el) {
+      el.textContent = ' · ' + window.__buildInfo;
+    }
   } catch (e) {
     console.error('[エラー] ビルド情報の更新に失敗:', e);
   }
