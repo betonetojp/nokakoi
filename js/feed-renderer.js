@@ -279,8 +279,7 @@ export function renderFeed(id = 'global', force = false) {
           const pubkey = localStorage.getItem('pubkey');
           filtersToUse = [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT, until: until - 1 }];
         } else if (id === 'bitchat') {
-          const geohash = _options.settingsManager.get('omochatGeohash') || 'xn';
-          filtersToUse = [{ kinds: [20000], '#g': [geohash], limit: EVENTS_FETCH_LIMIT, until: until - 1 }];
+          filtersToUse = [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT, until: until - 1 }];
         } else if (id === 'global') {
           filtersToUse = [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT, until: until - 1 }];
         } else {
@@ -336,7 +335,7 @@ export function renderFeed(id = 'global', force = false) {
             filters: filtersToUse,
             relays: relays,
             startListLength,
-            addToFeed: _options.addToFeed,
+            addToFeed: (id === 'bitchat' && _state._bitchatFeedAdder) ? _state._bitchatFeedAdder : _options.addToFeed,
             scheduleRender,
             eventsFetchLimit: EVENTS_FETCH_LIMIT,
             eventsTimeout: Math.max(EVENTS_TIMEOUT, 10000)

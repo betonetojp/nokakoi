@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { uniqueRelays, $, logWarn } from './utils.js';
-import { RECONNECT_DELAY, MAX_RECONNECT_ATTEMPTS, DOWN_PERSIST_MS, MAX_LIVE_PER_RELAY, MAX_ONESHOT_PER_RELAY, MAX_TOTAL_SUB_PER_RELAY } from './constants.js';
+import { RECONNECT_DELAY, MAX_RECONNECT_DELAY, DOWN_PERSIST_MS, MAX_LIVE_PER_RELAY, MAX_ONESHOT_PER_RELAY, MAX_TOTAL_SUB_PER_RELAY, KEEPALIVE_INTERVAL } from './constants.js';
 import { getNostrTools } from './nostr-compat.js';
 
 /**
@@ -56,7 +56,7 @@ function updateRelayState(url, connected) {
 }
 
 /**
- * Schedule reconnection for a relay
+ * Schedule reconnection for a relay (exponential backoff, no upper limit)
  */
 function scheduleReconnect(state, url, restartFeedsCallback) {
   try {
@@ -66,14 +66,10 @@ function scheduleReconnect(state, url, restartFeedsCallback) {
     // Don't schedule if already scheduled
     if (relayState.reconnectTimer) return;
 
-    // Check if we've exceeded max attempts
-    if (relayState.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      debugRelay(`[Relay] Max reconnect attempts reached for ${url}`);
-      return;
-    }
-
     relayState.reconnectAttempts++;
-    debugRelay(`[Relay] Scheduling reconnect for ${url} (attempt ${relayState.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+    // 指数バックオフ: 5s → 10s → 20s → 40s → 60s → 60s...
+    const delay = Math.min(RECONNECT_DELAY * Math.pow(2, relayState.reconnectAttempts - 1), MAX_RECONNECT_DELAY);
+    debugRelay(`[Relay] Scheduling reconnect for ${url} (attempt ${relayState.reconnectAttempts}, delay ${delay}ms)`);
 
     relayState.reconnectTimer = setTimeout(() => {
       try {
@@ -87,11 +83,103 @@ function scheduleReconnect(state, url, restartFeedsCallback) {
       } catch (e) {
         console.warn(`[Relay] Reconnect timer task failed for ${url}:`, e);
       }
-    }, RECONNECT_DELAY);
+    }, delay);
 
     relayStates.set(url, relayState);
   } catch (e) {
     console.warn(`[Relay] scheduleReconnect failed for ${url}:`, e);
+  }
+}
+
+// ダミーの pubkey（全ゼロ、64文字hex）。結果0件が確定するフィルタに使用
+const KEEPALIVE_DUMMY_AUTHOR = '0000000000000000000000000000000000000000000000000000000000000000';
+
+/**
+ * WebSocket keepalive: 定期的に空結果のREQ/CLOSEペアを送信しアイドルタイムアウトを防止
+ */
+function startKeepalive(state) {
+  stopKeepalive(state);
+  state._keepaliveInterval = setInterval(() => {
+    try {
+      if (!state.pool || !state.pool.relays) return;
+      for (const [url, relay] of state.pool.relays.entries()) {
+        try {
+          const ws = relay && relay.ws;
+          if (!ws || ws.readyState !== WebSocket.OPEN) continue;
+          const kaId = 'ka_' + Date.now().toString(36);
+          ws.send(JSON.stringify(["REQ", kaId, { "kinds": [0], "authors": [KEEPALIVE_DUMMY_AUTHOR], "limit": 1 }]));
+          ws.send(JSON.stringify(["CLOSE", kaId]));
+          debugRelay('[Relay] keepalive sent to', url);
+        } catch (e) { /* ignore per-relay errors */ }
+      }
+    } catch (e) {
+      console.warn('[Relay] keepalive 送信失敗:', e);
+    }
+  }, KEEPALIVE_INTERVAL);
+}
+
+function stopKeepalive(state) {
+  if (state._keepaliveInterval) {
+    try { clearInterval(state._keepaliveInterval); } catch (e) { }
+    state._keepaliveInterval = null;
+  }
+}
+
+/**
+ * Page Visibility 変更時のリレー接続チェック
+ * タブがフォアグラウンドに戻った際、切断されたリレーを検出し再接続を試行する
+ */
+function setupVisibilityHandler(state, restartFeedsCallback) {
+  // 既存ハンドラを解除
+  removeVisibilityHandler(state);
+  if (!restartFeedsCallback) return;
+
+  state._visibilityHandler = () => {
+    try {
+      if (document.hidden) return;
+      debugRelay('[Relay] Page became visible, checking connections');
+      if (!state.pool || !state.pool.relays) return;
+
+      const allRelays = getAllRelayUrls(state.relays);
+      let anyDisconnected = false;
+
+      allRelays.forEach(url => {
+        try {
+          const relay = getRelayFromPool(state.pool, url);
+          const ws = relay && relay.ws;
+          const isConnected = ws && ws.readyState === WebSocket.OPEN;
+          if (!isConnected) {
+            anyDisconnected = true;
+            // 再接続カウンターをリセット（フォアグラウンド復帰時は新たに試行開始）
+            const rs = relayStates.get(url);
+            if (rs) {
+              rs.reconnectAttempts = 0;
+              rs.lastSeenDown = null;
+              relayStates.set(url, rs);
+            }
+          }
+          updateRelayState(url, !!isConnected);
+        } catch (e) { }
+      });
+
+      if (anyDisconnected) {
+        debugRelay('[Relay] Disconnected relays found, triggering reconnect');
+        setTimeout(() => {
+          try { if (restartFeedsCallback) restartFeedsCallback(false); } catch (e) { }
+        }, 500);
+      }
+    } catch (e) {
+      console.warn('[Relay] visibilitychange handler error:', e);
+    }
+  };
+
+  try { document.addEventListener('visibilitychange', state._visibilityHandler); } catch (e) { }
+}
+
+function removeVisibilityHandler(state) {
+  if (state._visibilityHandler) {
+    try { document.removeEventListener('visibilitychange', state._visibilityHandler); } catch (e) { }
+    state._visibilityHandler = null;
   }
 }
 
@@ -224,6 +312,10 @@ export function stopMonitoringRelays(state) {
     clearInterval(state.relayMonitorInterval);
     state.relayMonitorInterval = null;
   }
+  // keepalive 停止
+  stopKeepalive(state);
+  // Page Visibility ハンドラ解除
+  removeVisibilityHandler(state);
   // 全再接続タイマークリア
   relayStates.forEach((relayState, url) => {
     if (relayState.reconnectTimer) {
@@ -405,6 +497,10 @@ export function relayConnect(state, SimplePool, restartFeedsCallback = null) {
     if (restartFeedsCallback) {
       monitorRelayConnections(state, restartFeedsCallback);
     }
+    // WebSocket keepalive 開始（リレーのアイドルタイムアウト防止）
+    startKeepalive(state);
+    // Page Visibility 変更時の接続チェック
+    setupVisibilityHandler(state, restartFeedsCallback);
     // pool 準備完了を通知
     try {
       if (typeof window !== 'undefined') {

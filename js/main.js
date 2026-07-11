@@ -1093,6 +1093,8 @@ function setupGlobalFeed() {
 
 /**
  * bitchat フィードのセットアップ（kind:20000）
+ * 常に kind:20000 を全件取得し、表示時にクライアント側で geohash フィルタを適用する。
+ * 「ホームに omochat を表示」オン時は、follows のイベントを home フィードにも分配する。
  */
 function setupBitchatFeed() {
 const showOmochat = settingsManager.get('showOmochat') !== false;
@@ -1103,53 +1105,44 @@ const relays = getOmochatRelays();
 
   const geohash = settingsManager.get('omochatGeohash') || 'xn';
   const subordinate = settingsManager.get('omochatSubordinate') === true;
+  const includeHomeOmochat = settingsManager.get('showHomeOmochat') === true;
 
   // kind:20000
   try {
-    let histFilters, liveFilters;
-    let feedAdder = addToFeed;
+    // 常に全件取得（relay 側フィルタなし）
+    const histFilters = [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT }];
+    const since = Math.floor(Date.now() / 1000);
+    const liveFilters = [{ kinds: [20000], since }];
 
-    if (subordinate) {
-      // kind:20000 を全取得し、クライアント側でフィルタ
-      histFilters = [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT }];
-      const since = Math.floor(Date.now() / 1000);
-      liveFilters = [{ kinds: [20000], since }];
+    // geohash フィルタ: subordinate オン → 前方一致、オフ → 完全一致
+    const matchesGeohash = (ev) => {
+      if (!ev || ev.kind !== 20000) return false;
+      const gTag = ev.tags && ev.tags.find(t => t[0] === 'g');
+      const gVal = gTag ? gTag[1] : '';
+      if (!gVal) return false;
+      if (subordinate) {
+        return gVal.startsWith(geohash);
+      } else {
+        return gVal === geohash;
+      }
+    };
 
-      const matchesGeohash = (ev) => {
-        if (!ev || ev.kind !== 20000) return false;
-        const gTag = ev.tags && ev.tags.find(t => t[0] === 'g');
-        const gVal = gTag ? gTag[1] : '';
-        return !!(gVal && gVal.startsWith(geohash));
-      };
-
-      // geohash 接頭辞で絞り込むためのカスタム add 処理
-      feedAdder = (fid, ev, limit, r) => {
-        try {
-          if (matchesGeohash(ev)) addToFeed(fid, ev, limit, r);
-        } catch (e) { }
-      };
-
-      const fetcher = setupFeedFetcher({
-        state,
-        feedId: 'bitchat',
-        histFilters,
-        liveFilters,
-        relays,
-        addToFeed: feedAdder,
-        scheduleRender,
-        eventsFetchLimit: EVENTS_FETCH_LIMIT,
-        eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
-        acceptHistEvent: matchesGeohash,
-        ...feedFetcherHistHooks()
-      });
-      try { state._bitchatFetcher = fetcher; } catch (e) { }
-      return;
-    } else {
-      // relay 側で exact match フィルタ
-      histFilters = [{ kinds: [20000], '#g': [geohash], limit: EVENTS_FETCH_LIMIT }];
-      const since = Math.floor(Date.now() / 1000);
-      liveFilters = [{ kinds: [20000], '#g': [geohash], since }];
-    }
+    // bitchat フィードへの追加 + home フィードへの分配
+    const feedAdder = (fid, ev, limit, r) => {
+      try {
+        if (matchesGeohash(ev)) addToFeed(fid, ev, limit, r);
+      } catch (e) { }
+      // home フィードへの分配: follows に含まれるユーザーのイベントを追加
+      try {
+        if (includeHomeOmochat && ev && ev.pubkey) {
+          const followSet = state.feeds['home'] && state.feeds['home'].followSet;
+          if (followSet && followSet.has(ev.pubkey)) {
+            addToFeed('home', ev, null, r);
+          }
+        }
+      } catch (e) { }
+    };
+    try { state._bitchatFeedAdder = feedAdder; } catch (e) { }
 
     const fetcher = setupFeedFetcher({
       state,
@@ -1161,6 +1154,7 @@ const relays = getOmochatRelays();
       scheduleRender,
       eventsFetchLimit: EVENTS_FETCH_LIMIT,
       eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
+      acceptHistEvent: matchesGeohash,
       ...feedFetcherHistHooks()
     });
     try { state._bitchatFetcher = fetcher; } catch (e) { }
@@ -1202,8 +1196,12 @@ function setupAuthedFeeds() {
     } catch (e) { }
 
     // follows を保持
-    if (!state.feeds['home']) state.feeds['home'] = { list: [], map: new Map(), follows: follows };
-    else state.feeds['home'].follows = follows;
+    if (!state.feeds['home']) {
+      state.feeds['home'] = { list: [], map: new Map(), follows: follows, followSet: new Set(follows) };
+    } else {
+      state.feeds['home'].follows = follows;
+      state.feeds['home'].followSet = new Set(follows);
+    }
 
     // follows 取得後に kind:30030 購読を自分+フォロー条件で張り直す
     try { setupCustomEmojiSubscription(); } catch (e) { }
@@ -1222,6 +1220,20 @@ function setupAuthedFeeds() {
 
     const includeHomeReactions = settingsManager.get('showHomeReactions') === true;
     const includeHomeOmochat = settingsManager.get('showHomeOmochat') === true;
+
+    // 既に bitchat フィードに蓄積されている kind:20000 イベントの中から、新たに確定した follows のものを home に流し込む
+    if (includeHomeOmochat && state.feeds['bitchat'] && Array.isArray(state.feeds['bitchat'].list)) {
+      const followSet = state.feeds['home'].followSet;
+      if (followSet) {
+        for (const ev of state.feeds['bitchat'].list) {
+          try {
+            if (ev && ev.pubkey && followSet.has(ev.pubkey)) {
+              addToFeed('home', ev);
+            }
+          } catch (e) { }
+        }
+      }
+    }
     const includeHomeChannel = settingsManager.get('showHomeChannel') === true;
     const includeHomeRepost16 = settingsManager.get('showHomeRepost16') === true;
     const optionalHomeFollowKinds = [];
@@ -1239,9 +1251,6 @@ function setupAuthedFeeds() {
       if (optionalHomeFollowKinds.length > 0) {
         homeHist.push({ kinds: optionalHomeFollowKinds, authors: follows, limit: EVENTS_FETCH_LIMIT });
       }
-      if (includeHomeOmochat) {
-        homeHist.push({ kinds: [20000], authors: follows, limit: EVENTS_FETCH_LIMIT });
-      }
       const sinceLive = Math.floor(Date.now() / 1000);
       const homeLive = [
         { kinds: [1, 6], authors: follows, since: sinceLive },
@@ -1257,9 +1266,6 @@ function setupAuthedFeeds() {
       if (optionalHomeFollowKinds.length > 0) {
         homeLive.push({ kinds: optionalHomeFollowKinds, authors: follows, since: sinceLive });
       }
-      if (includeHomeOmochat) {
-        homeLive.push({ kinds: [20000], authors: follows, since: sinceLive });
-      }
 
       // history oneshot 購読作成前に read relays があることを確認。
       // 初期ロードで state.relays が空だと取りこぼす可能性があるため
@@ -1271,20 +1277,15 @@ function setupAuthedFeeds() {
             setTimeout(() => createHomeFetcher(attempts + 1), 300);
             return;
           }
-          // フィルタをリレーごとに分割
-          const normalHist = homeHist.filter(f => !(f.kinds && f.kinds[0] === 20000));
-          const omochatHist = homeHist.filter(f => f.kinds && f.kinds[0] === 20000);
-          const normalLive = homeLive.filter(f => !(f.kinds && f.kinds[0] === 20000));
-          const omochatLive = homeLive.filter(f => f.kinds && f.kinds[0] === 20000);
 
-          // 通常イベント用 fetcher
-          if (normalHist.length > 0 || normalLive.length > 0) {
+          // 通常イベント用 fetcher（omochatはsetupBitchatFeedでまとめて取得し分配するため、ここでは対象外）
+          if (homeHist.length > 0 || homeLive.length > 0) {
             const mergeHomeOn = settingsManager.get('globalMergeHome') === true;
             const homeFetcher = setupFeedFetcher({
               state,
               feedId: 'home',
-              histFilters: normalHist,
-              liveFilters: normalLive,
+              histFilters: homeHist,
+              liveFilters: homeLive,
               relays: relaysForHist,
               addToFeed,
               scheduleRender,
@@ -1297,22 +1298,6 @@ function setupAuthedFeeds() {
               } : null
             });
             try { state._homeFetcher = homeFetcher; } catch (e) { }
-          }
-          // omochat 専用リレー用 fetcher
-          if (omochatHist.length > 0 || omochatLive.length > 0) {
-            const omochatFetcher = setupFeedFetcher({
-              state,
-              feedId: 'home',
-              histFilters: omochatHist,
-              liveFilters: omochatLive,
-              relays: getOmochatRelays(),
-              addToFeed,
-              scheduleRender,
-              eventsFetchLimit: EVENTS_FETCH_LIMIT,
-              eventsTimeout: Math.max(EVENTS_TIMEOUT, 10000),
-              ...feedFetcherHistHooks()
-            });
-            try { state._homeOmochatFetcher = omochatFetcher; } catch (e) { }
           }
         } catch (e) { }
       })(0);

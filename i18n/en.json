@@ -320,7 +320,6 @@
   "omochat.settings.saved": "Settings saved (reload to apply)",
   "omochat.subordinate.label": "Show subordinate geohashes",
   "omochat.subordinate.hint": "Include posts starting with configured geohash (e.g. xn77, xn0m7m for xn).",
-  "omochat.subordinate.warning": "⚠️ May increase data usage significantly.",
   "omochat.auto_relay.label": "Auto-select relays based on location (Recommended)",
   "omochat.auto_relay.hint": "Automatically determines and connects to the nearest Nostr relays for the specified geohash.",
   "omochat.relays.updating": "Updating geographic relays...",

@@ -318,7 +318,6 @@
   "omochat.settings.saved": "設定を保存しました（再読み込みで反映されます）",
   "omochat.subordinate.label": "配下のgeohashも表示",
   "omochat.subordinate.hint": "設定したgeohashで始まる投稿（例: xnならxn77, xn0m7m等）も含めて表示します。",
-  "omochat.subordinate.warning": "⚠️ 通信量が多くなる可能性があります。",
   "omochat.auto_relay.label": "リレーを位置情報から自動選択 (推奨)",
   "omochat.auto_relay.hint": "指定したgeohashに最も近いNostrリレーを自動的に判別して接続します。",
   "omochat.relays.updating": "位置情報リレーを更新中...",
