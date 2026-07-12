@@ -473,8 +473,8 @@ function linkifyText(text, emojiTags = [], options = {}) {
           }
           if (url) {
             // 後段JSでサイズ調整できるようラップ付きで画像化
-            const imgHtml = '<span class="emoji-wrap" style="display:inline-block;line-height:1;margin:0;padding:0;vertical-align:middle;">' +
-              '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(m.text) + '" class="custom-emoji"/>' +
+            const imgHtml = '<span class="emoji-wrap" style="display:inline-block;line-height:1;margin:0;padding:0;vertical-align:middle;max-width:100%;">' +
+              '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(m.text) + '" class="custom-emoji" style="max-width:100%;"/>' +
               '</span>';
             // 隣接絵文字をまとめるため、即追加せずシーケンスへ蓄積
             emojiSeq.push(imgHtml);
@@ -1273,8 +1273,10 @@ function fitCustomEmoji(container, shortSidePx = 28) {
             const emojiLineAncestor = img.closest('.emoji-line');
             const isReaction = img.closest('.reply-marker') || img.closest('.btn-react') || img.closest('.event-actions-react');
             if (isReaction) {
-              img.style.height = '18px';
+              img.style.height = 'auto';
+              img.style.maxHeight = '18px';
               img.style.width = 'auto';
+              img.style.maxWidth = '100%';
               img.style.display = 'inline-block';
               img.style.verticalAlign = '-0.15em';
               img.style.margin = '0';
@@ -1282,14 +1284,17 @@ function fitCustomEmoji(container, shortSidePx = 28) {
               img.style.lineHeight = '1';
             } else if (inlineGroup) {
               const targetShort = inlineShort;
-              img.style.height = targetShort + 'px';
+              img.style.height = 'auto';
+              img.style.maxHeight = targetShort + 'px';
               img.style.width = 'auto';
+              img.style.maxWidth = '100%';
               img.style.display = 'inline-block';
               img.style.verticalAlign = 'middle';
               img.style.margin = '0';
               img.style.padding = '0';
               img.style.lineHeight = '1';
               if (wrap) {
+                wrap.style.maxWidth = '100%';
                 wrap.style.display = 'inline-block';
                 wrap.style.margin = '0';
                 wrap.style.padding = '0';
@@ -1300,14 +1305,16 @@ function fitCustomEmoji(container, shortSidePx = 28) {
               const nw = img.naturalWidth || img.width || 0;
               const nh = img.naturalHeight || img.height || 0;
               if (!nw || !nh) {
-                img.style.height = effectiveShort + 'px';
+                img.style.height = 'auto';
+                img.style.maxHeight = effectiveShort + 'px';
                 img.style.width = 'auto';
                 if (wrap) wrap.style.height = img.getBoundingClientRect().height + 'px';
               } else if (nw <= nh) {
                 img.style.width = effectiveShort + 'px';
                 img.style.height = 'auto';
               } else {
-                img.style.height = effectiveShort + 'px';
+                img.style.height = 'auto';
+                img.style.maxHeight = effectiveShort + 'px';
                 img.style.width = 'auto';
               }
               img.style.display = 'block';
@@ -1315,7 +1322,9 @@ function fitCustomEmoji(container, shortSidePx = 28) {
               img.style.padding = '0';
               img.style.lineHeight = '1';
               img.style.objectFit = 'contain';
+              img.style.maxWidth = '100%';
               if (wrap) {
+                wrap.style.maxWidth = '100%';
                 const rect = img.getBoundingClientRect();
                 if (rect && rect.height) {
                   wrap.style.height = rect.height + 'px';
@@ -1330,20 +1339,24 @@ function fitCustomEmoji(container, shortSidePx = 28) {
               const nw = img.naturalWidth || img.width || 0;
               const nh = img.naturalHeight || img.height || 0;
               if (!nw || !nh) {
+                img.style.height = 'auto';
                 img.style.maxHeight = (effectiveShort * 1.0) + 'px';
                 img.style.width = 'auto';
                 if (wrap) wrap.style.height = img.getBoundingClientRect().height + 'px';
               } else if (nw <= nh) {
                 img.style.width = effectiveShort + 'px';
                 img.style.height = 'auto';
+                img.style.maxHeight = maxEmH + 'em';
               } else {
-                img.style.height = effectiveShort + 'px';
+                img.style.height = 'auto';
+                img.style.maxHeight = effectiveShort + 'px';
                 img.style.width = 'auto';
               }
-              img.style.maxHeight = maxEmH + 'em';
               img.style.display = 'block';
               img.style.objectFit = 'contain';
+              img.style.maxWidth = '100%';
               if (wrap) {
+                wrap.style.maxWidth = '100%';
                 const rect = img.getBoundingClientRect();
                 if (rect && rect.height) {
                   wrap.style.height = rect.height + 'px';

@@ -192,7 +192,7 @@ function formatReaction(reaction, emojiTags = []) {
     const shortcode = reactionContent.slice(1, -1);
     const emojiTag = effectiveEmojiTags.find(tag => tag[0] === 'emoji' && tag[1] === shortcode);
     if (emojiTag && emojiTag[2]) {
-      return '<img src="' + escapeHtml(emojiTag[2]) + '" alt="' + escapeHtml(reactionContent) + '" class="custom-emoji" style="width:18px; height:18px; vertical-align: middle;">';
+      return '<img src="' + escapeHtml(emojiTag[2]) + '" alt="' + escapeHtml(reactionContent) + '" class="custom-emoji" style="max-width: 100%; max-height: 18px; width: auto; height: auto; vertical-align: middle;">';
     }
     return escapeHtml(reactionContent);
   } else if (reactionContent) {

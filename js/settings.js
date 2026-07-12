@@ -24,7 +24,7 @@ export class SettingsManager {
         // グローバルタブにホームタイムラインをマージするか
         globalMergeHome: (obj && typeof obj.globalMergeHome !== 'undefined') ? obj.globalMergeHome : false,
         // フィード投稿をコンパクト表示（選択時のみメタ情報・アクションを表示）
-        simpleDisplayMode: (obj && typeof obj.simpleDisplayMode !== 'undefined') ? obj.simpleDisplayMode : false,
+        simpleDisplayMode: (obj && typeof obj.simpleDisplayMode !== 'undefined') ? obj.simpleDisplayMode : true,
         showAvatars: (obj && obj.showAvatars !== undefined) ? obj.showAvatars : true,
         // タイムラインで inline media（images/videos）を既定で表示
         showTimelineMedia: (obj && obj.showTimelineMedia !== undefined) ? obj.showTimelineMedia : false,
@@ -100,7 +100,7 @@ export class SettingsManager {
         encryptedNsec: null,
         globalRelay: null,
         globalMergeHome: false,
-        simpleDisplayMode: false,
+        simpleDisplayMode: true,
         showAvatars: true,
         showTimelineMedia: false,
         showClientName: true,

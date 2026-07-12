@@ -1995,6 +1995,8 @@ body.theme-light .tab.blink:not(.active) {
   background: transparent;
   width: auto;
   height: auto;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* inline 絵文字グループは周囲テキスト高に合わせる（!important には依存しない） */
@@ -2015,6 +2017,7 @@ body.theme-light .tab.blink:not(.active) {
   padding: 0;
   display: block;
   max-height: 36px;
+  max-width: 100%;
 }
 
 /* mixed-line: テキストとカスタム絵文字が同居する行の見え方を最適化 */
@@ -2048,6 +2051,8 @@ body.theme-light .tab.blink:not(.active) {
   padding: 0;
   line-height: 1;
   vertical-align: middle;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 /* inline絵文字画像の整列と可視性を維持 */
 .mixed-line img.custom-emoji,
@@ -2060,6 +2065,7 @@ body.theme-light .tab.blink:not(.active) {
   height: auto; /* JSサイズ指定または固有サイズを許容 */
   max-height: 36px; /* 親font-size変化時も描画崩れしない上限 */
   width: auto;
+  max-width: 100%;
   margin: 0;
   padding: 0;
 }
@@ -2768,10 +2774,7 @@ button:not(.secondary):not(.tab):not(.quick-reaction):not(.btn-react):not(.btn-k
   box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
-/* --- 投稿カード hover --- */
-.event:hover {
-  background-color: color-mix(in srgb, var(--panel-hover) 50%, transparent);
-}
+
 
 /* --- フォーカスアニメーション改善 --- */
 textarea:focus,
