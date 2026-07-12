@@ -27,7 +27,7 @@ export class SettingsManager {
         simpleDisplayMode: (obj && typeof obj.simpleDisplayMode !== 'undefined') ? obj.simpleDisplayMode : false,
         showAvatars: (obj && obj.showAvatars !== undefined) ? obj.showAvatars : true,
         // タイムラインで inline media（images/videos）を既定で表示
-        showTimelineMedia: (obj && obj.showTimelineMedia !== undefined) ? obj.showTimelineMedia : true,
+        showTimelineMedia: (obj && obj.showTimelineMedia !== undefined) ? obj.showTimelineMedia : false,
         // kind ボタン横に client name バッジを表示
         showClientName: (obj && obj.showClientName !== undefined) ? obj.showClientName : true,
         // 投稿/返信/リポスト/リアクション送信時に client tag を付与
@@ -39,7 +39,7 @@ export class SettingsManager {
         passkeyDeviceInfo: (obj && obj.passkeyDeviceInfo) || null,
         // 既定は 'system'（OS の配色に自動追従）
         theme: (obj && obj.theme) || 'system',
-        colorTheme: (obj && obj.colorTheme) || 'pink',
+        colorTheme: (obj && obj.colorTheme) || 'gray',
         // post link 設定: 保存済み値を優先し、未保存なら妥当な既定値を使用
         postLinkUrl: (obj && typeof obj.postLinkUrl !== 'undefined') ? obj.postLinkUrl : POSTLINK_DEFAULT_URL,
         postLinkTitle: (obj && typeof obj.postLinkTitle !== 'undefined') ? obj.postLinkTitle : POSTLINK_DEFAULT_TITLE,
@@ -76,7 +76,7 @@ export class SettingsManager {
         // Omochat geohash
         omochatGeohash: (obj && obj.omochatGeohash) || 'xn',
         // Omochat subordinate オプション
-        omochatSubordinate: (obj && typeof obj.omochatSubordinate !== 'undefined') ? obj.omochatSubordinate : false,
+        omochatSubordinate: (obj && typeof obj.omochatSubordinate !== 'undefined') ? obj.omochatSubordinate : true,
         // Omochat geohash 履歴
         omochatGeohashHistory: (obj && Array.isArray(obj.omochatGeohashHistory)) ? obj.omochatGeohashHistory : [],
         // Omochat relays
@@ -102,7 +102,7 @@ export class SettingsManager {
         globalMergeHome: false,
         simpleDisplayMode: false,
         showAvatars: true,
-        showTimelineMedia: true,
+        showTimelineMedia: false,
         showClientName: true,
         attachClientName: true,
         clientName: 'nokakoi',
@@ -110,7 +110,7 @@ export class SettingsManager {
         passkeyEncryptedNsec: null,
         passkeyDeviceInfo: null,
         theme: 'system',
-        colorTheme: 'pink',
+        colorTheme: 'gray',
         postLinkUrl: POSTLINK_DEFAULT_URL,
         postLinkTitle: POSTLINK_DEFAULT_TITLE,
         postLinkOpenInNewTab: false,
@@ -131,7 +131,7 @@ export class SettingsManager {
         // Omochat geohash
         omochatGeohash: 'xn',
         // Omochat subordinate オプション
-        omochatSubordinate: false,
+        omochatSubordinate: true,
         // Omochat geohash 履歴
         omochatGeohashHistory: [],
         omochatAutoRelays: true,

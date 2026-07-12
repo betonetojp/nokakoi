@@ -334,7 +334,7 @@ export function renderReplyContext(state, ev, nip19, settings) {
       const reactionDisplay = formatReaction(ev.content, ev.tags || []);
       // 対象不明時は生IDではなく短い操作ラベルを表示
       const label = t('reaction.button.title');
-      return '<div class="reply-to"><span class="reply-marker">' + reactionDisplay + '</span><span class="reply-to-author" data-event-id="' + replyToEventId + '"><span>' + label + '</span></span></div>';
+      return '<div class="reply-to reaction"><span class="reply-marker">' + reactionDisplay + '</span><span class="reply-to-author" data-event-id="' + replyToEventId + '"><span>' + label + '</span></span></div>';
     } else if (ev.kind === 6 || ev.kind === 16) {
       // 対象不明時の短いラベル
       const label = t('repost');
@@ -390,10 +390,10 @@ export function renderReplyContext(state, ev, nip19, settings) {
     const reactionContentEventId = (replyToEvent && replyToEvent.id) ? replyToEvent.id : '';
     if (isOpaqueAuthor) {
       const label = t('reaction.button.title');
-      return '<div class="reply-to"><span class="reply-marker">' + reactionDisplay + '</span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + label + '</span></span><div class="reply-to-content" data-event-id="' + reactionContentEventId + '">' + reactionContentHtml + '</div></div>';
+      return '<div class="reply-to reaction"><span class="reply-marker">' + reactionDisplay + '</span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + label + '</span></span><div class="reply-to-content" data-event-id="' + reactionContentEventId + '">' + reactionContentHtml + '</div></div>';
     }
     const label = t('reaction.label', { author: escapeHtml(replyToAuthor) });
-    return '<div class="reply-to"><span class="reply-marker">' + reactionDisplay + '</span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + replaceBadgeEmoji(label) + '</span></span><div class="reply-to-content" data-event-id="' + reactionContentEventId + '">' + reactionContentHtml + '</div></div>';
+    return '<div class="reply-to reaction"><span class="reply-marker">' + reactionDisplay + '</span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + replaceBadgeEmoji(label) + '</span></span><div class="reply-to-content" data-event-id="' + reactionContentEventId + '">' + reactionContentHtml + '</div></div>';
   } else if (ev.kind === 6 || ev.kind === 16) {
     if (isOpaqueAuthor) {
       const label = t('repost');

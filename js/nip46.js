@@ -10,11 +10,11 @@ import { t } from './i18n.js';
  * デフォルトNIP-46リレー
  */
 export const DEFAULT_NIP46_RELAYS = [
+  'wss://ephemeral.snowflare.cc/',
   //'wss://relay.nsec.app/',
   'wss://nostr.oxtr.dev/',
   'wss://theforest.nostr1.com/',
-  'wss://relay.primal.net/',
-  'wss://ephemeral.snowflare.cc/'
+  'wss://relay.primal.net/'
 ];
 
 /**

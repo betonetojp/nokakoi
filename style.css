@@ -16,6 +16,18 @@
   --accent-muted: rgba(59, 130, 246, 0.12);
   --accent-focus: rgba(59, 130, 246, 0.3);
   --border-accent: rgba(59, 130, 246, 0.15);
+
+  /* カード配色（ダークテーマ用） */
+  --reply-bg: rgba(236, 72, 153, 0.1);
+  --reply-border: #ec4899;
+  --reaction-bg: rgba(251, 191, 36, 0.1);
+  --reaction-border: #fbbf24;
+  --repost-bg: rgba(76, 175, 80, 0.1);
+  --repost-border: #4caf50;
+  --quote-bg: rgba(167, 139, 250, 0.1);
+  --quote-border: #a78bfa;
+  --channel-bg: rgba(59, 130, 246, 0.1);
+  --channel-border: #3b82f6;
 }
 
 /* body.theme-light 適用時のライトテーマ上書き */
@@ -34,6 +46,18 @@ body.theme-light {
   --accent-muted: rgba(236, 72, 153, 0.08);
   --accent-focus: rgba(236, 72, 153, 0.2);
   --border-accent: rgba(236, 72, 153, 0.15);
+
+  /* カード配色（ライトテーマ用） */
+  --reply-bg: rgba(236, 72, 153, 0.08);
+  --reply-border: #ec4899;
+  --reaction-bg: rgba(251, 191, 36, 0.08);
+  --reaction-border: #fbbf24;
+  --repost-bg: rgba(76, 175, 80, 0.08);
+  --repost-border: #4caf50;
+  --quote-bg: rgba(167, 139, 250, 0.08);
+  --quote-border: #a78bfa;
+  --channel-bg: rgba(59, 130, 246, 0.08);
+  --channel-border: #3b82f6;
 }
 
 /* ---------------------------------
@@ -675,9 +699,9 @@ evhead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .name {
   font-weight: 600;
   font-size: 0.95em;
-  color: var(--accent);
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
   cursor: pointer;
-  transition: color 0.2s;
+  transition: opacity 0.2s;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -685,7 +709,7 @@ evhead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   min-width: 0;
 }
 .name:hover {
-  color: #9fb0ff;
+  opacity: 0.85;
   text-decoration: underline;
 }
 .username {
@@ -800,21 +824,25 @@ body.theme-light img.icon-btn {
 }
 
 .reply-to {
-  background: rgba(124, 147, 255, 0.1);
-  border-left: 3px solid var(--accent);
+  background: var(--reply-bg);
+  border-left: 3px solid var(--reply-border);
   padding: 6px 8px;
   margin-bottom: 8px;
   font-size: 0.85em;
   color: var(--muted);
   border-radius: 4px;
 }
+.reply-to.reaction {
+  background: var(--reaction-bg);
+  border-left-color: var(--reaction-border);
+}
 .reply-to.repost {
-  background: rgba(76, 175, 80, 0.1);
-  border-left-color: #4caf50;
+  background: var(--repost-bg);
+  border-left-color: var(--repost-border);
 }
 .reply-to.channel {
-  background: rgba(245, 158, 11, 0.1);
-  border-left-color: #f59e0b;
+  background: var(--channel-bg);
+  border-left-color: var(--channel-border);
 }
 .reply-to-author {
   font-size: 0.9em;
@@ -831,18 +859,19 @@ body.theme-light img.icon-btn {
 .reply-marker {
   display: inline-block;
   margin-right: 4px;
-  color: var(--accent);
+  color: var(--reply-border);
   font-size: 1.2em;
 }
+.reaction .reply-marker {
+  color: var(--reaction-border);
+}
 .repost .reply-marker {
-  color: #4caf50;
+  color: var(--repost-border);
 }
 .channel .reply-marker {
-  color: #f59e0b;
+  color: var(--channel-border);
 }
-.event[data-kind="42"] {
-  background: rgba(245, 158, 11, 0.04);
-}
+
 .event[data-kind="7"] .reply-marker {
   font-size: 1.5em;
 }
@@ -1290,40 +1319,43 @@ body.theme-light .topbar a.secondary:hover {
 /* ===============================
    メディアリンク・Nostrリンク
    =============================== */
-.content a {
-  color: var(--accent);
+.content a,
+#eventModalContent a,
+#profileContent a {
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
   text-decoration: none;
   border-bottom: 1px solid transparent;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, opacity 0.2s;
 }
-.content a:hover { border-bottom-color: var(--accent); }
-.content a.media-link {
+.content a:hover,
+#eventModalContent a:hover,
+#profileContent a:hover { border-bottom-color: color-mix(in srgb, var(--accent) 75%, var(--text)); opacity: 0.85; }
+
+.content a.media-link,
+#eventModalContent a.media-link,
+#profileContent a.media-link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--accent);
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
   font-weight: 500;
   padding: 2px 0;
 }
-.content a.media-link:hover { color: #9fb0ff; }
-.content a.nostr-link {
-  color: #a78bfa;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.2s;
+.content a.media-link:hover,
+#eventModalContent a.media-link:hover,
+#profileContent a.media-link:hover { opacity: 0.85; }
+.content a.nostr-link,
+#eventModalContent a.nostr-link,
+#profileContent a.nostr-link {
   font-weight: 500;
-}
-.content a.nostr-link:hover {
-  color: #c4b5fd;
-  border-bottom-color: #a78bfa;
 }
 
 /* ===============================
    Nostrイベント引用表示
    =============================== */
 .event-quote {
-  background: rgba(167, 139, 250, 0.1);
-  border-left: 3px solid #a78bfa;
+  background: var(--quote-bg);
+  border-left: 3px solid var(--quote-border);
   padding: 8px 10px;
   margin: 8px 0;
   border-radius: 4px;
@@ -1391,7 +1423,7 @@ body.theme-light .topbar a.secondary:hover {
 #profileDisplayName .petname {
   flex-shrink: 0;
   white-space: nowrap;
-  color: var(--accent);
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
   font-weight: 600;
   font-size: 0.95em;
   display: inline-flex;
@@ -1733,40 +1765,32 @@ body.theme-light #eventModalContent::-webkit-scrollbar-thumb {
    =============================== */
 .reply-to-content a,
 .event-quote-content a {
-  color: var(--accent);
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
   text-decoration: none;
   border-bottom: 1px solid transparent;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, opacity 0.2s;
 }
 .reply-to-content a:hover,
 .event-quote-content a:hover {
-  border-bottom-color: var(--accent);
+  border-bottom-color: color-mix(in srgb, var(--accent) 75%, var(--text));
+  opacity: 0.85;
 }
 .reply-to-content a.media-link,
 .event-quote-content a.media-link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--accent);
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
   font-weight: 500;
   padding: 2px 0;
 }
 .reply-to-content a.media-link:hover,
 .event-quote-content a.media-link:hover {
-  color: #9fb0ff;
+  opacity: 0.85;
 }
 .reply-to-content a.nostr-link,
 .event-quote-content a.nostr-link {
-  color: #a78bfa;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.2s;
   font-weight: 500;
-}
-.reply-to-content a.nostr-link:hover,
-.event-quote-content a.nostr-link:hover {
-  color: #c4b5fd;
-  border-bottom-color: #a78bfa;
 }
 
 /* ===============================

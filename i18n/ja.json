@@ -220,7 +220,7 @@
   "mute.ext_decrypt_error": "拡張復号エラー: {msg}",
   "mute.encryptionFormats": "（暗号化形式: {list}）",
   "reaction.button.title": "リアクション",
-  "reaction.button.title_with_default": "リアクション（既定: {display}）\\nShift+クリック/右クリックで変更",
+  "reaction.button.title_with_default": "リアクション（既定: {display}）\nShift+クリック/右クリックで変更",
   "reaction.default.message": "この文字をデフォルトに設定しますか？",
   "repost": "リポスト",
   "repost.confirm.title": "リポスト確認",

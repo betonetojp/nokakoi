@@ -222,7 +222,7 @@
   "mute.ext_decrypt_error": "Extension decrypt error: {msg}",
   "mute.encryptionFormats": "(Encryption formats: {list})",
   "reaction.button.title": "React",
-  "reaction.button.title_with_default": "Reaction (default: {display})\\nShift+click/right-click to change",
+  "reaction.button.title_with_default": "Reaction (default: {display})\nShift+click/right-click to change",
   "reaction.default.message": "Set this symbol as default?",
   "repost": "Repost",
   "repost.confirm.title": "Repost confirmation",
