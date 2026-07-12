@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0">
   <meta name="description" content="軽量なNostrクライアント">
   <title>nokakoi</title>
-  <link rel="stylesheet" href="./style.css?v=1.92.3">
+  <link rel="stylesheet" href="./style.css?v=1.93.0">
   <style>
     /* Android のネイティブのプル・トゥ・リフレッシュを有効にし、iOS のスムーズスクロールも維持 */
     html, body, #feeds {
@@ -114,7 +114,7 @@
       <button id="nsecLoginBtn" class="secondary" type="button" data-i18n="login.nsec">nsec</button>
       <button id="nip46LoginBtn" class="secondary" type="button" data-i18n="login.nip46">NIP-46</button>
       <button id="loginBtn" type="button" data-i18n="login.nip07">NIP-07</button>
-      <span id="userInfo" class="muted" style="display:inline; margin-left:8px;"></span>
+      <span id="userInfo" class="muted"></span>
       <button id="logoutBtn" class="secondary" hidden type="button" data-i18n="logout">ログアウト</button>
     </nav>
   </header>
@@ -134,7 +134,7 @@
         <div class="row">
           <button id="openGlobalRelayModalBtn" class="secondary" type="button" data-i18n="globalRelay.title">グローバルリレー設定</button>
         </div>
-        <div id="relayStatus" class="muted" style="margin-top:6px;"></div>
+        <div id="relayStatus" class="muted"></div>
       </details>
     </section>
 
@@ -175,18 +175,18 @@
         </div>
 
         <!-- タブ設定コンテナ -->
-        <fieldset style="margin-top: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px;">
-          <legend style="font-size: 0.9em; color: var(--muted);" data-i18n="tabs.settings">タブ設定</legend>
-          <div id="tabSettingsList" style="display: flex; flex-direction: column; gap: 4px;"></div>
+        <fieldset class="settings-fieldset">
+          <legend data-i18n="tabs.settings">タブ設定</legend>
+          <div id="tabSettingsList" class="flex-col"></div>
         </fieldset>
-        <div style="margin-top: 8px; margin-bottom: 8px; display: flex; gap: 8px;">
+        <div class="settings-row--wrap mt-8">
           <button id="openOmochatSettingsModalBtn" class="secondary" type="button" data-i18n="omochat.settings.title">omochat設定</button>
           <button id="openReactionSettingsModalBtn" class="secondary" type="button" data-i18n="reaction.default.title">リアクション設定</button>
         </div>
         <div class="mt-8">
           <label class="setting-row-clickable">
             <span data-i18n="previewMaxLength">省略文字数</span>
-            <input type="number" id="previewMaxLengthInput" min="10" max="100000" step="10" style="width:80px;">
+            <input type="number" id="previewMaxLengthInput" min="10" max="100000" step="10" class="settings-input-narrow">
           </label>
         </div>
         <div class="mt-12">
@@ -300,36 +300,36 @@
         </div>
         <div class="mt-12">
           <div class="mt-8 setting-row">
-            <label for="clientNameInput" style="font-size:0.9em;" data-i18n="clientNameLabel">クライアント名</label>
-            <input type="text" id="clientNameInput" value="nokakoi" maxlength="32" style="width:140px;">
+            <label for="clientNameInput" class="text-sm" data-i18n="clientNameLabel">クライアント名</label>
+            <input type="text" id="clientNameInput" value="nokakoi" maxlength="32">
           </div>
         </div>
-        <div style="margin-top: 12px;">
-          <label for="postLinkTitleInput" style="font-size: 0.9em; margin-right: 8px;" data-i18n="postLinkTitleLabel">投稿連携アプリ名</label>
-          <input type="text" id="postLinkTitleInput" style="width: 160px; font-size: 0.95em;" maxlength="32">
+        <div class="mt-12">
+          <label for="postLinkTitleInput" class="text-sm mr-8" data-i18n="postLinkTitleLabel">投稿連携アプリ名</label>
+          <input type="text" id="postLinkTitleInput" maxlength="32">
         </div>
-        <div style="margin-top: 12px;">
-          <label for="postLinkUrlInput" style="font-size: 0.9em; margin-right: 8px;" data-i18n="postLinkUrlLabel">投稿連携URL</label>
-          <input type="text" id="postLinkUrlInput" style="width: 260px; font-size: 0.95em;" maxlength="128">
+        <div class="mt-12">
+          <label for="postLinkUrlInput" class="text-sm mr-8" data-i18n="postLinkUrlLabel">投稿連携URL</label>
+          <input type="text" id="postLinkUrlInput" maxlength="128">
           <span id="postLinkSaveStatus" class="muted"></span>
         </div>
-        <div class="mt-8 setting-row" style="margin-left:16px;">
+        <div class="mt-8 setting-row settings-indent">
           <label class="setting-row-clickable">
             <input type="checkbox" id="postLinkOpenNewTabCheck">
             <span data-i18n="postlink.open_in_new_tab">新しいタブで開く</span>
           </label>
         </div>
-        <div style="margin-top: 16px;">
+        <div class="mt-16">
           <button id="fetchMuteListBtn" type="button" data-i18n="fetchMuteList">ミュートリストを取得</button>
-          <span id="fetchMuteListStatus" class="muted" style="margin-left:8px;"></span>
-          <div id="muteCounts" style="margin-top:8px; font-size:0.9em;" hidden>
+          <span id="fetchMuteListStatus" class="muted settings-status-inline"></span>
+          <div id="muteCounts" hidden>
             <div><span data-i18n="mute.public_label">公開ミュート：</span> <span id="mutePubPublicCount">0</span> users / <span id="muteWordPublicCount">0</span> words</div>
-            <div style="margin-top:4px;"><span data-i18n="mute.private_label">非公開ミュート：</span> <span id="mutePubPrivateCount">0</span> users / <span id="muteWordPrivateCount">0</span> words</div>
+            <div><span data-i18n="mute.private_label">非公開ミュート：</span> <span id="mutePubPrivateCount">0</span> users / <span id="muteWordPrivateCount">0</span> words</div>
           </div>
         </div>
-        <div style="margin-top: 24px;">
+        <div class="mt-24">
           <button id="clearCacheBtn" class="secondary" type="button" data-i18n="clearCache">キャッシュをクリア</button>
-          <span id="clearCacheStatus" class="muted" style="margin-left: 8px;"></span>
+          <span id="clearCacheStatus" class="muted settings-status-inline"></span>
         </div>
       </details>
     </section>
@@ -338,7 +338,7 @@
       <div id="replyContext" class="reply-context" hidden>
         <div class="reply-context-header">
           <span class="reply-context-label" data-i18n="composer.replyLabel">返信先:</span>
-          <span id="changeGeohashLabel" class="change-geohash-label" data-i18n="composer.change_geohash_label" style="display:none; margin-left:8px; color:var(--muted); font-size:0.95em; cursor:pointer;">別のgeohashに投稿</span>
+          <span id="changeGeohashLabel" class="change-geohash-label" data-i18n="composer.change_geohash_label">別のgeohashに投稿</span>
           <button id="cancelReply" class="btn-cancel-reply" type="button" data-i18n-title="reply.cancelTitle" data-i18n-aria-label="reply.cancelTitle">✕</button>
         </div>
         <div id="replyContextContent" class="reply-context-content"></div>
@@ -348,39 +348,38 @@
       <div class="row composer-row">
         <button id="publishBtn" type="button" data-i18n="publish">投稿する</button>
         <span id="publishResult" class="muted"></span>
-        <button id="steganographyBtn" class="secondary" type="button" data-i18n-title="steganography.title" style="margin-left:auto;">🥟</button>
+        <button id="steganographyBtn" class="secondary composer-spacer-btn" type="button" data-i18n-title="steganography.title">🥟</button>
         <button id="ehagakiBtn" class="secondary" type="button" data-i18n="ehagaki">eHagakiで投稿</button>
       </div>
     </section>
 
     <!-- eHagaki モーダル -->
     <div id="ehagakiModal" class="modal" hidden>
-      <div class="modal-body panel" style="max-width: 600px; min-width: 320px;">
+      <div class="modal-body modal-body--md panel">
         <div class="modal-header-row">
-          <h2 style="margin: 0; font-size: 1.1em;" data-i18n="ehagaki">eHagaki</h2>
-          <button id="ehagakiClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+          <h2 class="modal-title" data-i18n="ehagaki">eHagaki</h2>
+          <button id="ehagakiClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
         </div>
-        <iframe id="ehagakiFrame" src="" data-src="" loading="lazy" style="width:100%;height:60vh;min-height:240px;border-radius:8px;border:1px solid var(--border);background:#fff;"
-                allow="local-network-access; local-network; loopback-network"></iframe>
+        <iframe id="ehagakiFrame" src="" data-src="" loading="lazy" allow="local-network-access; local-network; loopback-network"></iframe>
       </div>
     </div>
 
     <!-- 隠し文字埋め込みモーダル -->
     <div id="steganographyModal" class="modal" hidden>
-      <div class="modal-body panel" style="max-width: 400px;">
+      <div class="modal-body modal-body--sm panel">
         <div class="modal-header-row">
-          <h2 style="margin: 0; font-size: 1.1em;" data-i18n="steganography.title">隠し文字埋め込み</h2>
-          <button id="steganographyClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+          <h2 class="modal-title" data-i18n="steganography.title">隠し文字埋め込み</h2>
+          <button id="steganographyClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
         </div>
-        <div style="margin-bottom: 12px;">
-          <label for="steganographyEmoji" style="display: block; margin-bottom: 4px; font-size: 0.9em;" data-i18n="steganography.emoji_label">絵文字</label>
-          <input type="text" id="steganographyEmoji" data-i18n-placeholder="steganography.emoji_placeholder" style="width: 100%; font-size: 1.2em; text-align: center;">
+        <div class="modal-field">
+          <label for="steganographyEmoji" class="modal-field-label" data-i18n="steganography.emoji_label">絵文字</label>
+          <input type="text" id="steganographyEmoji" data-i18n-placeholder="steganography.emoji_placeholder">
         </div>
-        <div style="margin-bottom: 12px;">
-          <label for="steganographyText" style="display: block; margin-bottom: 4px; font-size: 0.9em;" data-i18n="steganography.text_label">隠すテキスト</label>
+        <div class="modal-field">
+          <label for="steganographyText" class="modal-field-label" data-i18n="steganography.text_label">隠すテキスト</label>
           <textarea id="steganographyText" rows="3" data-i18n-placeholder="steganography.text_placeholder"></textarea>
         </div>
-        <div id="steganographyStatus" class="muted" style="margin-bottom: 12px; min-height: 1.2em;"></div>
+        <div id="steganographyStatus" class="muted modal-status"></div>
         <div class="row">
           <button id="steganographyConfirm" type="button" data-i18n="steganography.confirm">埋め込む</button>
         </div>
@@ -389,33 +388,33 @@
 
     <!-- ホームタブ クイック表示設定モーダル -->
     <div id="homeDisplayQuickModal" class="modal" hidden>
-      <div class="modal-body panel" style="max-width: 400px;">
-        <h2 style="margin-top:0;" data-i18n="homeDisplayQuick.title">表示のクイック設定</h2>
-        <div style="margin-top: 12px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+      <div class="modal-body modal-body--sm panel">
+        <h2 class="modal-title" data-i18n="homeDisplayQuick.title">表示のクイック設定</h2>
+        <div class="mt-12">
+          <label class="setting-row-clickable">
             <input type="checkbox" id="homeDisplayQuickCompactCheck">
             <span data-i18n="simpleDisplayMode">コンパクト表示</span>
           </label>
         </div>
-        <div style="margin-top: 8px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <div class="mt-8">
+          <label class="setting-row-clickable">
             <input type="checkbox" id="homeDisplayQuickMediaCheck">
             <span data-i18n="showTimelineMedia">画像・動画をインライン表示</span>
           </label>
         </div>
-        <div style="margin-top: 8px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <div class="mt-8">
+          <label class="setting-row-clickable">
             <input type="checkbox" id="homeDisplayQuickReactionsCheck">
             <span data-i18n="showHomeReactions">ホームにリアクションを表示</span>
           </label>
         </div>
-        <div style="margin-top: 8px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <div class="mt-8">
+          <label class="setting-row-clickable">
             <input type="checkbox" id="homeDisplayQuickMuteCheck">
             <span data-i18n="mute.apply">ミュートを適用</span>
           </label>
         </div>
-        <div class="row" style="margin-top: 16px;">
+        <div class="row mt-16">
           <button id="homeDisplayQuickCloseBtn" class="secondary" type="button" data-i18n="close">閉じる</button>
         </div>
       </div>
@@ -423,43 +422,43 @@
 
     <!-- omochat設定モーダル -->
     <div id="omochatModal" class="modal" hidden>
-      <div class="modal-body panel" style="max-width: 400px;">
-        <h2 style="margin-top:0;" data-i18n="omochat.settings.title">omochat設定</h2>
-        <p class="muted" style="font-size:0.9em; margin-bottom:12px;" data-i18n="omochat.modal.hint">購読するgeohashを設定できます。</p>
+      <div class="modal-body modal-body--sm panel">
+        <h2 class="modal-title" data-i18n="omochat.settings.title">omochat設定</h2>
+        <p class="muted text-sm mb-12" data-i18n="omochat.modal.hint">購読するgeohashを設定できます。</p>
 
-        <label style="display:block; margin-bottom:4px; font-weight:bold;" data-i18n="omochat.geohash.label">geohash (#g)</label>
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
-          <input type="text" id="omochatGeohashInput" placeholder="xn, ..." data-i18n-placeholder="omochat.geohash.placeholder" style="flex:1;">
-          <button id="omochatGeohashHistoryBtn" type="button" class="secondary" style="padding:2px 10px; font-size:0.95em;" data-i18n="omochat.geohash_history.btn" title="履歴">履歴</button>
+        <label class="d-block mb-4 font-bold" data-i18n="omochat.geohash.label">geohash (#g)</label>
+        <div class="flex-row gap-6 mb-12">
+          <input type="text" id="omochatGeohashInput" placeholder="xn, ..." data-i18n-placeholder="omochat.geohash.placeholder" class="flex-1">
+          <button id="omochatGeohashHistoryBtn" type="button" class="secondary text-base" data-i18n="omochat.geohash_history.btn" title="履歴">履歴</button>
         </div>
-        <div id="omochatGeohashHistoryPopup" style="display:none; position:absolute; z-index:99999; background:var(--panel); border:1px solid var(--border); border-radius:6px; box-shadow:0 2px 8px #0002; min-width:180px; max-width:320px; max-height:220px; overflow:auto; font-size:0.97em;"></div>
+        <div id="omochatGeohashHistoryPopup" class="geohash-history-popup"></div>
 
         <!-- 下位geohash表示オプション -->
-        <label style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; cursor: pointer;">
-          <input type="checkbox" id="omochatSubordinateCheck" style="margin-top: 2px;">
+        <label class="omochat-option-label">
+          <input type="checkbox" id="omochatSubordinateCheck">
           <div>
             <div data-i18n="omochat.subordinate.label">配下のgeohashも表示</div>
-            <div class="muted" style="font-size: 0.8em; line-height: 1.3;">
+            <div class="muted settings-hint-sm">
               <span data-i18n="omochat.subordinate.hint">設定したgeohashで始まる投稿（例: xnならxn77, xn0m7m等）も含めて表示します。</span>
             </div>
           </div>
         </label>
 
         <!-- リレー自動取得オプション -->
-        <label style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; cursor: pointer;">
-          <input type="checkbox" id="omochatAutoRelayCheck" style="margin-top: 2px;">
+        <label class="omochat-option-label">
+          <input type="checkbox" id="omochatAutoRelayCheck">
           <div>
             <div data-i18n="omochat.auto_relay.label">リレーを位置情報から自動選択 (推奨)</div>
-            <div class="muted" style="font-size: 0.8em; line-height: 1.3;">
+            <div class="muted settings-hint-sm">
               <span data-i18n="omochat.auto_relay.hint">指定したgeohashに最も近いNostrリレーを自動的に判別して接続します。</span>
             </div>
           </div>
         </label>
 
         <!-- アルゴリズム選択（自動選択ON時のみ表示） -->
-        <div id="omochatAutoRelayAlgoContainer" style="margin-left: 24px; margin-bottom: 12px;">
-          <label style="display:block; margin-bottom:4px; font-size:0.9em; font-weight:bold;" data-i18n="omochat.auto_relay_algo.label">自動選択モード</label>
-          <select id="omochatAutoRelayAlgoSelect" style="width:100%;">
+        <div id="omochatAutoRelayAlgoContainer">
+          <label class="modal-field-label font-bold" data-i18n="omochat.auto_relay_algo.label">自動選択モード</label>
+          <select id="omochatAutoRelayAlgoSelect" class="w-full">
             <option value="merged" data-i18n="omochat.auto_relay_algo.merged">両アプリの選出を結合 (デフォルト・推奨)</option>
             <option value="ios" data-i18n="omochat.auto_relay_algo.ios">iOSアプリ互換 (決定論的)</option>
             <option value="android" data-i18n="omochat.auto_relay_algo.android">Androidアプリ互換</option>
@@ -467,11 +466,11 @@
         </div>
 
         <!-- 上位エリアのマージ（自動選択ON時のみ表示） -->
-        <label id="omochatMergeParentContainer" style="display: flex; align-items: flex-start; gap: 8px; margin-left: 24px; margin-bottom: 12px; cursor: pointer;">
-          <input type="checkbox" id="omochatMergeParentCheck" style="margin-top: 2px;">
+        <label id="omochatMergeParentContainer">
+          <input type="checkbox" id="omochatMergeParentCheck">
           <div>
             <div data-i18n="omochat.merge_parent.label">上位エリアの近傍リレーも結合</div>
-            <div class="muted" style="font-size: 0.8em; line-height: 1.3;">
+            <div class="muted settings-hint-sm">
               <span data-i18n="omochat.merge_parent.hint">ひとつ上の広域エリア（例: xn77ならxn7、xnならx）の近傍リレーもマージして接続します。</span>
             </div>
           </div>
@@ -481,7 +480,7 @@
         <details id="omochatRelayDetails" style="margin-top: 16px; margin-bottom: 12px;">
           <summary data-i18n="omochat.relays.title">リレー設定</summary>
           <div id="omochatRelayList" style="margin: 8px 0;"></div>
-          <div style="display: flex; gap: 8px;">
+          <div class="flex-row">
             <button id="omochatAddRelay" class="secondary" type="button" data-i18n="omochat.relays.add">リレーを追加</button>
             <button id="omochatResetRelays" class="secondary" type="button" data-i18n="omochat.relays.reset">初期値に戻す</button>
           </div>
@@ -513,33 +512,33 @@
     <div class="modal-body panel">
       <form id="nsecForm" onsubmit="return false;">
       <!-- パスワードマネージャー/アクセシビリティ向けの非表示ユーザー名 -->
-      <input type="text" id="nsec_username" name="username" autocomplete="username" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0; border:0; padding:0; margin:0;" aria-hidden="true">
+      <input type="text" id="nsec_username" name="username" autocomplete="username" class="sr-only" aria-hidden="true">
       <h2 data-i18n="nsec.modal.title">nsecでログイン</h2>
       <p class="muted" data-i18n="nsec.modal.hint">秘密鍵を入力してください。</p>
-      <label for="nsecInput" style="display: block; margin-bottom:4px; font-size:0.9em;" data-i18n="nsec.input.label">nsec または16進秘密鍵</label>
-      <input type="password" id="nsecInput" autocomplete="new-password" data-i18n="nsec.input.placeholder" placeholder="nsec1... または hex" style="width:100%; margin-bottom:12px;">
-      <label style="display: flex; align-items: center; gap:6px; margin-bottom:12px; cursor: pointer;">
+      <label for="nsecInput" class="modal-field-label" data-i18n="nsec.input.label">nsec または16進秘密鍵</label>
+      <input type="password" id="nsecInput" autocomplete="new-password" data-i18n="nsec.input.placeholder" placeholder="nsec1... または hex" class="w-full mb-12">
+      <label class="nsec-save-label">
         <input type="checkbox" id="saveNsecCheck">
-        <span style="font-size:0.9em;" data-i18n="nsec.saveHint">次回から自動ログイン（暗号化して保存）</span>
+        <span class="text-sm" data-i18n="nsec.saveHint">次回から自動ログイン（暗号化して保存）</span>
       </label>
-      <div id="autoLoginOptions" style="display: none; margin-bottom:12px; padding-left:24px;">
-        <label style="display: flex; align-items: center; gap:8px; margin-bottom:0; cursor: pointer;">
+      <div id="autoLoginOptions">
+        <label class="auto-login-radio">
           <input type="radio" name="autoLoginMethod" id="radioPasskey" value="passkey">
-          <span style="font-size:0.9em;" data-i18n="nsec.passkey_option">パスキー（指紋認証/PIN）で保護（推奨）</span>
+          <span class="text-sm" data-i18n="nsec.passkey_option">パスキー（指紋認証/PIN）で保護（推奨）</span>
         </label>
-        <p id="passkeyInfo" class="muted" style="font-size:0.8em; margin:4px 0px 8px; line-height: 1.4;">
+        <p id="passkeyInfo" class="muted passkey-info">
           <span data-i18n="nsec.passkey_info_line1">パスワード不要で、指紋認証やPINで自動ログインできます。</span><br>
           <span data-i18n="nsec.passkey_info_line2">パスキーは端末ごとに登録されます。</span>
         </p>
-        <label style="display: flex; align-items: center; gap:8px; margin-bottom:8px; cursor: pointer;">
+        <label class="auto-login-radio">
           <input type="radio" name="autoLoginMethod" id="radioPassword" value="password">
-          <span style="font-size:0.9em;" data-i18n="nsec.password_option">暗号化パスワード方式</span>
+          <span class="text-sm" data-i18n="nsec.password_option">暗号化パスワード方式</span>
         </label>
       </div>
-      <div id="passwordSection" style="display: none; margin-bottom:12px; padding-left:24px;">
-        <label for="nsecPassword" style="display: block; margin-bottom:4px; font-size:0.9em;" data-i18n="nsec.passwordLabel">暗号化パスワード</label>
+      <div id="passwordSection">
+        <label for="nsecPassword" class="modal-field-label" data-i18n="nsec.passwordLabel">暗号化パスワード</label>
         <input type="password" id="nsecPassword" autocomplete="new-password" data-i18n="nsec.password_placeholder" placeholder="パスワード（空欄可）">
-        <p class="muted" style="font-size:0.8em; margin:4px 0px 8px; line-height: 1.4;">
+        <p class="muted password-section-desc">
           <span data-i18n="nsec.password_section_desc_line1">パスワード方式では、入力したパスワードで秘密鍵を暗号化して保存します。</span><br>
           <span data-i18n="nsec.password_section_desc_line2">次回以降はこのパスワードを入力することで自動ログインできます。</span><br>
           <span data-i18n="nsec.password_section_desc_line3">パスワード自体は保存されません。暗号化データのみ端末ごとに保存されます。</span>
@@ -549,21 +548,21 @@
         <button id="nsecLoginConfirm" type="button" data-i18n="nsec.login">ログイン</button>
         <button id="nsecLoginCancel" class="secondary" type="button" data-i18n="cancel">キャンセル</button>
       </div>
-      <div class="muted" id="nsecLoginStatus" style="margin-top:8px;"></div>
+      <div class="muted" id="nsecLoginStatus"></div>
       </form>
     </div>
   </div>
 
   <!-- NIP-46 Nostr Connect ログインモーダル -->
   <div id="nip46Modal" class="modal" hidden>
-    <div class="modal-body panel" style="max-width: 500px;">
+    <div class="modal-body modal-body--nip46 panel">
       <div class="modal-header-row">
-        <h2 style="margin: 0;" data-i18n="nip46.modal.title">Nostr Connect (NIP-46)</h2>
-        <button id="nip46Cancel" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+        <h2 class="modal-title" data-i18n="nip46.modal.title">Nostr Connect (NIP-46)</h2>
+        <button id="nip46Cancel" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
       </div>
 
       <!-- タブ切り替え -->
-      <div class="nip46-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
+      <div class="nip46-tabs">
         <button id="nip46QrTabBtn" class="nip46-tab active" type="button" data-i18n="nip46.tab.qr">QRコード</button>
         <button id="nip46BunkerTabBtn" class="nip46-tab" type="button" data-i18n="nip46.tab.bunker">bunker://</button>
         <button id="nip46AppTabBtn" class="nip46-tab" type="button" data-i18n="nip46.tab.app">アプリ起動</button>
@@ -572,9 +571,9 @@
       <!-- QRコードタブ -->
       <div id="nip46QrTab" class="nip46-tab-content">
         <p class="muted" data-i18n="nip46.qr.hint">nsecBunkerアプリでスキャンしてください</p>
-        <div id="nip46QrCode" style="text-align: center; margin: 16px 0; background: white; padding: 16px; border-radius: 8px;"></div>
-        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-          <input type="text" id="nip46ConnectUri" readonly style="flex: 1; font-size: 0.85em;">
+        <div id="nip46QrCode"></div>
+        <div class="flex-row mb-12">
+          <input type="text" id="nip46ConnectUri" readonly>
           <button id="nip46CopyUri" type="button" data-i18n="copy">コピー</button>
         </div>
       </div>
@@ -582,28 +581,28 @@
       <!-- bunker:// タブ -->
       <div id="nip46BunkerTab" class="nip46-tab-content" hidden>
         <p class="muted" data-i18n="nip46.bunker.hint">bunker:// URLを入力してください</p>
-        <input type="text" id="nip46BunkerInput" placeholder="bunker://..." style="width: 100%; margin-bottom: 12px;">
+        <input type="text" id="nip46BunkerInput" placeholder="bunker://..." class="w-full mb-12">
         <button id="nip46BunkerConnect" type="button" data-i18n="nip46.bunker.connect">接続</button>
       </div>
 
       <!-- アプリ起動タブ -->
       <div id="nip46AppTab" class="nip46-tab-content" hidden>
         <p class="muted" data-i18n="nip46.app.hint">この端末にインストールされているサイナーアプリ（nokandro等）を起動して接続します。</p>
-        <button id="nip46OpenApp" type="button" style="width: 100%; padding: 12px; margin-bottom: 12px;" data-i18n="nip46.app.open">サイナーアプリを起動</button>
+        <button id="nip46OpenApp" type="button" data-i18n="nip46.app.open">サイナーアプリを起動</button>
       </div>
 
       <!-- リレー設定 -->
-      <details id="nip46RelayDetails" style="margin-top: 16px;">
+      <details id="nip46RelayDetails" class="mt-16">
         <summary data-i18n="nip46.relays.title">NIP-46リレー設定</summary>
-        <p class="muted" style="font-size: 0.85em; margin: 8px 0;" data-i18n="nip46.relays.hint">Nostr Connect通信に使用するリレーを設定します</p>
-        <div id="nip46RelayList" style="margin-bottom: 8px;"></div>
+        <p class="muted nip46-relay-hint" data-i18n="nip46.relays.hint">Nostr Connect通信に使用するリレーを設定します</p>
+        <div id="nip46RelayList" class="mb-8"></div>
         <div style="display: flex; gap: 8px;">
           <button id="nip46AddRelay" class="secondary" type="button" data-i18n="nip46.relays.add">リレー追加</button>
           <button id="nip46ResetRelays" class="secondary" type="button" data-i18n="nip46.relays.reset">初期値に戻す</button>
         </div>
       </details>
 
-      <div id="nip46Status" class="muted" style="margin-top: 12px;"></div>
+      <div id="nip46Status" class="muted"></div>
     </div>
   </div>
 
@@ -612,16 +611,16 @@
     <div class="modal-body panel">
       <form id="decryptForm" onsubmit="return false;">
       <!-- パスワードマネージャー/アクセシビリティ向けの非表示ユーザー名 -->
-      <input type="text" id="decrypt_username" name="username" autocomplete="username" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0; border:0; padding:0; margin:0;" aria-hidden="true">
+      <input type="text" id="decrypt_username" name="username" autocomplete="username" class="sr-only" aria-hidden="true">
       <h2 data-i18n="password.modal.title">パスワード入力</h2>
       <p class="muted" data-i18n="password.modal.hint">保存されたnsecを復号化するため、パスワードを入力してください。パスワードなしで保存した場合は空欄のままOKを押してください。</p>
-      <label for="decryptPassword" style="display: block; margin-bottom:4px; font-size:0.9em;" data-i18n="password.label">パスワード</label>
+      <label for="decryptPassword" class="modal-field-label" data-i18n="password.label">パスワード</label>
       <input type="password" id="decryptPassword" autocomplete="current-password" data-i18n="password.placeholder" placeholder="パスワード（空欄可）">
-      <div class="row" style="margin-top:12px;">
+      <div class="row mt-12">
         <button id="passwordConfirm" type="button" data-i18n="ok">OK</button>
         <button id="passwordCancel" class="secondary" type="button" data-i18n="cancel">キャンセル</button>
       </div>
-      <div class="muted" id="passwordStatus" style="margin-top:8px;"></div>
+      <div class="muted" id="passwordStatus"></div>
       </form>
     </div>
   </div>
@@ -630,30 +629,30 @@
   <div id="reactionModal" class="modal" hidden>
     <div class="modal-body panel">
       <div class="modal-header-row">
-        <h2 style="margin: 0;" data-i18n="reaction.default.title">リアクション設定</h2>
-        <button id="reactionClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+        <h2 class="modal-title" data-i18n="reaction.default.title">リアクション設定</h2>
+        <button id="reactionClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
       </div>
       <p class="muted" data-i18n="reaction.modal.hint">リアクション文字を下から選択または好きな文字を入力してください。</p>
-      <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+      <div class="reaction-quick-row">
         <button type="button" class="quick-reaction" data-reaction="+">+</button>
         <button type="button" class="quick-reaction" data-reaction="🩷">🩷</button>
         <button type="button" class="quick-reaction" data-reaction="🫂">🫂</button>
         <button type="button" class="quick-reaction" data-reaction="👀">👀</button>
         <button type="button" class="quick-reaction" data-reaction="🙏">🙏</button>
         <button type="button" class="quick-reaction" data-reaction=":nokakoi:">
-          <img src="icon/nokakoi.png" alt=":nokakoi:" style="width: 20px; height: 20px;">
+          <img src="icon/nokakoi.png" alt=":nokakoi:" class="quick-reaction-icon">
         </button>
       </div>
-      <label for="reactionInput" style="display: block; margin-bottom: 4px; font-size: 0.9em;" data-i18n="reaction.input.placeholder">リアクション文字</label>
-      <textarea id="reactionInput" rows="1" style="width: 100%; resize: none; overflow: hidden;"></textarea>
-      <div id="reactionRecentWrap" style="margin-top: 10px;">
-        <div class="muted" style="margin-bottom: 6px; font-size: 0.85em;" data-i18n="reaction.recent.title">最近使ったリアクション</div>
-        <div id="reactionRecentList" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+      <label for="reactionInput" class="modal-field-label" data-i18n="reaction.input.placeholder">リアクション文字</label>
+      <textarea id="reactionInput" rows="1" class="reaction-input"></textarea>
+      <div id="reactionRecentWrap">
+        <div class="muted reaction-recent-label" data-i18n="reaction.recent.title">最近使ったリアクション</div>
+        <div id="reactionRecentList"></div>
       </div>
       <div style="margin-top: 8px;">
         <span id="reactionStatus" class="muted"></span>
       </div>
-      <div class="row" style="margin-top: 12px;">
+      <div class="row mt-12">
         <button id="reactionSave" type="button" data-i18n="reaction.save">保存</button>
         <button id="reactionSaveAndReact" type="button" data-i18n="reaction.save_and_react" hidden>保存してリアクション</button>
         <button id="reactionReactOnly" type="button" data-i18n="reaction.react_without_save" hidden>保存せずリアクション</button>
@@ -665,7 +664,7 @@
   <div id="confirmModal" class="modal" hidden>
     <div class="modal-body panel">
       <h2 id="confirmTitle" data-i18n="confirm.title">確認</h2>
-      <p id="confirmMessage" style="margin: 16px 0;"></p>
+      <p id="confirmMessage" class="confirm-message"></p>
       <div class="row">
         <button id="confirmYes" type="button" data-i18n="confirm.yes">はい</button>
         <button id="confirmNo" class="secondary" type="button" data-i18n="confirm.no">いいえ</button>
@@ -677,7 +676,7 @@
   <div id="swUpdateModal" class="modal" hidden>
     <div class="modal-body panel">
       <h2 data-i18n="update.available">アップデート</h2>
-      <p style="margin: 16px 0;" data-i18n="update.prompt">新しいバージョンがあります。更新しますか？</p>
+      <p class="confirm-message" data-i18n="update.prompt">新しいバージョンがあります。更新しますか？</p>
       <div class="row">
         <button id="swUpdateYes" type="button" data-i18n="sw.update.yes">更新する</button>
         <button id="swUpdateNo" class="secondary" type="button" data-i18n="sw.update.no">後で</button>
@@ -687,12 +686,12 @@
 
   <!-- Media viewer modal -->
   <div id="mediaModal" class="modal" hidden>
-    <div class="modal-body panel" style="max-width: 90vw; max-height: 90vh;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <h2 id="mediaTitle" style="margin: 0;" data-i18n="media.title">メディア</h2>
-        <button id="mediaClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+    <div class="modal-body modal-body--media panel">
+      <div class="media-modal-header">
+        <h2 id="mediaTitle" class="modal-title" data-i18n="media.title">メディア</h2>
+        <button id="mediaClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
       </div>
-      <div id="mediaContainer" style="max-width: 100%; max-height: 70vh; overflow: auto; text-align: center;">
+      <div id="mediaContainer">
         <!-- Media content will be inserted here -->
       </div>
       <div style="margin-top: 12px;">
@@ -704,44 +703,44 @@
   <!-- User profile modal -->
   <div id="profileModal" class="modal" hidden>
     <div class="modal-body panel">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-        <h2 style="margin: 0;" data-i18n="profile.title">プロフィール</h2>
-        <button id="profileClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+      <div class="modal-header-row">
+        <h2 class="modal-title" data-i18n="profile.title">プロフィール</h2>
+        <button id="profileClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
       </div>
       <div id="profileContent">
-        <div id="profileBannerContainer" style="margin-bottom: 12px; border-radius: 8px; overflow: hidden; display: none;">
-          <img id="profileBanner" src="" alt="banner" style="width: 100%; height: 120px; object-fit: cover; display: block;">
+        <div id="profileBannerContainer">
+          <img id="profileBanner" src="" alt="banner">
         </div>
-        <div style="display: flex; gap: 16px; margin-bottom: 16px;">
-          <div id="profilePictureContainer" style="flex-shrink: 0;">
-            <img id="profilePicture" src="" data-i18n-alt="profile.title" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; background: var(--border);">
+        <div class="profile-info-row">
+          <div id="profilePictureContainer">
+            <img id="profilePicture" src="" data-i18n-alt="profile.title">
           </div>
-          <div style="flex: 1; min-width: 0;">
-            <div id="profileDisplayName" style="font-size: 1.2em; font-weight: 600; color: var(--text); margin-bottom: 4px;"></div>
-            <div class="profile-username-row" style="margin-bottom: 8px;">
-              <div id="profileFollowStatus" class="muted" style="font-size: 0.8em; display: none;">
-                <span style="background: var(--accent-muted); color: var(--accent); padding: 2px 6px; border-radius: 4px;" data-i18n="profile.follows_you">フォローされています</span>
+          <div class="profile-info-text">
+            <div id="profileDisplayName"></div>
+            <div class="profile-username-row">
+              <div id="profileFollowStatus" class="muted">
+                <span class="profile-follows-badge" data-i18n="profile.follows_you">フォローされています</span>
               </div>
-              <div id="profileUsername" style="font-size: 0.9em; color: var(--muted);"></div>
+              <div id="profileUsername"></div>
             </div>
-            <div id="profileNpub" style="font-size: 0.8em; color: var(--muted); word-break: break-all;"></div>
+            <div id="profileNpub"></div>
           </div>
         </div>
-        <div id="profileAbout" style="margin-bottom: 16px; white-space: pre-wrap; word-break: break-word; line-height: 1.5;"></div>
-        <div id="profileStats" style="display: flex; gap: 16px; font-size: 0.9em; color: var(--muted);"></div>
-        <div id="profileEvents" style="margin-top: 24px;"></div>
+        <div id="profileAbout"></div>
+        <div id="profileStats"></div>
+        <div id="profileEvents"></div>
       </div>
     </div>
   </div>
 
   <!-- JSON viewer modal -->
   <div id="jsonModal" class="modal" hidden>
-    <div class="modal-body panel" style="max-width: 800px;">
+    <div class="modal-body modal-body--lg panel">
       <div class="modal-header-row">
-        <h2 style="margin: 0;" data-i18n="json.title">イベントJSON</h2>
-        <button id="jsonClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+        <h2 class="modal-title" data-i18n="json.title">イベントJSON</h2>
+        <button id="jsonClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
       </div>
-      <pre id="jsonContent" style="background: #0f1220; padding: 12px; border-radius: 8px; overflow: auto; max-height: 60vh; font-size: 0.85em; line-height: 1.4;"></pre>
+      <pre id="jsonContent"></pre>
       <div class="row json-copy-row">
         <button id="jsonCopy" type="button" data-i18n="json.copy">コピー</button>
         <span id="jsonCopyStatus" class="muted"></span>
@@ -754,22 +753,22 @@
   </div>
 
   <!-- イベント詳細モーダル（タイムラインと同じ順序） -->
-  <div id="eventModal" class="modal" hidden style="z-index: 200;">
-    <div class="modal-body panel" style="max-width: 600px;">
+  <div id="eventModal" class="modal" hidden>
+    <div class="modal-body modal-body--md panel">
       <div class="modal-header-row">
-        <h2 style="margin: 0;" data-i18n="event.detail.title">イベント詳細</h2>
-        <button id="eventModalClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+        <h2 class="modal-title" data-i18n="event.detail.title">イベント詳細</h2>
+        <button id="eventModalClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
       </div>
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-        <div id="eventModalAuthorWrap" style="display: flex; align-items: center;"></div>
+      <div class="event-modal-actions-row">
+        <div id="eventModalAuthorWrap" class="flex-row"></div>
         <div class="event-actions-react" id="eventModalReactWrap"></div>
       </div>
       <!-- イベント詳細の本文。profileモーダルと同様にモーダル本体でスクロール制御するため
            固定の max-height を削除し、必要に応じてモーダル全体が画面いっぱいまで伸びるようにする -->
-      <div id="eventModalContent" style="font-size: 0.9em; color: var(--text); opacity: 0.8; white-space: normal; word-break: break-word; line-height: 1.4;"></div>
-      <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
+      <div id="eventModalContent"></div>
+      <div class="event-modal-footer">
         <div>
-          <span id="eventModalTime" style="font-size: 0.85em; color: var(--muted); margin-right: 12px;"></span>
+          <span id="eventModalTime"></span>
           <button id="eventModalKind" class="btn-kind" type="button"><span data-i18n="kind">kind</span>:</button>
         </div>
         <div class="event-actions-bottom" id="eventModalActionsBottom"></div>
@@ -786,14 +785,14 @@
 
   <!-- デバッグログモーダル -->
   <div id="debugModal" class="modal" hidden>
-    <div class="modal-body panel" style="max-width: 800px;">
+    <div class="modal-body modal-body--lg panel">
       <div class="modal-header-row">
-        <h2 style="margin: 0;" data-i18n="debug.title">デバッグ情報</h2>
-        <button id="debugClose" class="secondary" type="button" style="padding: 4px 12px;" data-i18n-aria-label="close">✕</button>
+        <h2 class="modal-title" data-i18n="debug.title">デバッグ情報</h2>
+        <button id="debugClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
       </div>
 
-      <pre id="debugContent" style="background: #222; color: #eee; padding: 12px; border-radius: 8px; overflow: auto; max-height: 60vh; font-size: 0.85em; line-height: 1.4;"></pre>
-      <div class="row" style="margin-top: 12px;">
+      <pre id="debugContent"></pre>
+      <div class="row mt-12">
         <button id="debugCopy" type="button" data-i18n="json.copy">コピー</button>
         <span id="debugCopyStatus" class="muted"></span>
       </div>
@@ -1017,7 +1016,7 @@
     }
   </script>
 
-  <script src="./js/main.js?v=1.92.3" type="module" defer crossorigin="anonymous" data-cfasync="false"></script>
+  <script src="./js/main.js?v=1.93.0" type="module" defer crossorigin="anonymous" data-cfasync="false"></script>
 
 </body>
 </html>

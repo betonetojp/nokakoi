@@ -565,10 +565,10 @@ export function showNsecLoginModal(state, settings, settingsManager, loginFn) {
   if (saveCheck) saveCheck.checked = false;
   if (radioPasskey) radioPasskey.checked = false;
   if (radioPassword) radioPassword.checked = false;
-  if (passwordSection) passwordSection.style.display = 'none';
-  if (passkeySection) passkeySection.style.display = 'none';
-  if (autoLoginOptions) autoLoginOptions.style.display = 'none';
-  if (passkeyInfo) passkeyInfo.style.display = 'none';
+  if (passwordSection) passwordSection.classList.add('d-none');
+  if (passkeySection) passkeySection.classList.add('d-none');
+  if (autoLoginOptions) autoLoginOptions.classList.add('d-none');
+  if (passkeyInfo) passkeyInfo.classList.add('d-none');
   if (statusEl) statusEl.textContent = '';
 
   // WebAuthn利用可ならパスキー欄は常に表示可能
@@ -581,35 +581,35 @@ export function showNsecLoginModal(state, settings, settingsManager, loginFn) {
   // UI制御関数
   function updateSections() {
     if (saveCheck && saveCheck.checked) {
-      if (autoLoginOptions) autoLoginOptions.style.display = 'block';
+      if (autoLoginOptions) autoLoginOptions.classList.remove('d-none');
       // 初回チェック時はパスキー方式を自動選択
       if (!radioPasskey.checked && !radioPassword.checked) {
         if (radioPasskey) radioPasskey.checked = true;
       }
       // ラジオ選択で切り替え
       if (radioPasskey && radioPasskey.checked) {
-        if (passkeySection && passkeyAvailable) passkeySection.style.display = 'block';
-        if (passwordSection) passwordSection.style.display = 'none';
+        if (passkeySection && passkeyAvailable) passkeySection.classList.remove('d-none');
+        if (passwordSection) passwordSection.classList.add('d-none');
         if (passwordInput) passwordInput.disabled = true;
-        if (passkeyInfo) passkeyInfo.style.display = 'block';
+        if (passkeyInfo) passkeyInfo.classList.remove('d-none');
       } else if (radioPassword && radioPassword.checked) {
-        if (passwordSection) passwordSection.style.display = 'block';
-        if (passkeySection) passkeySection.style.display = 'none';
+        if (passwordSection) passwordSection.classList.remove('d-none');
+        if (passkeySection) passkeySection.classList.add('d-none');
         if (passwordInput) passwordInput.disabled = false;
-        if (passkeyInfo) passkeyInfo.style.display = 'none';
+        if (passkeyInfo) passkeyInfo.classList.add('d-none');
       } else {
         // どちらも未選択
-        if (passkeySection) passkeySection.style.display = 'none';
-        if (passwordSection) passwordSection.style.display = 'none';
+        if (passkeySection) passkeySection.classList.add('d-none');
+        if (passwordSection) passwordSection.classList.add('d-none');
         if (passwordInput) passwordInput.disabled = true;
-        if (passkeyInfo) passkeyInfo.style.display = 'none';
+        if (passkeyInfo) passkeyInfo.classList.add('d-none');
       }
     } else {
-      if (autoLoginOptions) autoLoginOptions.style.display = 'none';
-      if (passkeySection) passkeySection.style.display = 'none';
-      if (passwordSection) passwordSection.style.display = 'none';
+      if (autoLoginOptions) autoLoginOptions.classList.add('d-none');
+      if (passkeySection) passkeySection.classList.add('d-none');
+      if (passwordSection) passwordSection.classList.add('d-none');
       if (passwordInput) passwordInput.disabled = false;
-      if (passkeyInfo) passkeyInfo.style.display = 'none';
+      if (passkeyInfo) passkeyInfo.classList.add('d-none');
     }
   }
 
@@ -842,12 +842,12 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
 
     nip46Relays.forEach((relay, index) => {
       const row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:4px;';
+      row.className = 'relay-row';
 
       const input = document.createElement('input');
       input.type = 'text';
       input.value = relay;
-      input.style.flex = '1';
+      input.className = 'relay-input-flex';
       input.onchange = () => {
         nip46Relays[index] = input.value.trim();
         client.relays = nip46Relays.slice();
@@ -856,9 +856,8 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
 
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
-      removeBtn.className = 'secondary';
+      removeBtn.className = 'secondary relay-remove-btn';
       removeBtn.textContent = '✕';
-      removeBtn.style.padding = '4px 8px';
       removeBtn.onclick = () => {
         if (nip46Relays.length > 1) {
           nip46Relays.splice(index, 1);

@@ -224,10 +224,7 @@ function setReactionDisplay(btn, reaction, emojiTags = []) {
         img.src = emojiTag[2];
         img.alt = reactionContent;
         img.className = 'custom-emoji';
-        img.style.width = '18px';
-        img.style.height = '18px';
-        img.style.verticalAlign = 'middle';
-        img.onerror = function () { try { img.style.display = 'none'; } catch (e) { } };
+        img.onerror = function () { try { img.classList.add('d-none'); } catch (e) { } };
         btn.appendChild(img);
         try { if (typeof fitCustomEmoji === 'function') fitCustomEmoji(btn, 18); } catch (e) { }
         return;
@@ -282,11 +279,8 @@ export async function applyClientBadgeToContainer(container) {
       try {
         const name = b.dataset.client || '';
         const color = (map && map.get && map.get(name)) || '#9ca3af';
-        // 背景は透過、文字色は clients.json の色を使用
-        b.style.backgroundColor = 'transparent';
         b.style.color = color;
-        // 枠線色も文字色に合わせる
-        b.style.border = '1px solid ' + color;
+        b.style.borderColor = color;
         // kindボタンがあれば高さを合わせる
         try {
           const kindBtn = container.querySelector('.btn-kind');
@@ -294,20 +288,11 @@ export async function applyClientBadgeToContainer(container) {
             const rect = (kindBtn.getBoundingClientRect && kindBtn.getBoundingClientRect()) || {};
             const h = Math.round(rect.height) || kindBtn.offsetHeight || 20;
             b.style.height = h + 'px';
-            b.style.lineHeight = h + 'px';
+            b.style.lineHeight = (h - 2) + 'px';
             // フォントサイズも kind ボタンに合わせる
             try { b.style.fontSize = window.getComputedStyle(kindBtn).fontSize || b.style.fontSize; } catch (e) { }
-            b.style.verticalAlign = 'middle';
-          } else {
-            b.style.height = '20px';
-            b.style.lineHeight = '20px';
-            b.style.verticalAlign = 'middle';
           }
-        } catch (e) {
-          b.style.height = '20px';
-          b.style.lineHeight = '20px';
-          b.style.verticalAlign = 'middle';
-        }
+        } catch (e) { }
         b.textContent = name;
       } catch (e) { }
     });
@@ -704,7 +689,7 @@ function buildEventNameBlockHtml(state, ev, settings, names, statusHtml) {
     const profile = state.profiles.get(pk);
     const avatarUrl = (profile && profile.picture) || '';
     if (avatarUrl) {
-      avatarHtml = '<img src="' + escapeHtml(avatarUrl) + '" alt="avatar" class="avatar" onerror="this.style.display=\'none\'">';
+      avatarHtml = '<img src="' + escapeHtml(avatarUrl) + '" alt="avatar" class="avatar" onerror="this.classList.add(\'d-none\')">';
     }
   }
 
@@ -782,7 +767,7 @@ function renderEventContent(state, ev, nip19, settings, settingsManager, reactTo
       try { processHiddenTagChars(contentEl); } catch (e) { }
     }
   } else {
-    contentEl.style.display = 'none';
+    contentEl.classList.add('d-none');
   }
 }
 
@@ -794,29 +779,16 @@ function setupContentWarning(div, ev, contentEl, isCwExpanded, markCwExpanded) {
       const reason = cwTag[1] || '';
 
       if (!isCwExpanded) {
-        if (contentEl) contentEl.style.display = 'none';
+        if (contentEl) contentEl.classList.add('d-none');
 
         const foldBar = document.createElement('div');
         foldBar.className = 'muted-fold-bar muted-small cw-fold-bar';
-        foldBar.style.display = 'flex';
-        foldBar.style.alignItems = 'center';
-        foldBar.style.padding = '8px 12px';
-        foldBar.style.fontSize = '12px';
-        foldBar.style.background = 'rgba(128, 128, 128, 0.1)';
-        foldBar.style.borderRadius = '4px';
-        foldBar.style.marginTop = '4px';
-        foldBar.style.marginBottom = '4px';
 
         const left = document.createElement('div');
-        left.style.display = 'flex';
-        left.style.alignItems = 'center';
-        left.style.gap = '8px';
-        left.style.flex = '1';
+        left.className = 'cw-fold-bar-left';
 
         const cwLabel = document.createElement('span');
-        cwLabel.style.fontSize = '12px';
-        cwLabel.style.display = 'inline-flex';
-        cwLabel.style.alignItems = 'center';
+        cwLabel.className = 'cw-fold-bar-label';
 
         if (reason) {
           cwLabel.textContent = t('content_warning.reason', { reason: reason });
@@ -829,16 +801,9 @@ function setupContentWarning(div, ev, contentEl, isCwExpanded, markCwExpanded) {
 
         const expandBtn = document.createElement('button');
         expandBtn.type = 'button';
-        expandBtn.className = 'secondary small';
+        expandBtn.className = 'secondary small cw-fold-bar-btn';
         expandBtn.setAttribute('data-i18n', 'fold.show');
         expandBtn.textContent = t('fold.show');
-
-        expandBtn.style.fontSize = '11px';
-        expandBtn.style.padding = '2px 8px';
-        expandBtn.style.marginLeft = '12px';
-        expandBtn.style.color = 'var(--muted)';
-        expandBtn.style.borderColor = 'var(--border)';
-        expandBtn.style.background = 'transparent';
 
         foldBar.appendChild(expandBtn);
 
@@ -848,13 +813,13 @@ function setupContentWarning(div, ev, contentEl, isCwExpanded, markCwExpanded) {
 
         expandBtn.onclick = function (e) {
           try {
-            if (contentEl) contentEl.style.display = '';
+            if (contentEl) contentEl.classList.remove('d-none');
             try { if (markCwExpanded) markCwExpanded(ev.id, true); } catch (e) { }
             try { foldBar.parentNode && foldBar.parentNode.removeChild(foldBar); } catch (e) { }
           } catch (e) { }
         };
       } else if (contentEl) {
-        contentEl.style.display = '';
+        contentEl.classList.remove('d-none');
       }
     }
   } catch (e) {
@@ -879,8 +844,7 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
     if (isMuted && muteApply) {
       applyMutedToneToEvent(div);
       if (muteDisplayMode === 'hide') {
-        div.classList.add('muted-event', 'muted-hidden');
-        div.style.display = 'none';
+        div.classList.add('muted-event', 'muted-hidden', 'd-none');
         return true;
       }
 
@@ -888,31 +852,21 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
       div.classList.add('muted-event');
       if (!isMutedExpanded) {
         try {
-          if (contentEl) contentEl.style.display = 'none';
-          const actionReact = div.querySelector('.event-actions-react'); if (actionReact) actionReact.style.display = 'none';
-          const actionBottom = div.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.style.display = 'none';
+          if (contentEl) contentEl.classList.add('d-none');
+          const actionReact = div.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.add('d-none');
+          const actionBottom = div.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.add('d-none');
           const topRowEl = div.querySelector('.event-top-row');
-          if (topRowEl) topRowEl.style.display = 'none';
+          if (topRowEl) topRowEl.classList.add('d-none');
 
           const cwBar = div.querySelector('.cw-fold-bar');
-          if (cwBar) cwBar.style.display = 'none';
+          if (cwBar) cwBar.classList.add('d-none');
         } catch (e) { }
 
         const foldBar = document.createElement('div');
         foldBar.className = 'muted-fold-bar muted-small';
-        foldBar.style.display = 'flex';
-        foldBar.style.alignItems = 'center';
-        foldBar.style.justifyContent = 'space-between';
-        foldBar.style.padding = '6px 8px';
-        foldBar.style.fontSize = '12px';
-        foldBar.style.background = 'transparent';
-        foldBar.style.color = '#666';
 
         const left = document.createElement('div');
-        left.style.display = 'flex';
-        left.style.alignItems = 'center';
-        left.style.gap = '8px';
-        left.style.flex = '1';
+        left.className = 'muted-fold-bar-left';
 
         try {
           const topRowEl = div.querySelector('.event-top-row');
@@ -925,13 +879,10 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
 
             const img = cloned.querySelector('img.avatar');
             if (img) {
-              img.style.width = '28px';
-              img.style.height = '28px';
-              img.style.objectFit = 'cover';
-              img.style.borderRadius = '4px';
+              img.className = 'avatar muted-avatar';
             }
             const nameSpan = cloned.querySelector('.name');
-            if (nameSpan) nameSpan.style.fontSize = '13px';
+            if (nameSpan) nameSpan.classList.add('muted-name');
 
             left.appendChild(cloned);
 
@@ -953,11 +904,6 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
 
             const labelAndBtnWrap = document.createElement('div');
             labelAndBtnWrap.className = 'mute-label-wrap';
-            labelAndBtnWrap.style.display = 'inline-flex';
-            labelAndBtnWrap.style.alignItems = 'center';
-            labelAndBtnWrap.style.gap = '8px';
-            labelAndBtnWrap.style.marginLeft = '8px';
-            labelAndBtnWrap.style.height = '100%';
             labelAndBtnWrap.appendChild(muteLabel);
             left.appendChild(labelAndBtnWrap);
           } else {
@@ -970,11 +916,8 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
 
         const expandBtn = document.createElement('button');
         expandBtn.type = 'button';
-        expandBtn.className = 'secondary small';
+        expandBtn.className = 'secondary small muted-fold-expand-btn';
         expandBtn.textContent = t('fold.show');
-        expandBtn.style.fontSize = '10px';
-        expandBtn.style.padding = '1px 4px';
-        expandBtn.style.marginLeft = '0';
 
         try {
           const wrapper = left.querySelector('.mute-label-wrap');
@@ -987,7 +930,6 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
             expandBtn.style.color = 'var(--muted)';
             expandBtn.style.borderColor = 'var(--muted)';
           }
-          expandBtn.style.background = 'transparent';
           if (wrapper) {
             expandBtn.style.marginLeft = '6px';
             wrapper.appendChild(expandBtn);
@@ -995,7 +937,6 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
         } catch (e) {
           expandBtn.style.color = 'var(--muted)';
           expandBtn.style.borderColor = 'var(--muted)';
-          expandBtn.style.background = 'transparent';
         }
 
         foldBar.appendChild(left);
@@ -1011,15 +952,15 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
             const cwBar = div.querySelector('.cw-fold-bar');
 
             if (cwTag && cwBar) {
-              cwBar.style.display = 'flex';
+              cwBar.classList.remove('d-none');
             } else {
-              if (contentEl) contentEl.style.display = '';
+              if (contentEl) contentEl.classList.remove('d-none');
             }
 
-            const actionReact = div.querySelector('.event-actions-react'); if (actionReact) actionReact.style.display = '';
-            const actionBottom = div.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.style.display = '';
+            const actionReact = div.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.remove('d-none');
+            const actionBottom = div.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.remove('d-none');
             const topRowEl2 = div.querySelector('.event-top-row');
-            if (topRowEl2) topRowEl2.style.display = '';
+            if (topRowEl2) topRowEl2.classList.remove('d-none');
             try { if (markMutedExpanded) markMutedExpanded(ev.id, true); } catch (e) { }
             try { foldBar.parentNode && foldBar.parentNode.removeChild(foldBar); } catch (e) { }
           } catch (e) {
@@ -1028,12 +969,12 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
         };
       } else {
         try {
-          const actionReact = div.querySelector('.event-actions-react'); if (actionReact) actionReact.style.display = '';
-          const actionBottom = div.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.style.display = '';
-          const topRowEl = div.querySelector('.event-top-row'); if (topRowEl) topRowEl.style.display = '';
-          if (contentEl) contentEl.style.display = '';
+          const actionReact = div.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.remove('d-none');
+          const actionBottom = div.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.remove('d-none');
+          const topRowEl = div.querySelector('.event-top-row'); if (topRowEl) topRowEl.classList.remove('d-none');
+          if (contentEl) contentEl.classList.remove('d-none');
           const cwBar = div.querySelector('.cw-fold-bar');
-          if (cwBar) cwBar.style.display = 'flex';
+          if (cwBar) cwBar.classList.remove('d-none');
         } catch (e) { }
       }
     }
@@ -1518,8 +1459,8 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
 
   let omochatButtons = '';
   if (ev.kind === 20000 && localStorage.getItem('pubkey')) {
-    omochatButtons = '<button class="btn-omochat-h" type="button" title="( ⊃·ω・)⊃🫂" style="margin-right:4px;font-size:0.8em;background:transparent;border:0;cursor:pointer;">🫂</button>' +
-                     '<button class="btn-omochat-t" type="button" title="( \'ω\' )в 🐟" style="margin-right:8px;font-size:0.8em;background:transparent;border:0;cursor:pointer;">🐟</button>';
+    omochatButtons = '<button class="btn-omochat-h" type="button" title="( ⊃·ω·)⊃🫂">🫂</button>' +
+                     '<button class="btn-omochat-t" type="button" title="( \'ω\' )в 🐟">🐟</button>';
   }
 
   const bottomRowHtml = '<div class="event-bottom-row">' +

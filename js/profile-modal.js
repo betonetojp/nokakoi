@@ -66,7 +66,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   const followStatusEl = $('#profileFollowStatus');
 
   currentModalPubkey = pubkey;
-  if (followStatusEl) followStatusEl.style.display = 'none';
+  if (followStatusEl) followStatusEl.classList.add('d-none');
 
   // フォロー状態確認（非同期）
   if (state && state.pubkey && state.pubkey !== pubkey && followStatusEl) {
@@ -88,7 +88,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
         if (ev && ev.tags) {
           const isFollowing = ev.tags.some(t => t[0] === 'p' && t[1] === state.pubkey);
           if (isFollowing) {
-            followStatusEl.style.display = 'block';
+            followStatusEl.classList.remove('d-none');
           }
         }
       } catch (e) { }
@@ -158,11 +158,11 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     if (name) {
       usernameEl.textContent = '@' + name;
       usernameEl.title = name;
-      usernameEl.style.display = 'block';
+      usernameEl.classList.remove('d-none');
     } else {
       usernameEl.textContent = '';
       usernameEl.removeAttribute('title');
-      usernameEl.style.display = 'none';
+      usernameEl.classList.add('d-none');
     }
   }
 
@@ -176,8 +176,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
         const span = document.createElement('span'); // ラッパー（直接追加でも可）
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'btn-kind';
-        btn.style.marginLeft = '12px';
+        btn.className = 'btn-kind ml-8';
         btn.textContent = t('profile.open_lumilumi');
         btn.onclick = function() {
            window.open('https://lumilumi.app/' + npub, '_blank', 'noopener,noreferrer');
@@ -194,9 +193,9 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     const about = (profile && profile.about) || '';
     if (about) {
       aboutEl.textContent = about;
-      aboutEl.style.display = 'block';
+      aboutEl.classList.remove('d-none');
     } else {
-      aboutEl.style.display = 'none';
+      aboutEl.classList.add('d-none');
     }
   }
 
@@ -204,14 +203,14 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     const picture = (profile && profile.picture) || '';
     if (picture) {
       pictureEl.src = picture;
-      pictureEl.style.display = 'block';
+      pictureEl.classList.remove('d-none');
 
       //画像ロードエラー時の処理
       pictureEl.onerror = function () {
-        pictureEl.style.display = 'none';
+        pictureEl.classList.add('d-none');
       };
     } else {
-      pictureEl.style.display = 'none';
+      pictureEl.classList.add('d-none');
       pictureEl.src = '';
     }
   }
@@ -222,18 +221,18 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     const showBanner = settingsManager.get('showProfileBanner') !== false;
     if (banner && showBanner) {
       bannerEl.src = banner;
-      bannerEl.style.display = 'block';
-      if (bannerContainerEl) bannerContainerEl.style.display = 'block';
+      bannerEl.classList.remove('d-none');
+      if (bannerContainerEl) bannerContainerEl.classList.remove('d-none');
 
       //画像ロードエラー時の処理
       bannerEl.onerror = function () {
-        bannerEl.style.display = 'none';
-        if (bannerContainerEl) bannerContainerEl.style.display = 'none';
+        bannerEl.classList.add('d-none');
+        if (bannerContainerEl) bannerContainerEl.classList.add('d-none');
       };
     } else {
-      bannerEl.style.display = 'none';
+      bannerEl.classList.add('d-none');
       bannerEl.src = '';
-      if (bannerContainerEl) bannerContainerEl.style.display = 'none';
+      if (bannerContainerEl) bannerContainerEl.classList.add('d-none');
     }
   }
 
@@ -243,9 +242,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     try {
       // タイムラインの kind ボタンと同様に kind:0 JSON ボタンを追加
       const timeSpan = document.createElement('span');
-      timeSpan.className = 'profile-kind-time muted';
-      timeSpan.style.marginRight = '8px';
-      timeSpan.style.fontSize = '0.9em';
+      timeSpan.className = 'profile-kind-time muted profile-time-span';
       timeSpan.textContent = '';
 
       const jsonBtn = document.createElement('button');
@@ -627,18 +624,18 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
         const pic = document.getElementById('profilePicture');
         if (pic) {
           try { pic.src = ''; } catch (e) { }
-          try { pic.style.display = 'none'; } catch (e) { }
+          try { pic.classList.add('d-none'); } catch (e) { }
           try { pic.onerror = null; } catch (e) { }
         }
         const ban = document.getElementById('profileBanner');
         if (ban) {
           try { ban.src = ''; } catch (e) { }
-          try { ban.style.display = 'none'; } catch (e) { }
+          try { ban.classList.add('d-none'); } catch (e) { }
           try { ban.onerror = null; } catch (e) { }
         }
         const banC = document.getElementById('profileBannerContainer');
         if (banC) {
-          try { banC.style.display = 'none'; } catch (e) { }
+          try { banC.classList.add('d-none'); } catch (e) { }
         }
       } catch (e) { }
       modal.hidden = true;
@@ -657,18 +654,18 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
         const pic = document.getElementById('profilePicture');
         if (pic) {
           try { pic.src = ''; } catch (e) { }
-          try { pic.style.display = 'none'; } catch (e) { }
+          try { pic.classList.add('d-none'); } catch (e) { }
           try { pic.onerror = null; } catch (e) { }
         }
         const ban = document.getElementById('profileBanner');
         if (ban) {
           try { ban.src = ''; } catch (e) { }
-          try { ban.style.display = 'none'; } catch (e) { }
+          try { ban.classList.add('d-none'); } catch (e) { }
           try { ban.onerror = null; } catch (e) { }
         }
         const banC = document.getElementById('profileBannerContainer');
         if (banC) {
-          try { banC.style.display = 'none'; } catch (e) { }
+          try { banC.classList.add('d-none'); } catch (e) { }
         }
       } catch (e) { }
       modal.hidden = true;
@@ -690,18 +687,18 @@ export function setupProfileModalClose() {
         const pic = document.getElementById('profilePicture');
         if (pic) {
           try { pic.src = ''; } catch (e) { }
-          try { pic.style.display = 'none'; } catch (e) { }
+          try { pic.classList.add('d-none'); } catch (e) { }
           try { pic.onerror = null; } catch (e) { }
         }
         const ban = document.getElementById('profileBanner');
         if (ban) {
           try { ban.src = ''; } catch (e) { }
-          try { ban.style.display = 'none'; } catch (e) { }
+          try { ban.classList.add('d-none'); } catch (e) { }
           try { ban.onerror = null; } catch (e) { }
         }
         const banC = document.getElementById('profileBannerContainer');
         if (banC) {
-          try { banC.style.display = 'none'; } catch (e) { }
+          try { banC.classList.add('d-none'); } catch (e) { }
         }
       } catch (e) { }
       modal.hidden = true;

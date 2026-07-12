@@ -368,25 +368,19 @@ function updateEmojiPreview() {
     let previewContainer = composer.querySelector('.emoji-preview-container');
     if (!previewContainer) {
       previewContainer = document.createElement('div');
-      previewContainer.className = 'emoji-preview-container';
-      previewContainer.style.marginBottom = '8px';
-      previewContainer.style.padding = '8px';
-      previewContainer.style.borderBottom = '1px solid #e0e0e0';
-      previewContainer.style.minHeight = '0px';
-      previewContainer.style.lineHeight = '1.4';
-      previewContainer.style.fontSize = 'inherit';
+      previewContainer.className = 'emoji-preview-container compose-preview d-none';
       const suggestEl = composer.querySelector('.emoji-shortcode-suggest');
       const insertAnchor = suggestEl || noteInput;
       noteInput.parentNode.insertBefore(previewContainer, insertAnchor);
     }
 
     if (!text.trim() || emojiTags.length === 0) {
-      previewContainer.style.display = 'none';
+      previewContainer.classList.add('d-none');
       previewContainer.innerHTML = '';
       return;
     }
 
-    previewContainer.style.display = 'block';
+    previewContainer.classList.remove('d-none');
     previewContainer.innerHTML = ''; // クリア
 
     // テキストから emoji 関連要素のみを抽出してプレビュー生成
@@ -417,42 +411,28 @@ function updateEmojiPreview() {
       if (lineEmojis.length === 0) continue; // 絵文字なし行はスキップ
 
       const lineDiv = document.createElement('div');
-      lineDiv.style.marginBottom = '0';
-      lineDiv.style.lineHeight = '1.4';
+      lineDiv.className = 'compose-line';
 
       if (isEmojiOnly) {
         // 絵文字のみの行: flex で隙間なく並べる
-        lineDiv.className = 'emoji-line-preview';
-        lineDiv.style.display = 'flex';
-        lineDiv.style.flexWrap = 'wrap';
-        lineDiv.style.gap = '0';
-        lineDiv.style.alignItems = 'center';
+        lineDiv.className = 'compose-line compose-line--emoji';
 
         for (const emoji of lineEmojis) {
           const imgWrapper = document.createElement('span');
-          imgWrapper.style.display = 'inline-block';
-          imgWrapper.style.lineHeight = '1';
-          imgWrapper.style.margin = '0';
-          imgWrapper.style.padding = '0';
-          imgWrapper.style.verticalAlign = 'middle';
+          imgWrapper.className = 'emoji-wrapper';
 
           const img = document.createElement('img');
           img.src = emoji.url;
           img.alt = `:${emoji.shortcode}:`;
           img.title = `:${emoji.shortcode}:`;
-          img.style.height = '28px';
-          img.style.width = 'auto';
-          img.style.display = 'inline-block';
-          img.style.verticalAlign = 'middle';
+          img.className = 'emoji-inline-img';
 
           imgWrapper.appendChild(img);
           lineDiv.appendChild(imgWrapper);
         }
       } else {
         // テキスト+絵文字の混在行: テキストと絵文字を一緒に inline で表示
-        lineDiv.className = 'emoji-mixed-line-preview';
-        lineDiv.style.display = 'block';
-        lineDiv.style.wordWrap = 'break-word';
+        lineDiv.className = 'compose-line compose-text-block';
 
         // テキストを構築（絵文字ショートコードをimg タグに置換）
         let lastIndex = 0;
@@ -473,20 +453,13 @@ function updateEmojiPreview() {
           const emojiData = lineEmojis.find(e => e.shortcode === shortcode);
           if (emojiData) {
             const imgWrapper = document.createElement('span');
-            imgWrapper.style.display = 'inline-block';
-            imgWrapper.style.lineHeight = '1';
-            imgWrapper.style.margin = '0';
-            imgWrapper.style.padding = '0';
-            imgWrapper.style.verticalAlign = 'middle';
+            imgWrapper.className = 'emoji-wrapper';
 
             const img = document.createElement('img');
             img.src = emojiData.url;
             img.alt = `:${shortcode}:`;
             img.title = `:${shortcode}:`;
-            img.style.height = '28px';
-            img.style.width = 'auto';
-            img.style.display = 'inline-block';
-            img.style.verticalAlign = 'middle';
+            img.className = 'emoji-inline-img';
 
             imgWrapper.appendChild(img);
             lineDiv.appendChild(imgWrapper);

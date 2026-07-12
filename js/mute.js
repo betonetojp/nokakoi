@@ -503,13 +503,10 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
       if (!container) {
         container = document.createElement('div');
         container.id = containerId;
-        container.style.marginTop = '8px';
-        container.style.fontSize = '13px';
+        container.className = 'mt-8 text-sm';
 
         const applyLabel = document.createElement('label');
-        applyLabel.style.display = 'inline-flex';
-        applyLabel.style.alignItems = 'center';
-        applyLabel.style.gap = '8px';
+        applyLabel.className = 'setting-row-clickable';
 
         const applyCheckbox = document.createElement('input');
         applyCheckbox.type = 'checkbox';
@@ -524,18 +521,14 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         applyLabel.appendChild(applyText);
 
         const modeWrap = document.createElement('div');
-        modeWrap.style.marginTop = '6px';
-        modeWrap.style.display = applyCheckbox.checked ? 'block' : 'none';
-        modeWrap.style.gap = '6px';
-        modeWrap.style.alignItems = 'flex-start';
+        modeWrap.className = 'mt-8 flex-col items-start';
+        if (!applyCheckbox.checked) modeWrap.classList.add('d-none');
 
         const modeFieldset = document.createElement('div');
-        modeFieldset.style.display = 'block';
+        modeFieldset.className = 'd-block';
 
         const modeCollapseLabel = document.createElement('label');
-        modeCollapseLabel.style.display = 'block';
-        modeCollapseLabel.style.marginTop = '4px';
-        modeCollapseLabel.style.marginLeft = '18px';
+        modeCollapseLabel.className = 'd-block mt-4 settings-indent';
         const modeCollapse = document.createElement('input');
         modeCollapse.type = 'radio';
         modeCollapse.name = 'muteDisplayMode';
@@ -551,9 +544,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         modeCollapseLabel.appendChild(modeCollapseText);
 
         const modeHideLabel = document.createElement('label');
-        modeHideLabel.style.display = 'block';
-        modeHideLabel.style.marginTop = '4px';
-        modeHideLabel.style.marginLeft = '18px';
+        modeHideLabel.className = 'd-block mt-4 settings-indent';
         const modeHide = document.createElement('input');
         modeHide.type = 'radio';
         modeHide.name = 'muteDisplayMode';
@@ -584,16 +575,10 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
 
         // kind:0 イベントへミュート語を適用するオプションを追加（既定OFF）
         const kind0Wrap = document.createElement('div');
-        kind0Wrap.style.marginTop = '8px';
-        kind0Wrap.style.marginLeft = '18px';
-        kind0Wrap.style.display = 'flex';
-        kind0Wrap.style.alignItems = 'center';
-        kind0Wrap.style.gap = '8px';
+        kind0Wrap.className = 'mt-8 settings-indent flex-row';
 
         const kind0Label = document.createElement('label');
-        kind0Label.style.display = 'inline-flex';
-        kind0Label.style.alignItems = 'center';
-        kind0Label.style.gap = '8px';
+        kind0Label.className = 'setting-row-clickable';
 
         const kind0Checkbox = document.createElement('input');
         kind0Checkbox.type = 'checkbox';
@@ -649,7 +634,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
               if (quickMuteCheck) quickMuteCheck.checked = applyCheckbox.checked;
             } catch (e) { }
 
-            try { modeWrap.style.display = applyCheckbox.checked ? 'block' : 'none'; } catch (e) { }
+            try { modeWrap.classList.toggle('d-none', !applyCheckbox.checked); } catch (e) { }
             try {
               if (typeof restartFeeds === 'function') {
                 restartFeeds(true);

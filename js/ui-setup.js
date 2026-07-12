@@ -432,8 +432,8 @@ export function setupTabs(settingsManager, preserveActive = false) {
       // eHagaki ボタン制御
       const ehagakiBtn = document.getElementById('ehagakiBtn');
       if (ehagakiBtn) {
-        if (btn.dataset.tab === 'bitchat') ehagakiBtn.style.display = 'none';
-        else ehagakiBtn.style.display = '';
+        if (btn.dataset.tab === 'bitchat') ehagakiBtn.classList.add('d-none');
+        else ehagakiBtn.classList.remove('d-none');
       }
 
       // 通知ドットをクリア
@@ -533,8 +533,8 @@ export function setupTabs(settingsManager, preserveActive = false) {
     // 初期 eHagaki 表示判定
     const ehagakiBtn = document.getElementById('ehagakiBtn');
     if (ehagakiBtn) {
-       if (target.dataset.tab === 'bitchat') ehagakiBtn.style.display = 'none';
-       else ehagakiBtn.style.display = '';
+       if (target.dataset.tab === 'bitchat') ehagakiBtn.classList.add('d-none');
+       else ehagakiBtn.classList.remove('d-none');
     }
   }
 }
@@ -549,25 +549,15 @@ function renderTabSettingsUI(settingsManager, container) {
 
   currentTabs.forEach((tab, index) => {
     const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.alignItems = 'center';
-    row.style.gap = '8px';
-    row.style.padding = '4px 0';
-    row.style.borderBottom = '1px solid var(--border-a10) /* var(--border) fallback */';
-    try { row.style.borderColor = 'var(--border)'; } catch(e){}
+    row.className = 'tab-order-row';
 
     const btnGroup = document.createElement('div');
-    btnGroup.style.display = 'flex';
-    btnGroup.style.flexDirection = 'column';
-    btnGroup.style.gap = '2px';
+    btnGroup.className = 'tab-order-btn-group';
 
     const upBtn = document.createElement('button');
     upBtn.type = 'button';
     upBtn.textContent = '▲';
-    upBtn.className = 'secondary small';
-    upBtn.style.padding = '0 4px';
-    upBtn.style.fontSize = '0.7em';
-    upBtn.style.lineHeight = '1.2';
+    upBtn.className = 'secondary small tab-order-arrow-btn';
     upBtn.disabled = index === 0;
     upBtn.onclick = () => {
       const temp = currentTabs[index-1];
@@ -582,10 +572,7 @@ function renderTabSettingsUI(settingsManager, container) {
     const downBtn = document.createElement('button');
     downBtn.type = 'button';
     downBtn.textContent = '▼';
-    downBtn.className = 'secondary small';
-    downBtn.style.padding = '0 4px';
-    downBtn.style.fontSize = '0.7em';
-    downBtn.style.lineHeight = '1.2';
+    downBtn.className = 'secondary small tab-order-arrow-btn';
     downBtn.disabled = index === currentTabs.length - 1;
     downBtn.onclick = () => {
       const temp = currentTabs[index+1];
@@ -602,11 +589,7 @@ function renderTabSettingsUI(settingsManager, container) {
     row.appendChild(btnGroup);
 
     const label = document.createElement('label');
-    label.style.display = 'flex';
-    label.style.alignItems = 'center';
-    label.style.gap = '8px';
-    label.style.flex = '1';
-    label.style.cursor = 'pointer';
+    label.className = 'tab-order-label';
 
     const chk = document.createElement('input');
     chk.type = 'checkbox';
@@ -655,12 +638,7 @@ function renderTabSettingsUI(settingsManager, container) {
 
     // タブ単位の通知ドット切替
     const dotLabel = document.createElement('label');
-    dotLabel.style.display = 'flex';
-    dotLabel.style.alignItems = 'center';
-    dotLabel.style.gap = '4px';
-    dotLabel.style.cursor = 'pointer';
-    dotLabel.style.fontSize = '0.85em';
-    dotLabel.style.whiteSpace = 'nowrap';
+    dotLabel.className = 'dot-label';
     const dotChk = document.createElement('input');
     dotChk.type = 'checkbox';
     dotChk.checked = tab.notifyDot !== false;
@@ -783,8 +761,8 @@ export function setMuteApplyEnabled(settingsManager, enabled, restartFeeds) {
     const applyMuteCheckbox = document.getElementById('applyMuteCheckbox');
     if (applyMuteCheckbox) {
       const modeWrap = applyMuteCheckbox.parentNode?.nextSibling;
-      if (modeWrap && modeWrap.style) {
-        modeWrap.style.display = enabled ? 'block' : 'none';
+      if (modeWrap) {
+        modeWrap.classList.toggle('d-none', !enabled);
       }
     }
   } catch (e) { }

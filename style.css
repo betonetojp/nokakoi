@@ -615,6 +615,7 @@ body.theme-light .event-actions-react .btn-react[data-reacted="true"] {
 .event-time-kind .btn-kind {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 0.75em;
+  font-weight: normal;
   color: var(--muted);
   background: transparent;
   border: 1px solid var(--border);
@@ -642,6 +643,9 @@ body.theme-light .event-actions-react .btn-react[data-reacted="true"] {
   flex: 0 1 auto;
   min-width: 0;
   box-sizing: border-box;
+  height: 20px;
+  line-height: 18px;
+  border: 1px solid transparent;
 }
 .event-actions-bottom {
   display: flex;
@@ -657,11 +661,9 @@ body.theme-light .event-actions-react .btn-react[data-reacted="true"] {
   cursor: pointer;
   transition: color 0.2s, background 0.2s;
 }
-.event-actions-bottom .btn-repost:hover {
-  color: #4caf50;
-  background: rgba(76, 175, 80, 0.12);
-}
-.event-actions-bottom .btn-reply:hover {
+.event-actions-bottom .btn-repost:hover,
+.event-actions-bottom .btn-reply:hover,
+.event-actions-bottom .btn-quote:hover {
   color: var(--accent);
   background: var(--accent-muted);
 }
@@ -866,12 +868,11 @@ body.theme-light img.icon-btn {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.actions .btn-repost:hover {
-  color: #4caf50;
-  background: rgba(76, 175, 80, 0.12);
-}
-.actions .btn-reply:hover {
+.actions .btn-repost:hover,
+.actions .btn-reply:hover,
+.actions .btn-quote:hover {
   color: var(--accent);
+  background: var(--accent-muted);
 }
 .actions .btn-json {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -1830,6 +1831,7 @@ body.theme-light .open-media {
 button.btn-kind {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 0.75em;
+  font-weight: normal;
   color: var(--muted);
   background: transparent;
   border: 1px solid var(--border);
@@ -2268,12 +2270,50 @@ body.theme-light .nip46-tab.active {
 }
 
 /* ===== ユーティリティクラス（インラインスタイルの共通化） ===== */
-.mt-12 {
-  margin-top: 12px;
-}
-.mt-8 {
-  margin-top: 8px;
-}
+.mt-4 { margin-top: 4px; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+.mb-4 { margin-bottom: 4px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.ml-8 { margin-left: 8px; }
+.ml-16 { margin-left: 16px; }
+.ml-24 { margin-left: 24px; }
+.mr-8 { margin-right: 8px; }
+.mr-12 { margin-right: 12px; }
+
+.flex-row { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.flex-col { display: flex; flex-direction: column; gap: 4px; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-1 { flex: 1; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.justify-between { justify-content: space-between; }
+.gap-4 { gap: 4px; }
+.gap-6 { gap: 6px; }
+.gap-8 { gap: 8px; }
+.gap-16 { gap: 16px; }
+
+.text-xs { font-size: 0.8em; }
+.text-sm { font-size: 0.9em; }
+.text-base { font-size: 0.95em; }
+.text-center { text-align: center; }
+.font-bold { font-weight: bold; }
+
+.w-full { width: 100%; }
+.d-block { display: block; }
+.d-none { display: none; }
+.d-flex { display: flex; }
+.d-inline { display: inline; }
+
+.lh-tight { line-height: 1.3; }
+.lh-snug { line-height: 1.4; }
+
+.cursor-pointer { cursor: pointer; }
+
 .setting-row {
   display: flex;
   align-items: center;
@@ -2291,4 +2331,732 @@ body.theme-light .nip46-tab.active {
   align-items: flex-start;
   margin-bottom: 12px;
 }
+/* モーダル見出し共通 */
+.modal-title {
+  margin: 0;
+  font-size: 1.1em;
+}
+/* モーダル閉じるボタン共通 */
+.modal-close {
+  padding: 4px 12px;
+}
+/* モーダルフィールド共通 */
+.modal-field {
+  margin-bottom: 12px;
+}
+.modal-field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.9em;
+}
+/* モーダルステータス共通 */
+.modal-status {
+  margin-bottom: 12px;
+  min-height: 1.2em;
+}
+/* パスワードマネージャー用非表示入力 */
+.sr-only {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+/* 確認メッセージ余白 */
+.confirm-message {
+  margin: 16px 0;
+  white-space: pre-wrap;
+}
+/* リンクボタン */
+.link-external {
+  display: inline-block;
+  margin-top: 12px;
+}
+/* #userInfo のスタイル */
+#userInfo {
+  display: inline;
+  margin-left: 8px;
+}
+/* #relayStatus のスタイル */
+#relayStatus {
+  margin-top: 6px;
+}
+/* #muteCounts */
+#muteCounts {
+  margin-top: 8px;
+  font-size: 0.9em;
+}
+#muteCounts > div + div {
+  margin-top: 4px;
+}
+/* #changeGeohashLabel */
+.change-geohash-label {
+  display: none;
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 0.95em;
+  cursor: pointer;
+}
+/* composer spacer */
+.composer-spacer-btn {
+  margin-left: auto;
+}
+/* 幅指定クラス - postLink系 */
+#postLinkTitleInput { width: 160px; }
+#postLinkUrlInput { width: 260px; }
+#clientNameInput { width: 140px; }
+/* 非表示ユーザー名フィールド共通 */
+.password-manager-username {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+/* nsecモーダル: 自動ログインオプション */
+#autoLoginOptions {
+  margin-bottom: 12px;
+  padding-left: 24px;
+}
+#passwordSection {
+  margin-bottom: 12px;
+  padding-left: 24px;
+}
+/* QRコードボックス */
+#nip46QrCode {
+  text-align: center;
+  margin: 16px 0;
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  display: inline-block;
+}
+/* イベントモーダル: コンテンツ領域 */
+#eventModalContent {
+  font-size: inherit;
+  color: var(--text);
+  opacity: 1;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.3;
+}
+/* イベントモーダル: 時刻 */
+#eventModalTime {
+  font-size: 0.85em;
+  color: var(--muted);
+  margin-right: 12px;
+}
+/* geohash history popup */
+.geohash-history-popup {
+  display: none;
+  position: absolute;
+  z-index: 99999;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  min-width: 180px;
+  max-width: 320px;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 0.97em;
+}
+/* omochat auto relay algo container */
+#omochatAutoRelayAlgoContainer {
+  margin-left: 24px;
+  margin-bottom: 12px;
+}
+/* omochat merge parent container */
+#omochatMergeParentContainer {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-left: 24px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+/* omochat status */
+#omochatStatus {
+  margin-top: 8px;
+  min-height: 1.2em;
+}
+/* NIP-46 status */
+#nip46Status {
+  margin-top: 12px;
+}
+/* nsecLoginStatus, passwordStatus */
+#nsecLoginStatus,
+#passwordStatus {
+  margin-top: 8px;
+}
+/* eHagaki iframe */
+#ehagakiFrame {
+  width: 100%;
+  height: 60vh;
+  min-height: 240px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+/* Profile modal layout elements */
+#profileBannerContainer {
+  margin-bottom: 12px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: none;
+}
+#profileBanner {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  display: block;
+}
+.profile-info-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+#profilePictureContainer {
+  flex-shrink: 0;
+}
+#profilePicture {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--border);
+}
+.profile-info-text {
+  flex: 1;
+  min-width: 0;
+}
+#profileDisplayName {
+  font-size: 1.2em;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.profile-username-row {
+  margin-bottom: 8px;
+}
+.profile-follows-badge {
+  background: var(--accent-muted);
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+#profileUsername {
+  font-size: 0.9em;
+  color: var(--muted);
+}
+#profileNpub {
+  font-size: 0.8em;
+  color: var(--muted);
+  word-break: break-all;
+}
+#profileAbout {
+  margin-bottom: 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+#profileStats {
+  display: flex;
+  gap: 16px;
+  font-size: 0.9em;
+  color: var(--muted);
+}
+#profileEvents {
+  margin-top: 24px;
+}
+/* JSON content */
+#jsonContent {
+  padding: 12px;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 60vh;
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+/* Debug content */
+#debugContent {
+  padding: 12px;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 60vh;
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+/* Media modal elements */
+.media-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+/* Event modal layout */
+.event-modal-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.event-modal-footer {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+/* Profile follow status */
+#profileFollowStatus {
+  font-size: 0.8em;
+  display: none;
+}
+/* Quick reaction icon */
+.quick-reaction-icon {
+  width: 20px;
+  height: 20px;
+}
+/* Reaction recent */
+#reactionRecentWrap {
+  margin-top: 10px;
+}
+.reaction-recent-label {
+  margin-bottom: 6px;
+  font-size: 0.85em;
+}
+#reactionRecentList {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* NIP-46 app open button */
+#nip46OpenApp {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+/* nsec save hint */
+.nsec-save-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+/* Auto login radio labels */
+.auto-login-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+.auto-login-radio + .auto-login-radio {
+  margin-bottom: 8px;
+}
+/* Passkey info text */
+.passkey-info {
+  font-size: 0.8em;
+  margin: 4px 0 8px;
+  line-height: 1.4;
+}
+/* Password section description */
+.password-section-desc {
+  font-size: 0.8em;
+  margin: 4px 0 8px;
+  line-height: 1.4;
+}
+/* Omochat checkbox label */
+.omochat-option-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+.omochat-option-label input[type="checkbox"] {
+  margin-top: 2px;
+}
+/* NIP-46 relay hint */
+.nip46-relay-hint {
+  font-size: 0.85em;
+  margin: 8px 0;
+}
+/* Relay details within omochat */
+#omochatRelayDetails {
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
 
+/* ===== Phase 2: モダンデザイン強化 ===== */
+
+/* --- details アコーディオン: chevron 回転アニメーション --- */
+.panel details summary {
+  position: relative;
+  padding-left: 20px;
+  list-style: none;
+}
+.panel details summary::-webkit-details-marker,
+.panel details summary::marker {
+  display: none;
+}
+.panel details summary::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) rotate(0deg);
+  width: 0;
+  height: 0;
+  border-left: 6px solid var(--muted);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.panel details[open] > summary::before {
+  transform: translateY(-50%) rotate(90deg);
+}
+
+/* --- モーダル背景ブラー --- */
+.modal {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* --- プライマリボタン: subtle glow --- */
+button:not(.secondary):not(.tab):not(.quick-reaction):not(.btn-react):not(.btn-kind):not(.btn-repost):not(.btn-reply):not(.btn-quote):not(.btn-omochat-h):not(.btn-omochat-t):not(.btn-json):not(.btn-remove):not(.btn-remove-cand):not(.scroll-to-top):not(.open-media):not(.load-more-btn):not(.nip46-tab):not(.emoji-shortcode-suggest-item) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+button:not(.secondary):not(.tab):not(.quick-reaction):not(.btn-react):not(.btn-kind):not(.btn-repost):not(.btn-reply):not(.btn-quote):not(.btn-omochat-h):not(.btn-omochat-t):not(.btn-json):not(.btn-remove):not(.btn-remove-cand):not(.scroll-to-top):not(.open-media):not(.load-more-btn):not(.nip46-tab):not(.emoji-shortcode-suggest-item):hover:not(:disabled) {
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* --- タブ active: subtle shadow --- */
+.tab.active {
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* --- 投稿カード hover --- */
+.event:hover {
+  background-color: color-mix(in srgb, var(--panel-hover) 50%, transparent);
+}
+
+/* --- フォーカスアニメーション改善 --- */
+textarea:focus,
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+select:focus {
+  transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- secondaryボタンのトランジション洗練 --- */
+button.secondary {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+button.secondary:hover:not(:disabled) {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* --- クイックリアクションボタンのアニメーション洗練 --- */
+.quick-reaction {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* --- パネル details open のスムーズ表示 --- */
+.panel details > *:not(summary) {
+  animation: fadeSlideIn 0.2s ease-out;
+}
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* reduced-motion では新規アニメーションも無効化 */
+@media (prefers-reduced-motion: reduce) {
+  .panel details summary::before {
+    transition: none;
+  }
+  .panel details > *:not(summary) {
+    animation: none;
+  }
+  .quick-reaction {
+    transition: none;
+  }
+}
+
+/* --- JS内のインラインスタイルから抽出されたクラス --- */
+.d-none {
+  display: none !important;
+}
+.cw-fold-bar {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 12px;
+  background: rgba(128, 128, 128, 0.1);
+  border-radius: 4px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.cw-fold-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.cw-fold-bar-label {
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+}
+.cw-fold-bar-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  margin-left: 12px;
+  color: var(--muted);
+  border-color: var(--border);
+  background: transparent;
+}
+.muted-fold-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  font-size: 12px;
+  background: transparent;
+  color: #666;
+}
+.muted-fold-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.muted-avatar {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.muted-name {
+  font-size: 13px !important;
+}
+.mute-label-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+  height: 100%;
+}
+.muted-fold-expand-btn {
+  font-size: 10px;
+  padding: 1px 4px;
+  margin-left: 0;
+  background: transparent;
+}
+
+/* 絵文字プレビュー・サジェスト共通 */
+.emoji-preview {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  min-height: 0px;
+  line-height: 1.4;
+  font-size: inherit;
+}
+.emoji-preview-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.emoji-preview-img {
+  height: 28px;
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+}
+.status-error {
+  color: #ff4444 !important;
+}
+.status-success {
+  color: #4caf50 !important;
+}
+.status-muted {
+  color: var(--muted) !important;
+}
+
+/* 履歴ポップアップ */
+.history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.history-row:hover {
+  background: var(--panel-hover, #222);
+}
+.history-label {
+  flex: 1;
+}
+.history-delete-btn {
+  margin-left: 8px;
+  font-size: 1em;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.history-delete-btn:hover {
+  color: #ff4444;
+}
+.history-popup--mobile {
+  display: block;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 220px;
+  max-width: 90vw;
+  max-height: 60vh;
+  width: min(320px, 90vw);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* リレー設定行 */
+.relay-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.relay-row--readonly {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+  opacity: 0.75;
+}
+.relay-input-flex {
+  flex: 1;
+}
+.relay-remove-btn {
+  padding: 4px 8px;
+}
+
+/* composer-preview & lines */
+.compose-preview {
+  margin-bottom: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  min-height: 0px;
+  line-height: 1.4;
+  font-size: inherit;
+}
+.compose-line {
+  margin-bottom: 0;
+  line-height: 1.4;
+}
+.compose-line--emoji {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  align-items: center;
+}
+.emoji-wrapper {
+  display: inline-block;
+  line-height: 1;
+  margin: 0;
+  padding: 0;
+  vertical-align: middle;
+}
+.emoji-inline-img {
+  height: 28px;
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+}
+.compose-text-block {
+  display: block;
+  word-wrap: break-word;
+}
+.tab-order-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.tab-order-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tab-order-arrow-btn {
+  padding: 0 4px;
+  font-size: 0.7em;
+  line-height: 1.2;
+}
+.tab-order-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  cursor: pointer;
+}
+.dot-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+.profile-time-span {
+  margin-right: 8px;
+  font-size: 0.9em;
+}
+.media-viewer-img,
+.media-viewer-video {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+.btn-omochat-h,
+.btn-omochat-t {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 0.8em;
+  padding: 4px 8px;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-omochat-h {
+  margin-right: 4px;
+}
+.btn-omochat-t {
+  margin-right: 8px;
+}
+.btn-omochat-h:hover,
+.btn-omochat-t:hover {
+  background: var(--accent-muted);
+  border-radius: 4px;
+}

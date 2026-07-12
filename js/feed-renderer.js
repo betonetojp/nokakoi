@@ -226,7 +226,6 @@ export function renderFeed(id = 'global', force = false) {
     bottomBar.type = 'button';
     bottomBar.className = 'feed-bar feed-bar-bottom accent-center load-more-btn';
     bottomBar.textContent = feedLoadState[id] && feedLoadState[id].loadingMore ? t('loading') : t('feed.load_more');
-    bottomBar.style.cursor = 'pointer';
 
     if (_options.setupInfiniteScrollObserver) {
       _options.setupInfiniteScrollObserver();

@@ -380,7 +380,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
   const actionsBottom = modal.querySelector('#eventModalActionsBottom');
   if (actionsBottom) {
     const isKind1 = Number(event && event.kind) === 1;
-    actionsBottom.style.display = isKind1 ? '' : 'none';
+    actionsBottom.classList.toggle('d-none', !isKind1);
     if (isKind1) {
       actionsBottom.innerHTML = '<button class="btn-repost" type="button" title="' + escapeHtml(t('repost')) + '"><img src="icon/repost.png" alt="' + escapeHtml(t('repost')) + '" class="icon-btn"></button>' +
         '<button class="btn-reply" type="button" title="' + escapeHtml(t('reply')) + '"><img src="icon/reply.png" alt="' + escapeHtml(t('reply')) + '" class="icon-btn"></button>';
