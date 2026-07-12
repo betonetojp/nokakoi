@@ -220,7 +220,7 @@ export function renderFeed(id = 'global', force = false) {
 
   let bottomBar = null;
   const displayCount = feed.list?.length || 0;
-  const showLoadMore = displayCount < EVENTS_MAX;
+  const showLoadMore = displayCount < EVENTS_MAX && !(feedLoadState[id] && feedLoadState[id].noMoreEvents);
   if (showLoadMore && id !== 'bitchat') {
     bottomBar = document.createElement('button');
     bottomBar.type = 'button';
@@ -246,9 +246,25 @@ export function renderFeed(id = 'global', force = false) {
         const oldest = listForClick[listForClick.length - 1];
         // 隙間バグを防ぐため、投稿頻度の高い kind:1 または kind:6 の中での最古のイベント時間を基準にする
         const oldestTextEvent = listForClick.slice().reverse().find(e => e && (e.kind === 1 || e.kind === 6));
-        const until = oldestTextEvent && oldestTextEvent.created_at 
-          ? oldestTextEvent.created_at 
-          : (oldest && oldest.created_at ? oldest.created_at : Math.floor(Date.now() / 1000));
+
+        const isValidTimestamp = (ts) => {
+          if (typeof ts !== 'number' || isNaN(ts)) return false;
+          // 2010年(1262304000)から現在時刻の1日後までの範囲を妥当とする（ミリ秒13桁や0を除外）
+          const nowSec = Math.floor(Date.now() / 1000);
+          return ts > 1262304000 && ts < nowSec + 86400;
+        };
+
+        let until = Math.floor(Date.now() / 1000);
+        if (oldestTextEvent && isValidTimestamp(oldestTextEvent.created_at)) {
+          until = oldestTextEvent.created_at;
+        } else if (oldest && isValidTimestamp(oldest.created_at)) {
+          until = oldest.created_at;
+        } else {
+          const validEvent = listForClick.slice().reverse().find(e => e && isValidTimestamp(e.created_at));
+          if (validEvent) {
+            until = validEvent.created_at;
+          }
+        }
         const startListLength = listForClick.length;
 
         let filtersToUse = [];
@@ -290,8 +306,13 @@ export function renderFeed(id = 'global', force = false) {
           filtersToUse = [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT, until: until - 1 }];
         }
 
-        const finishLoadMore = () => {
-          try { feedLoadState[id].loadingMore = false; } catch (e) { }
+        const finishLoadMore = (result) => {
+          try {
+            feedLoadState[id].loadingMore = false;
+            if (result && typeof result === 'object' && result.appendedCount === 0) {
+              feedLoadState[id].noMoreEvents = true;
+            }
+          } catch (e) { }
           try { if (bottomBar) bottomBar.textContent = t('feed.load_more'); } catch (e) { }
           try { scheduleRender(id); } catch (e) { }
         };

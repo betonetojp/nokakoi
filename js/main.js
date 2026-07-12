@@ -377,6 +377,7 @@ function markFeedHistBufferStart(feedId) {
   const st = feedLoadState[feedId];
   st.histLoadingCount = (st.histLoadingCount || 0) + 1;
   st.histLoading = true;
+  delete st.noMoreEvents;
 }
 
 function markFeedHistBufferEnd(feedId) {

@@ -290,6 +290,8 @@ export function fetchMore(opts) {
     const finalizeMore = () => {
       if (settled) return;
       settled = true;
+      let appended = 0;
+      let total = 0;
       try {
         // 既知ID判定は map を優先使用。live 更新と競合した重複追加を回避する。
         const existing = Array.isArray(state.feeds[feedId] && state.feeds[feedId].list) ? state.feeds[feedId].list.slice() : [];
@@ -324,14 +326,13 @@ export function fetchMore(opts) {
           for (const ev of keep) { try { if (ev && ev.id) m.set(ev.id, ev); } catch (e) { } }
           state.feeds[feedId].map = m;
         } catch (e) { }
-        try {
-          const appended = Math.max(0, (keepCount - startListLength));
-        } catch (e) { }
+        appended = Math.max(0, (keepCount - startListLength));
+        total = keep.length;
       } catch (e) { }
       try { cleanupAll(); } catch (e) { }
       // abort リスナーを解除
       try { if (abortListener && controller && controller.signal) controller.signal.removeEventListener('abort', abortListener); } catch (e) { }
-      resolve();
+      resolve({ appendedCount: appended, totalCount: total });
     };
 
     // 中断時はクリーンアップ後に Promise を resolve
@@ -341,7 +342,7 @@ export function fetchMore(opts) {
           settled = true;
           cleanupAll();
           try { if (abortListener && controller && controller.signal) controller.signal.removeEventListener('abort', abortListener); } catch (e) { }
-          resolve();
+          resolve({ appendedCount: 0, totalCount: startListLength });
         }
       } catch (e) { }
     };

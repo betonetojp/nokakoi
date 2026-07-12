@@ -33,18 +33,6 @@ let __graphemeSegmenter = null;
 
 function getGraphemeLengthAt(text, index) {
   if (index >= text.length) return 0;
-  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
-    try {
-      if (!__graphemeSegmenter) {
-        __graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
-      }
-      const iterator = __graphemeSegmenter.segment(text.slice(index))[Symbol.iterator]();
-      const first = iterator.next();
-      if (!first.done && first.value && first.value.segment) {
-        return first.value.segment.length;
-      }
-    } catch (e) { }
-  }
   const cp = text.codePointAt(index);
   return (cp && cp > 0xFFFF) ? 2 : 1;
 }
@@ -308,7 +296,7 @@ function linkifyNostrUri(uri) {
         return escapeHtml(uri);
     }
   } catch (e) {
-    console.warn('[UrlParser] Nostr URIのパースに失敗:', uri, e);
+    console.warn('[UrlParser] Nostr URIのパースに失敗:', e.message || e);
     return escapeHtml(uri);
   }
 }
