@@ -1,7 +1,7 @@
 // UI 設定ヘルパー（main.js から分離）
 import { t, applyTranslations } from './i18n.js';
 import { showToast } from './utils.js';
-import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH } from './constants.js';
+import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH, EVENTS_MAX } from './constants.js';
 import { showOmochatSettingsModal } from './modals.js';
 import { clearReplyTarget } from './composer.js';
 import { hideComposerForOverlay, restoreComposerFromOverlay } from './composer-scroll.js';
@@ -1172,6 +1172,19 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
       if (isNaN(v) || v < 1) v = 1;
       if (v > 100000) v = 100000;
       settingsManager.set('previewMaxLength', v);
+    };
+  }
+
+  const maxEventsInput = document.getElementById('maxEventsInput');
+  if (maxEventsInput) {
+    // 初期値反映
+    const val = settingsManager.get('maxEvents');
+    maxEventsInput.value = val && !isNaN(val) ? val : EVENTS_MAX;
+    maxEventsInput.onchange = function () {
+      let v = parseInt(maxEventsInput.value, 10);
+      if (isNaN(v) || v < 50) v = 50;
+      if (v > 5000) v = 5000;
+      settingsManager.set('maxEvents', v);
     };
   }
 }

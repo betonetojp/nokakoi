@@ -335,5 +335,6 @@
   "omochat.relays.title": "Relay settings",
   "omochat.relays.add": "Add relay",
   "omochat.relays.reset": "Reset to defaults",
-  "previewMaxLength": "Preview max length"
+  "previewMaxLength": "Preview max length",
+  "maxEvents": "Max event count"
 }

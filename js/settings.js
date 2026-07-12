@@ -1,4 +1,4 @@
-import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH } from './constants.js';
+import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH, setEventsMax } from './constants.js';
 import { DEFAULT_NIP46_RELAYS } from './nip46.js';
 
 /**
@@ -7,6 +7,9 @@ import { DEFAULT_NIP46_RELAYS } from './nip46.js';
 export class SettingsManager {
   constructor() {
     this.settings = this.load();
+    if (this.settings && this.settings.maxEvents) {
+      try { setEventsMax(this.settings.maxEvents); } catch (e) {}
+    }
   }
 
   /**
@@ -89,6 +92,8 @@ export class SettingsManager {
         nip46Relays: (obj && Array.isArray(obj.nip46Relays)) ? obj.nip46Relays : DEFAULT_NIP46_RELAYS.slice(),
         // プレビュー最大文字数
         previewMaxLength: (obj && typeof obj.previewMaxLength !== 'undefined') ? obj.previewMaxLength : MAX_PREVIEW_LENGTH,
+        // 最大保持件数
+        maxEvents: (obj && typeof obj.maxEvents !== 'undefined') ? obj.maxEvents : 500,
         nip46LocalSecretKey: (obj && obj.nip46LocalSecretKey) || null,
         nip46RemotePubkey: (obj && obj.nip46RemotePubkey) || null,
         nip46Secret: (obj && obj.nip46Secret) || null
@@ -140,6 +145,8 @@ export class SettingsManager {
         omochatComputedRelays: [],
         // NIP-46 既定値
         nip46Relays: DEFAULT_NIP46_RELAYS.slice(),
+        previewMaxLength: MAX_PREVIEW_LENGTH,
+        maxEvents: 500,
         nip46LocalSecretKey: null,
         nip46RemotePubkey: null,
         nip46Secret: null
@@ -197,6 +204,9 @@ export class SettingsManager {
   set(key, value) {
     this.settings[key] = value;
     this.save();
+    if (key === 'maxEvents') {
+      try { setEventsMax(value); } catch (e) {}
+    }
   }
 
   /**

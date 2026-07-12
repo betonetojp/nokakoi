@@ -1,7 +1,12 @@
 // 共通定数（フィード・モーダルで共通利用）
 export const EVENTS_TIMEOUT =5000; // ms - safety timeout for per-relay queries
 export const EVENTS_FETCH_LIMIT =20; // 件数:1回のフェッチあたりの件数
-export const EVENTS_MAX =500; // 最大保持件数 / 表示件数
+export let EVENTS_MAX = 500; // 最大保持件数 / 表示件数
+export function setEventsMax(val) {
+  if (typeof val === 'number' && !isNaN(val) && val > 0) {
+    EVENTS_MAX = val;
+  }
+}
 
 // リレー接続・監視の既定値
 export const RECONNECT_DELAY = 5000; // ms - 再接続の基本待機時間（指数バックオフの初期値）
