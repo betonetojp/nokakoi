@@ -42,6 +42,8 @@ export const NIP46_KIND = 24133;
  */
 const REQUEST_TIMEOUT = 60000;
 const CONNECT_TIMEOUT = 120000;
+const ENSURE_CONNECT_TIMEOUT = 15000;
+const RESUME_HIDDEN_MS = 5000;
 
 function debugLog(...args) {
   try {
@@ -66,6 +68,9 @@ export class Nip46Client {
     this.connected = false;
     this.pendingRequests = new Map();
     this.onStatusChange = options.onStatusChange || null;
+    this._ensurePromise = null;
+    this._visibilityHandler = null;
+    this._hiddenAt = null;
     this.metadata = options.metadata || {
       name: 'nokakoi',
       url: typeof window !== 'undefined' ? window.location.origin : '',
@@ -273,6 +278,278 @@ export class Nip46Client {
   }
 
   /**
+   * NIP-46 リレー向け WebSocket が生きているか
+   */
+  _isTransportHealthy() {
+    if (!this.pool || !this.pool.relays || !this.subscription) return false;
+
+    const OPEN = (typeof WebSocket !== 'undefined' && typeof WebSocket.OPEN === 'number') ? WebSocket.OPEN : 1;
+
+    try {
+      const relaysMap = this.pool.relays;
+      if (typeof relaysMap.values !== 'function') return false;
+
+      for (const relay of relaysMap.values()) {
+        const ws = relay && relay.ws;
+        if (ws && typeof ws.readyState === 'number' && ws.readyState === OPEN) {
+          return true;
+        }
+      }
+    } catch (e) {
+      return false;
+    }
+
+    return false;
+  }
+
+  /**
+   * セッション情報は残し、プールと購読だけ破棄する
+   */
+  _resetTransport() {
+    if (this.subscription) {
+      try {
+        if (typeof this.subscription.close === 'function') {
+          this.subscription.close();
+        } else if (typeof this.subscription.unsub === 'function') {
+          this.subscription.unsub();
+        }
+      } catch (e) { }
+      this.subscription = null;
+    }
+
+    for (const [, pending] of this.pendingRequests) {
+      try { clearTimeout(pending.timeout); } catch (e) { }
+      try { pending.reject(new Error('Transport reset')); } catch (e) { }
+    }
+    this.pendingRequests.clear();
+
+    if (this.pool) {
+      try {
+        this._closePoolSafely();
+      } catch (e) {
+        console.warn('[NIP-46] Transport reset 時の Pool クローズに失敗:', e);
+      }
+      this.pool = null;
+    }
+  }
+
+  /**
+   * connect を再送してセッションを再確立する
+   */
+  async _reestablishSession({ timeoutMs = ENSURE_CONNECT_TIMEOUT, allowUnverified = true } = {}) {
+    if (!this.localPubkey || !this.remotePubkey || !this.localSecretKey) {
+      throw new Error(t('nip46.not_connected'));
+    }
+
+    try {
+      const pool = this._getPool();
+      const finalizeEvent = getFinalizeEvent();
+      if (!finalizeEvent) {
+        throw new Error('finalizeEvent not available');
+      }
+
+      const requestId = this._generateRequestId();
+      const request = {
+        id: requestId,
+        method: NIP46_METHODS.CONNECT,
+        params: [this.localPubkey]
+      };
+
+      if (this.secret) {
+        request.params.push(this.secret);
+      } else {
+        request.params.push('');
+      }
+      request.params.push('sign_event,nip04_encrypt,nip04_decrypt,nip44_encrypt,nip44_decrypt');
+
+      const encryptedContent = await this._encrypt(JSON.stringify(request), this.remotePubkey);
+      const skBytes = hexToBytes(this.localSecretKey);
+      const event = finalizeEvent({
+        kind: NIP46_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['p', this.remotePubkey]],
+        content: encryptedContent
+      }, skBytes);
+
+      debugLog('[NIP-46] セッション再確立のため接続リクエストを送信');
+
+      const verifyPromise = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          this.pendingRequests.delete(requestId);
+          reject(new Error(t('nip46.ping_timeout')));
+        }, timeoutMs);
+
+        this.pendingRequests.set(requestId, {
+          resolve: () => {
+            clearTimeout(timeout);
+            this.connected = true;
+            resolve({
+              remotePubkey: this.remotePubkey,
+              connected: true,
+              verified: true
+            });
+          },
+          reject: (err) => {
+            clearTimeout(timeout);
+            reject(err);
+          },
+          timeout
+        });
+      });
+
+      await Promise.any(pool.publish(this.relays, event));
+      const result = await verifyPromise;
+
+      this.connected = true;
+      debugLog('[NIP-46] セッションを再確立, remote pubkey:', this.remotePubkey?.slice(0, 16) + '...');
+      this._notifyStatus('connected', t('nip46.reconnected'));
+      this.setupResumeHandler();
+
+      return result;
+    } catch (e) {
+      const errorMsg = e && e.message ? e.message : String(e);
+      console.warn('[NIP-46] セッション再確立に失敗:', errorMsg);
+
+      if (!allowUnverified) {
+        this._notifyStatus('error', t('nip46.reconnect_failed'));
+        throw e;
+      }
+
+      // nsecBunkerはモバイルアプリが背景にある時など応答しないことがある
+      this.connected = true;
+      this._notifyStatus('connected', t('nip46.reconnected_unverified'));
+      this.setupResumeHandler();
+
+      return {
+        remotePubkey: this.remotePubkey,
+        connected: true,
+        verified: false
+      };
+    }
+  }
+
+  /**
+   * 輸送路が死んでいれば張り直し、必要なら connect を再送する
+   */
+  async ensureConnected({ force = false } = {}) {
+    if (this._ensurePromise) {
+      return this._ensurePromise;
+    }
+
+    this._ensurePromise = (async () => {
+      if (!this.remotePubkey || !this.localSecretKey) {
+        throw new Error(t('nip46.not_connected'));
+      }
+
+      let healthy = this._isTransportHealthy();
+      if (healthy && !force) {
+        return { remotePubkey: this.remotePubkey, connected: true, verified: true, skipped: true };
+      }
+
+      // 進行中の RPC があり輸送路も生きていれば途中で切らない
+      if (healthy && this.pendingRequests.size > 0) {
+        return { remotePubkey: this.remotePubkey, connected: true, verified: true, skipped: true };
+      }
+
+      // restore / 初回接続直後は subscribe 済みでも socket がまだ OPEN でないことがある
+      if (!force && this.subscription && this.connected && this.pool && !healthy) {
+        healthy = await this._waitForTransportHealthy(2500);
+        if (healthy) {
+          return { remotePubkey: this.remotePubkey, connected: true, verified: true, skipped: true };
+        }
+      }
+
+      this._notifyStatus('connecting', t('nip46.reconnecting'));
+      this._resetTransport();
+      this._subscribe();
+      return await this._reestablishSession({
+        timeoutMs: ENSURE_CONNECT_TIMEOUT,
+        allowUnverified: true
+      });
+    })().finally(() => {
+      this._ensurePromise = null;
+    });
+
+    return this._ensurePromise;
+  }
+
+  /**
+   * 輸送路が OPEN になるまで短く待つ
+   */
+  _waitForTransportHealthy(timeoutMs = 2500) {
+    return new Promise((resolve) => {
+      const startedAt = Date.now();
+      const tick = () => {
+        if (this._isTransportHealthy()) {
+          resolve(true);
+          return;
+        }
+        if (Date.now() - startedAt >= timeoutMs) {
+          resolve(false);
+          return;
+        }
+        setTimeout(tick, 200);
+      };
+      tick();
+    });
+  }
+
+  /**
+   * フォアグラウンド復帰時に NIP-46 輸送路を回復する
+   */
+  setupResumeHandler() {
+    this.removeResumeHandler();
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') {
+      return;
+    }
+
+    this._hiddenAt = document.hidden ? Date.now() : null;
+
+    this._visibilityHandler = () => {
+      try {
+        if (document.hidden) {
+          this._hiddenAt = Date.now();
+          return;
+        }
+
+        const hiddenFor = this._hiddenAt ? (Date.now() - this._hiddenAt) : 0;
+        this._hiddenAt = null;
+
+        const unhealthy = !this._isTransportHealthy();
+        if (!unhealthy && hiddenFor < RESUME_HIDDEN_MS) {
+          return;
+        }
+
+        debugLog('[NIP-46] Page became visible, ensuring connection', { hiddenFor, unhealthy });
+        this.ensureConnected({ force: true }).catch((e) => {
+          console.warn('[NIP-46] resume reconnect failed:', e);
+        });
+      } catch (e) {
+        console.warn('[NIP-46] visibilitychange handler error:', e);
+      }
+    };
+
+    try {
+      document.addEventListener('visibilitychange', this._visibilityHandler);
+    } catch (e) {
+      this._visibilityHandler = null;
+    }
+  }
+
+  /**
+   * 復帰ハンドラを解除
+   */
+  removeResumeHandler() {
+    if (this._visibilityHandler && typeof document !== 'undefined') {
+      try {
+        document.removeEventListener('visibilitychange', this._visibilityHandler);
+      } catch (e) { }
+    }
+    this._visibilityHandler = null;
+    this._hiddenAt = null;
+  }
+
+  /**
    * NIP-04/NIP-44復号（自動判別）
    */
   async _decrypt(content, remotePubkey) {
@@ -332,6 +609,7 @@ export class Nip46Client {
    * nip04_encryptリクエストを送信
    */
   async nip04Encrypt(pubkey, plaintext) {
+    await this.ensureConnected();
     if (!this.connected) {
       throw new Error(t('nip46.not_connected'));
     }
@@ -343,6 +621,7 @@ export class Nip46Client {
    * nip04_decryptリクエストを送信
    */
   async nip04Decrypt(pubkey, ciphertext, timeoutMs) {
+    await this.ensureConnected();
     if (!this.connected) {
       throw new Error(t('nip46.not_connected'));
     }
@@ -354,6 +633,7 @@ export class Nip46Client {
    * nip44_encryptリクエストを送信
    */
   async nip44Encrypt(pubkey, plaintext, timeoutMs) {
+    await this.ensureConnected();
     if (!this.connected) {
       throw new Error(t('nip46.not_connected'));
     }
@@ -365,6 +645,7 @@ export class Nip46Client {
    * nip44_decryptリクエストを送信
    */
   async nip44Decrypt(pubkey, ciphertext, timeoutMs) {
+    await this.ensureConnected();
     if (!this.connected) {
       throw new Error(t('nip46.not_connected'));
     }
@@ -489,6 +770,7 @@ export class Nip46Client {
           this.connected = true;
           debugLog('[NIP-46] 接続を確立');
           this._notifyStatus('connected', t('nip46.connected'));
+          this.setupResumeHandler();
 
           // ack応答を送信
           try {
@@ -545,6 +827,7 @@ export class Nip46Client {
         this.remotePubkey = event.pubkey;
         this.connected = true;
         this._notifyStatus('connected', t('nip46.connected'));
+        this.setupResumeHandler();
       }
     } catch (e) {
       // JSONパース失敗
@@ -743,13 +1026,16 @@ export class Nip46Client {
       throw new Error(t('nip46.publish_failed', { msg: e.message }));
     }
 
-    return connectionPromise;
+    const result = await connectionPromise;
+    this.setupResumeHandler();
+    return result;
   }
 
   /**
    * リモート公開鍵を取得
    */
   async getPublicKey() {
+    await this.ensureConnected();
     if (!this.connected) {
       throw new Error(t('nip46.not_connected'));
     }
@@ -762,6 +1048,7 @@ export class Nip46Client {
    * イベントに署名
    */
   async signEvent(draft) {
+    await this.ensureConnected();
     if (!this.connected) {
       throw new Error(t('nip46.not_connected'));
     }
@@ -782,6 +1069,8 @@ export class Nip46Client {
    */
   async disconnect() {
     debugLog('[NIP-46] 切断処理を開始...');
+
+    this.removeResumeHandler();
 
     // signer 実装差でノイズが出やすいため、明示的な disconnect RPC は送信しない
 
@@ -839,106 +1128,15 @@ export class Nip46Client {
     this.secret = info.secret || null;
 
     this._notifyStatus('connecting', t('nip46.reconnecting'));
-
-    // 購読開始
+    this._resetTransport();
     this._subscribe();
 
     // connectリクエストを再送してBunkerとのセッションを再確立
     // (get_public_keyだけではBunker側がセッションを認識しない場合がある)
-    try {
-      const pool = this._getPool();
-      const finalizeEvent = getFinalizeEvent();
-
-      const requestId = this._generateRequestId();
-      const request = {
-        id: requestId,
-        method: NIP46_METHODS.CONNECT,
-        params: [this.localPubkey]
-      };
-
-      if (this.secret) {
-        request.params.push(this.secret);
-      } else {
-        request.params.push('');
-      }
-      request.params.push('sign_event,nip04_encrypt,nip04_decrypt,nip44_encrypt,nip44_decrypt');
-
-      const encryptedContent = await this._encrypt(JSON.stringify(request), this.remotePubkey);
-
-      const skBytes = hexToBytes(this.localSecretKey);
-      const event = finalizeEvent({
-        kind: NIP46_KIND,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [['p', this.remotePubkey]],
-        content: encryptedContent
-      }, skBytes);
-
-      debugLog('[NIP-46] セッション再確立のため接続リクエストを送信');
-
-      // レスポンス待ち（タイムアウトを長めに設定）
-      const verifyPromise = new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          this.pendingRequests.delete(requestId);
-          reject(new Error(t('nip46.ping_timeout')));
-        }, 30000); // 30秒
-
-        const checkInterval = setInterval(() => {
-          if (this.connected) {
-            clearInterval(checkInterval);
-            clearTimeout(timeout);
-            this.pendingRequests.delete(requestId);
-            resolve({
-              remotePubkey: this.remotePubkey,
-              connected: true
-            });
-          }
-        }, 500);
-
-        this.pendingRequests.set(requestId, {
-          resolve: () => {
-            clearInterval(checkInterval);
-            clearTimeout(timeout);
-            this.connected = true;
-            resolve({
-              remotePubkey: this.remotePubkey,
-              connected: true
-            });
-          },
-          reject: (err) => {
-            clearInterval(checkInterval);
-            clearTimeout(timeout);
-            reject(err);
-          },
-          timeout
-        });
-      });
-
-      await Promise.any(pool.publish(this.relays, event));
-      const result = await verifyPromise;
-
-      this.connected = true;
-      debugLog('[NIP-46] セッションを再確立, remote pubkey:', this.remotePubkey?.slice(0, 16) + '...');
-      this._notifyStatus('connected', t('nip46.reconnected'));
-
-      return {
-        remotePubkey: this.remotePubkey,
-        connected: true
-      };
-    } catch (e) {
-      // connectが失敗した場合でも接続を維持して最初のリクエスト時に再試行
-      // nsecBunkerはモバイルアプリが背景にある時など応答しないことがある
-      const errorMsg = e && e.message ? e.message : String(e);
-      console.warn('[NIP-46] セッション再確立に失敗:', errorMsg);
-
-      this.connected = true;
-      this._notifyStatus('connected', t('nip46.reconnected_unverified'));
-
-      return {
-        remotePubkey: this.remotePubkey,
-        connected: true,
-        verified: false
-      };
-    }
+    return await this._reestablishSession({
+      timeoutMs: 30000,
+      allowUnverified: true
+    });
   }
 }
 

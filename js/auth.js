@@ -457,6 +457,7 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
         state.nip46.remotePubkey = settings.nip46RemotePubkey;
         state.nip46.connected = true;
         state.signer = 'nip46';
+        try { client.setupResumeHandler(); } catch (e) { }
 
         await loginFn();
         isPasskeyAuthPending = false;
@@ -964,6 +965,7 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         state.nip46.remotePubkey = bunkerClient.remotePubkey;
         state.nip46.connected = true;
         state.signer = 'nip46';
+        try { bunkerClient.setupResumeHandler(); } catch (e) { }
 
         // リレー設定を保存
         settingsManager.set('nip46Relays', bunkerClient.relays);
@@ -1009,6 +1011,7 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         state.nip46.remotePubkey = result.remotePubkey;
         state.nip46.connected = true;
         state.signer = 'nip46';
+        try { client.setupResumeHandler(); } catch (e) { }
 
         // リレー設定を保存
         settingsManager.set('nip46Relays', nip46Relays);

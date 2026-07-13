@@ -109,6 +109,37 @@ function updatePackageJson(version) {
   }
 }
 
+function updatePackageLockJson(version) {
+  const lockPath = path.join(ROOT, 'package-lock.json');
+  if (!fs.existsSync(lockPath)) {
+    console.log('package-lock.json not found, skipping');
+    return;
+  }
+
+  let packageLock;
+  try {
+    packageLock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+  } catch (err) {
+    throw new Error(`Failed to parse package-lock.json: ${err.message}`);
+  }
+
+  let changed = false;
+  if (packageLock.version !== version) {
+    packageLock.version = version;
+    changed = true;
+  }
+  if (packageLock.packages && packageLock.packages['']) {
+    if (packageLock.packages[''].version !== version) {
+      packageLock.packages[''].version = version;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    fs.writeFileSync(lockPath, JSON.stringify(packageLock, null, 2) + '\n');
+  }
+}
+
 function verifySync(version) {
   const indexHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const swContent = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
@@ -126,6 +157,22 @@ function verifySync(version) {
   }
   if (packageJson.version !== version) {
     issues.push(`package.json version is ${packageJson.version}, expected ${version}`);
+  }
+
+  const lockPath = path.join(ROOT, 'package-lock.json');
+  if (fs.existsSync(lockPath)) {
+    const packageLock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+    if (packageLock.version !== version) {
+      issues.push(`package-lock.json version is ${packageLock.version}, expected ${version}`);
+    }
+    const rootPkgVersion = packageLock.packages && packageLock.packages['']
+      ? packageLock.packages[''].version
+      : undefined;
+    if (rootPkgVersion !== version) {
+      issues.push(
+        `package-lock.json packages[""].version is ${rootPkgVersion}, expected ${version}`
+      );
+    }
   }
 
   return issues;
@@ -156,6 +203,8 @@ function main() {
     console.log('Updated sw.js');
     updatePackageJson(version);
     console.log('Updated package.json');
+    updatePackageLockJson(version);
+    console.log('Updated package-lock.json');
 
     const issues = verifySync(version);
     if (issues.length) {
@@ -170,6 +219,7 @@ function main() {
     console.log('  - index.html (style.css and main.js)');
     console.log('  - sw.js (CACHE_VERSION)');
     console.log('  - package.json');
+    console.log('  - package-lock.json');
   } catch (err) {
     console.error(`Error: ${err.message}`);
     process.exit(1);

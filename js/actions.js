@@ -93,11 +93,16 @@ export async function signEventWithMode(state, draft) {
   // state.nip46.connected がずれる可能性があるため client.connected を直接確認
   if (state.signer === 'nip46' && state.nip46 && state.nip46.client) {
     const client = state.nip46.client;
+    try {
+      await client.ensureConnected();
+    } catch (e) {
+      console.warn('[signEventWithMode] NIP-46 ensureConnected 失敗:', e);
+      throw new Error((e && e.message) || '署名者が利用できません');
+    }
     if (client.connected && client.remotePubkey) {
       return await client.signEvent(draft);
-    } else {
-      console.warn('[signEventWithMode] NIP-46 client が未接続または不完全です, client.connected:', client.connected);
     }
+    throw new Error('署名者が利用できません');
   }
 
   // local 秘密鍵がある場合は拡張依存を避けるため local 署名を優先

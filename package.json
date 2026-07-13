@@ -1,6 +1,6 @@
 {
   "name": "nokakoi-app",
-  "version": "1.94.3",
+  "version": "1.95.0",
   "description": "Nostr Web Client",
   "scripts": {
     "start": "http-server -p 8000",
@@ -9,6 +9,7 @@
     "version:check": "node scripts/update-version.js --check"
   },
   "devDependencies": {
+    "eslint": "^10.7.0",
     "http-server": "^14.1.1"
   }
 }
