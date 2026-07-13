@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { uniqueRelays, $, logWarn } from './utils.js';
-import { RECONNECT_DELAY, MAX_RECONNECT_DELAY, DOWN_PERSIST_MS, MAX_LIVE_PER_RELAY, MAX_ONESHOT_PER_RELAY, MAX_TOTAL_SUB_PER_RELAY, KEEPALIVE_INTERVAL } from './constants.js';
+import { RECONNECT_DELAY, MAX_RECONNECT_DELAY, DOWN_PERSIST_MS, MAX_LIVE_PER_RELAY, MAX_ONESHOT_PER_RELAY, MAX_TOTAL_SUB_PER_RELAY, KEEPALIVE_INTERVAL, RESUME_RESTART_MS } from './constants.js';
 import { getNostrTools } from './nostr-compat.js';
 
 /**
@@ -127,17 +127,27 @@ function stopKeepalive(state) {
 
 /**
  * Page Visibility 変更時のリレー接続チェック
- * タブがフォアグラウンドに戻った際、切断されたリレーを検出し再接続を試行する
+ * タブがフォアグラウンドに戻った際、切断検知または一定時間のバックグラウンド後にフィードを再購読する
+ * （モバイルでは WS が OPEN のまま購読だけ死ぬことがあるため、長時間 hidden 後は強制再開する）
  */
 function setupVisibilityHandler(state, restartFeedsCallback) {
   // 既存ハンドラを解除
   removeVisibilityHandler(state);
   if (!restartFeedsCallback) return;
 
+  state._feedHiddenAt = (typeof document !== 'undefined' && document.hidden) ? Date.now() : null;
+
   state._visibilityHandler = () => {
     try {
-      if (document.hidden) return;
-      debugRelay('[Relay] Page became visible, checking connections');
+      if (document.hidden) {
+        state._feedHiddenAt = Date.now();
+        return;
+      }
+
+      const hiddenFor = state._feedHiddenAt ? (Date.now() - state._feedHiddenAt) : 0;
+      state._feedHiddenAt = null;
+
+      debugRelay('[Relay] Page became visible, checking connections', { hiddenFor });
       if (!state.pool || !state.pool.relays) return;
 
       const allRelays = getAllRelayUrls(state.relays);
@@ -162,8 +172,9 @@ function setupVisibilityHandler(state, restartFeedsCallback) {
         } catch (e) { }
       });
 
-      if (anyDisconnected) {
-        debugRelay('[Relay] Disconnected relays found, triggering reconnect');
+      const forceRestart = hiddenFor >= RESUME_RESTART_MS;
+      if (anyDisconnected || forceRestart) {
+        debugRelay('[Relay] Triggering feed restart', { anyDisconnected, forceRestart, hiddenFor });
         setTimeout(() => {
           try { if (restartFeedsCallback) restartFeedsCallback(false); } catch (e) { }
         }, 500);
@@ -181,6 +192,7 @@ function removeVisibilityHandler(state) {
     try { document.removeEventListener('visibilitychange', state._visibilityHandler); } catch (e) { }
     state._visibilityHandler = null;
   }
+  try { state._feedHiddenAt = null; } catch (e) { }
 }
 
 /**
