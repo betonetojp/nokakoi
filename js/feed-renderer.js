@@ -66,8 +66,14 @@ function getDomPurgeObserver() {
 }
 
 function purgeEventToPlaceholder(el, eventId) {
+  // ミュート等で非表示になっている要素はパージの対象外にする
+  if (el.classList.contains('muted-hidden') || el.classList.contains('d-none')) {
+    return;
+  }
+
   const isSelected = (typeof getSelectedEventEl === 'function' && getSelectedEventEl() === el);
 
+  const rectBefore = el.getBoundingClientRect();
   const height = el.offsetHeight;
   const finalHeight = height > 30 ? height : 150;
   
@@ -84,6 +90,14 @@ function purgeEventToPlaceholder(el, eventId) {
   if (obs) obs.unobserve(el);
   
   el.replaceWith(placeholder);
+
+  // 置換後の高さ差分でスクロールアンカリング
+  const rectAfter = placeholder.getBoundingClientRect();
+  const heightDiff = rectAfter.height - rectBefore.height;
+  if (rectBefore.top < 0 && heightDiff !== 0) {
+    window.scrollBy(0, heightDiff);
+  }
+
   if (obs) obs.observe(placeholder);
 
   if (isSelected && typeof setSelectedEventEl === 'function') {
@@ -121,10 +135,20 @@ function restorePurgedEvent(placeholder, eventId) {
 
   const isSelected = (typeof getSelectedEventEl === 'function' && getSelectedEventEl() === placeholder);
 
+  const rectBefore = placeholder.getBoundingClientRect();
+
   const obs = getDomPurgeObserver();
   if (obs) obs.unobserve(placeholder);
   
   placeholder.replaceWith(node);
+
+  // 置換後の高さ差分でスクロールアンカリング
+  const rectAfter = node.getBoundingClientRect();
+  const heightDiff = rectAfter.height - rectBefore.height;
+  if (rectBefore.top < 0 && heightDiff !== 0) {
+    window.scrollBy(0, heightDiff);
+  }
+
   if (obs) obs.observe(node);
 
   if (isSelected && typeof setSelectedEventEl === 'function') {

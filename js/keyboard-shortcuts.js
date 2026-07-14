@@ -8,13 +8,14 @@ export function getSelectedEventEl() {
   return _selectedEventEl;
 }
 
-export function setSelectedEventEl(el) {
+export function setSelectedEventEl(el, options = {}) {
+  const behavior = options && options.smooth === false ? 'auto' : 'smooth';
   if (_selectedEventEl && _selectedEventEl.classList) _selectedEventEl.classList.remove('event-selected');
   _selectedEventEl = el || null;
   if (_selectedEventEl && _selectedEventEl.classList) {
     _selectedEventEl.classList.add('event-selected');
     if (typeof _selectedEventEl.scrollIntoView === 'function') {
-      _selectedEventEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      _selectedEventEl.scrollIntoView({ block: 'nearest', behavior: behavior });
     }
   }
 }
@@ -274,7 +275,7 @@ export function setupKeyboardShortcuts(state, options) {
       if (!events.length) return;
       e.preventDefault();
       if (e.shiftKey) {
-        selectEvent(events[0]);
+        setSelectedEventEl(events[0], { smooth: false });
       } else if (!hadValidSelectionBeforeSync) {
         selectEvent(events[0]);
       } else if (!events.includes(_selectedEventEl)) {
@@ -292,7 +293,7 @@ export function setupKeyboardShortcuts(state, options) {
       if (!events.length) return;
       e.preventDefault();
       if (e.shiftKey) {
-        selectEvent(events[events.length - 1]);
+        setSelectedEventEl(events[events.length - 1], { smooth: false });
       } else if (!hadValidSelectionBeforeSync) {
         selectEvent(events[0]);
       } else if (!events.includes(_selectedEventEl)) {

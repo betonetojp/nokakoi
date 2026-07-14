@@ -257,7 +257,7 @@ export function setupScrollToTopButton() {
           try { if (pos.left) { button.style.left = pos.left; button.style.bottom = pos.bottom; button.style.transform = pos.transform || 'none'; } } catch (e) { }
         }, 120);
       } else {
-        try { window.scrollTo({ top: tabTop, behavior: 'smooth' }); } catch (e) { window.scrollTo(tabTop, 0); }
+        try { window.scrollTo({ top: tabTop, behavior: 'auto' }); } catch (e) { window.scrollTo(tabTop, 0); }
       }
     } else if (hasMoved) {
       saveButtonPosition({ left: button.style.left, bottom: button.style.bottom });
@@ -318,7 +318,7 @@ export function setupScrollToTopButton() {
     }
 
     const tabTop = computeTabTopPosition();
-    try { window.scrollTo({ top: tabTop, behavior: 'smooth' }); } catch (e) { window.scrollTo(tabTop, 0); }
+    try { window.scrollTo({ top: tabTop, behavior: 'auto' }); } catch (e) { window.scrollTo(tabTop, 0); }
   }
 
   button.addEventListener('click', (e) => { if (isDragging) return; activateButtonAction(); });
