@@ -6,6 +6,7 @@ import { showOmochatSettingsModal } from './modals.js';
 import { clearReplyTarget } from './composer.js';
 import { hideComposerForOverlay, restoreComposerFromOverlay } from './composer-scroll.js';
 import { ensureNotificationPermission } from './notification.js';
+import { teardownDomPurge } from './feed-renderer.js';
 
 // モジュールスコープの settingsManager 参照（setupDisplaySettings で設定）
 let _settingsManagerRef = null;
@@ -1041,7 +1042,11 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
   // DOMパージ設定変更時の処理
   if (useDomPurgeCheck) {
     useDomPurgeCheck.onchange = function () {
-      settingsManager.set('useDomPurge', useDomPurgeCheck.checked);
+      const enabled = useDomPurgeCheck.checked;
+      settingsManager.set('useDomPurge', enabled);
+      if (!enabled) {
+        try { teardownDomPurge(); } catch (e) { }
+      }
       try { restartFeeds(true); } catch (e) { }
     };
   }

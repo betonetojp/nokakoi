@@ -8,7 +8,7 @@ import { setReplyTarget } from './composer.js';
 import { getReadRelays } from './relay.js';
 import { fetchMore } from './feed-fetcher.js';
 import { EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT, EVENTS_MAX } from './constants.js';
-import { captureTimelineAnchor, restoreTimelineAnchor } from './url-parser.js';
+import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } from './url-parser.js';
 import { t } from './i18n.js';
 import { $ } from './utils.js';
 import { getSelectedEventEl, setSelectedEventEl } from './keyboard-shortcuts.js';
@@ -23,7 +23,87 @@ let _options = null;
 let _domPurgeObserver = null;
 let _isScrolling = false;
 let _scrollTimeout = null;
+let _purgeScrollClearTimer = null;
 const _pendingPurges = new Set();
+const DOM_PURGE_ROOT_MARGIN_PX = 1000;
+
+function isDomPurgeEnabled() {
+  return !!(
+    _options &&
+    _options.settingsManager &&
+    _options.settingsManager.get('useDomPurge') === true
+  );
+}
+
+function isProgrammaticScroll() {
+  try {
+    return typeof window !== 'undefined' && window.__nokakoiProgrammaticScroll === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function markProgrammaticScrollBriefly() {
+  if (typeof window === 'undefined') return;
+  try {
+    window.__nokakoiProgrammaticScroll = true;
+    if (_purgeScrollClearTimer) clearTimeout(_purgeScrollClearTimer);
+    _purgeScrollClearTimer = setTimeout(() => {
+      _purgeScrollClearTimer = null;
+      try {
+        // Timeline-anchor maintenance owns the flag while an anchor is active.
+        if (!window.__nokakoiScrollAnchor) {
+          window.__nokakoiProgrammaticScroll = false;
+        }
+      } catch (e) { }
+    }, 100);
+  } catch (e) { }
+}
+
+/** Height correction for purge/restore. Defers to timeline anchor when one is active. */
+function applyPurgeHeightCorrection(replacedEl, rectBefore, heightDiff) {
+  if (!heightDiff || !rectBefore || typeof window === 'undefined') return;
+  if (!(rectBefore.top < 0)) return;
+
+  try {
+    if (window.__nokakoiScrollAnchor) {
+      const feed = replacedEl && replacedEl.closest ? replacedEl.closest('.feed') : null;
+      if (feed) followUpTimelineAnchor(feed);
+      return;
+    }
+  } catch (e) { }
+
+  markProgrammaticScrollBriefly();
+  try { window.scrollBy(0, heightDiff); } catch (e) { }
+}
+
+/** True when the element is outside the purge observer's expanded root (viewport + margin). */
+function isOutsidePurgeRoot(el) {
+  if (!el || !el.isConnected) return true;
+  try {
+    const rect = el.getBoundingClientRect();
+    const vh = window.innerHeight || 0;
+    const m = DOM_PURGE_ROOT_MARGIN_PX;
+    return rect.bottom < -m || rect.top > vh + m;
+  } catch (e) {
+    return true;
+  }
+}
+
+function flushPendingPurges() {
+  if (_pendingPurges.size === 0) return;
+  const temp = Array.from(_pendingPurges);
+  _pendingPurges.clear();
+  for (const el of temp) {
+    if (!el || !el.isConnected || el.classList.contains('event-placeholder')) continue;
+    if (!isOutsidePurgeRoot(el)) continue;
+    const eventId = el.dataset.eventId;
+    if (!eventId) continue;
+    try { purgeEventToPlaceholder(el, eventId); } catch (e) {
+      debugFeed('[FeedRenderer] pending purge failed', e);
+    }
+  }
+}
 
 function initScrollListener() {
   if (typeof window === 'undefined') return;
@@ -31,24 +111,48 @@ function initScrollListener() {
   window.__nokakoiScrollListenerInitialized = true;
 
   window.addEventListener('scroll', () => {
+    // Ignore programmatic corrections from purge / timeline anchor.
+    if (isProgrammaticScroll()) return;
     _isScrolling = true;
     if (_scrollTimeout) clearTimeout(_scrollTimeout);
     _scrollTimeout = setTimeout(() => {
       _isScrolling = false;
-      if (_pendingPurges.size > 0) {
-        const temp = Array.from(_pendingPurges);
-        _pendingPurges.clear();
-        for (const el of temp) {
-          if (el.parentNode && !el.classList.contains('event-placeholder')) {
-            const eventId = el.dataset.eventId;
-            if (eventId) {
-              try { purgeEventToPlaceholder(el, eventId); } catch (e) { }
-            }
-          }
-        }
-      }
+      flushPendingPurges();
     }, 150);
   }, { passive: true });
+}
+
+function unobserveFeedEvents(feedEl) {
+  if (!_domPurgeObserver || !feedEl) return;
+  try {
+    const nodes = feedEl.querySelectorAll('.event');
+    for (const node of Array.from(nodes)) {
+      try { _domPurgeObserver.unobserve(node); } catch (e) { }
+      _pendingPurges.delete(node);
+    }
+  } catch (e) { }
+}
+
+/** Tear down observer and pending state (e.g. when useDomPurge is turned off). */
+export function teardownDomPurge() {
+  _pendingPurges.clear();
+  if (_scrollTimeout) {
+    clearTimeout(_scrollTimeout);
+    _scrollTimeout = null;
+  }
+  _isScrolling = false;
+  if (_domPurgeObserver) {
+    try { _domPurgeObserver.disconnect(); } catch (e) { }
+    _domPurgeObserver = null;
+  }
+}
+
+function debugFeed(...args) {
+  try {
+    if (typeof window !== 'undefined' && window.__nokakoiDebug) {
+      console.debug(...args);
+    }
+  } catch (e) { }
 }
 
 function buildEventNode(eventObj, feedId) {
@@ -69,53 +173,87 @@ function buildEventNode(eventObj, feedId) {
   return node;
 }
 
+function lookupFeedEvent(eventId) {
+  if (!_state || !_state.feeds || !eventId) return null;
+  for (const feedId in _state.feeds) {
+    const feed = _state.feeds[feedId];
+    if (feed && feed.map && feed.map.has(eventId)) {
+      return feed.map.get(eventId);
+    }
+  }
+  for (const feedId in _state.feeds) {
+    const feed = _state.feeds[feedId];
+    if (feed && Array.isArray(feed.list)) {
+      const found = feed.list.find(e => e && e.id === eventId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function resolvePlaceholderFeedId(placeholder) {
+  const feedIdAttr = (placeholder && placeholder.dataset && placeholder.dataset.parentFeedId) || '';
+  if (feedIdAttr) {
+    return feedIdAttr.startsWith('feed-') ? feedIdAttr.slice(5) : feedIdAttr;
+  }
+  try {
+    const feed = placeholder && placeholder.closest ? placeholder.closest('.feed') : null;
+    if (feed && feed.id && feed.id.startsWith('feed-')) return feed.id.slice(5);
+  } catch (e) { }
+  return 'global';
+}
+
 function getDomPurgeObserver() {
   if (typeof window === 'undefined' || !window.IntersectionObserver) return null;
-  if (!_options || !_options.settingsManager || _options.settingsManager.get('useDomPurge') !== true) {
-    return null;
-  }
+  if (!isDomPurgeEnabled()) return null;
   if (_domPurgeObserver) return _domPurgeObserver;
+  const margin = `${DOM_PURGE_ROOT_MARGIN_PX}px 0px ${DOM_PURGE_ROOT_MARGIN_PX}px 0px`;
   _domPurgeObserver = new IntersectionObserver((entries) => {
+    if (!isDomPurgeEnabled()) return;
     for (const entry of entries) {
       const el = entry.target;
+      if (!el || !el.isConnected) continue;
       const eventId = el.dataset.eventId;
       if (!eventId) continue;
-      
+
       if (entry.isIntersecting) {
+        // Re-entered the expanded root: cancel any deferred purge.
+        _pendingPurges.delete(el);
         if (el.classList.contains('event-placeholder')) {
           restorePurgedEvent(el, eventId);
         }
-      } else {
-        if (!el.classList.contains('event-placeholder') && el.classList.contains('event')) {
-          if (_isScrolling) {
-            _pendingPurges.add(el);
-          } else {
-            purgeEventToPlaceholder(el, eventId);
-          }
+      } else if (!el.classList.contains('event-placeholder') && el.classList.contains('event')) {
+        if (_isScrolling) {
+          _pendingPurges.add(el);
+        } else {
+          purgeEventToPlaceholder(el, eventId);
         }
       }
     }
   }, {
-    rootMargin: '1000px 0px 1000px 0px'
+    rootMargin: margin
   });
   return _domPurgeObserver;
 }
 
 function purgeEventToPlaceholder(el, eventId) {
-  if (!_options || !_options.settingsManager || _options.settingsManager.get('useDomPurge') !== true) {
-    return;
-  }
+  if (!isDomPurgeEnabled()) return;
+  if (!el || !el.isConnected) return;
   // ミュート等で非表示になっている要素はパージの対象外にする
   if (el.classList.contains('muted-hidden') || el.classList.contains('d-none')) {
     return;
   }
+  if (el.classList.contains('event-placeholder')) return;
+
+  _pendingPurges.delete(el);
 
   const isSelected = (typeof getSelectedEventEl === 'function' && getSelectedEventEl() === el);
 
   const rectBefore = el.getBoundingClientRect();
   const height = el.offsetHeight;
-  const finalHeight = height > 30 ? height : 150;
-  
+  // Keep measured height; avoid inventing a large fallback that shifts scroll.
+  const finalHeight = height > 0 ? height : 1;
+
   const placeholder = document.createElement('div');
   placeholder.className = 'event event-placeholder';
   placeholder.dataset.eventId = eventId;
@@ -124,84 +262,100 @@ function purgeEventToPlaceholder(el, eventId) {
     placeholder.dataset.parentFeedId = parentFeedId;
   }
   placeholder.style.height = `${finalHeight}px`;
-  
+
   const obs = getDomPurgeObserver();
   if (obs) obs.unobserve(el);
-  
+
   el.replaceWith(placeholder);
 
-  // 置換後の高さ差分でスクロールアンカリング
   const rectAfter = placeholder.getBoundingClientRect();
-  const heightDiff = rectAfter.height - rectBefore.height;
-  if (rectBefore.top < 0 && heightDiff !== 0) {
-    window.scrollBy(0, heightDiff);
-  }
+  applyPurgeHeightCorrection(placeholder, rectBefore, rectAfter.height - rectBefore.height);
 
   if (obs) obs.observe(placeholder);
 
   if (isSelected && typeof setSelectedEventEl === 'function') {
-    setSelectedEventEl(placeholder);
+    // Do not scrollIntoView — purge/restore must not undo intentional jumps (Top / Shift+W/S).
+    setSelectedEventEl(placeholder, { smooth: false, scroll: false });
   }
 }
 
+function removeFailedPlaceholder(placeholder) {
+  if (!placeholder || !placeholder.isConnected) return;
+  const obs = _domPurgeObserver;
+  if (obs) {
+    try { obs.unobserve(placeholder); } catch (e) { }
+  }
+  const feed = placeholder.closest ? placeholder.closest('.feed') : null;
+  const rectBefore = placeholder.getBoundingClientRect();
+  const height = rectBefore.height;
+  placeholder.remove();
+  // Prefer timeline-anchor follow-up via the still-connected feed when present.
+  applyPurgeHeightCorrection(feed, rectBefore, -height);
+}
+
 function restorePurgedEvent(placeholder, eventId) {
-  if (!_state || !_options) return;
+  if (!_state || !_options) return null;
+  if (!isDomPurgeEnabled()) return null;
+  if (!placeholder || !placeholder.isConnected) return null;
+
   _pendingPurges.delete(placeholder);
-  
-  let eventObj = null;
-  for (const feedId in _state.feeds) {
-    const feed = _state.feeds[feedId];
-    if (feed && feed.map && feed.map.has(eventId)) {
-      eventObj = feed.map.get(eventId);
-      break;
-    }
-  }
+
+  const eventObj = lookupFeedEvent(eventId);
   if (!eventObj) {
-    for (const feedId in _state.feeds) {
-      const feed = _state.feeds[feedId];
-      if (feed && Array.isArray(feed.list)) {
-        eventObj = feed.list.find(e => e && e.id === eventId);
-        if (eventObj) break;
-      }
-    }
+    // Event trimmed / missing — drop blank placeholder instead of leaving a forever hole.
+    removeFailedPlaceholder(placeholder);
+    return null;
   }
-  if (!eventObj) return;
 
-  const feedIdAttr = placeholder.dataset.parentFeedId || '';
-  const feedId = feedIdAttr ? feedIdAttr.replace('feed-', '') : 'global';
-
+  const feedId = resolvePlaceholderFeedId(placeholder);
   const node = buildEventNode(eventObj, feedId);
-  if (!node) return;
+  if (!node) {
+    removeFailedPlaceholder(placeholder);
+    return null;
+  }
 
   const isSelected = (typeof getSelectedEventEl === 'function' && getSelectedEventEl() === placeholder);
-
   const rectBefore = placeholder.getBoundingClientRect();
 
   const obs = getDomPurgeObserver();
   if (obs) obs.unobserve(placeholder);
-  
+
   placeholder.replaceWith(node);
 
-  // 置換後の高さ差分でスクロールアンカリング
   const rectAfter = node.getBoundingClientRect();
-  const heightDiff = rectAfter.height - rectBefore.height;
-  if (rectBefore.top < 0 && heightDiff !== 0) {
-    window.scrollBy(0, heightDiff);
-  }
+  applyPurgeHeightCorrection(node, rectBefore, rectAfter.height - rectBefore.height);
 
   if (obs) obs.observe(node);
 
   if (isSelected && typeof setSelectedEventEl === 'function') {
-    setSelectedEventEl(node);
+    setSelectedEventEl(node, { smooth: false, scroll: false });
   }
+  return node;
 }
 
-function debugFeed(...args) {
-  try {
-    if (typeof window !== 'undefined' && window.__nokakoiDebug) {
-      console.debug(...args);
-    }
-  } catch (e) { }
+/** If el is a purge placeholder, restore it and return the live node; otherwise return el. */
+export function ensureEventRestored(el) {
+  if (!el || !el.isConnected) return null;
+  if (!el.classList || !el.classList.contains('event-placeholder')) return el;
+  const eventId = el.dataset && el.dataset.eventId;
+  if (!eventId) return el;
+  return restorePurgedEvent(el, eventId) || null;
+}
+
+/** Restore placeholders near the current viewport (e.g. after jump-to-top). */
+export function restoreDomPurgeAround(container, marginPx) {
+  if (!isDomPurgeEnabled() || !container) return;
+  const margin = typeof marginPx === 'number' ? marginPx : DOM_PURGE_ROOT_MARGIN_PX;
+  const vh = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : 0;
+  const placeholders = container.querySelectorAll('.event-placeholder');
+  for (const ph of Array.from(placeholders)) {
+    try {
+      const rect = ph.getBoundingClientRect();
+      if (rect.bottom < -margin || rect.top > vh + margin) continue;
+      const eventId = ph.dataset && ph.dataset.eventId;
+      if (eventId) restorePurgedEvent(ph, eventId);
+    } catch (e) { }
+  }
 }
 
 // 無限スクロールオブザーバー
@@ -654,6 +808,8 @@ export function renderFeed(id = 'global', force = false) {
     }
   })();
 
+  // Drop old IO targets before wiping DOM to avoid orphaned observe/purge callbacks.
+  unobserveFeedEvents(el);
   el.innerHTML = '';
   el.appendChild(frag);
 
@@ -669,7 +825,7 @@ export function renderFeed(id = 'global', force = false) {
   if (selectedEventId) {
     const restoredEl = el.querySelector('.event[data-event-id="' + selectedEventId + '"]');
     if (restoredEl) {
-      setSelectedEventEl(restoredEl);
+      setSelectedEventEl(restoredEl, isDomPurgeEnabled() ? { smooth: false } : undefined);
     } else {
       setSelectedEventEl(null);
     }

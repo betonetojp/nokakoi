@@ -4,6 +4,7 @@
 
 import { showToast } from './utils.js';
 import { t } from './i18n.js';
+import { restoreDomPurgeAround } from './feed-renderer.js';
 
 export function setupScrollToTopButton() {
   const button = document.getElementById('scrollToTopBtn');
@@ -32,6 +33,11 @@ export function setupScrollToTopButton() {
 
   const getUseDomPurge = () => {
     try {
+      // Prefer live settingsManager (set on window by main.js).
+      const sm = typeof window !== 'undefined' ? window.settingsManager : null;
+      if (sm && typeof sm.get === 'function') {
+        return sm.get('useDomPurge') === true;
+      }
       const raw = localStorage.getItem('appSettings');
       const obj = raw ? JSON.parse(raw) : {};
       return obj.useDomPurge === true;
@@ -57,6 +63,34 @@ export function setupScrollToTopButton() {
     } catch (e) {
       return 0;
     }
+  }
+
+  function scrollToTabTop(behavior) {
+    const tabTop = computeTabTopPosition();
+    // Mark programmatic so purge scroll-listener does not treat this jump as user scroll.
+    try {
+      window.__nokakoiProgrammaticScroll = true;
+      setTimeout(() => {
+        try {
+          if (!window.__nokakoiScrollAnchor) window.__nokakoiProgrammaticScroll = false;
+        } catch (e) { }
+      }, 200);
+    } catch (e) { }
+    try {
+      window.scrollTo({ top: tabTop, behavior: behavior || 'auto' });
+    } catch (e) {
+      try { window.scrollTo(tabTop, 0); } catch (ee) { }
+    }
+    // After jumping, materialize purged posts near the viewport so "top" isn't blank shells.
+    try {
+      const feed = document.querySelector('.feed.active');
+      if (feed && getUseDomPurge()) {
+        requestAnimationFrame(() => {
+          try { restoreDomPurgeAround(feed); } catch (e) { }
+        });
+      }
+    } catch (e) { }
+    return tabTop;
   }
 
   function setReloadMode(enabled) {
@@ -229,7 +263,6 @@ export function setupScrollToTopButton() {
     if (!isDragging) return;
     button.classList.remove('dragging');
     const duration = Date.now() - startTime;
-    const tabTop = computeTabTopPosition();
     if (duration < 200 && !hasMoved) {
       if (inReloadMode) {
         // 位置を保持
@@ -268,7 +301,7 @@ export function setupScrollToTopButton() {
         }, 120);
       } else {
         const behavior = getUseDomPurge() ? 'auto' : 'smooth';
-        try { window.scrollTo({ top: tabTop, behavior: behavior }); } catch (e) { window.scrollTo(tabTop, 0); }
+        scrollToTabTop(behavior);
       }
     } else if (hasMoved) {
       saveButtonPosition({ left: button.style.left, bottom: button.style.bottom });
@@ -328,9 +361,8 @@ export function setupScrollToTopButton() {
       return;
     }
 
-    const tabTop = computeTabTopPosition();
     const behavior = getUseDomPurge() ? 'auto' : 'smooth';
-    try { window.scrollTo({ top: tabTop, behavior: behavior }); } catch (e) { window.scrollTo(tabTop, 0); }
+    scrollToTabTop(behavior);
   }
 
   button.addEventListener('click', (e) => { if (isDragging) return; activateButtonAction(); });

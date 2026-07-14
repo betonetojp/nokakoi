@@ -10,11 +10,12 @@ export function getSelectedEventEl() {
 
 export function setSelectedEventEl(el, options = {}) {
   const behavior = options && options.smooth === false ? 'auto' : 'smooth';
+  const shouldScroll = !(options && options.scroll === false);
   if (_selectedEventEl && _selectedEventEl.classList) _selectedEventEl.classList.remove('event-selected');
   _selectedEventEl = el || null;
   if (_selectedEventEl && _selectedEventEl.classList) {
     _selectedEventEl.classList.add('event-selected');
-    if (typeof _selectedEventEl.scrollIntoView === 'function') {
+    if (shouldScroll && typeof _selectedEventEl.scrollIntoView === 'function') {
       _selectedEventEl.scrollIntoView({ block: 'nearest', behavior: behavior });
     }
   }
@@ -70,13 +71,45 @@ export function setupKeyboardShortcuts(state, options) {
     }
     const activeFeed = document.querySelector('.feed.active');
     if (!activeFeed) return [];
+    const useDomPurge = options && options.settingsManager && options.settingsManager.get('useDomPurge') === true;
+    return Array.from(activeFeed.querySelectorAll('.event')).filter(el =>
+      el.style.display !== 'none' &&
+      !el.classList.contains('muted-hidden') &&
+      // Placeholders have no actions; skip them while DOM purge is on.
+      !(useDomPurge && el.classList.contains('event-placeholder'))
+    );
+  }
+
+  function getFeedEventsIncludingPlaceholders() {
+    const topModal = getTopShortcutModal();
+    if (topModal && (topModal.id === 'eventModal' || topModal.id === 'profileModal')) {
+      return getVisibleEvents();
+    }
+    const activeFeed = document.querySelector('.feed.active');
+    if (!activeFeed) return [];
     return Array.from(activeFeed.querySelectorAll('.event')).filter(el =>
       el.style.display !== 'none' && !el.classList.contains('muted-hidden')
     );
   }
 
+  function jumpToFeedBoundary(which) {
+    const all = getFeedEventsIncludingPlaceholders();
+    if (!all.length) return;
+    let target = which === 'last' ? all[all.length - 1] : all[0];
+    const ensure = options && typeof options.ensureEventRestored === 'function'
+      ? options.ensureEventRestored
+      : null;
+    if (ensure && target && target.classList && target.classList.contains('event-placeholder')) {
+      const restored = ensure(target);
+      if (restored) target = restored;
+    }
+    const useDomPurge = options && options.settingsManager && options.settingsManager.get('useDomPurge') === true;
+    setSelectedEventEl(target, { smooth: !useDomPurge });
+  }
+
   function selectEvent(el) {
-    setSelectedEventEl(el);
+    const useDomPurge = options && options.settingsManager && options.settingsManager.get('useDomPurge') === true;
+    setSelectedEventEl(el, useDomPurge ? { smooth: false } : undefined);
   }
 
   async function openEventDetailByReference(refEl) {
@@ -271,13 +304,14 @@ export function setupKeyboardShortcuts(state, options) {
 
     // Wキー: フィード内の投稿を上に移動 / Shift+W: 最上部を選択
     if (e.key === 'w' || e.key === 'W') {
-      const events = getVisibleEvents();
-      if (!events.length) return;
       e.preventDefault();
       if (e.shiftKey) {
-        const useDomPurge = options && options.settingsManager && options.settingsManager.get('useDomPurge') === true;
-        setSelectedEventEl(events[0], { smooth: !useDomPurge });
-      } else if (!hadValidSelectionBeforeSync) {
+        jumpToFeedBoundary('first');
+        return;
+      }
+      const events = getVisibleEvents();
+      if (!events.length) return;
+      if (!hadValidSelectionBeforeSync) {
         selectEvent(events[0]);
       } else if (!events.includes(_selectedEventEl)) {
         selectEvent(events[0]);
@@ -290,13 +324,14 @@ export function setupKeyboardShortcuts(state, options) {
 
     // Sキー: フィード内の投稿を下に移動 / Shift+S: 最下部を選択
     if (e.key === 's' || e.key === 'S') {
-      const events = getVisibleEvents();
-      if (!events.length) return;
       e.preventDefault();
       if (e.shiftKey) {
-        const useDomPurge = options && options.settingsManager && options.settingsManager.get('useDomPurge') === true;
-        setSelectedEventEl(events[events.length - 1], { smooth: !useDomPurge });
-      } else if (!hadValidSelectionBeforeSync) {
+        jumpToFeedBoundary('last');
+        return;
+      }
+      const events = getVisibleEvents();
+      if (!events.length) return;
+      if (!hadValidSelectionBeforeSync) {
         selectEvent(events[0]);
       } else if (!events.includes(_selectedEventEl)) {
         selectEvent(events[0]);

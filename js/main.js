@@ -63,7 +63,7 @@ let shareTextCacheInitialized = false;
 let shareTextCache = null;
 
 import { setupKeyboardShortcuts, getSelectedEventEl, setSelectedEventEl } from './keyboard-shortcuts.js';
-import { initFeedRenderer, renderFeed, scheduleRender, applyStoredReactionToNode, captureFeedUiStateFromDom, feedLoadState, userKind7Memory } from './feed-renderer.js';
+import { initFeedRenderer, renderFeed, scheduleRender, applyStoredReactionToNode, captureFeedUiStateFromDom, feedLoadState, userKind7Memory, ensureEventRestored } from './feed-renderer.js';
 const _feedUiStateById = new Map();
 let _infiniteScrollObserver = null;
 
@@ -1934,7 +1934,8 @@ async function init() {
       $$,
       getNip19,
       settings,
-      settingsManager
+      settingsManager,
+      ensureEventRestored
     });
   } catch (e) {
     console.warn('[Main] setupKeyboardShortcuts に失敗', e);
