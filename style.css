@@ -3087,3 +3087,11 @@ button.secondary:hover:not(:disabled) {
   background: var(--accent-muted);
   border-radius: 4px;
 }
+
+/* ===== プレースホルダー（簡易DOMパージ）のスタイル ===== */
+.event-placeholder {
+  background-color: transparent;
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+

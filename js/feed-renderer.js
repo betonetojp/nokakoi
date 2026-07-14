@@ -20,6 +20,117 @@ try { window.userKind7Memory = userKind7Memory; } catch (e) { }
 const _renderTimers = {};
 let _state = null;
 let _options = null;
+let _domPurgeObserver = null;
+
+function buildEventNode(eventObj, feedId) {
+  if (!_state || !_options) return null;
+  const renderSettings = _options.getRenderSettingsWithUiState(feedId);
+  const node = renderEvent(
+    _state,
+    eventObj,
+    _options.nip19,
+    renderSettings,
+    _options.settingsManager,
+    (ev, sym) => reactToEvent(_state, ev, sym),
+    (ev) => { setReplyTarget(_state, ev, _options.nip19); },
+    (ev) => repostEvent(_state, ev),
+    feedId
+  );
+  try { applyStoredReactionToNode(eventObj && eventObj.id, node); } catch (e) { }
+  return node;
+}
+
+function getDomPurgeObserver() {
+  if (typeof window === 'undefined' || !window.IntersectionObserver) return null;
+  if (_domPurgeObserver) return _domPurgeObserver;
+  _domPurgeObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const el = entry.target;
+      const eventId = el.dataset.eventId;
+      if (!eventId) continue;
+      
+      if (entry.isIntersecting) {
+        if (el.classList.contains('event-placeholder')) {
+          restorePurgedEvent(el, eventId);
+        }
+      } else {
+        if (!el.classList.contains('event-placeholder') && el.classList.contains('event')) {
+          purgeEventToPlaceholder(el, eventId);
+        }
+      }
+    }
+  }, {
+    rootMargin: '1000px 0px 1000px 0px'
+  });
+  return _domPurgeObserver;
+}
+
+function purgeEventToPlaceholder(el, eventId) {
+  const isSelected = (typeof getSelectedEventEl === 'function' && getSelectedEventEl() === el);
+
+  const height = el.offsetHeight;
+  const finalHeight = height > 30 ? height : 150;
+  
+  const placeholder = document.createElement('div');
+  placeholder.className = 'event event-placeholder';
+  placeholder.dataset.eventId = eventId;
+  const parentFeedId = el.parentElement ? el.parentElement.id : '';
+  if (parentFeedId) {
+    placeholder.dataset.parentFeedId = parentFeedId;
+  }
+  placeholder.style.height = `${finalHeight}px`;
+  
+  const obs = getDomPurgeObserver();
+  if (obs) obs.unobserve(el);
+  
+  el.replaceWith(placeholder);
+  if (obs) obs.observe(placeholder);
+
+  if (isSelected && typeof setSelectedEventEl === 'function') {
+    setSelectedEventEl(placeholder);
+  }
+}
+
+function restorePurgedEvent(placeholder, eventId) {
+  if (!_state || !_options) return;
+  
+  let eventObj = null;
+  for (const feedId in _state.feeds) {
+    const feed = _state.feeds[feedId];
+    if (feed && feed.map && feed.map.has(eventId)) {
+      eventObj = feed.map.get(eventId);
+      break;
+    }
+  }
+  if (!eventObj) {
+    for (const feedId in _state.feeds) {
+      const feed = _state.feeds[feedId];
+      if (feed && Array.isArray(feed.list)) {
+        eventObj = feed.list.find(e => e && e.id === eventId);
+        if (eventObj) break;
+      }
+    }
+  }
+  if (!eventObj) return;
+
+  const feedIdAttr = placeholder.dataset.parentFeedId || '';
+  const feedId = feedIdAttr ? feedIdAttr.replace('feed-', '') : 'global';
+
+  const node = buildEventNode(eventObj, feedId);
+  if (!node) return;
+
+  const isSelected = (typeof getSelectedEventEl === 'function' && getSelectedEventEl() === placeholder);
+
+  const obs = getDomPurgeObserver();
+  if (obs) obs.unobserve(placeholder);
+  
+  placeholder.replaceWith(node);
+  if (obs) obs.observe(node);
+
+  if (isSelected && typeof setSelectedEventEl === 'function') {
+    setSelectedEventEl(node);
+  }
+}
 
 function debugFeed(...args) {
   try {
@@ -190,21 +301,7 @@ export function renderFeed(id = 'global', force = false) {
     }
   };
 
-  const buildEventNode = (eventObj) => {
-    const node = renderEvent(
-      _state,
-      eventObj,
-      _options.nip19,
-      renderSettings,
-      _options.settingsManager,
-      (ev, sym) => reactToEvent(_state, ev, sym),
-      (ev) => { setReplyTarget(_state, ev, _options.nip19); },
-      (ev) => repostEvent(_state, ev),
-      id
-    );
-    try { applyStoredReactionToNode(eventObj && eventObj.id, node); } catch (e) { }
-    return node;
-  };
+
 
   let eventsToRender;
   try {
@@ -412,10 +509,14 @@ export function renderFeed(id = 'global', force = false) {
           const scrollAnchor = (isActiveFeed && isBackScrollingActiveFeed)
             ? captureTimelineAnchor(el)
             : null;
+          const obs = getDomPurgeObserver();
           const anchorNode = existingEvents[0];
           for (let i = firstExistingIdx - 1; i >= 0; i--) {
-            const node = buildEventNode(eventsToRender[i]);
-            el.insertBefore(node, anchorNode);
+            const node = buildEventNode(eventsToRender[i], id);
+            if (node) {
+              el.insertBefore(node, anchorNode);
+              if (obs) obs.observe(node);
+            }
           }
           const existingBottom = el.querySelector('.feed-bar-bottom');
           if (existingBottom) existingBottom.remove();
@@ -441,14 +542,18 @@ export function renderFeed(id = 'global', force = false) {
       }
       if (mode === 'append') {
         const startIdx = domIds.length;
+        const obs = getDomPurgeObserver();
         for (let i = startIdx; i < eventsToRender.length; i++) {
-          const node = buildEventNode(eventsToRender[i]);
-          if (bottomBar) {
-            const currentBottom = el.querySelector('.feed-bar-bottom');
-            if (currentBottom) el.insertBefore(node, currentBottom);
-            else el.appendChild(node);
-          } else {
-            el.appendChild(node);
+          const node = buildEventNode(eventsToRender[i], id);
+          if (node) {
+            if (bottomBar) {
+              const currentBottom = el.querySelector('.feed-bar-bottom');
+              if (currentBottom) el.insertBefore(node, currentBottom);
+              else el.appendChild(node);
+            } else {
+              el.appendChild(node);
+            }
+            if (obs) obs.observe(node);
           }
         }
         const existingBottom = el.querySelector('.feed-bar-bottom');
@@ -462,8 +567,8 @@ export function renderFeed(id = 'global', force = false) {
 
   const frag = document.createDocumentFragment();
   for (let i = 0; i < eventsToRender.length; i++) {
-    const node = buildEventNode(eventsToRender[i]);
-    frag.appendChild(node);
+    const node = buildEventNode(eventsToRender[i], id);
+    if (node) frag.appendChild(node);
   }
   if (bottomBar) frag.appendChild(bottomBar);
 
@@ -486,6 +591,15 @@ export function renderFeed(id = 'global', force = false) {
 
   el.innerHTML = '';
   el.appendChild(frag);
+
+  // 監視対象に登録
+  const obs = getDomPurgeObserver();
+  if (obs) {
+    const nodes = el.querySelectorAll('.event:not(.event-placeholder)');
+    for (const node of Array.from(nodes)) {
+      obs.observe(node);
+    }
+  }
 
   if (selectedEventId) {
     const restoredEl = el.querySelector('.event[data-event-id="' + selectedEventId + '"]');

@@ -124,7 +124,7 @@ export function setupKeyboardShortcuts(state, options) {
         if (_selectedEventEl !== topModal) selectEvent(topModal);
         return;
       }
-      if (!_selectedEventEl || !visible.includes(_selectedEventEl)) {
+      if (_selectedEventEl && !visible.includes(_selectedEventEl)) {
         selectEvent(visible[0]);
       }
     } catch (e) { }

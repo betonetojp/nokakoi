@@ -137,7 +137,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       const profile = state.profiles.get(event.pubkey);
       const avatarUrl = (profile && profile.picture) || '';
       if (avatarUrl) {
-        avatarHtml = '<img src="' + escapeHtml(avatarUrl) + '" alt="avatar" class="avatar" style="width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--border);margin-right:6px;">';
+        avatarHtml = '<img src="' + escapeHtml(avatarUrl) + '" alt="avatar" class="avatar" loading="lazy" style="width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--border);margin-right:6px;">';
       }
     }
     // kind:20000 はタイムライン表示と同じく n タグ優先、空なら pubkey 末尾ハッシュを即時表示
