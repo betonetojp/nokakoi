@@ -24,8 +24,23 @@ let _domPurgeObserver = null;
 let _isScrolling = false;
 let _scrollTimeout = null;
 let _purgeScrollClearTimer = null;
+let _purgeBatchRaf = 0;
+let _heightReleaseRaf = 0;
 const _pendingPurges = new Set();
-const DOM_PURGE_ROOT_MARGIN_PX = 1000;
+const _pendingRestores = new Set();
+/** @type {{ node: Element, wasAboveViewport: boolean }[]} */
+const _pendingHeightReleases = [];
+/** eventId → last restore timestamp (hysteresis against immediate re-purge). */
+const _recentlyRestoredAt = new Map();
+/** eventId → locked height from last purge. */
+const _purgedHeights = new Map();
+
+/** Restore when within this margin of the viewport. */
+const DOM_PURGE_RESTORE_MARGIN_PX = 1200;
+/** Purge only when farther than this (band between restore/purge reduces flip-flop). */
+const DOM_PURGE_PURGE_MARGIN_PX = 2200;
+const DOM_PURGE_IDLE_MS = 280;
+const DOM_PURGE_RESTORE_COOLDOWN_MS = 600;
 
 function isDomPurgeEnabled() {
   return !!(
@@ -43,7 +58,7 @@ function isProgrammaticScroll() {
   }
 }
 
-function markProgrammaticScrollBriefly() {
+function markProgrammaticScrollBriefly(ms) {
   if (typeof window === 'undefined') return;
   try {
     window.__nokakoiProgrammaticScroll = true;
@@ -51,58 +66,80 @@ function markProgrammaticScrollBriefly() {
     _purgeScrollClearTimer = setTimeout(() => {
       _purgeScrollClearTimer = null;
       try {
-        // Timeline-anchor maintenance owns the flag while an anchor is active.
         if (!window.__nokakoiScrollAnchor) {
           window.__nokakoiProgrammaticScroll = false;
         }
       } catch (e) { }
-    }, 100);
+    }, typeof ms === 'number' ? ms : 120);
   } catch (e) { }
 }
 
-/** Height correction for purge/restore. Defers to timeline anchor when one is active. */
-function applyPurgeHeightCorrection(replacedEl, rectBefore, heightDiff) {
-  if (!heightDiff || !rectBefore || typeof window === 'undefined') return;
-  if (!(rectBefore.top < 0)) return;
-
+function applyAccumulatedScroll(heightDiff) {
+  if (!heightDiff || typeof window === 'undefined') return;
   try {
     if (window.__nokakoiScrollAnchor) {
-      const feed = replacedEl && replacedEl.closest ? replacedEl.closest('.feed') : null;
+      const feed = document.querySelector('.feed.active');
       if (feed) followUpTimelineAnchor(feed);
       return;
     }
   } catch (e) { }
-
   markProgrammaticScrollBriefly();
   try { window.scrollBy(0, heightDiff); } catch (e) { }
 }
 
-/** True when the element is outside the purge observer's expanded root (viewport + margin). */
-function isOutsidePurgeRoot(el) {
-  if (!el || !el.isConnected) return true;
+/** Distance past the viewport edge (0 if intersecting viewport). */
+function distanceOutsideViewport(el) {
+  if (!el || !el.isConnected) return Infinity;
   try {
     const rect = el.getBoundingClientRect();
     const vh = window.innerHeight || 0;
-    const m = DOM_PURGE_ROOT_MARGIN_PX;
-    return rect.bottom < -m || rect.top > vh + m;
+    if (rect.bottom < 0) return -rect.bottom;
+    if (rect.top > vh) return rect.top - vh;
+    return 0;
   } catch (e) {
-    return true;
+    return Infinity;
   }
 }
 
-function flushPendingPurges() {
-  if (_pendingPurges.size === 0) return;
-  const temp = Array.from(_pendingPurges);
-  _pendingPurges.clear();
-  for (const el of temp) {
-    if (!el || !el.isConnected || el.classList.contains('event-placeholder')) continue;
-    if (!isOutsidePurgeRoot(el)) continue;
-    const eventId = el.dataset.eventId;
-    if (!eventId) continue;
-    try { purgeEventToPlaceholder(el, eventId); } catch (e) {
-      debugFeed('[FeedRenderer] pending purge failed', e);
+function isBeyondPurgeMargin(el) {
+  return distanceOutsideViewport(el) > DOM_PURGE_PURGE_MARGIN_PX;
+}
+
+function scheduleDomPurgeBatch() {
+  if (_purgeBatchRaf || typeof requestAnimationFrame === 'undefined') {
+    if (!_purgeBatchRaf && typeof requestAnimationFrame === 'undefined') {
+      runDomPurgeBatch();
     }
+    return;
   }
+  _purgeBatchRaf = requestAnimationFrame(() => {
+    _purgeBatchRaf = 0;
+    runDomPurgeBatch();
+  });
+}
+
+function queueRestore(el) {
+  if (!el || !el.isConnected) return;
+  _pendingPurges.delete(el);
+  _pendingRestores.add(el);
+  scheduleDomPurgeBatch();
+}
+
+function queuePurge(el) {
+  if (!el || !el.isConnected) return;
+  if (el.classList.contains('event-placeholder')) return;
+  _pendingRestores.delete(el);
+  _pendingPurges.add(el);
+  scheduleDomPurgeBatch();
+}
+
+function flushPendingPurgesWhenIdle() {
+  if (_pendingPurges.size === 0) {
+    // Still schedule in case restores waited on scroll end.
+    if (_pendingRestores.size > 0) scheduleDomPurgeBatch();
+    return;
+  }
+  scheduleDomPurgeBatch();
 }
 
 function initScrollListener() {
@@ -111,14 +148,13 @@ function initScrollListener() {
   window.__nokakoiScrollListenerInitialized = true;
 
   window.addEventListener('scroll', () => {
-    // Ignore programmatic corrections from purge / timeline anchor.
     if (isProgrammaticScroll()) return;
     _isScrolling = true;
     if (_scrollTimeout) clearTimeout(_scrollTimeout);
     _scrollTimeout = setTimeout(() => {
       _isScrolling = false;
-      flushPendingPurges();
-    }, 150);
+      flushPendingPurgesWhenIdle();
+    }, DOM_PURGE_IDLE_MS);
   }, { passive: true });
 }
 
@@ -129,6 +165,7 @@ function unobserveFeedEvents(feedEl) {
     for (const node of Array.from(nodes)) {
       try { _domPurgeObserver.unobserve(node); } catch (e) { }
       _pendingPurges.delete(node);
+      _pendingRestores.delete(node);
     }
   } catch (e) { }
 }
@@ -136,6 +173,18 @@ function unobserveFeedEvents(feedEl) {
 /** Tear down observer and pending state (e.g. when useDomPurge is turned off). */
 export function teardownDomPurge() {
   _pendingPurges.clear();
+  _pendingRestores.clear();
+  _pendingHeightReleases.length = 0;
+  _recentlyRestoredAt.clear();
+  _purgedHeights.clear();
+  if (_purgeBatchRaf && typeof cancelAnimationFrame === 'function') {
+    try { cancelAnimationFrame(_purgeBatchRaf); } catch (e) { }
+    _purgeBatchRaf = 0;
+  }
+  if (_heightReleaseRaf && typeof cancelAnimationFrame === 'function') {
+    try { cancelAnimationFrame(_heightReleaseRaf); } catch (e) { }
+    _heightReleaseRaf = 0;
+  }
   if (_scrollTimeout) {
     clearTimeout(_scrollTimeout);
     _scrollTimeout = null;
@@ -207,7 +256,7 @@ function getDomPurgeObserver() {
   if (typeof window === 'undefined' || !window.IntersectionObserver) return null;
   if (!isDomPurgeEnabled()) return null;
   if (_domPurgeObserver) return _domPurgeObserver;
-  const margin = `${DOM_PURGE_ROOT_MARGIN_PX}px 0px ${DOM_PURGE_ROOT_MARGIN_PX}px 0px`;
+  const margin = `${DOM_PURGE_RESTORE_MARGIN_PX}px 0px ${DOM_PURGE_RESTORE_MARGIN_PX}px 0px`;
   _domPurgeObserver = new IntersectionObserver((entries) => {
     if (!isDomPurgeEnabled()) return;
     for (const entry of entries) {
@@ -217,16 +266,29 @@ function getDomPurgeObserver() {
       if (!eventId) continue;
 
       if (entry.isIntersecting) {
-        // Re-entered the expanded root: cancel any deferred purge.
         _pendingPurges.delete(el);
         if (el.classList.contains('event-placeholder')) {
-          restorePurgedEvent(el, eventId);
+          // While scrolling, only restore posts actually in the viewport;
+          // prefetch-band restores wait for idle to cut mid-scroll rebuild jank.
+          if (_isScrolling && distanceOutsideViewport(el) > 0) {
+            _pendingRestores.add(el);
+          } else {
+            queueRestore(el);
+          }
         }
       } else if (!el.classList.contains('event-placeholder') && el.classList.contains('event')) {
+        // Hysteresis: only queue purge once beyond the outer margin.
+        if (!isBeyondPurgeMargin(el)) continue;
+        const restoredAt = _recentlyRestoredAt.get(eventId) || 0;
+        if (Date.now() - restoredAt < DOM_PURGE_RESTORE_COOLDOWN_MS) {
+          // Keep soft-pending for idle flush after cooldown / farther scroll.
+          _pendingPurges.add(el);
+          continue;
+        }
         if (_isScrolling) {
           _pendingPurges.add(el);
         } else {
-          purgeEventToPlaceholder(el, eventId);
+          queuePurge(el);
         }
       }
     }
@@ -236,23 +298,75 @@ function getDomPurgeObserver() {
   return _domPurgeObserver;
 }
 
-function purgeEventToPlaceholder(el, eventId) {
-  if (!isDomPurgeEnabled()) return;
-  if (!el || !el.isConnected) return;
-  // ミュート等で非表示になっている要素はパージの対象外にする
-  if (el.classList.contains('muted-hidden') || el.classList.contains('d-none')) {
+/**
+ * Stabilize restored node height: start locked to placeholder height, then release
+ * in one shared frame so scroll corrections are applied once.
+ */
+function stabilizeRestoredNodeHeight(node, lockedHeight, wasAboveViewport) {
+  if (!node || !(lockedHeight > 0)) return;
+  try {
+    node.style.boxSizing = 'border-box';
+    node.style.height = `${lockedHeight}px`;
+    node.style.overflow = 'hidden';
+  } catch (e) { }
+
+  _pendingHeightReleases.push({ node, wasAboveViewport: !!wasAboveViewport });
+  scheduleHeightReleaseBatch();
+}
+
+function scheduleHeightReleaseBatch() {
+  if (_heightReleaseRaf || typeof requestAnimationFrame === 'undefined') {
+    if (!_heightReleaseRaf && typeof requestAnimationFrame === 'undefined') {
+      flushHeightReleases();
+    }
     return;
   }
-  if (el.classList.contains('event-placeholder')) return;
+  _heightReleaseRaf = requestAnimationFrame(() => {
+    _heightReleaseRaf = requestAnimationFrame(() => {
+      _heightReleaseRaf = 0;
+      flushHeightReleases();
+    });
+  });
+}
+
+function flushHeightReleases() {
+  if (_pendingHeightReleases.length === 0) return;
+  const items = _pendingHeightReleases.splice(0);
+  let scrollAccum = 0;
+  for (const item of items) {
+    const node = item && item.node;
+    if (!node || !node.isConnected) continue;
+    let rectBefore = null;
+    try { rectBefore = node.getBoundingClientRect(); } catch (e) { continue; }
+    try {
+      node.style.height = '';
+      node.style.overflow = '';
+    } catch (e) { }
+    let rectAfter = null;
+    try { rectAfter = node.getBoundingClientRect(); } catch (e) { continue; }
+    const diff = rectAfter.height - rectBefore.height;
+    if (item.wasAboveViewport && diff) scrollAccum += diff;
+  }
+  if (scrollAccum) applyAccumulatedScroll(scrollAccum);
+}
+
+/** @returns {number} heightDiff to apply when element was above viewport */
+function purgeEventToPlaceholder(el, eventId) {
+  if (!isDomPurgeEnabled()) return 0;
+  if (!el || !el.isConnected) return 0;
+  if (el.classList.contains('muted-hidden') || el.classList.contains('d-none')) return 0;
+  if (el.classList.contains('event-placeholder')) return 0;
 
   _pendingPurges.delete(el);
+  _pendingRestores.delete(el);
 
   const isSelected = (typeof getSelectedEventEl === 'function' && getSelectedEventEl() === el);
-
   const rectBefore = el.getBoundingClientRect();
   const height = el.offsetHeight;
-  // Keep measured height; avoid inventing a large fallback that shifts scroll.
   const finalHeight = height > 0 ? height : 1;
+  const wasAbove = rectBefore.top < 0;
+
+  if (eventId) _purgedHeights.set(eventId, finalHeight);
 
   const placeholder = document.createElement('div');
   placeholder.className = 'event event-placeholder';
@@ -269,68 +383,150 @@ function purgeEventToPlaceholder(el, eventId) {
   el.replaceWith(placeholder);
 
   const rectAfter = placeholder.getBoundingClientRect();
-  applyPurgeHeightCorrection(placeholder, rectBefore, rectAfter.height - rectBefore.height);
+  const heightDiff = wasAbove ? (rectAfter.height - rectBefore.height) : 0;
 
   if (obs) obs.observe(placeholder);
 
   if (isSelected && typeof setSelectedEventEl === 'function') {
-    // Do not scrollIntoView — purge/restore must not undo intentional jumps (Top / Shift+W/S).
     setSelectedEventEl(placeholder, { smooth: false, scroll: false });
   }
+  return heightDiff;
 }
 
 function removeFailedPlaceholder(placeholder) {
-  if (!placeholder || !placeholder.isConnected) return;
+  if (!placeholder || !placeholder.isConnected) return 0;
   const obs = _domPurgeObserver;
   if (obs) {
     try { obs.unobserve(placeholder); } catch (e) { }
   }
-  const feed = placeholder.closest ? placeholder.closest('.feed') : null;
+  const eventId = placeholder.dataset && placeholder.dataset.eventId;
+  if (eventId) _purgedHeights.delete(eventId);
   const rectBefore = placeholder.getBoundingClientRect();
+  const wasAbove = rectBefore.top < 0;
   const height = rectBefore.height;
   placeholder.remove();
-  // Prefer timeline-anchor follow-up via the still-connected feed when present.
-  applyPurgeHeightCorrection(feed, rectBefore, -height);
+  return wasAbove ? -height : 0;
 }
 
+/** @returns {{ node: Element|null, heightDiff: number }} */
 function restorePurgedEvent(placeholder, eventId) {
-  if (!_state || !_options) return null;
-  if (!isDomPurgeEnabled()) return null;
-  if (!placeholder || !placeholder.isConnected) return null;
+  if (!_state || !_options) return { node: null, heightDiff: 0 };
+  if (!isDomPurgeEnabled()) return { node: null, heightDiff: 0 };
+  if (!placeholder || !placeholder.isConnected) return { node: null, heightDiff: 0 };
 
   _pendingPurges.delete(placeholder);
+  _pendingRestores.delete(placeholder);
 
   const eventObj = lookupFeedEvent(eventId);
   if (!eventObj) {
-    // Event trimmed / missing — drop blank placeholder instead of leaving a forever hole.
-    removeFailedPlaceholder(placeholder);
-    return null;
+    return { node: null, heightDiff: removeFailedPlaceholder(placeholder) };
   }
 
   const feedId = resolvePlaceholderFeedId(placeholder);
   const node = buildEventNode(eventObj, feedId);
   if (!node) {
-    removeFailedPlaceholder(placeholder);
-    return null;
+    return { node: null, heightDiff: removeFailedPlaceholder(placeholder) };
   }
 
   const isSelected = (typeof getSelectedEventEl === 'function' && getSelectedEventEl() === placeholder);
   const rectBefore = placeholder.getBoundingClientRect();
+  const wasAbove = rectBefore.top < 0;
+  const lockedHeight = (_purgedHeights.get(eventId) || rectBefore.height || 0);
 
   const obs = getDomPurgeObserver();
   if (obs) obs.unobserve(placeholder);
 
+  // Lock to placeholder height so the swap itself does not shift layout.
+  if (lockedHeight > 0) {
+    try {
+      node.style.boxSizing = 'border-box';
+      node.style.height = `${lockedHeight}px`;
+      node.style.overflow = 'hidden';
+    } catch (e) { }
+  }
+
   placeholder.replaceWith(node);
 
-  const rectAfter = node.getBoundingClientRect();
-  applyPurgeHeightCorrection(node, rectBefore, rectAfter.height - rectBefore.height);
+  // Swap under lock ≈ 0 heightDiff; residual handled in stabilize.
+  const heightDiff = 0;
 
   if (obs) obs.observe(node);
+
+  if (eventId) {
+    _purgedHeights.delete(eventId);
+    _recentlyRestoredAt.set(eventId, Date.now());
+    // Bound map growth.
+    if (_recentlyRestoredAt.size > 400) {
+      const oldest = _recentlyRestoredAt.keys().next().value;
+      _recentlyRestoredAt.delete(oldest);
+    }
+  }
 
   if (isSelected && typeof setSelectedEventEl === 'function') {
     setSelectedEventEl(node, { smooth: false, scroll: false });
   }
-  return node;
+
+  stabilizeRestoredNodeHeight(node, lockedHeight, wasAbove);
+  return { node, heightDiff };
+}
+
+function runDomPurgeBatch() {
+  if (!isDomPurgeEnabled()) {
+    _pendingPurges.clear();
+    _pendingRestores.clear();
+    return;
+  }
+
+  let scrollAccum = 0;
+
+  // Restores first (viewport content), then purges.
+  const restores = Array.from(_pendingRestores);
+  _pendingRestores.clear();
+  for (const el of restores) {
+    if (!el || !el.isConnected || !el.classList.contains('event-placeholder')) continue;
+    const eventId = el.dataset.eventId;
+    if (!eventId) continue;
+    try {
+      const result = restorePurgedEvent(el, eventId);
+      if (result && result.heightDiff) scrollAccum += result.heightDiff;
+    } catch (e) {
+      debugFeed('[FeedRenderer] batched restore failed', e);
+    }
+  }
+
+  const purges = Array.from(_pendingPurges);
+  _pendingPurges.clear();
+  for (const el of purges) {
+    if (!el || !el.isConnected || el.classList.contains('event-placeholder')) continue;
+    if (!isBeyondPurgeMargin(el)) continue;
+    const eventId = el.dataset.eventId;
+    if (!eventId) continue;
+    const restoredAt = _recentlyRestoredAt.get(eventId) || 0;
+    if (Date.now() - restoredAt < DOM_PURGE_RESTORE_COOLDOWN_MS) {
+      // Re-queue until cooldown ends.
+      _pendingPurges.add(el);
+      continue;
+    }
+    // While user is still scrolling, keep deferring purges.
+    if (_isScrolling) {
+      _pendingPurges.add(el);
+      continue;
+    }
+    try {
+      scrollAccum += purgeEventToPlaceholder(el, eventId) || 0;
+    } catch (e) {
+      debugFeed('[FeedRenderer] batched purge failed', e);
+    }
+  }
+
+  if (scrollAccum) applyAccumulatedScroll(scrollAccum);
+
+  // Cooldown leftovers: check again after cooldown window.
+  if (_pendingPurges.size > 0) {
+    setTimeout(() => {
+      if (!_isScrolling) scheduleDomPurgeBatch();
+    }, DOM_PURGE_RESTORE_COOLDOWN_MS);
+  }
 }
 
 /** If el is a purge placeholder, restore it and return the live node; otherwise return el. */
@@ -339,23 +535,28 @@ export function ensureEventRestored(el) {
   if (!el.classList || !el.classList.contains('event-placeholder')) return el;
   const eventId = el.dataset && el.dataset.eventId;
   if (!eventId) return el;
-  return restorePurgedEvent(el, eventId) || null;
+  const result = restorePurgedEvent(el, eventId);
+  return (result && result.node) || null;
 }
 
 /** Restore placeholders near the current viewport (e.g. after jump-to-top). */
 export function restoreDomPurgeAround(container, marginPx) {
   if (!isDomPurgeEnabled() || !container) return;
-  const margin = typeof marginPx === 'number' ? marginPx : DOM_PURGE_ROOT_MARGIN_PX;
+  const margin = typeof marginPx === 'number' ? marginPx : DOM_PURGE_RESTORE_MARGIN_PX;
   const vh = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : 0;
   const placeholders = container.querySelectorAll('.event-placeholder');
+  let scrollAccum = 0;
   for (const ph of Array.from(placeholders)) {
     try {
       const rect = ph.getBoundingClientRect();
       if (rect.bottom < -margin || rect.top > vh + margin) continue;
       const eventId = ph.dataset && ph.dataset.eventId;
-      if (eventId) restorePurgedEvent(ph, eventId);
+      if (!eventId) continue;
+      const result = restorePurgedEvent(ph, eventId);
+      if (result && result.heightDiff) scrollAccum += result.heightDiff;
     } catch (e) { }
   }
+  if (scrollAccum) applyAccumulatedScroll(scrollAccum);
 }
 
 // 無限スクロールオブザーバー
