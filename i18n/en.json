@@ -44,7 +44,7 @@
   "showTimelineMedia": "Show images and videos inline",
   "showCustomEmoji": "Show custom emoji",
   "showMusicStatus": "Show Now Playing",
-  "useDomPurge": "Enable DOM purging (Saves memory)",
+  "useDomPurge": "Enable DOM purging (Experimental: Saves memory, but may cause scrolling jitter)",
   "showOmochat": "Show omochat tab",
   "showHomeOmochat": "Show omochat in home",
   "showHomeReactions": "Show reactions from follows in home",

@@ -533,6 +533,12 @@ select, select:focus {
   padding-left: 12px;
   padding-right: 12px;
 }
+
+/* ライトテーマ用のイベント選択状態の視認性強化 */
+body.theme-light .event.event-selected {
+  background-color: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
 .event-top-row {
   display: flex;
   align-items: center;
