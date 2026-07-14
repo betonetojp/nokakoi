@@ -30,6 +30,16 @@ export function setupScrollToTopButton() {
   let _desiredTabTop = null;
   let pendingSecondClickTimer = null;
 
+  const getUseDomPurge = () => {
+    try {
+      const raw = localStorage.getItem('appSettings');
+      const obj = raw ? JSON.parse(raw) : {};
+      return obj.useDomPurge === true;
+    } catch (e) {
+      return false;
+    }
+  };
+
   const getScrollTop = () => {
     try { return window.scrollY ?? document.documentElement.scrollTop ?? 0; } catch (e) { return 0; }
   };
@@ -257,7 +267,8 @@ export function setupScrollToTopButton() {
           try { if (pos.left) { button.style.left = pos.left; button.style.bottom = pos.bottom; button.style.transform = pos.transform || 'none'; } } catch (e) { }
         }, 120);
       } else {
-        try { window.scrollTo({ top: tabTop, behavior: 'auto' }); } catch (e) { window.scrollTo(tabTop, 0); }
+        const behavior = getUseDomPurge() ? 'auto' : 'smooth';
+        try { window.scrollTo({ top: tabTop, behavior: behavior }); } catch (e) { window.scrollTo(tabTop, 0); }
       }
     } else if (hasMoved) {
       saveButtonPosition({ left: button.style.left, bottom: button.style.bottom });
@@ -318,7 +329,8 @@ export function setupScrollToTopButton() {
     }
 
     const tabTop = computeTabTopPosition();
-    try { window.scrollTo({ top: tabTop, behavior: 'auto' }); } catch (e) { window.scrollTo(tabTop, 0); }
+    const behavior = getUseDomPurge() ? 'auto' : 'smooth';
+    try { window.scrollTo({ top: tabTop, behavior: behavior }); } catch (e) { window.scrollTo(tabTop, 0); }
   }
 
   button.addEventListener('click', (e) => { if (isDragging) return; activateButtonAction(); });

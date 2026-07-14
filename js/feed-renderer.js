@@ -71,6 +71,9 @@ function buildEventNode(eventObj, feedId) {
 
 function getDomPurgeObserver() {
   if (typeof window === 'undefined' || !window.IntersectionObserver) return null;
+  if (!_options || !_options.settingsManager || _options.settingsManager.get('useDomPurge') !== true) {
+    return null;
+  }
   if (_domPurgeObserver) return _domPurgeObserver;
   _domPurgeObserver = new IntersectionObserver((entries) => {
     for (const entry of entries) {
@@ -99,6 +102,9 @@ function getDomPurgeObserver() {
 }
 
 function purgeEventToPlaceholder(el, eventId) {
+  if (!_options || !_options.settingsManager || _options.settingsManager.get('useDomPurge') !== true) {
+    return;
+  }
   // ミュート等で非表示になっている要素はパージの対象外にする
   if (el.classList.contains('muted-hidden') || el.classList.contains('d-none')) {
     return;

@@ -275,7 +275,8 @@ export function setupKeyboardShortcuts(state, options) {
       if (!events.length) return;
       e.preventDefault();
       if (e.shiftKey) {
-        setSelectedEventEl(events[0], { smooth: false });
+        const useDomPurge = options && options.settingsManager && options.settingsManager.get('useDomPurge') === true;
+        setSelectedEventEl(events[0], { smooth: !useDomPurge });
       } else if (!hadValidSelectionBeforeSync) {
         selectEvent(events[0]);
       } else if (!events.includes(_selectedEventEl)) {
@@ -293,7 +294,8 @@ export function setupKeyboardShortcuts(state, options) {
       if (!events.length) return;
       e.preventDefault();
       if (e.shiftKey) {
-        setSelectedEventEl(events[events.length - 1], { smooth: false });
+        const useDomPurge = options && options.settingsManager && options.settingsManager.get('useDomPurge') === true;
+        setSelectedEventEl(events[events.length - 1], { smooth: !useDomPurge });
       } else if (!hadValidSelectionBeforeSync) {
         selectEvent(events[0]);
       } else if (!events.includes(_selectedEventEl)) {

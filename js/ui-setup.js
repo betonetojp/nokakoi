@@ -828,6 +828,7 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
   const showTimelineMediaCheck = $('showTimelineMediaCheck');
   const showCustomEmojiCheck = $('showCustomEmojiCheck');
   const showMusicStatusCheck = $('showMusicStatusCheck');
+  const useDomPurgeCheck = $('useDomPurgeCheck');
   // showOmochatCheck は廃止
   const showHomeOmochatCheck = $('showHomeOmochatCheck');
   if (showHomeOmochatCheck) {
@@ -858,7 +859,10 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
 
     // Now Playing 設定を読み込む（既定は ON）
   if (showMusicStatusCheck) {
-     showMusicStatusCheck.checked = settingsManager.settings.showMusicStatus !== false;
+    showMusicStatusCheck.checked = settingsManager.settings.showMusicStatus !== false;
+  }
+  if (useDomPurgeCheck) {
+    useDomPurgeCheck.checked = settingsManager.settings.useDomPurge === true;
   }
 
     // タブ設定 UI を読み込む
@@ -1030,11 +1034,14 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
   if (showMusicStatusCheck) {
     showMusicStatusCheck.onchange = function() {
       settingsManager.set('showMusicStatus', showMusicStatusCheck.checked);
-      // 即時反映のため、再描画（restartFeeds）または DOM 更新が必要
-      // UserStatus は DOM 要素の表示/非表示切り替えだけで対応可能ならそれでもよいが
-      // ここではわかりやすくフィード再描画などをトリガーするか、
-      // あるいは CSS クラスや DOM 操作で全体へ反映させる方法もある。
-      // ここでは単純に restartFeeds(true) で全体再読込扱いにする。
+      try { restartFeeds(true); } catch (e) { }
+    };
+  }
+
+  // DOMパージ設定変更時の処理
+  if (useDomPurgeCheck) {
+    useDomPurgeCheck.onchange = function () {
+      settingsManager.set('useDomPurge', useDomPurgeCheck.checked);
       try { restartFeeds(true); } catch (e) { }
     };
   }

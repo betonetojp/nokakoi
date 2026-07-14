@@ -93,6 +93,7 @@ export class SettingsManager {
         // プレビュー最大文字数
         previewMaxLength: (obj && typeof obj.previewMaxLength !== 'undefined') ? obj.previewMaxLength : MAX_PREVIEW_LENGTH,
         // 最大保持件数
+        useDomPurge: (obj && typeof obj.useDomPurge !== 'undefined') ? obj.useDomPurge : false,
         maxEvents: (obj && typeof obj.maxEvents !== 'undefined') ? obj.maxEvents : 500,
         nip46LocalSecretKey: (obj && obj.nip46LocalSecretKey) || null,
         nip46RemotePubkey: (obj && obj.nip46RemotePubkey) || null,
@@ -146,6 +147,7 @@ export class SettingsManager {
         // NIP-46 既定値
         nip46Relays: DEFAULT_NIP46_RELAYS.slice(),
         previewMaxLength: MAX_PREVIEW_LENGTH,
+        useDomPurge: false,
         maxEvents: 500,
         nip46LocalSecretKey: null,
         nip46RemotePubkey: null,
