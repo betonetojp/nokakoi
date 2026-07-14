@@ -21,6 +21,35 @@ const _renderTimers = {};
 let _state = null;
 let _options = null;
 let _domPurgeObserver = null;
+let _isScrolling = false;
+let _scrollTimeout = null;
+const _pendingPurges = new Set();
+
+function initScrollListener() {
+  if (typeof window === 'undefined') return;
+  if (window.__nokakoiScrollListenerInitialized) return;
+  window.__nokakoiScrollListenerInitialized = true;
+
+  window.addEventListener('scroll', () => {
+    _isScrolling = true;
+    if (_scrollTimeout) clearTimeout(_scrollTimeout);
+    _scrollTimeout = setTimeout(() => {
+      _isScrolling = false;
+      if (_pendingPurges.size > 0) {
+        const temp = Array.from(_pendingPurges);
+        _pendingPurges.clear();
+        for (const el of temp) {
+          if (el.parentNode && !el.classList.contains('event-placeholder')) {
+            const eventId = el.dataset.eventId;
+            if (eventId) {
+              try { purgeEventToPlaceholder(el, eventId); } catch (e) { }
+            }
+          }
+        }
+      }
+    }, 150);
+  }, { passive: true });
+}
 
 function buildEventNode(eventObj, feedId) {
   if (!_state || !_options) return null;
@@ -55,7 +84,11 @@ function getDomPurgeObserver() {
         }
       } else {
         if (!el.classList.contains('event-placeholder') && el.classList.contains('event')) {
-          purgeEventToPlaceholder(el, eventId);
+          if (_isScrolling) {
+            _pendingPurges.add(el);
+          } else {
+            purgeEventToPlaceholder(el, eventId);
+          }
         }
       }
     }
@@ -107,6 +140,7 @@ function purgeEventToPlaceholder(el, eventId) {
 
 function restorePurgedEvent(placeholder, eventId) {
   if (!_state || !_options) return;
+  _pendingPurges.delete(placeholder);
   
   let eventObj = null;
   for (const feedId in _state.feeds) {
@@ -171,6 +205,7 @@ export function initFeedRenderer(state, options) {
   _state = state;
   _options = options;
   _infiniteScrollObserver = options.getInfiniteScrollObserver ? options.getInfiniteScrollObserver() : null;
+  initScrollListener();
 }
 
 export function setInfiniteScrollObserver(obs) {
