@@ -1,6 +1,6 @@
 {
   "name": "nokakoi-app",
-  "version": "1.97.5",
+  "version": "1.97.6",
   "description": "Nostr Web Client",
   "scripts": {
     "start": "http-server -p 8000",
