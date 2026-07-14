@@ -29,6 +29,92 @@ const EMBED_ALLOWED_STORAGE_KEYS = new Set([
   'sharedMediaProcessed',
 ]);
 
+// 信頼できる静的ホワイトリスト（自身のオリジン）
+const STATIC_EHAGAKI_WHITELIST = new Set([
+  window.location.origin
+]);
+
+function isTrustedEhagakiOrigin(origin) {
+  if (!origin) return false;
+  if (STATIC_EHAGAKI_WHITELIST.has(origin)) return true;
+
+  // ローカル開発環境のチェック (localhost, 127.0.0.1)
+  try {
+    const url = new URL(origin);
+    if (['localhost', '127.0.0.1'].includes(url.hostname)) {
+      return true;
+    }
+  } catch (e) { }
+
+  // localStorageのユーザー許可済みホワイトリストのチェック
+  try {
+    const rawList = localStorage.getItem('ehagaki_user_whitelist');
+    const userWhitelist = rawList ? JSON.parse(rawList) : [];
+    if (Array.isArray(userWhitelist) && userWhitelist.includes(origin)) {
+      return true;
+    }
+  } catch (e) { }
+
+  return false;
+}
+
+function addToEhagakiUserWhitelist(origin) {
+  if (!origin) return;
+  try {
+    const rawList = localStorage.getItem('ehagaki_user_whitelist');
+    const userWhitelist = rawList ? JSON.parse(rawList) : [];
+    if (Array.isArray(userWhitelist)) {
+      if (!userWhitelist.includes(origin)) {
+        userWhitelist.push(origin);
+        localStorage.setItem('ehagaki_user_whitelist', JSON.stringify(userWhitelist));
+      }
+    }
+  } catch (e) { }
+}
+
+function promptEhagakiSignature(origin, eventDraft) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('ehagakiConfirmModal');
+    const originEl = document.getElementById('ehagakiConfirmOrigin');
+    const contentEl = document.getElementById('ehagakiConfirmContent');
+    const trustCheck = document.getElementById('ehagakiTrustDomainCheck');
+    const yesBtn = document.getElementById('ehagakiConfirmYes');
+    const noBtn = document.getElementById('ehagakiConfirmNo');
+
+    if (!modal || !originEl || !contentEl || !yesBtn || !noBtn) {
+      resolve(false);
+      return;
+    }
+
+    // 表示内容設定
+    originEl.textContent = origin;
+    contentEl.textContent = eventDraft.content || '';
+    if (trustCheck) trustCheck.checked = false;
+
+    const cleanUp = () => {
+      modal.hidden = true;
+      yesBtn.onclick = null;
+      noBtn.onclick = null;
+    };
+
+    yesBtn.onclick = () => {
+      const alwaysTrust = trustCheck ? trustCheck.checked : false;
+      if (alwaysTrust) {
+        addToEhagakiUserWhitelist(origin);
+      }
+      cleanUp();
+      resolve(true);
+    };
+
+    noBtn.onclick = () => {
+      cleanUp();
+      resolve(false);
+    };
+
+    modal.hidden = false;
+  });
+}
+
 // ヘルパー: URL候補をサニタイズして正規化
 // 許可スキームは http/https のみ。正規化済み絶対URL文字列または null を返す。
 function sanitizeUrlCandidate(u) {
@@ -747,6 +833,19 @@ export async function setupPostLinkUI(settingsManager) {
                 const state = getNostrState();
                 const eventDraft = data.payload.params && data.payload.params.event;
                 if (!state || !eventDraft) throw new Error('state or event not available');
+
+                // 送信元オリジンの検証
+                const senderOrigin = e.origin;
+                const isTrusted = isTrustedEhagakiOrigin(senderOrigin);
+
+                if (!isTrusted) {
+                  // 信頼されていない場合、モーダルを出して確認
+                  const approved = await promptEhagakiSignature(senderOrigin, eventDraft);
+                  if (!approved) {
+                    throw new Error('User rejected the signature request.');
+                  }
+                }
+
                 const signed = await signEventWithMode(state, eventDraft);
                 postToEhagakiIframe({
                   namespace: EMBED_NS,

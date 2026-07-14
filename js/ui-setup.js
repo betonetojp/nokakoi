@@ -784,7 +784,7 @@ export function showHomeDisplayQuickModal() {
   if (!modal || !compactCheck || !mediaCheck || !reactionsCheck || !muteCheck) return;
 
   compactCheck.checked = settingsManager.settings.simpleDisplayMode === true;
-  mediaCheck.checked = settingsManager.settings.showTimelineMedia !== false;
+  mediaCheck.checked = settingsManager.settings.showTimelineMedia === true;
   reactionsCheck.checked = settingsManager.settings.showHomeReactions === true;
   muteCheck.checked = (localStorage.getItem('mute_apply') || '1') === '1';
 
@@ -852,7 +852,7 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
 
   // 保存済み設定を読み込む
   showAvatarsCheck.checked = settingsManager.settings.showAvatars !== false;
-  if (showTimelineMediaCheck) showTimelineMediaCheck.checked = settingsManager.settings.showTimelineMedia !== false;
+  if (showTimelineMediaCheck) showTimelineMediaCheck.checked = settingsManager.settings.showTimelineMedia === true;
   // showCustomEmoji は localStorage 直接参照する場合もあるが settingsManager 優先
   if (showCustomEmojiCheck) showCustomEmojiCheck.checked = settingsManager.settings.showCustomEmoji !== false;
 

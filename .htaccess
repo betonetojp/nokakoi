@@ -34,5 +34,6 @@
   Header set X-Content-Type-Options "nosniff"
   Header set X-Frame-Options "DENY"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; connect-src 'self' wss: https: ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: https:; media-src 'self' https:; style-src 'self' 'unsafe-inline';"
 </IfModule>
 

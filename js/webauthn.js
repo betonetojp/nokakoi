@@ -89,8 +89,15 @@ function getDeviceId() {
   return deviceId;
 }
 
+const PRF_SALT = new Uint8Array([
+  0x6e, 0x6f, 0x6b, 0x61, 0x6b, 0x6f, 0x69, 0x00,
+  0x6e, 0x6f, 0x6b, 0x61, 0x6b, 0x6f, 0x69, 0x01,
+  0x6e, 0x6f, 0x6b, 0x61, 0x6b, 0x6f, 0x69, 0x02,
+  0x6e, 0x6f, 0x6b, 0x61, 0x6b, 0x6f, 0x69, 0x03
+]); // 32 bytes
+
 /**
- * パスキー（認証情報）新規登録
+ * パスキー（認証情報）新規登録（PRF拡張を利用）
  */
 export async function registerPasskey(username = 'nostr-user') {
   if (!isWebAuthnSupported()) {
@@ -138,7 +145,14 @@ export async function registerPasskey(username = 'nostr-user') {
       residentKey: 'preferred' // 認証情報をデバイスに保存
     },
     timeout: 60000,
-    attestation: 'none'
+    attestation: 'none',
+    extensions: {
+      prf: {
+        eval: {
+          first: PRF_SALT
+        }
+      }
+    }
   };
 
   try {
@@ -148,6 +162,12 @@ export async function registerPasskey(username = 'nostr-user') {
 
     if (!credential) {
       throw new Error(t('webauthn.create_failed'));
+    }
+
+    // PRF 拡張がサポートされ、有効化されているか検証
+    const extResults = credential.getClientExtensionResults();
+    if (!extResults || !extResults.prf || !extResults.prf.enabled) {
+      throw new Error(t('webauthn.prf_not_supported', 'ご利用のブラウザまたはデバイスは WebAuthn PRF 拡張（パスキー暗号化）をサポートしていません。'));
     }
 
     // credential ID保存
@@ -167,7 +187,7 @@ export async function registerPasskey(username = 'nostr-user') {
 }
 
 /**
- * パスキー認証（成功/失敗のみ返す）
+ * パスキー認証（PRFキーの取得も含む）
  */
 export async function authenticateWithPasskey(credentialId) {
   if (!isWebAuthnSupported()) {
@@ -191,7 +211,14 @@ export async function authenticateWithPasskey(credentialId) {
     allowCredentials: allowCredentials,
     timeout: 60000,
     userVerification: 'required',
-    rpId: window.location.hostname
+    rpId: window.location.hostname,
+    extensions: {
+      prf: {
+        eval: {
+          first: PRF_SALT
+        }
+      }
+    }
   };
 
   try {
@@ -203,10 +230,18 @@ export async function authenticateWithPasskey(credentialId) {
       throw new Error(t('webauthn.auth_failed'));
     }
 
+    // PRF 結果から暗号用キーを抽出
+    const extResults = assertion.getClientExtensionResults();
+    let prfKeyBase64 = null;
+    if (extResults && extResults.prf && extResults.prf.results && extResults.prf.results.first) {
+      prfKeyBase64 = bufferToBase64(extResults.prf.results.first);
+    }
+
     // 認証成功
     return {
       success: true,
-      credentialId: bufferToBase64(assertion.rawId)
+      credentialId: bufferToBase64(assertion.rawId),
+      prfKey: prfKeyBase64
     };
   } catch (e) {
     console.error('[WebAuthn] Passkey 認証に失敗:', e);
@@ -215,16 +250,11 @@ export async function authenticateWithPasskey(credentialId) {
 }
 
 /**
- * デバイス固有データから暗号鍵導出
- * 同一デバイスならセッションを跨いでも安定
+ * デバイス固有データから暗号鍵導出 (旧方式互換用)
  */
 async function deriveDeviceKey() {
-  // 1. ドメイン固有salt
-  // 2. localStorageに保存した安定ランダム値
-
   let deviceSeed = localStorage.getItem('nokakoi_device_seed');
   if (!deviceSeed) {
-    // 新規デバイスシード生成（デバイスごとに一度のみ）
     const seedBytes = new Uint8Array(32);
     crypto.getRandomValues(seedBytes);
     deviceSeed = bufferToBase64(seedBytes);
@@ -243,7 +273,7 @@ async function deriveDeviceKey() {
   );
 
   const salt = new Uint8Array([
-    0x6e, 0x6f, 0x6b, 0x61, 0x6b, 0x6f, 0x69, 0x00, // 'nokakoi\0'
+    0x6e, 0x6f, 0x6b, 0x61, 0x6b, 0x6f, 0x69, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
   ]);
 
@@ -264,37 +294,83 @@ async function deriveDeviceKey() {
 }
 
 /**
- * パスキー保護でnsec暗号化
- * パスキーは認証用、暗号化はデバイス鍵
+ * パスキー保護でnsec暗号化 (PRFベース、安全)
  */
-export async function encryptNsecWithPasskey(nsecHex) {
+export async function encryptNsecWithPasskey(nsecHex, prfKeyBase64) {
+  if (!prfKeyBase64) {
+    throw new Error('PRF key is required for secure passkey encryption');
+  }
+
   const encoder = new TextEncoder();
   const data = encoder.encode(nsecHex);
+  const prfRawKey = base64ToBuffer(prfKeyBase64);
 
-  // デバイス鍵取得
-  const key = await deriveDeviceKey();
+  // PRFの鍵をAES-GCMキーとしてインポート
+  const key = await crypto.subtle.importKey(
+    'raw',
+    prfRawKey,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt']
+  );
 
   const iv = crypto.getRandomValues(new Uint8Array(12));
-
   const encrypted = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: iv },
     key,
     data
   );
 
-  // IV+暗号データ結合
   const combined = new Uint8Array(iv.length + encrypted.byteLength);
   combined.set(iv, 0);
   combined.set(new Uint8Array(encrypted), iv.length);
 
-  return bufferToBase64(combined);
+  // 新方式であることを示す 'prf1:' プレフィックスを付けて保存
+  return 'prf1:' + bufferToBase64(combined);
 }
 
 /**
- * パスキー保護でnsec復号（事前に認証済み必要）
+ * パスキー保護でnsec復号 (新旧ハイブリッド)
  */
-export async function decryptNsecWithPasskey(encryptedBase64) {
+export async function decryptNsecWithPasskey(encryptedBase64, prfKeyBase64 = null) {
   try {
+    const isNewPrf = String(encryptedBase64).startsWith('prf1:');
+
+    if (isNewPrf) {
+      if (!prfKeyBase64) {
+        throw new Error('PRF key is required for decrypting secure passkey data');
+      }
+
+      const rawEncrypted = encryptedBase64.substring(5); // 'prf1:' を除去
+      const combined = base64ToBuffer(rawEncrypted);
+      if (combined.length < 12) {
+        throw new Error('Invalid encrypted data');
+      }
+
+      const iv = combined.slice(0, 12);
+      const encrypted = combined.slice(12);
+
+      const prfRawKey = base64ToBuffer(prfKeyBase64);
+      const key = await crypto.subtle.importKey(
+        'raw',
+        prfRawKey,
+        { name: 'AES-GCM' },
+        false,
+        ['decrypt']
+      );
+
+      const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: iv },
+        key,
+        encrypted
+      );
+
+      const decoder = new TextDecoder();
+      return decoder.decode(decrypted);
+    }
+
+    // 旧方式（`prf1:` なし）フォールバック
+    console.info('[WebAuthn] 旧方式のパスキーデータを検知しました。デバイス鍵による復号を試みます。');
     const combined = base64ToBuffer(encryptedBase64);
 
     if (combined.length < 12) {
@@ -304,7 +380,6 @@ export async function decryptNsecWithPasskey(encryptedBase64) {
     const iv = combined.slice(0, 12);
     const encrypted = combined.slice(12);
 
-    // デバイス鍵取得
     const key = await deriveDeviceKey();
 
     const decrypted = await crypto.subtle.decrypt(

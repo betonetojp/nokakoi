@@ -318,7 +318,7 @@ function resolvePreviewMaxLength(settings) {
  */
 export function renderReplyContext(state, ev, nip19, settings) {
   const isModal = !!settings && settings.isModal === true;
-  const inlineMedia = settings && settings.showTimelineMedia !== false;
+  const inlineMedia = settings && settings.showTimelineMedia === true;
   if (ev.kind !== 1 && ev.kind !== 7 && ev.kind !== 6 && ev.kind !== 16) return '';
 
   const eTags = (ev.tags || []).filter(t => t && t[0] === 'e' && t[1]);
@@ -1384,7 +1384,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
   const content = ev.content || '';
   const pk = ev.pubkey;
   const muteState = evaluateMuteState(state, pk, content);
-  const allowInlineMedia = (!settings || settings.showTimelineMedia !== false) && !muteState.isMuted;
+  const allowInlineMedia = (settings && settings.showTimelineMedia === true) && !muteState.isMuted;
 
   const replyToHtml = renderReplyContext(state, ev, nip19, { ...(settings || {}), settingsManager, isModal: false, showTimelineMedia: allowInlineMedia });
   const channelContextHtml = ev.kind === 42 ? renderChannelContext(state, ev) : '';

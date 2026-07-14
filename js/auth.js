@@ -406,6 +406,9 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
   isPasskeyAuthPending = true;
   try { window.__nokakoiAuthPending = true; } catch (e) { }
 
+  // ページロード直後の WebAuthn 呼び出しによるセキュリティエラー（インタラクション不足等）を防止するためディレイを挟む
+  await new Promise(resolve => setTimeout(resolve, 350));
+
   try {
     const webAuthnSupported = await isWebAuthnSupported();
 
@@ -414,7 +417,7 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
       try {
         const result = await authenticateWithPasskey(settings.passkeyCredentialId);
         if (result && result.success) {
-          const skHex = await decryptNsecWithPasskey(settings.passkeyEncryptedNsec);
+          const skHex = await decryptNsecWithPasskey(settings.passkeyEncryptedNsec, result.prfKey);
           if (skHex && /^[0-9a-f]{64}$/i.test(skHex)) {
             state.sk = skHex.toLowerCase();
             state.signer = 'nsec';
@@ -656,7 +659,7 @@ export function showNsecLoginModal(state, settings, settingsManager, loginFn) {
             if (statusEl) statusEl.textContent = t('auth.pending');
             const authResult = await authenticateWithPasskey(passkeyData.credentialId);
             if (authResult.success) {
-              const encrypted = await encryptNsecWithPasskey(skHex);
+              const encrypted = await encryptNsecWithPasskey(skHex, authResult.prfKey);
               settingsManager.set('passkeyCredentialId', passkeyData.credentialId);
               settingsManager.set('passkeyEncryptedNsec', encrypted);
               settingsManager.set('passkeyDeviceInfo', passkeyData.deviceInfo);
@@ -673,8 +676,16 @@ export function showNsecLoginModal(state, settings, settingsManager, loginFn) {
             if (statusEl) statusEl.textContent = t('auth.passkey_register_failed', { msg: (e && e.message) });
           }
         } else if (radioPassword && radioPassword.checked) {
-          // パスワード保存希望（パスワードなしも可能）
+          // パスワード保存希望（パスワードなしも警告を挟んで可能）
           const password = passwordInput ? passwordInput.value : '';
+          if (!password) {
+            const acceptRisk = confirm(t('auth.warn_empty_password'));
+            if (!acceptRisk) {
+              if (statusEl) statusEl.textContent = '';
+              if (passwordInput) passwordInput.focus();
+              return;
+            }
+          }
           const encrypted = await encryptNsec(skHex, password);
           settingsManager.set('encryptedNsec', encrypted);
           settingsManager.set('preferredSigner', 'nsec');
