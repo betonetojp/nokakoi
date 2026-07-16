@@ -281,6 +281,28 @@ export async function setupPostLinkUI(settingsManager) {
     if (titleInput) titleInput.addEventListener('input', persist);
     if (urlInput) urlInput.addEventListener('input', persist);
 
+    const clearWhitelistBtn = document.getElementById('clearEhagakiWhitelistBtn');
+    const clearWhitelistStatus = document.getElementById('clearEhagakiWhitelistStatus');
+    if (clearWhitelistBtn) {
+      clearWhitelistBtn.addEventListener('click', () => {
+        try {
+          localStorage.removeItem('ehagaki_user_whitelist');
+          if (clearWhitelistStatus) {
+            clearWhitelistStatus.textContent = t('ehagaki.whitelist_cleared');
+            setTimeout(() => {
+              try {
+                if (clearWhitelistStatus && clearWhitelistStatus.textContent === t('ehagaki.whitelist_cleared')) {
+                  clearWhitelistStatus.textContent = '';
+                }
+              } catch (e) { }
+            }, 2000);
+          }
+        } catch (e) {
+          console.warn('[PostLink] eHagaki whitelistクリアに失敗', e);
+        }
+      });
+    }
+
     const EMBED_NS = 'ehagaki.embed';
 
     function postToEhagakiIframe(message) {

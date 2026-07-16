@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0">
   <meta name="description" content="軽量なNostrクライアント">
   <title>nokakoi</title>
-  <link rel="stylesheet" href="./style.css?v=1.97.9">
+  <link rel="stylesheet" href="./style.css?v=1.98.0">
   <style>
     /* Android のネイティブのプル・トゥ・リフレッシュを有効にし、iOS のスムーズスクロールも維持 */
     html, body, #feeds {
@@ -331,6 +331,19 @@
             <input type="checkbox" id="postLinkOpenNewTabCheck">
             <span data-i18n="postlink.open_in_new_tab">新しいタブで開く</span>
           </label>
+        </div>
+        <div class="mt-8 settings-indent">
+          <button id="clearEhagakiWhitelistBtn" class="secondary" type="button" data-i18n="ehagaki.clear_whitelist">投稿連携の署名要求許可をすべて取り消す</button>
+          <span id="clearEhagakiWhitelistStatus" class="muted settings-status-inline"></span>
+        </div>
+        <div class="mt-12">
+          <label for="eventLinkTitleInput" class="text-sm mr-8" data-i18n="eventLinkTitleLabel">イベント表示連携アプリ名</label>
+          <input type="text" id="eventLinkTitleInput" maxlength="32">
+        </div>
+        <div class="mt-12">
+          <label for="eventLinkUrlInput" class="text-sm mr-8" data-i18n="eventLinkUrlLabel">イベント表示連携URL</label>
+          <input type="text" id="eventLinkUrlInput" maxlength="128">
+          <span id="eventLinkSaveStatus" class="muted"></span>
         </div>
         <div class="mt-16">
           <button id="fetchMuteListBtn" type="button" data-i18n="fetchMuteList">ミュートリストを取得</button>
@@ -1054,7 +1067,7 @@
     }
   </script>
 
-  <script src="./js/main.js?v=1.97.9" type="module" defer crossorigin="anonymous" data-cfasync="false"></script>
+  <script src="./js/main.js?v=1.98.0" type="module" defer crossorigin="anonymous" data-cfasync="false"></script>
 
 </body>
 </html>

@@ -1063,9 +1063,13 @@ function bindJsonButtonHandlers(div, ev, nip19) {
         longPressTriggered = true;
         try { e.preventDefault(); } catch { }
 
+        const sm = window.settingsManager;
+        const appTitle = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkTitle') || 'lumilumi') : 'lumilumi';
+        const appUrl = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkUrl') || 'https://lumilumi.app/') : 'https://lumilumi.app/';
+
         showConfirmModal(
           '',
-          t('lumilumi.confirm'),
+          t('eventlink.confirm', { title: appTitle }),
           () => {
             try {
               let nevent = null;
@@ -1079,7 +1083,8 @@ function bindJsonButtonHandlers(div, ev, nip19) {
                 } catch (ex) { }
               }
               if (!nevent) nevent = 'nevent1' + ev.id;
-              window.open('https://lumilumi.app/' + nevent, '_blank', 'noopener,noreferrer');
+              const separator = appUrl.endsWith('/') ? '' : '/';
+              window.open(appUrl + separator + nevent, '_blank', 'noopener,noreferrer');
             } catch (ex) { }
           }
         );
@@ -1115,9 +1120,13 @@ function bindJsonButtonHandlers(div, ev, nip19) {
 
     jsonBtn.oncontextmenu = function (e) {
       e.preventDefault();
+      const sm = window.settingsManager;
+      const appTitle = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkTitle') || 'lumilumi') : 'lumilumi';
+      const appUrl = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkUrl') || 'https://lumilumi.app/') : 'https://lumilumi.app/';
+
       showConfirmModal(
         '',
-        t('lumilumi.confirm'),
+        t('eventlink.confirm', { title: appTitle }),
         () => {
           try {
             let nevent = null;
@@ -1131,7 +1140,8 @@ function bindJsonButtonHandlers(div, ev, nip19) {
               } catch (ex) { }
             }
             if (!nevent) nevent = 'nevent1' + ev.id;
-            window.open('https://lumilumi.app/' + nevent, '_blank', 'noopener,noreferrer');
+            const separator = appUrl.endsWith('/') ? '' : '/';
+            window.open(appUrl + separator + nevent, '_blank', 'noopener,noreferrer');
           } catch (ex) { }
         }
       );

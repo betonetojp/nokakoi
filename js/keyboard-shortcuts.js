@@ -394,7 +394,7 @@ export function setupKeyboardShortcuts(state, options) {
       return;
     }
 
-    // Xキー: 選択中の投稿をlumilumiで開く
+    // Xキー: 選択中の投稿をカスタムアプリで開く
     if (e.key === 'x' || e.key === 'X') {
       if (!_selectedEventEl) return;
       e.preventDefault();
@@ -413,7 +413,10 @@ export function setupKeyboardShortcuts(state, options) {
           } catch (ex) { }
         }
         if (!nevent) nevent = 'nevent1' + eventId;
-        window.open('https://lumilumi.app/' + nevent, '_blank', 'noopener,noreferrer');
+        const sm = window.settingsManager;
+        const appUrl = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkUrl') || 'https://lumilumi.app/') : 'https://lumilumi.app/';
+        const separator = appUrl.endsWith('/') ? '' : '/';
+        window.open(appUrl + separator + nevent, '_blank', 'noopener,noreferrer');
       } catch (ex) { }
       return;
     }

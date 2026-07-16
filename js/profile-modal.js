@@ -171,15 +171,20 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
       const npub = nip19.npubEncode(pubkey);
       npubEl.textContent = npub;
 
-      // lumilumi へのリンクを追加
+      // カスタム表示アプリへのリンクを追加
       try {
         const span = document.createElement('span'); // ラッパー（直接追加でも可）
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'btn-kind ml-8';
-        btn.textContent = t('profile.open_lumilumi');
+        const sm = window.settingsManager;
+        const appTitle = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkTitle') || 'lumilumi') : 'lumilumi';
+        const appUrl = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkUrl') || 'https://lumilumi.app/') : 'https://lumilumi.app/';
+
+        btn.textContent = t('profile.open_eventlink', { title: appTitle });
         btn.onclick = function() {
-           window.open('https://lumilumi.app/' + npub, '_blank', 'noopener,noreferrer');
+           const separator = appUrl.endsWith('/') ? '' : '/';
+           window.open(appUrl + separator + npub, '_blank', 'noopener,noreferrer');
         };
         npubEl.appendChild(btn);
       } catch (e) { }

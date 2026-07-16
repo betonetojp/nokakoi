@@ -1,4 +1,4 @@
-import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH, setEventsMax } from './constants.js';
+import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, EVENTLINK_DEFAULT_TITLE, EVENTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH, setEventsMax } from './constants.js';
 import { DEFAULT_NIP46_RELAYS } from './nip46.js';
 
 /**
@@ -43,11 +43,14 @@ export class SettingsManager {
         // 既定は 'system'（OS の配色に自動追従）
         theme: (obj && obj.theme) || 'system',
         colorTheme: (obj && obj.colorTheme) || 'gray',
-        // post link 設定: 保存済み値を優先し、未保存なら妥当な既定値を使用
+                // post link 設定: 保存済み値を優先し、未保存なら妥当な既定値を使用
         postLinkUrl: (obj && typeof obj.postLinkUrl !== 'undefined') ? obj.postLinkUrl : POSTLINK_DEFAULT_URL,
         postLinkTitle: (obj && typeof obj.postLinkTitle !== 'undefined') ? obj.postLinkTitle : POSTLINK_DEFAULT_TITLE,
         // post-link を新規タブで開くか（boolean、既定 false）
         postLinkOpenInNewTab: (obj && typeof obj.postLinkOpenInNewTab !== 'undefined') ? obj.postLinkOpenInNewTab : false,
+        // event link 設定
+        eventLinkUrl: (obj && typeof obj.eventLinkUrl !== 'undefined') ? obj.eventLinkUrl : EVENTLINK_DEFAULT_URL,
+        eventLinkTitle: (obj && typeof obj.eventLinkTitle !== 'undefined') ? obj.eventLinkTitle : EVENTLINK_DEFAULT_TITLE,
         // followee の kind:20000（omochat）を home feed に表示するか
         showHomeOmochat: (obj && typeof obj.showHomeOmochat !== 'undefined') ? obj.showHomeOmochat : true,
         // followee の kind:7 reactions を home feed に表示するか
@@ -120,6 +123,8 @@ export class SettingsManager {
         postLinkUrl: POSTLINK_DEFAULT_URL,
         postLinkTitle: POSTLINK_DEFAULT_TITLE,
         postLinkOpenInNewTab: false,
+        eventLinkUrl: EVENTLINK_DEFAULT_URL,
+        eventLinkTitle: EVENTLINK_DEFAULT_TITLE,
         showHomeOmochat: true,
         showHomeReactions: false,
         showHomeChannel: false,

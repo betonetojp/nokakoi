@@ -1,7 +1,7 @@
 // UI 設定ヘルパー（main.js から分離）
 import { t, applyTranslations } from './i18n.js';
-import { showToast } from './utils.js';
-import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH, EVENTS_MAX } from './constants.js';
+import { showToast, debounce } from './utils.js';
+import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, EVENTLINK_DEFAULT_TITLE, EVENTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH, EVENTS_MAX } from './constants.js';
 import { showOmochatSettingsModal } from './modals.js';
 import { clearReplyTarget } from './composer.js';
 import { hideComposerForOverlay, restoreComposerFromOverlay } from './composer-scroll.js';
@@ -1101,6 +1101,44 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
     };
   }
 
+  // イベント表示連携の設定
+  const eventLinkTitleInput = $('eventLinkTitleInput');
+  const eventLinkUrlInput = $('eventLinkUrlInput');
+  const eventLinkSaveStatus = $('eventLinkSaveStatus');
+
+  if (eventLinkTitleInput && eventLinkUrlInput) {
+    const rawTitle = (typeof settingsManager.getRaw === 'function') ? settingsManager.getRaw('eventLinkTitle') : null;
+    const rawUrl = (typeof settingsManager.getRaw === 'function') ? settingsManager.getRaw('eventLinkUrl') : null;
+
+    const effectiveTitle = (rawTitle === null || typeof rawTitle === 'undefined') ? (settingsManager.get('eventLinkTitle') || EVENTLINK_DEFAULT_TITLE) : rawTitle;
+    const effectiveUrl = (rawUrl === null || typeof rawUrl === 'undefined') ? (settingsManager.get('eventLinkUrl') || EVENTLINK_DEFAULT_URL) : rawUrl;
+
+    eventLinkTitleInput.value = effectiveTitle;
+    eventLinkUrlInput.value = effectiveUrl;
+
+    const persistEventLink = debounce(() => {
+      try {
+        const tval = eventLinkTitleInput.value || '';
+        const uval = eventLinkUrlInput.value || '';
+
+        settingsManager.set('eventLinkTitle', tval);
+        settingsManager.set('eventLinkUrl', uval);
+
+        if (eventLinkSaveStatus) {
+          eventLinkSaveStatus.textContent = t('eventlink.saved');
+          setTimeout(() => {
+            try { if (eventLinkSaveStatus && eventLinkSaveStatus.textContent === t('eventlink.saved')) eventLinkSaveStatus.textContent = ''; } catch (e) { }
+          }, 1200);
+        }
+      } catch (e) {
+        console.warn('[UI] event link 設定の保存に失敗', e);
+      }
+    }, 400);
+
+    eventLinkTitleInput.addEventListener('input', persistEventLink);
+    eventLinkUrlInput.addEventListener('input', persistEventLink);
+  }
+
   const clearCacheBtn = $('clearCacheBtn');
   const clearCacheStatus = $('clearCacheStatus');
   if (clearCacheBtn) {
@@ -1113,6 +1151,8 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
         }
         settingsManager.set('postLinkTitle', POSTLINK_DEFAULT_TITLE);
         settingsManager.set('postLinkUrl', POSTLINK_DEFAULT_URL);
+        settingsManager.set('eventLinkTitle', EVENTLINK_DEFAULT_TITLE);
+        settingsManager.set('eventLinkUrl', EVENTLINK_DEFAULT_URL);
         // キャッシュクリア時に client name 関連設定を既定値へ戻す
         try {
           settingsManager.set('showClientName', true);

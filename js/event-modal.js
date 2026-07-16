@@ -280,9 +280,13 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
         if (mod.showConfirmModal) {
           import('./i18n.js').then(i18nMod => {
             const t = i18nMod.t || ((k) => k);
+            const sm = window.settingsManager;
+            const appTitle = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkTitle') || 'lumilumi') : 'lumilumi';
+            const appUrl = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkUrl') || 'https://lumilumi.app/') : 'https://lumilumi.app/';
+
             mod.showConfirmModal(
               '',
-              t('lumilumi.confirm'),
+              t('eventlink.confirm', { title: appTitle }),
               () => {
                 try {
                   let nevent = null;
@@ -296,7 +300,8 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
                     } catch (ex) { }
                   }
                   if (!nevent) nevent = 'nevent1' + event.id;
-                  window.open('https://lumilumi.app/' + nevent, '_blank', 'noopener,noreferrer');
+                  const separator = appUrl.endsWith('/') ? '' : '/';
+                  window.open(appUrl + separator + nevent, '_blank', 'noopener,noreferrer');
                 } catch (ex) { }
               }
             );
@@ -340,9 +345,13 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       if (mod.showConfirmModal) {
         import('./i18n.js').then(i18nMod => {
           const t = i18nMod.t || ((k) => k);
+          const sm = window.settingsManager;
+          const appTitle = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkTitle') || 'lumilumi') : 'lumilumi';
+          const appUrl = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkUrl') || 'https://lumilumi.app/') : 'https://lumilumi.app/';
+
           mod.showConfirmModal(
             '',
-            t('lumilumi.confirm'),
+            t('eventlink.confirm', { title: appTitle }),
             () => {
               try {
                 let nevent = null;
@@ -356,7 +365,8 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
                   } catch (ex) { }
                 }
                 if (!nevent) nevent = 'nevent1' + event.id;
-                window.open('https://lumilumi.app/' + nevent, '_blank', 'noopener,noreferrer');
+                const separator = appUrl.endsWith('/') ? '' : '/';
+                window.open(appUrl + separator + nevent, '_blank', 'noopener,noreferrer');
               } catch (ex) { }
             }
           );
