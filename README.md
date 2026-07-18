@@ -65,6 +65,7 @@ nokakoi/
 │   ├── manifest.json       # PWAマニフェスト
 │   ├── clients.json        # クライアント一覧データ
 │   ├── gyouza/             # セクシー餃子ツール
+│   ├── i18n/               # 多言語翻訳データ
 │   └── icon/               # アイコン
 └── js/                     # JavaScriptモジュール
     ├── main.js             # エントリーポイント
