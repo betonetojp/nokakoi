@@ -32,34 +32,40 @@ Nostr Webクライアントの実装。
 npm install
 ```
 
-### ローカル起動
+### 開発サーバーの起動
 
 ```bash
-# 通常キャッシュあり
-npm start
-
-# 開発向け（キャッシュ無効）
+# 開発サーバー起動（HMR対応）
 npm run dev
+
+# 本番用ビルド（dist/ に成果物が出力されます）
+npm run build
+
+# ビルド成果物のローカルプレビュー
+npm run preview
 ```
 
 ローカル確認URL: `http://localhost:8000/`
 
-> [!WARNING]
-> 本アプリはES Modulesを使用するため、`file://` での直接起動はできません。必ず上記のようにローカルHTTPサーバー経由で検証してください。
+> [!NOTE]
+> 開発時は Service Worker がキャッシュの競合を引き起こすのを防ぐため、`localhost` 環境では自動的に登録解除（無効化）されるようになっています。
 
 ## ディレクトリ構成
 
 ```text
 nokakoi/
-├── index.html              # メインUI
+├── index.html              # メインUI (Viteエントリーポイント)
 ├── style.css               # スタイル
-├── sw.js                   # Service Worker
-├── manifest.json           # PWAマニフェスト
-├── clients.json            # クライアント一覧データ
-├── test-hidden-emoji.html  # 開発用検証ページ
-├── gyouza/
-│   └── index.html          # セクシー餃子ツール
-├── icon/                   # アイコン
+├── package.json            # プロジェクト設定・依存関係
+├── vite.config.mjs         # Vite設定ファイル
+├── eslint.config.mjs       # ESLint設定ファイル
+├── dist/                   # ビルド成果物 (GitHub Pages や本番へのデプロイ対象)
+├── public/                 # 静的アセット (ビルド時に dist 直下にコピーされる)
+│   ├── sw.js               # Service Worker
+│   ├── manifest.json       # PWAマニフェスト
+│   ├── clients.json        # クライアント一覧データ
+│   ├── gyouza/             # セクシー餃子ツール
+│   └── icon/               # アイコン
 └── js/                     # JavaScriptモジュール
     ├── main.js             # エントリーポイント
     ├── auth.js             # 認証
@@ -76,11 +82,12 @@ nokakoi/
 
 - `.editorconfig` に準拠
 - 文字コードは UTF-8（BOMなし）
+- ESLint フラット設定によるチェック (`npm run lint` / `npm run lint:fix`)
 
 ## 依存ライブラリ
 
-- [nostr-tools](https://github.com/nbd-wtf/nostr-tools)（CDN）
-- [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator)（CDN）
+- [nostr-tools](https://github.com/nbd-wtf/nostr-tools) (npm版 v2.9.4 をバンドル)
+- [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) (npm版 を名前付きインポートでバンドル)
 
 ## ライセンス
 

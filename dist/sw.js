@@ -5,7 +5,7 @@
 
 // バージョンは app/js/version.js で一元管理
 // サービスワーカー用にここにもコピー（リリース時は手動で更新・version.jsと一致させること）
-const CACHE_VERSION = 'v1.98.0';
+const CACHE_VERSION = 'v1.98.0-vite1';
 const CACHE_NAME = `nokakoi-${CACHE_VERSION}`;
 
 // ローカル開発時のみ詳細ログを有効化
@@ -26,7 +26,6 @@ function swError(...args) {
 const STATIC_ASSETS = [
   './',
   'index.html',
-  'style.css',
   'manifest.json',
   'icon/nokakoi-192.png',
   'icon/nokakoi-512.png',
@@ -39,48 +38,6 @@ const STATIC_ASSETS = [
   'icon/star.png',
   'icon/badge.png',
   'icon/up.png',
-  // JS Modules
-  'js/main.js',
-  'js/actions.js',
-  'js/auth.js',
-  'js/channel.js',
-  'js/composer-scroll.js',
-  'js/composer.js',
-  'js/constants.js',
-  'js/crypto.js',
-  'js/custom-emoji-store.js',
-  'js/debug.js',
-  'js/ehagaki-autoclose.js',
-  'js/emoji-shortcode-suggest.js',
-  'js/event-modal.js',
-  'js/feed-fetcher.js',
-  'js/feed-renderer.js',
-  'js/global-relay.js',
-  'js/i18n.js',
-  'js/notification.js',
-  'js/json-modal.js',
-  'js/keyboard-shortcuts.js',
-  'js/markdown.js',
-  'js/media-viewer.js',
-  'js/modals.js',
-  'js/mute.js',
-  'js/nip46.js',
-  'js/nostr-compat.js',
-  'js/postlink.js',
-  'js/profile-modal.js',
-  'js/profile.js',
-  'js/relay-settings.js',
-  'js/relay.js',
-  'js/renderer.js',
-  'js/scroll-to-top.js',
-  'js/settings.js',
-  'js/state.js',
-  'js/tab-swipe.js',
-  'js/ui-setup.js',
-  'js/url-parser.js',
-  'js/utils.js',
-  'js/version.js',
-  'js/webauthn.js',
   // i18n JSONs
   'i18n/ja.json',
   'i18n/en.json'

@@ -39,37 +39,22 @@ function replaceAll(content, pattern, replacement, label) {
   return content.replace(pattern, replacement);
 }
 
-function updateIndexHtml(version) {
-  const indexPath = path.join(ROOT, 'index.html');
-  let indexHtml = fs.readFileSync(indexPath, 'utf8');
-
-  indexHtml = replaceAll(
-    indexHtml,
-    /style\.css\?v=[0-9.]+/g,
-    `style.css?v=${version}`,
-    'style.css?v= in index.html'
-  );
-  indexHtml = replaceAll(
-    indexHtml,
-    /main\.js\?v=[0-9.]+/g,
-    `main.js?v=${version}`,
-    'main.js?v= in index.html'
-  );
-
-  fs.writeFileSync(indexPath, indexHtml);
+function updateIndexHtml(_version) {
+  // Vite導入に伴い、index.html の css/js に対するクエリ更新は不要になりました。
+  // (Vite がビルド時に自動でハッシュ化するため)
 }
 
 function updateSwJs(version) {
-  const swPath = path.join(ROOT, 'sw.js');
+  const swPath = path.join(ROOT, 'public/sw.js');
   let swContent = fs.readFileSync(swPath, 'utf8');
 
   const cachePatterns = [
     {
-      pattern: /const CACHE_VERSION = 'v[0-9.]+'/g,
+      pattern: /const CACHE_VERSION = 'v[^']+'/g,
       replacement: `const CACHE_VERSION = 'v${version}'`,
     },
     {
-      pattern: /const CACHE_VERSION = "v[0-9.]+"/g,
+      pattern: /const CACHE_VERSION = "v[^"]+"/g,
       replacement: `const CACHE_VERSION = "v${version}"`,
     },
   ];
@@ -141,17 +126,10 @@ function updatePackageLockJson(version) {
 }
 
 function verifySync(version) {
-  const indexHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  const swContent = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+  const swContent = fs.readFileSync(path.join(ROOT, 'public/sw.js'), 'utf8');
   const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 
   const issues = [];
-  if (!indexHtml.includes(`style.css?v=${version}`)) {
-    issues.push(`index.html missing style.css?v=${version}`);
-  }
-  if (!indexHtml.includes(`main.js?v=${version}`)) {
-    issues.push(`index.html missing main.js?v=${version}`);
-  }
   if (!swContent.includes(`'v${version}'`) && !swContent.includes(`"v${version}"`)) {
     issues.push(`sw.js CACHE_VERSION not set to v${version}`);
   }
@@ -216,8 +194,7 @@ function main() {
     console.log('\nVersion update complete!');
     console.log(`\nFiles using version ${version}:`);
     console.log('  - js/version.js (source of truth)');
-    console.log('  - index.html (style.css and main.js)');
-    console.log('  - sw.js (CACHE_VERSION)');
+    console.log('  - public/sw.js (CACHE_VERSION)');
     console.log('  - package.json');
     console.log('  - package-lock.json');
   } catch (err) {

@@ -2,75 +2,69 @@
 // Nostrツール互換レイヤー
 // ============================================================================
 
+import { nip19, SimplePool, getPublicKey as getPublicKeyFn, finalizeEvent, kinds, utils, nip04, nip44 } from 'nostr-tools';
+
 /**
- * windowからNostrToolsを取得
+ * windowまたはインポートしたNostrToolsを取得
  */
 export function getNostrTools() {
-  return window.NostrTools || {};
+  return { nip19, SimplePool, getPublicKey: getPublicKeyFn, finalizeEvent, kinds, utils, nip04, nip44 };
 }
 
 /**
  * nip19ユーティリティ取得
  */
 export function getNip19() {
-  const NT = getNostrTools();
-  return NT.nip19;
+  return nip19;
 }
 
 /**
  * SimplePool取得
  */
 export function getSimplePool() {
-  const NT = getNostrTools();
-  return NT.SimplePool;
+  return SimplePool;
 }
 
 /**
  * getPublicKey関数取得
  */
 export function getPublicKey() {
-  const NT = getNostrTools();
-  return NT.getPublicKey;
+  return getPublicKeyFn;
 }
 
 /**
  * finalizeEvent関数取得
  */
 export function getFinalizeEvent() {
-  const NT = getNostrTools();
-  return NT.finalizeEvent;
+  return finalizeEvent;
 }
 
 /**
  * kinds定数取得
  */
 export function getKinds() {
-  const NT = getNostrTools();
-  return NT.kinds;
+  return kinds;
 }
 
 /**
  * utils取得
  */
 export function getUtils() {
-  const NT = getNostrTools();
-  return NT.utils;
+  return utils;
 }
 
 /**
  * nip04取得
  */
 export function getNip04() {
-  const NT = getNostrTools();
-  return NT.nip04;
+  return nip04;
 }
 
 /**
  * nip44取得
  */
 export function getNip44() {
-  const NT = getNostrTools();
-  return NT.nip44;
+  return nip44;
 }
 
 /**

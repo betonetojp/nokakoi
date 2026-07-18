@@ -591,7 +591,7 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
   // デバッグ用ログは後で出す
 
   // 異なるフィルタで誤再利用しないよう、正規化フィルタ込みの論理IDを作る
-  let filterKey = '';
+  let filterKey;
   try {
     filterKey = JSON.stringify(canonicalize(filters || []));
   } catch (e) {

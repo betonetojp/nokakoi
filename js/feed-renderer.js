@@ -336,13 +336,13 @@ function flushHeightReleases() {
   for (const item of items) {
     const node = item && item.node;
     if (!node || !node.isConnected) continue;
-    let rectBefore = null;
+    let rectBefore;
     try { rectBefore = node.getBoundingClientRect(); } catch (e) { continue; }
     try {
       node.style.height = '';
       node.style.overflow = '';
     } catch (e) { }
-    let rectAfter = null;
+    let rectAfter;
     try { rectAfter = node.getBoundingClientRect(); } catch (e) { continue; }
     const diff = rectAfter.height - rectBefore.height;
     if (item.wasAboveViewport && diff) scrollAccum += diff;

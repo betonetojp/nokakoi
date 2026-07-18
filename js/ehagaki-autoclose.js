@@ -92,7 +92,7 @@ function resolveSimplePoolProvider() {
 export async function waitForEhagakiPublish(arg1, arg2, arg3) {
   let state = null;
   let closeModal = null;
-  let opts = {};
+  let opts;
 
   if (typeof arg1 === 'function' || arg1 === null) {
     // シグネチャ: (closeModal, opts)

@@ -5,6 +5,7 @@
 import { getSimplePool, getNip19, getPublicKey as getPublicKeyFn, getFinalizeEvent, getNip04, getNip44 } from './nostr-compat.js';
 import { bytesToHex, hexToBytes, randomBytes } from './crypto.js';
 import { t } from './i18n.js';
+import { qrcode } from 'qrcode-generator';
 
 /**
  * デフォルトNIP-46リレー
@@ -258,7 +259,7 @@ export class Nip46Client {
       if (e.message && (e.message.includes('nip46.') || e.message.includes('無効'))) {
         throw e;
       }
-      throw new Error(t('nip46.parse_uri_failed', { msg: e.message }));
+      throw new Error(t('nip46.parse_uri_failed', { msg: e.message }), { cause: e });
     }
   }
 
@@ -711,7 +712,7 @@ export class Nip46Client {
       await Promise.any(pool.publish(this.relays, event));
     } catch (e) {
       this.pendingRequests.delete(requestId);
-      throw new Error(t('nip46.publish_failed', { msg: e.message }));
+      throw new Error(t('nip46.publish_failed', { msg: e.message }), { cause: e });
     }
 
     return responsePromise;
@@ -1023,7 +1024,7 @@ export class Nip46Client {
     try {
       await Promise.any(pool.publish(this.relays, event));
     } catch (e) {
-      throw new Error(t('nip46.publish_failed', { msg: e.message }));
+      throw new Error(t('nip46.publish_failed', { msg: e.message }), { cause: e });
     }
 
     const result = await connectionPromise;

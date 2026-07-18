@@ -97,7 +97,7 @@ export async function signEventWithMode(state, draft) {
       await client.ensureConnected();
     } catch (e) {
       console.warn('[signEventWithMode] NIP-46 ensureConnected 失敗:', e);
-      throw new Error((e && e.message) || '署名者が利用できません');
+      throw new Error((e && e.message) || '署名者が利用できません', { cause: e });
     }
     if (client.connected && client.remotePubkey) {
       return await client.signEvent(draft);

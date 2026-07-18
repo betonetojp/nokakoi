@@ -389,7 +389,7 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
   }
 
   // lastLoginMethodがあればそれを優先（早めに反映して判定で使う）
-  let lastLoginMethod = null;
+  let lastLoginMethod;
   try {
     lastLoginMethod = localStorage.getItem('lastLoginMethod');
     if (lastLoginMethod) {

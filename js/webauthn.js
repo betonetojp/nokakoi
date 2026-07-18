@@ -32,7 +32,7 @@ export async function isUserVerifyingPlatformAvailable() {
  */
 function getDeviceInfo() {
   const ua = navigator.userAgent;
-  let deviceType = 'Unknown';
+  let deviceType;
   let browserName = 'Unknown';
 
   // デバイスタイプ判定
@@ -182,7 +182,7 @@ export async function registerPasskey(username = 'nostr-user') {
     };
   } catch (e) {
     console.error('[WebAuthn] Passkey 登録に失敗:', e);
-    throw new Error(t('webauthn.register_failed', { msg: (e && e.message) }));
+    throw new Error(t('webauthn.register_failed', { msg: (e && e.message) }), { cause: e });
   }
 }
 
@@ -245,7 +245,7 @@ export async function authenticateWithPasskey(credentialId) {
     };
   } catch (e) {
     console.error('[WebAuthn] Passkey 認証に失敗:', e);
-    throw new Error(t('webauthn.auth_failed', { msg: (e && e.message) }));
+    throw new Error(t('webauthn.auth_failed', { msg: (e && e.message) }), { cause: e });
   }
 }
 

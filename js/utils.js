@@ -73,8 +73,7 @@ export function resolveReactionCustomEmoji(reaction) {
   } catch (e) { logWarn('[Utils] resolveCustomEmoji 失敗:', e); }
 
   if (shortcode === 'nokakoi') {
-    let iconUrl = 'icon/nokakoi.png';
-    try { iconUrl = new URL('../icon/nokakoi.png', import.meta.url).href; } catch (e) { logWarn('[Utils] icon URL 解決失敗:', e); }
+    let iconUrl = '/icon/nokakoi.png';
     return { shortcode, url: iconUrl, address: '' };
   }
 
@@ -212,7 +211,7 @@ export function truncateByGraphemeVisible(str, maxVisibleChars) {
 
     const c = str.charCodeAt(pos);
     let step = 1;
-    let width = 1;
+    let width;
     if (c >= 0xD800 && c <= 0xDBFF && pos + 1 < str.length) {
       step = 2;
       width = 2;

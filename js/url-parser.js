@@ -491,7 +491,7 @@ function linkifyText(text, emojiTags = [], options = {}) {
     }
 
     // 末尾テキストがない場合に残りの絵文字シーケンスを確定
-    if (emojiSeq.length > 0) { lineParts.push('<span class="emoji-inline-group">' + emojiSeq.join('') + '</span>'); emojiSeq = []; }
+    if (emojiSeq.length > 0) { lineParts.push('<span class="emoji-inline-group">' + emojiSeq.join('') + '</span>'); }
 
     const inner = lineParts.join('');
 
@@ -1167,7 +1167,7 @@ function attachQuoteRetryHandler(quoteEl, container, showEventModal, state, nip1
     if (!quoteEl.isConnected) return;
     quoteEl.dataset.retryLoading = '1';
     quoteEl.textContent = t('quote.loading', '取得中...');
-    let resolved = false;
+    let resolved;
     try {
       resolved = await resolveAndRenderQuote(
         quoteEl, container, showEventModal, state, nip19,
@@ -1207,7 +1207,7 @@ async function renderEventQuote(state, event, nip19, settings = {}) {
     author = truncateName(displayName(state, event.pubkey, nip19));
   }
   const content = event.content || '';
-  let quoteContentHtml = '';
+  let quoteContentHtml;
   // ユーザー設定値を優先
   let previewMaxLength = MAX_PREVIEW_LENGTH;
   try {

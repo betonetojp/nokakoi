@@ -89,7 +89,7 @@ let __clientsMapPromise = null;
 async function loadClientsMap() {
   if (__clientsMap) return __clientsMap;
   if (__clientsMapPromise) return __clientsMapPromise;
-  __clientsMapPromise = fetch(new URL('../clients.json', import.meta.url).toString())
+  __clientsMapPromise = fetch('/clients.json')
     .then(r => r.ok ? r.json() : [])
     .then(list => {
       const m = new Map();
@@ -362,7 +362,7 @@ export function renderReplyContext(state, ev, nip19, settings) {
   })(replyToAuthor, replyToPubkey);
 
   // MAX_PREVIEW_LENGTH適用
-  let replyContentHtml = '';
+  let replyContentHtml;
   if (isModal) {
     // モーダルは従来通り全文HTML化
     replyContentHtml = linkifyText(replyToContent, replyToEvent && replyToEvent.tags ? replyToEvent.tags : [], { inlineMedia });
