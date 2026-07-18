@@ -311,7 +311,10 @@ async function updateBuildInfo() {
         return '';
       }
     };
-    const appScript = scripts.find(sc => getPathname(sc.src).endsWith('/main.js'));
+    const appScript = scripts.find(sc => {
+      const path = getPathname(sc.src);
+      return path.endsWith('/main.js') || /\/main-[a-zA-Z0-9_-]+\.js/.test(path);
+    });
     const toolsScript = scripts.find(sc => /nostr\.bundle\.min\.js/.test(sc.src));
 
     let appVer = '';
@@ -339,7 +342,7 @@ async function updateBuildInfo() {
 
     let updatedStr = '';
     try {
-      const url = appScript ? appScript.src : (new URL('./js/main.js', location.href)).toString();
+      const url = appScript ? appScript.src : location.href;
       const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
       const lm = res.headers.get('Last-Modified');
       if (lm) updatedStr = 'updated ' + new Date(lm).toLocaleString();
