@@ -89,7 +89,7 @@ let __clientsMapPromise = null;
 async function loadClientsMap() {
   if (__clientsMap) return __clientsMap;
   if (__clientsMapPromise) return __clientsMapPromise;
-  __clientsMapPromise = fetch('/clients.json')
+  __clientsMapPromise = fetch('clients.json')
     .then(r => r.ok ? r.json() : [])
     .then(list => {
       const m = new Map();

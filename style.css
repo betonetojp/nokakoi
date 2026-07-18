@@ -1439,8 +1439,8 @@ body.theme-light .topbar a.secondary:hover {
 .petname-badge {
   display: inline-block;
   background-color: currentColor;
-  -webkit-mask-image: url('/icon/badge.png');
-  mask-image: url('/icon/badge.png');
+  -webkit-mask-image: url('icon/badge.png');
+  mask-image: url('icon/badge.png');
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;

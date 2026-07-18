@@ -804,7 +804,7 @@ function addToFeed(feedId, ev, keepLatestCount = null, relay = null) {
                         }
                         const title = authorLabel ? ('新着: ' + authorLabel) : '新着通知';
                         const body = sanitizeNotificationBody(ev && ev.content ? ev.content : t('notification.new_item'));
-                        showFeedNotification(title, { body, icon: '/icon/nokakoi-192.png' }, ev && ev.id ? ev.id : null, 'mentions', notifMode);
+                        showFeedNotification(title, { body, icon: 'icon/nokakoi-192.png' }, ev && ev.id ? ev.id : null, 'mentions', notifMode);
                       } catch (e) { }
                     })();
                   }

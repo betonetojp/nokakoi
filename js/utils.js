@@ -73,7 +73,7 @@ export function resolveReactionCustomEmoji(reaction) {
   } catch (e) { logWarn('[Utils] resolveCustomEmoji 失敗:', e); }
 
   if (shortcode === 'nokakoi') {
-    let iconUrl = '/icon/nokakoi.png';
+    let iconUrl = 'icon/nokakoi.png';
     return { shortcode, url: iconUrl, address: '' };
   }
 
