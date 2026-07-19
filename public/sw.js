@@ -5,7 +5,7 @@
 
 // バージョンは app/js/version.js で一元管理
 // サービスワーカー用にここにもコピー（リリース時は手動で更新・version.jsと一致させること）
-const CACHE_VERSION = 'v1.99.1';
+const CACHE_VERSION = 'v1.99.2';
 const CACHE_NAME = `nokakoi-${CACHE_VERSION}`;
 
 // ローカル開発時のみ詳細ログを有効化
@@ -114,7 +114,17 @@ self.addEventListener('fetch', (event) => {
           })
           .catch((err) => {
             swWarn('network failed, fallback to cache', url.pathname, err);
-            return caches.match(request);
+            return caches.match(request).then((cached) => {
+              if (cached) return cached;
+              // navigate リクエストのオフラインフォールバック
+              // （URL 不一致でキャッシュヒットしない場合に備える）
+              if (request.mode === 'navigate') {
+                return caches.match('index.html').then((fallback) => {
+                  return fallback || caches.match('./');
+                });
+              }
+              return cached;
+            });
           })
       );
       return;
