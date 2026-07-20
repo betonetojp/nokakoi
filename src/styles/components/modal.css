@@ -9,11 +9,6 @@
 #mediaModal { z-index: 400; }
 
 /* 共通モーダル表示レイアウト */
-.modal,
-.modal * {
-  -webkit-user-select: none !important;
-  user-select: none !important;
-}
 .modal {
   position: fixed;
   inset: 0;
@@ -25,6 +20,8 @@
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  -webkit-user-select: none;
+  user-select: none;
 }
 .modal[hidden] { display: none; }
 .modal:not([hidden]) {
@@ -267,15 +264,10 @@ body.theme-light #eventModalContent::-webkit-scrollbar-thumb {
 .modal input,
 .modal textarea,
 .modal .content,
-.modal .content *,
 .modal .debug-pre,
-.modal .debug-pre *,
 .modal .json-pre,
-.modal .json-pre *,
 .modal #profileAbout,
-.modal #profileAbout *,
-.modal #eventModalContent,
-.modal #eventModalContent * {
-  -webkit-user-select: text !important;
-  user-select: text !important;
+.modal #eventModalContent {
+  -webkit-user-select: text;
+  user-select: text;
 }
