@@ -1,3 +1,4 @@
+/* global __BUILD_TIME__ */
 import { logInitInfo, getNip19, getSimplePool, getNostrTools } from './nostr-compat.js';
 import { VERSION } from '../config/version.js';
 import { $, $$, showToast } from '../utils/utils.js';
@@ -108,14 +109,16 @@ try {
 
 const BUILD_INFO = {
   version: VERSION,
-  buildTime: "2026-07-20T13:33:52+09:00"
+  buildTime: typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
 };
 
 function updateBuildInfo() {
   try {
+    const infoStr = `v${BUILD_INFO.version} (${BUILD_INFO.buildTime})`;
+    window.__buildInfo = infoStr;
     const el = document.getElementById('buildInfo');
     if (el) {
-      el.textContent = `v${BUILD_INFO.version} (${BUILD_INFO.buildTime})`;
+      el.textContent = infoStr;
     }
   } catch (e) { }
 }
