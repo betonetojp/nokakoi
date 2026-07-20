@@ -1,0 +1,259 @@
+/* ===============================
+   モーダルのZ-index
+   =============================== */
+#reactionModal, #confirmModal { z-index: 250; }
+#eventModal { z-index: 200; }
+#profileModal { z-index: 250; }
+#jsonModal { z-index: 300; }
+/* event detail から開く media modal を他モーダルより前面にする */
+#mediaModal { z-index: 400; }
+
+/* 共通モーダル表示レイアウト */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.modal[hidden] { display: none; }
+.modal:not([hidden]) {
+  display: flex;
+}
+.modal .modal-body {
+  width: 100%;
+  max-width: 920px;
+  max-height: calc(var(--vh, 1vh) * 100 - 40px);
+  overflow: auto;
+}
+.modal-body--sm { width: min(400px, calc(100% - 24px)); max-width: 400px; }
+.modal-body--md { width: min(600px, calc(100% - 24px)); max-width: 600px; min-width: 320px; }
+.modal-body--nip46 { width: min(500px, calc(100% - 24px)); max-width: 500px; }
+.modal-body--lg { width: min(800px, calc(100% - 24px)); max-width: 800px; }
+.modal-body--media {
+  width: min(90vw, calc(100% - 24px));
+  max-width: 90vw;
+  max-height: 90vh;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.modal-title {
+  margin: 0;
+  font-size: 1.1em;
+}
+.modal-close {
+  padding: 4px 12px;
+}
+.modal-field { margin-bottom: 12px; }
+.modal-field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.9em;
+}
+.modal-status {
+  margin-bottom: 12px;
+  min-height: 1.2em;
+}
+
+#confirmModal .modal-body,
+#swUpdateModal .modal-body {
+  width: fit-content;
+  min-width: min(320px, calc(100vw - 40px));
+  max-width: min(520px, calc(100vw - 40px));
+}
+
+#mediaModal .modal-body {
+  width: fit-content;
+  max-width: min(92vw, 1100px);
+}
+
+#swUpdateModal { z-index: 300; background: rgba(0,0,0,.8); }
+#swUpdateModal .modal-body { border: 2px solid var(--accent); box-shadow: 0 8px 32px rgba(124, 147, 255, 0.3); }
+
+/* lightテーマ時のモーダル/メディアコンテナ背景 */
+body.theme-light .modal-body,
+body.theme-light #mediaContainer {
+  background: #f9fafb !important;
+  color: #0f172a !important;
+}
+
+/* スクロールバー設定 */
+.modal-body::-webkit-scrollbar { width: 6px; background: #151820; }
+.modal-body::-webkit-scrollbar-thumb { background: #232633; border-radius: 3px; }
+.modal-body::-webkit-scrollbar-thumb:hover { background: #444b5a; }
+
+/* lightテーマでモーダル系スクロールバーの主張を弱める */
+body.theme-light #eventModalContent,
+body.theme-light #jsonContent,
+body.theme-light #profileEvents,
+body.theme-light #profileAbout,
+body.theme-light #mediaContainer,
+body.theme-light .modal-body,
+body.theme-light .emoji-shortcode-suggest {
+  scrollbar-color: #cfcfd6 #f0f0f4;
+}
+body.theme-light #eventModalContent::-webkit-scrollbar,
+body.theme-light #jsonContent::-webkit-scrollbar,
+body.theme-light #profileEvents::-webkit-scrollbar,
+body.theme-light #profileAbout::-webkit-scrollbar,
+body.theme-light #mediaContainer::-webkit-scrollbar,
+body.theme-light .modal-body::-webkit-scrollbar,
+body.theme-light .emoji-shortcode-suggest::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+body.theme-light #eventModalContent::-webkit-scrollbar-thumb,
+body.theme-light #jsonContent::-webkit-scrollbar-thumb,
+body.theme-light #profileEvents::-webkit-scrollbar-thumb,
+body.theme-light #profileAbout::-webkit-scrollbar-thumb,
+body.theme-light #mediaContainer::-webkit-scrollbar-thumb,
+body.theme-light .modal-body::-webkit-scrollbar-thumb,
+body.theme-light .emoji-shortcode-suggest::-webkit-scrollbar-thumb {
+  background: #cfcfd6;
+  border-radius: 4px;
+}
+body.theme-light #eventModalContent::-webkit-scrollbar-track,
+body.theme-light #jsonContent::-webkit-scrollbar-track,
+body.theme-light #profileEvents::-webkit-scrollbar-track,
+body.theme-light #profileAbout::-webkit-scrollbar-track,
+body.theme-light #mediaContainer::-webkit-scrollbar-track,
+body.theme-light #modal-body::-webkit-scrollbar-track,
+body.theme-light .emoji-shortcode-suggest::-webkit-scrollbar-track {
+  background: #f0f0f4;
+}
+
+#mediaContainer {
+  overflow: auto;
+  width: fit-content;
+  max-width: 100%;
+  max-height: 70vh;
+  text-align: center;
+  scrollbar-width: thin;
+  scrollbar-color: #232633 #151820;
+}
+#mediaContainer::-webkit-scrollbar { width: 6px; background: #151820; }
+#mediaContainer::-webkit-scrollbar-thumb { background: #232633; border-radius: 3px; }
+#mediaContainer::-webkit-scrollbar-thumb:hover { background: #444b5a; }
+#mediaContainer img,
+#mediaContainer video {
+  width: auto;
+  max-width: min(88vw, 1040px);
+  max-height: 70vh;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+body.theme-light #mediaContainer {
+  overflow: auto;
+  max-width: 100%;
+  max-height: 70vh;
+  text-align: center;
+  scrollbar-width: thin;
+  scrollbar-color: #cfcfd6 #f0f0f4;
+}
+body.theme-light #mediaContainer::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+body.theme-light #mediaContainer::-webkit-scrollbar-thumb {
+  background: #cfcfd6;
+  border-radius: 4px;
+}
+body.theme-light #mediaContainer::-webkit-scrollbar-track {
+  background: #f0f0f4;
+}
+
+/* モバイルでは余白をさらに抑えて表示領域を広げる */
+@media (max-width: 768px) {
+  .modal {
+    padding: 16px;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal .modal-body {
+    max-width: 100%;
+    max-height: calc(var(--vh, 1vh) * 100 - 28px);
+    border-radius: 10px;
+  }
+}
+
+.modal-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+#eventModal .modal-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: calc(var(--vh, 1vh) * 100 - 40px);
+}
+
+#eventModalContent {
+  font-size: inherit;
+  color: var(--text);
+  opacity: 1;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.3;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #232633 #151820;
+}
+body.theme-light #eventModalContent {
+  background: #fff !important;
+  color: #0f172a !important;
+  scrollbar-color: #cfcfd6 #f0f0f4 !important;
+}
+body.theme-light #eventModalContent::-webkit-scrollbar {
+  width: 8px;
+  background: #f0f0f4 !important;
+}
+body.theme-light #eventModalContent::-webkit-scrollbar-thumb {
+  background: #cfcfd6 !important;
+  border-radius: 4px;
+}
+
+.media-viewer-img,
+.media-viewer-video {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+.media-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.event-modal-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.event-modal-footer {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#eventModalTime {
+  font-size: 0.85em;
+  color: var(--muted);
+  margin-right: 12px;
+}

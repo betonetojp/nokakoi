@@ -1,0 +1,112 @@
+.relay-selector {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--panel);
+}
+.relay-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.relay-option:hover {
+  background: rgba(124, 147, 255, 0.1);
+}
+.relay-option input[type="radio"] { cursor: pointer; }
+.relay-option span { font-size: 0.9em; word-break: break-all; }
+.relay-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: var(--panel);
+  min-width: 0;
+}
+.relay-item input[type="text"] {
+  flex: 1;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 0.95em;
+  font-family: inherit;
+  min-width: 0;
+}
+.relay-item .btn-remove {
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  padding: 4px 6px;
+  font-size: 1.1em;
+  cursor: pointer;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+.relay-item .btn-remove:hover {
+  background: rgba(255, 0, 0, 0.2);
+  color: #ff4444;
+}
+
+.candidate-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: var(--panel);
+}
+.candidate-item input[type="text"] {
+  flex: 1;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 0.95em;
+  font-family: inherit;
+}
+.btn-remove-cand {
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  padding: 4px 8px;
+  font-size: 1.1em;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.btn-remove-cand:hover {
+  background: rgba(255, 0, 0, 0.2);
+  color: #ff4444;
+}
+
+.relay-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.relay-row--readonly {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+  opacity: 0.75;
+}
+.relay-input-flex {
+  flex: 1;
+}
+.relay-remove-btn {
+  padding: 4px 8px;
+}

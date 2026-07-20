@@ -2,7 +2,7 @@
 import { t } from '../../utils/i18n.js';
 import { VERSION } from '../../config/version.js';
 export function setupDebugModal(state, settings) {
-  document.addEventListener('DOMContentLoaded', function () {
+  const setup = () => {
     const brand = document.querySelector('.brand');
     const debugModal = document.getElementById('debugModal');
     const debugContent = document.getElementById('debugContent');
@@ -186,5 +186,11 @@ export function setupDebugModal(state, settings) {
         debugModal.hidden = true;
       };
     }
-  });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setup);
+  } else {
+    setup();
+  }
 }

@@ -1,0 +1,57 @@
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  padding: 10px 0;
+  /* composer（z-index:20）とモーダルを tabs より前面に保つ */
+  z-index: 10;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.3s, border-color 0.3s;
+}
+.tab {
+  position: relative;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: normal;
+  word-break: break-word;
+}
+.tab:hover {
+  color: var(--text);
+  background: var(--panel-hover);
+}
+.tab.active {
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+@media (max-width: 420px) {
+  .tab {
+    font-size: 0.8rem;
+    padding: 6px 8px;
+  }
+}
+/* タブ新着通知ドット */
+.tab.has-new-dot::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background: #ff6b6b;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.feed { display: none; }
+.feed.active { display: block; min-height: calc(100vh - 100px); overflow-anchor: none; }

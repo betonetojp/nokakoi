@@ -1,0 +1,256 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.muted { color: var(--muted); font-size: .9em; }
+
+.mt-4 { margin-top: 4px; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+.mb-4 { margin-bottom: 4px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.ml-8 { margin-left: 8px; }
+.ml-16 { margin-left: 16px; }
+.ml-24 { margin-left: 24px; }
+.mr-8 { margin-right: 8px; }
+.mr-12 { margin-right: 12px; }
+
+.flex-row { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.flex-col { display: flex; flex-direction: column; gap: 4px; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-1 { flex: 1; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.justify-between { justify-content: space-between; }
+.gap-4 { gap: 4px; }
+.gap-6 { gap: 6px; }
+.gap-8 { gap: 8px; }
+.gap-16 { gap: 16px; }
+
+.text-xs { font-size: 0.8em; }
+.text-sm { font-size: 0.9em; }
+.text-base { font-size: 0.95em; }
+.text-center { text-align: center; }
+.font-bold { font-weight: bold; }
+
+.w-full { width: 100%; }
+.d-block { display: block; }
+.d-none { display: none; }
+.d-flex { display: flex; }
+.d-inline { display: inline; }
+
+.lh-tight { line-height: 1.3; }
+.lh-snug { line-height: 1.4; }
+
+.cursor-pointer { cursor: pointer; }
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.setting-row-clickable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.confirm-message {
+  margin: 16px 0;
+  white-space: pre-wrap;
+}
+.link-external {
+  display: inline-block;
+  margin-top: 12px;
+}
+#userInfo {
+  display: inline;
+  margin-left: 8px;
+}
+#relayStatus {
+  margin-top: 6px;
+}
+#muteCounts {
+  margin-top: 8px;
+  font-size: 0.9em;
+}
+#muteCounts > div + div {
+  margin-top: 4px;
+}
+.change-geohash-label {
+  display: none;
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 0.95em;
+  cursor: pointer;
+}
+
+.status-error {
+  color: #ff4444 !important;
+}
+.status-success {
+  color: #4caf50 !important;
+}
+.status-muted {
+  color: var(--muted) !important;
+}
+
+.debug-pre {
+  background: #222;
+  color: #eee;
+  padding: 12px;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 60vh;
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+body.theme-light .debug-pre {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+#debugContent {
+  padding: 12px;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 60vh;
+  font-size: 0.85em;
+  line-height: 1.4;
+  scrollbar-width: thin;
+  scrollbar-color: #232633 #151820;
+}
+#debugContent::-webkit-scrollbar { width: 6px; background: #151820; }
+#debugContent::-webkit-scrollbar-thumb { background: #232633; border-radius: 3px; }
+#debugContent::-webkit-scrollbar-thumb:hover { background: #444b5a; }
+
+body.theme-light #debugContent {
+  scrollbar-color: #cfcfd6 #f0f0f4;
+}
+body.theme-light #debugContent::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+body.theme-light #debugContent::-webkit-scrollbar-thumb {
+  background: #cfcfd6;
+  border-radius: 4px;
+}
+body.theme-light #debugContent::-webkit-scrollbar-track {
+  background: #f0f0f4;
+}
+
+.json-pre {
+  background: #0f1220;
+  color: var(--text);
+  padding: 12px;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 60vh;
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+body.theme-light .json-pre {
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+#jsonContent, #debugContent {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+}
+#jsonContent {
+  padding: 12px;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 60vh;
+  font-size: 0.85em;
+  line-height: 1.4;
+  margin: 0;
+  color: var(--text);
+  white-space: pre;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  scrollbar-width: thin;
+  scrollbar-color: #232633 #151820;
+}
+#jsonContent::-webkit-scrollbar { width: 6px; background: #151820; }
+#jsonContent::-webkit-scrollbar-thumb { background: #232633; border-radius: 3px; }
+#jsonContent::-webkit-scrollbar-thumb:hover { background: #444b5a; }
+.json-copy-row { margin-top: 12px; }
+.json-seen-on-wrap { margin-top: 16px; }
+.json-seen-on-label {
+  font-size: 0.85em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.json-seen-on-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.85em;
+  line-height: 1.5;
+  word-break: break-all;
+}
+.json-seen-on-list li {
+  padding: 2px 0;
+}
+.json-seen-on-none {
+  font-style: italic;
+}
+
+.geohash-history-popup {
+  display: none;
+  position: absolute;
+  z-index: 99999;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  min-width: 180px;
+  max-width: 320px;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 0.97em;
+}
+.geohash-history-empty {
+  color: var(--muted);
+  padding: 8px 12px;
+}
+
+.read-more-btn {
+  margin-top: 6px;
+  font-size: 0.92em;
+  display: block;
+}
+
+/* ===== ステガノグラフィ (Amethyst 隠し文字) 表示 ===== */
+.steganography-emoji {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  border-radius: 3px;
+  outline: 1.5px dashed rgba(255, 180, 0, 0.65);
+  padding: 0 1px;
+  transition: outline-color 0.2s;
+  user-select: none;
+}
+.steganography-emoji:hover {
+  outline-color: rgba(255, 200, 0, 1);
+}
+.steganography-revealed {
+  display: inline-block;
+  margin-left: 0px;
+  padding: 0 1px;
+  border-radius: 4px;
+  font-size: 0.95em;
+  color: var(--text, #fff);
+  cursor: default;
+  vertical-align: middle;
+  user-select: text;
+}

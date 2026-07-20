@@ -1,0 +1,59 @@
+.sr-only {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.password-manager-username {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+#autoLoginOptions {
+  margin-bottom: 12px;
+  padding-left: 24px;
+}
+#passwordSection {
+  margin-bottom: 12px;
+  padding-left: 24px;
+}
+.nsec-save-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+.auto-login-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+.auto-login-radio + .auto-login-radio {
+  margin-bottom: 8px;
+}
+.passkey-info {
+  font-size: 0.8em;
+  margin: 4px 0 8px;
+  line-height: 1.4;
+}
+.password-section-desc {
+  font-size: 0.8em;
+  margin: 4px 0 8px;
+  line-height: 1.4;
+}
+#nsecLoginStatus,
+#passwordStatus {
+  margin-top: 8px;
+}

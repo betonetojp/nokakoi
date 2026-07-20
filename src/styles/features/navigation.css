@@ -1,0 +1,65 @@
+/* ===============================
+   トップへ戻るボタン
+   =============================== */
+.scroll-to-top {
+  position: fixed;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent-muted);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-size: 1.2em;
+  font-weight: normal;
+  cursor: move;
+  box-shadow: none;
+  transition: transform 0.12s, opacity 0.2s;
+  z-index: 600;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+.scroll-to-top:hover {
+  transform: translateX(-50%) scale(1.03);
+}
+.scroll-to-top:active {
+  transform: translateX(-50%) scale(0.95);
+}
+.scroll-to-top[hidden] {
+  opacity: 0;
+  pointer-events: none;
+}
+.scroll-to-top.has-new[hidden] {
+  display: flex !important;
+  opacity: 1;
+  pointer-events: auto;
+}
+.scroll-to-top.has-new {
+  animation: mention-blink 1.2s ease-in-out infinite;
+  border-color: var(--accent);
+}
+.scroll-to-top.dragging {
+  cursor: grabbing;
+  transform: translateX(-50%) scale(1.15);
+  box-shadow: 0 8px 20px rgba(124, 147, 255, 0.7);
+  opacity: 0.9;
+}
+.scroll-to-top.dragging {
+  transform: scale(1.15) !important;
+}
+@media (max-width: 768px) {
+  .scroll-to-top {
+    width: 45px;
+    height: 45px;
+    font-size: 1.3em;
+    bottom: 16px;
+  }
+}

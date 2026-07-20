@@ -1,0 +1,50 @@
+#omochatAutoRelayAlgoContainer {
+  margin-left: 24px;
+  margin-bottom: 12px;
+}
+#omochatMergeParentContainer {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-left: 24px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+#omochatStatus {
+  margin-top: 8px;
+  min-height: 1.2em;
+}
+.omochat-option-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+.omochat-option-label input[type="checkbox"] {
+  margin-top: 2px;
+}
+#omochatRelayDetails {
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+.btn-omochat-h,
+.btn-omochat-t {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 0.8em;
+  padding: 4px 8px;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-omochat-h {
+  margin-right: 4px;
+}
+.btn-omochat-t {
+  margin-right: 8px;
+}
+.btn-omochat-h:hover,
+.btn-omochat-t:hover {
+  background: var(--accent-muted);
+  border-radius: 4px;
+}

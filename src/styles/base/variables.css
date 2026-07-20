@@ -1,0 +1,150 @@
+:root {
+  --bg: #0d0e12;
+  --panel: #16181f;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --border: #1e293b;
+  --panel-hover: #1e293b;
+  --topbar-bg: rgba(13, 14, 18, 0.9);
+  --button-text: #0f172a;
+  
+  /* 既定 of アクセント (ブルー) */
+  --accent: #3b82f6;
+  --accent-muted: rgba(59, 130, 246, 0.12);
+  --accent-focus: rgba(59, 130, 246, 0.3);
+  --border-accent: rgba(59, 130, 246, 0.15);
+
+  /* カード配色 (ダークテーマ用) */
+  --reply-bg: rgba(236, 72, 153, 0.1);
+  --reply-border: #ec4899;
+  --reaction-bg: rgba(251, 191, 36, 0.1);
+  --reaction-border: #fbbf24;
+  --repost-bg: rgba(76, 175, 80, 0.1);
+  --repost-border: #4caf50;
+  --quote-bg: rgba(167, 139, 250, 0.1);
+  --quote-border: #a78bfa;
+  --channel-bg: rgba(59, 130, 246, 0.1);
+  --channel-border: #3b82f6;
+}
+
+/* body.theme-light 適用時のライトテーマ上書き */
+body.theme-light {
+  --bg: #f8fafc;
+  --panel: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --panel-hover: #f1f5f9;
+  --topbar-bg: rgba(255, 255, 255, 0.95);
+  --button-text: #ffffff;
+  
+  /* 既定 of アクセント (ピンク) */
+  --accent: #ec4899;
+  --accent-muted: rgba(236, 72, 153, 0.08);
+  --accent-focus: rgba(236, 72, 153, 0.2);
+  --border-accent: rgba(236, 72, 153, 0.15);
+
+  /* カード配色 (ライトテーマ用) */
+  --reply-bg: rgba(236, 72, 153, 0.08);
+  --reply-border: #ec4899;
+  --reaction-bg: rgba(251, 191, 36, 0.08);
+  --reaction-border: #fbbf24;
+  --repost-bg: rgba(76, 175, 80, 0.08);
+  --repost-border: #4caf50;
+  --quote-bg: rgba(167, 139, 250, 0.08);
+  --quote-border: #a78bfa;
+  --channel-bg: rgba(59, 130, 246, 0.08);
+  --channel-border: #3b82f6;
+}
+
+/* ---------------------------------
+   カラーテーマ定義 (ダークモード)
+   --------------------------------- */
+body:not(.theme-light).color-theme-pink {
+  --accent: #f472b6;
+  --accent-muted: rgba(244, 114, 182, 0.12);
+  --accent-focus: rgba(244, 114, 182, 0.3);
+  --button-text: #0f172a;
+}
+body:not(.theme-light).color-theme-blue {
+  --accent: #3b82f6;
+  --accent-muted: rgba(59, 130, 246, 0.12);
+  --accent-focus: rgba(59, 130, 246, 0.3);
+  --button-text: #ffffff;
+}
+body:not(.theme-light).color-theme-purple {
+  --accent: #a78bfa;
+  --accent-muted: rgba(167, 139, 250, 0.12);
+  --accent-focus: rgba(167, 139, 250, 0.3);
+  --button-text: #0f172a;
+}
+body:not(.theme-light).color-theme-green {
+  --accent: #34d399;
+  --accent-muted: rgba(52, 211, 153, 0.12);
+  --accent-focus: rgba(52, 211, 153, 0.3);
+  --button-text: #0f172a;
+}
+body:not(.theme-light).color-theme-orange {
+  --accent: #fb923c;
+  --accent-muted: rgba(251, 146, 60, 0.12);
+  --accent-focus: rgba(251, 146, 60, 0.3);
+  --button-text: #0f172a;
+}
+body:not(.theme-light).color-theme-gray {
+  --accent: #94a3b8;
+  --accent-muted: rgba(148, 163, 184, 0.12);
+  --accent-focus: rgba(148, 163, 184, 0.3);
+  --button-text: #0f172a;
+}
+
+/* ---------------------------------
+   カラーテーマ定義 (ライトモード)
+   --------------------------------- */
+body.theme-light.color-theme-pink {
+  --accent: #ec4899;
+  --accent-muted: rgba(236, 72, 153, 0.08);
+  --accent-focus: rgba(236, 72, 153, 0.2);
+  --border: #fce7f3;
+  --button-text: #ffffff;
+}
+body.theme-light.color-theme-blue {
+  --accent: #2563eb;
+  --accent-muted: rgba(37, 99, 235, 0.08);
+  --accent-focus: rgba(37, 99, 235, 0.2);
+  --border: #dbeafe;
+  --button-text: #ffffff;
+}
+body.theme-light.color-theme-purple {
+  --accent: #7c3aed;
+  --accent-muted: rgba(124, 58, 237, 0.08);
+  --accent-focus: rgba(124, 58, 237, 0.2);
+  --border: #ede9fe;
+  --button-text: #ffffff;
+}
+body.theme-light.color-theme-green {
+  --accent: #059669;
+  --accent-muted: rgba(5, 150, 105, 0.08);
+  --accent-focus: rgba(5, 150, 105, 0.2);
+  --border: #d1fae5;
+  --button-text: #ffffff;
+}
+body.theme-light.color-theme-orange {
+  --accent: #ea580c;
+  --accent-muted: rgba(234, 88, 12, 0.08);
+  --accent-focus: rgba(234, 88, 12, 0.2);
+  --border: #ffedd5;
+  --button-text: #ffffff;
+}
+body.theme-light.color-theme-gray {
+  --accent: #475569;
+  --accent-muted: rgba(71, 85, 105, 0.08);
+  --accent-focus: rgba(71, 85, 105, 0.2);
+  --border: #e2e8f0;
+  --button-text: #ffffff;
+}
+
+/* ネイティブ checkbox/radio にアクセント色を使用 */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+}

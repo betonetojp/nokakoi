@@ -1,0 +1,210 @@
+/* カスタム絵文字ショートコードサジェスト（投稿窓・リアクション入力） */
+.emoji-shortcode-suggest {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-bottom: 6px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+  scrollbar-width: thin;
+  scrollbar-color: #232633 #151820;
+}
+.emoji-shortcode-suggest::-webkit-scrollbar { width: 6px; background: #151820; }
+.emoji-shortcode-suggest::-webkit-scrollbar-thumb { background: #232633; border-radius: 3px; }
+.emoji-shortcode-suggest::-webkit-scrollbar-thumb:hover { background: #444b5a; }
+.emoji-shortcode-suggest[hidden] {
+  display: none !important;
+}
+.emoji-shortcode-suggest-item {
+  display: block;
+  width: auto;
+  padding: 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+.emoji-shortcode-suggest-item:hover,
+.emoji-shortcode-suggest-item:focus-visible {
+  background: rgba(127, 127, 127, 0.15);
+}
+.emoji-shortcode-suggest-item img.custom-emoji {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  display: block;
+}
+
+.reaction-quick-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.reaction-quick-icon {
+  width: 20px;
+  height: 20px;
+}
+.reaction-input {
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+}
+
+.quick-reaction {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 1.2em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+.quick-reaction:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  transform: scale(1.1);
+}
+
+.custom-emoji {
+  display: inline-block;
+  vertical-align: top;
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
+  border: none;
+  background: transparent;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.emoji-inline-group img.custom-emoji {
+  height: 1.9rem;
+  max-height: 2.6rem;
+  width: auto;
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+.content img.custom-emoji,
+.reply-to img.custom-emoji,
+.event-quote img.custom-emoji,
+.emoji-line .emoji-wrap img.custom-emoji {
+  margin: 0;
+  padding: 0;
+  display: block;
+  max-height: 36px;
+  max-width: 100%;
+}
+
+.mixed-line {
+  display: inline;
+  line-height: inherit;
+  font-size: inherit;
+  vertical-align: baseline;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+.mixed-line .plain-text {
+  font-size: inherit;
+  line-height: inherit;
+  display: inline;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+}
+.mixed-line .emoji-inline-group {
+  display: inline-block;
+  gap: 0;
+  vertical-align: middle;
+  line-height: 1;
+}
+.mixed-line .emoji-wrap {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+  vertical-align: middle;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.mixed-line img.custom-emoji,
+.mixed-line .emoji-inline-group img.custom-emoji,
+.emoji-line img.custom-emoji,
+.emoji-wrap img.custom-emoji {
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+  height: auto;
+  max-height: 36px;
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+.emoji-line { line-height: 0; }
+
+.quick-reaction-icon {
+  width: 20px;
+  height: 20px;
+}
+#reactionRecentWrap {
+  margin-top: 10px;
+}
+.reaction-recent-label {
+  margin-bottom: 6px;
+  font-size: 0.85em;
+}
+#reactionRecentList {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.emoji-preview {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  min-height: 0px;
+  line-height: 1.4;
+  font-size: inherit;
+}
+.emoji-preview-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.emoji-preview-img {
+  height: 28px;
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+@media (max-width: 420px) {
+  .quick-reaction { font-size: 1.05em; padding: 6px 10px; min-width: 40px; height: 40px; }
+}

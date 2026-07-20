@@ -1,0 +1,190 @@
+#profilePicture { display: block; }
+#profilePicture[src=""], #profilePicture:not([src]) { display: none; }
+#profileDisplayName {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: nowrap;
+}
+#profileDisplayName .petname {
+  flex-shrink: 0;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
+  font-weight: 600;
+  font-size: 0.95em;
+  display: inline-flex;
+  align-items: center;
+}
+.petname-badge {
+  display: inline-block;
+  background-color: currentColor;
+  -webkit-mask-image: url('./public/icon/badge.png');
+  mask-image: url('./public/icon/badge.png');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  margin-right: 4px;
+  vertical-align: -0.15em;
+  flex-shrink: 0;
+}
+#profileDisplayName .profile-display-name-text {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-username-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+#profileFollowStatus {
+  flex-shrink: 0;
+}
+#profileUsername {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#profileAbout {
+  color: var(--text);
+  max-height: 120px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  background: rgba(124, 147, 255, 0.04);
+}
+#profileAbout:empty { display: none; }
+#profileStats { padding-top: 12px; border-top: 1px solid var(--border); }
+#profileEvents {
+  max-height: calc(var(--vh, 1vh) * 100 - 240px);
+  overflow-y: auto;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  background: rgba(124, 147, 255, 0.04);
+}
+
+#profileModal .modal-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: calc(var(--vh, 1vh) * 100 - 40px);
+}
+#profileModal > .modal-body > #profileContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+#profileBannerContainer {
+  flex: 0 0 auto;
+}
+#profileBannerContainer img {
+  height: 100px;
+  width: 100%;
+  object-fit: cover;
+}
+#profileModal > .modal-body > #profileContent > div[style*="display: flex; gap: 16px"] {
+  flex: 0 0 auto;
+}
+#profileAbout {
+  flex: 0 0 auto;
+  max-height: 80px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+#profileStats {
+  flex: 0 0 auto;
+}
+#profileModal #profileEvents {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  max-height: none;
+}
+
+#profileBannerContainer {
+  margin-bottom: 12px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: none;
+}
+#profileBanner {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  display: block;
+}
+.profile-info-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+#profilePictureContainer {
+  flex-shrink: 0;
+}
+#profilePicture {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--border);
+}
+.profile-info-text {
+  flex: 1;
+  min-width: 0;
+}
+#profileDisplayName {
+  font-size: 1.2em;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.profile-username-row {
+  margin-bottom: 8px;
+}
+.profile-follows-badge {
+  background: var(--accent-muted);
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+#profileUsername {
+  font-size: 0.9em;
+  color: var(--muted);
+}
+#profileNpub {
+  font-size: 0.8em;
+  color: var(--muted);
+  word-break: break-all;
+}
+#profileAbout {
+  margin-bottom: 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+#profileStats {
+  display: flex;
+  gap: 16px;
+  font-size: 0.9em;
+  color: var(--muted);
+}
+#profileEvents {
+  margin-top: 24px;
+}
+#profileFollowStatus {
+  font-size: 0.8em;
+}
+.profile-time-span {
+  margin-right: 8px;
+  font-size: 0.9em;
+}

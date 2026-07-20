@@ -1,0 +1,50 @@
+button {
+  background: var(--accent);
+  color: var(--button-text);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+button:hover:not(:disabled) {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button.secondary {
+  background: var(--panel);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+button.secondary:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--panel-hover);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+button.secondary.small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* プライマリボタン: subtle glow */
+button:not(.secondary):not(.tab):not(.quick-reaction):not(.btn-react):not(.btn-kind):not(.btn-repost):not(.btn-reply):not(.btn-quote):not(.btn-omochat-h):not(.btn-omochat-t):not(.btn-json):not(.btn-remove):not(.btn-remove-cand):not(.scroll-to-top):not(.open-media):not(.load-more-btn):not(.nip46-tab):not(.emoji-shortcode-suggest-item) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+button:not(.secondary):not(.tab):not(.quick-reaction):not(.btn-react):not(.btn-kind):not(.btn-repost):not(.btn-reply):not(.btn-quote):not(.btn-omochat-h):not(.btn-omochat-t):not(.btn-json):not(.btn-remove):not(.btn-remove-cand):not(.scroll-to-top):not(.open-media):not(.load-more-btn):not(.nip46-tab):not(.emoji-shortcode-suggest-item):hover:not(:disabled) {
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 35%, transparent);
+}

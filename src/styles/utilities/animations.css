@@ -1,0 +1,63 @@
+/* 通知タブ用の点滅アニメーション */
+@keyframes mention-blink {
+  0% { background: transparent; color: var(--text); }
+  40% { background: var(--accent); color: #0b0c10; }
+  60% { background: var(--accent); color: #0b0c10; }
+  100% { background: transparent; color: var(--text); }
+}
+
+/* ライトテーマではピンク背景に白文字を合わせる */
+@keyframes mention-blink-light {
+  0% { background: transparent; color: var(--text); }
+  40% { background: var(--accent); color: #fff; }
+  60% { background: var(--accent); color: #fff; }
+  100% { background: transparent; color: var(--text); }
+}
+
+/* active状態を崩さないよう、非activeタブのみ点滅 */
+.tab.blink:not(.active) {
+  animation: mention-blink 1.2s ease-in-out infinite;
+  border-color: var(--accent);
+}
+
+/* ライトテーマでも通知タブ点滅の色遷移はダークテーマ挙動に寄せる */
+body.theme-light .tab.blink:not(.active) {
+  animation: mention-blink-light 1.2s ease-in-out infinite;
+}
+
+/* blink-active クラスで明示制御（付与中は視覚効果維持） */
+.tab.blink-active:not(.active) {
+  box-shadow: 0 0 10px var(--accent, rgba(124,147,255,0.18));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-to-top.has-new,
+  .tab.blink:not(.active),
+  body.theme-light .tab.blink:not(.active) {
+    animation: none;
+  }
+}
+
+/* --- パネル details open のスムーズ表示 --- */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel details summary::before {
+    transition: none;
+  }
+  .panel details > *:not(summary) {
+    animation: none;
+  }
+  .quick-reaction {
+    transition: none;
+  }
+}

@@ -1,0 +1,58 @@
+#composer.composer-floating,
+#composer.floating {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  width: min(860px, calc(100% - 16px));
+  margin: 0 auto 0 auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-top-left-radius: 12px; border-top-right-radius: 12px;
+  padding: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 24px rgba(0,0,0,.5);
+  z-index: 20;
+  transform: translateY(0);
+  transition: transform 0.3s ease-out;
+}
+#composer.composer-floating h2, #composer.floating h2 { margin: 0 0 6px; font-size: 1rem; }
+#composer.composer-floating textarea, #composer.floating textarea { min-height: 80px; max-height: 40vh; resize: vertical; }
+#composer.composer-floating .row, #composer.floating .row { justify-content: space-between; }
+
+.composer-spacer-btn { margin-left: auto; }
+
+.compose-preview {
+  margin-bottom: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  min-height: 0px;
+  line-height: 1.4;
+  font-size: inherit;
+}
+.compose-line {
+  margin-bottom: 0;
+  line-height: 1.4;
+}
+.compose-line--emoji {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  align-items: center;
+}
+.emoji-wrapper {
+  display: inline-block;
+  line-height: 1;
+  margin: 0;
+  padding: 0;
+  vertical-align: middle;
+}
+.emoji-inline-img {
+  height: 28px;
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+}
+.compose-text-block {
+  display: block;
+  word-wrap: break-word;
+}

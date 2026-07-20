@@ -1,0 +1,98 @@
+.nip46-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.nip46-tab {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.nip46-tab:hover {
+  background: var(--border);
+}
+
+.nip46-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0b0c10;
+}
+body.theme-light .nip46-tab.active {
+  color: #fff;
+}
+
+.nip46-tab-content {
+  margin-bottom: 16px;
+}
+.nip46-qr-box {
+  text-align: center;
+  margin: 16px 0;
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+}
+.nip46-uri-input {
+  flex: 1;
+  font-size: 0.85em;
+}
+
+#nip46QrCode {
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  display: inline-block;
+  text-align: center;
+  margin: 16px 0;
+}
+
+#nip46QrCode svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#nip46ConnectUri {
+  font-family: monospace;
+  font-size: 0.8em;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 8px;
+  border-radius: 4px;
+  color: var(--muted);
+}
+
+#nip46RelayList input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+#nip46RelayList input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+#nip46OpenApp {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.nip46-relay-hint {
+  font-size: 0.85em;
+  margin: 8px 0;
+}
+
+#nip46Status {
+  margin-top: 12px;
+}

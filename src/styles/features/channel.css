@@ -1,0 +1,8 @@
+/* channel specific rules */
+.reply-to.channel {
+  background: var(--channel-bg);
+  border-left-color: var(--channel-border);
+}
+.channel .reply-marker {
+  color: var(--channel-border);
+}

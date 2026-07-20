@@ -1,0 +1,73 @@
+textarea, input[type="text"], input[type="password"], input[type="number"], select {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color-scheme: inherit;
+}
+textarea:focus, input[type="text"]:focus, input[type="password"]:focus, input[type="number"]:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-focus);
+}
+
+textarea {
+  width: 100%;
+}
+
+/* セクシー餃子モーダルの絵文字プレースホルダは通常入力と見分けやすくする */
+#steganographyEmoji {
+  width: 100%;
+  font-size: 1.2em;
+  text-align: center;
+}
+#steganographyEmoji::placeholder {
+  color: var(--muted);
+  opacity: 1;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols2", "Noto Sans JP", sans-serif;
+}
+.modal input[type="text"], .modal input[type="password"], .modal input[type="number"] {
+  width: 100%;
+}
+
+/* select（コンボボックス）にもテーマ色を適用 */
+select, select:focus {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+/* theme select は右寄せ固定にしない */
+label > select#themeSelect {
+  margin-left: 8px;
+}
+
+/* 幅指定クラス - postLink系 */
+#postLinkTitleInput { width: 160px; }
+#postLinkUrlInput { width: 260px; }
+#clientNameInput { width: 140px; }
+
+/* iOS Safari の自動ズームを防止 */
+@media (max-width: 768px) {
+  textarea, input[type="text"], input[type="password"], input[type="number"], input[type="email"], select {
+    font-size: 16px;
+  }
+  .relay-item input[type="text"],
+  .candidate-item input[type="text"],
+  #postLinkTitleInput,
+  #postLinkUrlInput,
+  #clientNameInput,
+  #previewMaxLengthInput {
+    font-size: 16px !important;
+  }
+  #nip46Modal input[type="text"],
+  #nip46Modal input[type="password"],
+  #nip46Modal textarea,
+  #nip46Modal input[readonly] {
+    font-size: 16px !important;
+  }
+}
