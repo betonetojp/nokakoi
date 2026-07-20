@@ -68,3 +68,7 @@ export function checkMentionBlink() {
     setMentionBlink(false);
   } catch (e) { }
 }
+
+if (typeof window !== 'undefined') {
+  window.__setMentionBlink = setMentionBlink;
+}
