@@ -38,7 +38,8 @@ import {
   runMergedGlobalLoadMore, 
   getOmochatRelays, 
   addToFeed,
-  buildHomeLoadMoreFiltersForGlobalMerge
+  buildHomeLoadMoreFiltersForGlobalMerge,
+  handleTabChange
 } from '../features/timeline/feed-manager.js';
 
 import { consumeShareText } from '../features/post/share-text.js';
@@ -392,9 +393,29 @@ export async function initApp() {
 
   try {
     if (typeof window !== 'undefined') {
+      let lastActiveTab = null;
+      // 初期化時に現在のアクティブタブを取得
+      setTimeout(() => {
+        try {
+          const activeTabEl = document.querySelector('.tab.active');
+          if (activeTabEl && activeTabEl.dataset) {
+            lastActiveTab = activeTabEl.dataset.tab;
+          }
+        } catch (e) { }
+      }, 500);
+
       window.addEventListener('tab:changed', (e) => {
         try {
           const activeTab = e.detail && e.detail.tab;
+          if (activeTab) {
+            try {
+              const sourceTab = lastActiveTab || (document.querySelector('.tab.active')?.dataset?.tab || null);
+              handleTabChange(sourceTab, activeTab);
+            } catch (err) {
+              console.warn('[Main] handleTabChange failed:', err);
+            }
+            lastActiveTab = activeTab;
+          }
           if (activeTab === 'bitchat') {
             if (!state._bitchatFetcher) {
               console.log('[Main] Activating bitchat tab, setting up feed...');

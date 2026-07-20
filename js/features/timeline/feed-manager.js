@@ -626,7 +626,10 @@ export function setupGlobalFeed() {
   try {
     if (!state.feeds['global']) state.feeds['global'] = { list: [], map: new Map() };
     if (mergeHome) delete state.feeds['global'].mergedPaginationUntil;
-    const histFilters = [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT }];
+    const activeTabEl = document.querySelector('.tab.active');
+    const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
+    const isActive = activeTab === 'global';
+    const histFilters = isActive ? [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT }] : [];
     const since = Math.floor(Date.now() / 1000);
     const liveFilters = [
       { kinds: [1, 6], since }
@@ -665,6 +668,7 @@ export function setupGlobalFeed() {
 function shouldConnectBitchatOnBoot() {
   try {
     if (settingsManager.get('showHomeOmochat') === true) return true;
+    if (settingsManager.get('showOmochat') !== false) return true;
     const activeTabEl = document.querySelector('.tab.active');
     const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
     if (activeTab === 'bitchat') return true;
@@ -833,11 +837,14 @@ export function setupAuthedFeeds() {
     if (includeHomeRepost16) optionalHomeFollowKinds.push(16);
 
     try {
-      const homeHist = [
+      const activeTabEl = document.querySelector('.tab.active');
+      const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
+      const isHomeActive = activeTab === 'home';
+      const homeHist = isHomeActive ? [
         { kinds: [1, 6, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
         { kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
         { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
-      ];
+      ] : [];
       const sinceLive = Math.floor(Date.now() / 1000);
       const homeLive = [
         { kinds: [1, 6, ...optionalHomeFollowKinds], authors: follows, since: sinceLive },
@@ -881,7 +888,8 @@ export function setupAuthedFeeds() {
         if (!state.feeds['mentions']) state.feeds['mentions'] = { list: [], map: new Map() };
         try { window.__mentionsInitialLoading = true; } catch (e) { }
         const sinceM = Math.floor(Date.now() / 1000);
-        const mentionsHist = [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }];
+        const isMentionsActive = activeTab === 'mentions';
+        const mentionsHist = isMentionsActive ? [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }] : [];
         const mentionsLive = [{ kinds: [1, 6, 7], '#p': [pubkey], since: sinceM }];
         const mentionsFetcher = setupFeedFetcher({
           state,
@@ -917,7 +925,8 @@ export function setupAuthedFeeds() {
       try {
         if (!state.feeds['me']) state.feeds['me'] = { list: [], map: new Map() };
         const sinceMe = Math.floor(Date.now() / 1000);
-        const meHist = [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
+        const isMeActive = activeTab === 'me';
+        const meHist = isMeActive ? [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }] : [];
         const meLive = [
           { kinds: [1, 6, 7, 42, 16], authors: [pubkey], since: sinceMe }
         ];
@@ -1109,3 +1118,166 @@ async function refreshClosestOmochatRelays(geohash) {
   }
   return false;
 }
+
+/**
+ * 特定のフィードを個別にセットアップする
+ */
+export function setupSingleFeed(feedId) {
+  const pubkey = localStorage.getItem('pubkey');
+  if (feedId === 'global') {
+    setupGlobalFeed();
+  } else if (feedId === 'bitchat') {
+    setupBitchatFeed();
+  } else if (pubkey) {
+    if (feedId === 'home') {
+      const follows = (state.feeds['home'] && state.feeds['home'].follows) || [];
+      const includeHomeReactions = settingsManager.get('showHomeReactions') === true;
+      const includeHomeOmochat = settingsManager.get('showHomeOmochat') === true;
+      const includeHomeChannel = settingsManager.get('showHomeChannel') === true;
+      const includeHomeRepost16 = settingsManager.get('showHomeRepost16') === true;
+      const optionalHomeFollowKinds = [];
+      if (includeHomeReactions) optionalHomeFollowKinds.push(7);
+      if (includeHomeChannel) optionalHomeFollowKinds.push(42);
+      if (includeHomeRepost16) optionalHomeFollowKinds.push(16);
+
+      const homeHist = [
+        { kinds: [1, 6, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
+      ];
+      const sinceLive = Math.floor(Date.now() / 1000);
+      const homeLive = [
+        { kinds: [1, 6, ...optionalHomeFollowKinds], authors: follows, since: sinceLive },
+        { kinds: [1, 6, 7], '#p': [pubkey], since: sinceLive },
+        { kinds: [7, 42, 16], authors: [pubkey], since: sinceLive }
+      ];
+      try {
+        if (settingsManager.get('showMusicStatus') !== false) {
+          homeLive.push({ kinds: [30315], authors: follows, '#d': ['music'], since: sinceLive });
+        }
+      } catch (e) { }
+
+      const relaysForHist = getReadRelays(state.relays) || [];
+      const fetcher = setupFeedFetcher({
+        state,
+        feedId: 'home',
+        histFilters: homeHist,
+        liveFilters: homeLive,
+        relays: relaysForHist,
+        addToFeed,
+        scheduleRender,
+        eventsFetchLimit: EVENTS_FETCH_LIMIT,
+        eventsTimeout: EVENTS_TIMEOUT,
+        ...feedFetcherHistHooks()
+      });
+      state._homeFetcher = fetcher;
+
+      if (includeHomeOmochat && state.feeds['bitchat'] && Array.isArray(state.feeds['bitchat'].list)) {
+        const followSet = state.feeds['home'] && state.feeds['home'].followSet;
+        if (followSet) {
+          for (const ev of state.feeds['bitchat'].list) {
+            try {
+              if (ev && ev.pubkey && followSet.has(ev.pubkey)) {
+                addToFeed('home', ev);
+              }
+            } catch (e) { }
+          }
+        }
+      }
+    } else if (feedId === 'mentions') {
+      const sinceM = Math.floor(Date.now() / 1000);
+      const mentionsHist = [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }];
+      const mentionsLive = [{ kinds: [1, 6, 7], '#p': [pubkey], since: sinceM }];
+      const mentionsFetcher = setupFeedFetcher({
+        state,
+        feedId: 'mentions',
+        histFilters: mentionsHist,
+        liveFilters: mentionsLive,
+        relays: getReadRelays(state.relays),
+        addToFeed,
+        scheduleRender,
+        eventsFetchLimit: EVENTS_FETCH_LIMIT,
+        eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
+        ...feedFetcherHistHooks()
+      });
+      state._mentionsFetcher = mentionsFetcher;
+    } else if (feedId === 'me') {
+      const sinceMe = Math.floor(Date.now() / 1000);
+      const meHist = [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
+      const meLive = [
+        { kinds: [1, 6, 7, 42, 16], authors: [pubkey], since: sinceMe }
+      ];
+      try {
+        if (settingsManager.get('showMusicStatus') !== false) {
+          meLive.push({ kinds: [30315], authors: [pubkey], '#d': ['music'], since: sinceMe });
+        }
+      } catch (e) { }
+      const meFetcher = setupFeedFetcher({
+        state,
+        feedId: 'me',
+        histFilters: meHist,
+        liveFilters: meLive,
+        relays: getReadRelays(state.relays),
+        addToFeed,
+        scheduleRender,
+        eventsFetchLimit: EVENTS_FETCH_LIMIT,
+        eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
+        ...feedFetcherHistHooks()
+      });
+      state._meFetcher = meFetcher;
+    }
+  }
+}
+
+/**
+ * タブ切り替え時のフィードクリアとソフトリロード処理
+ */
+export function handleTabChange(oldTab, newTab) {
+  if (!state) return;
+
+  // 1. 切り替え元 (oldTab) のクリア処理
+  if (oldTab && oldTab !== newTab && oldTab !== 'bitchat') {
+    console.log(`[FeedManager] Clearing source tab feed: ${oldTab}`);
+    
+    // 履歴取得のみ停止 (警告: f.stopHist() は内部で controller.abort() を呼び、live購読も止めてしまうため呼び出さない)
+    
+    // フィードのデータ（メモリ）をクリア
+    clearFeed(state, oldTab);
+    
+    // DOMをクリア
+    const el = document.getElementById('feed-' + oldTab);
+    if (el) {
+      el.innerHTML = '';
+      // 注意: ドット点灯のために el.dataset.topEventId は削除しない
+    }
+  }
+
+  // 2. 切り替え先 (newTab) のソフトリロード処理
+  if (newTab && newTab !== 'bitchat') {
+    console.log(`[FeedManager] Soft reloading target tab feed: ${newTab}`);
+    
+    // 既存の fetcher を完全に停止して破棄
+    const fetcherKey = `_${newTab === 'global' ? 'global' : newTab}Fetcher`;
+    const f = state[fetcherKey];
+    if (f) {
+      try { if (f.controller && typeof f.controller.abort === 'function') f.controller.abort(); } catch (e) { }
+      try { if (typeof f.stopHist === 'function') f.stopHist(); } catch (e) { }
+      try { if (typeof f.stopLive === 'function') f.stopLive(); } catch (e) { }
+      delete state[fetcherKey];
+    }
+    
+    // フィードデータをクリア
+    clearFeed(state, newTab);
+    
+    // DOMとtopEventIdをクリア
+    const el = document.getElementById('feed-' + newTab);
+    if (el) {
+      el.innerHTML = '';
+      delete el.dataset.topEventId;
+    }
+    
+    // 新規にセットアップ（履歴＆ライブ取得開始）
+    setupSingleFeed(newTab);
+  }
+}
+

@@ -1,6 +1,6 @@
 import { findEventById, cacheEvent } from '../state.js';
 import { getReadRelays, normalizeUrl } from './relay-helpers.js';
-import { MAX_PRIORITY_SUB_PER_RELAY, MAX_LIVE_PER_RELAY, MAX_ONESHOT_PER_RELAY, MAX_TOTAL_SUB_PER_RELAY, EVENTS_TIMEOUT, PER_RELAY_ONESHOT_LIMIT } from '../../config/constants.js';
+import { MAX_LIVE_PER_RELAY, MAX_ONESHOT_PER_RELAY, MAX_TOTAL_SUB_PER_RELAY, EVENTS_TIMEOUT, PER_RELAY_ONESHOT_LIMIT } from '../../config/constants.js';
 import { getRelayFromPool } from './relay-connection.js';
 import { debugRelay, relayStates } from './relay-state.js';
 
@@ -84,7 +84,7 @@ export function canStartForAll(relays, type, priority = false) {
     for (const r of relays) {
       const vLive = relayActiveCounts.live.get(r) || 0;
       const vOne = relayActiveCounts.oneshot.get(r) || 0;
-      if ((vLive + vOne) >= MAX_PRIORITY_SUB_PER_RELAY) return false;
+      if ((vLive + vOne) >= MAX_TOTAL_SUB_PER_RELAY) return false;
     }
     return true;
   }
@@ -110,7 +110,7 @@ export function reevaluateQueuePriorities() {
     for (const req of subscribeQueue) {
       let isHighPriority = false;
       const key = req.key;
-      if (key === 'follows' || (key && key.includes('profile'))) {
+      if (key === 'follows' || (key && (key.includes('profile') || key.includes('live')))) {
         isHighPriority = true;
       } else if (activeTab && key && (key === activeTab || key.startsWith(activeTab + '_'))) {
         isHighPriority = true;
@@ -391,7 +391,7 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
       try {
         if (key === 'follows') {
           isHighPriority = true;
-        } else if (key && key.includes('profile')) {
+        } else if (key && (key.includes('profile') || key.includes('live'))) {
           isHighPriority = true;
         } else {
           const activeTabEl = document.querySelector('.tab.active');
@@ -401,7 +401,7 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
           }
         }
       } catch (e) {
-        if (key && (key === 'home' || key.startsWith('home_'))) isHighPriority = true;
+        if (key && (key === 'home' || key.startsWith('home_') || key.includes('live'))) isHighPriority = true;
       }
 
       if (isHighPriority) {

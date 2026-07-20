@@ -119,7 +119,11 @@ export function insertEventSorted(state, feedId, ev) {
  * フィード状態をクリア
  */
 export function clearFeed(state, feedId) {
-  if (state.feeds[feedId]) {
-    state.feeds[feedId] = makeFeedState();
+  const feed = state.feeds[feedId];
+  if (feed) {
+    feed.list = [];
+    feed.map = new Map();
+    feed.lastSeen = 0;
+    delete feed.mergedPaginationUntil;
   }
 }

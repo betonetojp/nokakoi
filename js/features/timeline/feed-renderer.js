@@ -716,7 +716,7 @@ export function renderFeed(id = 'global', force = false) {
     const newTopId = eventsToRender.length > 0 ? eventsToRender[0].id : '';
     const prevTopId = el.dataset.topEventId || '';
     el.dataset.topEventId = newTopId;
-    if (!isActiveFeed && prevTopId && newTopId && prevTopId !== newTopId && window.__nokakoiFeedsReady) {
+    if (!isActiveFeed && newTopId && (prevTopId === '' || prevTopId !== newTopId) && window.__nokakoiFeedsReady) {
       addNotifyDot();
     }
   };

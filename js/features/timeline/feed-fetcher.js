@@ -143,7 +143,10 @@ export function setupFeedFetcher(opts) {
 
   // 履歴取得開始
   try {
-    const relayList = Array.isArray(usedRelays) ? usedRelays.slice() : [];
+    if (!histFilters || histFilters.length === 0) {
+      finalize();
+    } else {
+      const relayList = Array.isArray(usedRelays) ? usedRelays.slice() : [];
     const histTimeout = Math.max(eventsTimeout || 3000, 3000);
 
     if (!relayList.length) {
@@ -206,6 +209,7 @@ export function setupFeedFetcher(opts) {
       // セーフティタイムアウト
       const to = setTimeout(() => { try { finalize(); } catch (e) { } }, histTimeout);
       perRelayUnsubs.add(() => { try { clearTimeout(to); } catch (e) { } });
+    }
     }
   } catch (e) {
     try {
