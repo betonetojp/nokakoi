@@ -20,6 +20,8 @@
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  -webkit-user-select: none;
+  user-select: none;
 }
 .modal[hidden] { display: none; }
 .modal:not([hidden]) {
@@ -256,4 +258,16 @@ body.theme-light #eventModalContent::-webkit-scrollbar-thumb {
   font-size: 0.85em;
   color: var(--muted);
   margin-right: 12px;
+}
+
+/* モーダル内の入力エリア、テキストコンテンツ、JSON表示エリアなどの選択を再許可 */
+.modal input,
+.modal textarea,
+.modal .content,
+.modal .debug-pre,
+.modal .json-pre,
+.modal #profileAbout,
+.modal #eventModalContent {
+  -webkit-user-select: text;
+  user-select: text;
 }
