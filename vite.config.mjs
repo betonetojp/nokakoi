@@ -10,7 +10,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    target: 'esnext'
+    target: ['es2020', 'safari13']
   },
   server: {
     port: 8000,

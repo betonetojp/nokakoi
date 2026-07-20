@@ -155,49 +155,89 @@ export function setupTabs(settingsManager, preserveActive = false) {
 
     if (cfg.id === 'bitchat') {
       let pressTimer;
+      let startX, startY;
+      let hasMoved = false;
+      let longPressTriggered = false;
+
       btn.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         showOmochatSettingsModal(settingsManager);
       });
       btn.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        hasMoved = false;
+        longPressTriggered = false;
+
         pressTimer = setTimeout(() => {
+          longPressTriggered = true;
           showOmochatSettingsModal(settingsManager);
         }, 800);
-      }, {passive: true});
+        e.preventDefault();
+      }, { passive: false });
+      btn.addEventListener('touchmove', (e) => {
+        if (hasMoved) return;
+        const touch = e.touches[0];
+        if (Math.abs(touch.clientX - startX) > 10 || Math.abs(touch.clientY - startY) > 10) {
+          hasMoved = true;
+          clearTimeout(pressTimer);
+        }
+      }, { passive: true });
       btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
         clearTimeout(pressTimer);
+        if (!longPressTriggered && !hasMoved) {
+          btn.click();
+        }
       });
-      btn.addEventListener('touchcancel', (e) => {
+      btn.addEventListener('touchcancel', () => {
         clearTimeout(pressTimer);
       });
     }
 
     if (cfg.id === 'home') {
       let longPressTimer = null;
+      let startX, startY;
+      let hasMoved = false;
       let longPressTriggered = false;
+
       btn.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         showHomeDisplayQuickModal();
         return false;
       });
       btn.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        hasMoved = false;
         longPressTriggered = false;
+
         longPressTimer = setTimeout(() => {
           longPressTriggered = true;
-          e.preventDefault();
           showHomeDisplayQuickModal();
         }, 600);
+        e.preventDefault();
       }, { passive: false });
+      btn.addEventListener('touchmove', (e) => {
+        if (hasMoved) return;
+        const touch = e.touches[0];
+        if (Math.abs(touch.clientX - startX) > 10 || Math.abs(touch.clientY - startY) > 10) {
+          hasMoved = true;
+          if (longPressTimer) clearTimeout(longPressTimer);
+        }
+      }, { passive: true });
       btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
         if (longPressTimer) clearTimeout(longPressTimer);
-        if (longPressTriggered) {
-          e.preventDefault();
-          e.stopPropagation();
+        if (!longPressTriggered && !hasMoved) {
+          btn.click();
         }
       });
-      btn.addEventListener('touchmove', () => {
+      btn.addEventListener('touchcancel', () => {
         if (longPressTimer) clearTimeout(longPressTimer);
-      }, { passive: true });
+      });
     }
 
     tabsContainer.appendChild(btn);
