@@ -12,3 +12,26 @@ body {
   color: var(--text);
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans JP, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
 }
+
+/* iOSの長押しによる文字選択・画像プレビューなどを無効化（インタラクティブ要素用） */
+.tab,
+button,
+a.secondary,
+.btn-react,
+.quick-reaction,
+.tab-order-arrow-btn,
+.load-more-btn,
+.petname-badge,
+.icon,
+.icon-btn,
+.custom-emoji,
+img.brand-icon,
+button img,
+.btn-react img,
+.quick-reaction img,
+.event-actions-react button img,
+.event-actions-bottom button img {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
