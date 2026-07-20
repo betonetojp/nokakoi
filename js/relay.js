@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { uniqueRelays, $, logWarn } from './utils.js';
-import { RECONNECT_DELAY, MAX_RECONNECT_DELAY, DOWN_PERSIST_MS, MAX_LIVE_PER_RELAY, MAX_ONESHOT_PER_RELAY, MAX_TOTAL_SUB_PER_RELAY, KEEPALIVE_INTERVAL, RESUME_RESTART_MS } from './constants.js';
+import { EVENTS_TIMEOUT, RECONNECT_DELAY, MAX_RECONNECT_DELAY, DOWN_PERSIST_MS, MAX_LIVE_PER_RELAY, MAX_ONESHOT_PER_RELAY, MAX_TOTAL_SUB_PER_RELAY, KEEPALIVE_INTERVAL, RESUME_RESTART_MS, RELAY_MONITOR_INTERVAL, MAX_PRIORITY_SUB_PER_RELAY, PER_RELAY_ONESHOT_LIMIT } from './constants.js';
 import { getNostrTools } from './nostr-compat.js';
 
 /**
@@ -306,7 +306,7 @@ function monitorRelayConnections(state, restartFeedsCallback) {
         console.warn(`[Relay] 接続確認エラー: ${url}`, e);
       }
     });
-  }, 8000); // 8秒ごとにチェック
+  }, RELAY_MONITOR_INTERVAL); // リレー接続状態監視の実行間隔
   // クリーンアップ用interval保持
   if (!state.relayMonitorInterval) {
     state.relayMonitorInterval = checkInterval;
@@ -903,7 +903,7 @@ function canStartForAll(relays, type, priority = false) {
     for (const r of relays) {
       const vLive = relayActiveCounts.live.get(r) || 0;
       const vOne = relayActiveCounts.oneshot.get(r) || 0;
-      if ((vLive + vOne) >= 12) return false;
+      if ((vLive + vOne) >= MAX_PRIORITY_SUB_PER_RELAY) return false;
     }
     return true;
   }
@@ -1005,7 +1005,7 @@ function processSubscribeQueue() {
             if (type === 'oneshot') {
               // 1 relay 偏重で早期 close しないよう relay ごとに件数を管理。
               // 投稿頻度の高い kind:1 だけで枠が埋まるのを防ぐため、十分大きな上限にする。
-              const perRelayLimit = 200;
+              const perRelayLimit = PER_RELAY_ONESHOT_LIMIT;
               const relayCount = Array.isArray(req.targetRelays) && req.targetRelays.length ? req.targetRelays.length : 1;
               const counts = new Map();
               let total = 0;
@@ -1083,7 +1083,7 @@ function processSubscribeQueue() {
           try {
             oneshotTimer = setTimeout(() => {
               try { if (sub && typeof sub.close === 'function') sub.close(); } catch (e) { }
-            }, 4000);
+            }, EVENTS_TIMEOUT);
           } catch (e) { }
         }
 
