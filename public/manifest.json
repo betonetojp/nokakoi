@@ -1,7 +1,7 @@
 {
   "name": "nokakoi",
   "short_name": "nokakoi",
-  "description": "軽量なNostrクライアント",
+  "description": "Tiny but cute web client.",
   "lang": "ja",
   "id": "./",
   "scope": "./",
