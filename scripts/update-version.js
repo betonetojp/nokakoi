@@ -15,7 +15,7 @@ const VERSION_PATTERNS = [
 ];
 
 function readVersion() {
-  const versionFile = path.join(ROOT, 'js/version.js');
+  const versionFile = path.join(ROOT, 'js/config/version.js');
   if (!fs.existsSync(versionFile)) {
     throw new Error(`version.js not found: ${versionFile}`);
   }
@@ -27,7 +27,7 @@ function readVersion() {
   }
 
   throw new Error(
-    'Could not find VERSION in js/version.js\n' +
+    'Could not find VERSION in js/config/version.js\n' +
     'Expected: export const VERSION = \'1.2.3\';'
   );
 }
@@ -193,7 +193,7 @@ function main() {
 
     console.log('\nVersion update complete!');
     console.log(`\nFiles using version ${version}:`);
-    console.log('  - js/version.js (source of truth)');
+    console.log('  - js/config/version.js (source of truth)');
     console.log('  - public/sw.js (CACHE_VERSION)');
     console.log('  - package.json');
     console.log('  - package-lock.json');
