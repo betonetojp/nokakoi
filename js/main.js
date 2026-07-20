@@ -1099,6 +1099,19 @@ function setupGlobalFeed() {
 }
 
 /**
+ * 起動時に bitchat (omochat) に接続すべきかどうかを判定
+ */
+function shouldConnectBitchatOnBoot() {
+  try {
+    if (settingsManager.get('showHomeOmochat') === true) return true;
+    const activeTabEl = document.querySelector('.tab.active');
+    const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
+    if (activeTab === 'bitchat') return true;
+  } catch (e) { }
+  return false;
+}
+
+/**
  * bitchat フィードのセットアップ（kind:20000）
  * 常に kind:20000 を全件取得し、表示時にクライアント側で geohash フィルタを適用する。
  * 「ホームに omochat を表示」オン時は、follows のイベントを home フィードにも分配する。
@@ -1469,7 +1482,9 @@ function restartFeeds(fullReset = false) {
     // NIP-30 カスタム絵文字を先に購読（全フィード準備前に）
     setupCustomEmojiSubscription();
     setupGlobalFeed();
-    setupBitchatFeed();
+    if (shouldConnectBitchatOnBoot()) {
+      setupBitchatFeed();
+    }
     if (localStorage.getItem('pubkey')) setupAuthedFeeds();
     // 初期読み込み完了後にフィード準備完了フラグをセット（通知ドット抑制用）
     window.__nokakoiFeedsReady = false;
@@ -1890,9 +1905,33 @@ async function init() {
     if (!pubkey) {
       setupGlobalFeed();
       // あわせて omochat タブの購読も開始
-      try { setupBitchatFeed(); } catch (e) { }
+      try {
+        if (shouldConnectBitchatOnBoot()) {
+          setupBitchatFeed();
+        }
+      } catch (e) { }
     }
   } catch (e) { }
+
+  // タブ切り替え時の bitchat (omochat) オンデマンドフェッチ処理
+  try {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('tab:changed', (e) => {
+        try {
+          const activeTab = e.detail && e.detail.tab;
+          if (activeTab === 'bitchat') {
+            if (!state._bitchatFetcher) {
+              console.log('[Main] Activating bitchat tab, setting up feed...');
+              setupBitchatFeed();
+            }
+          }
+        } catch (err) {
+          console.warn('[Main] tab:changed event handling failed:', err);
+        }
+      });
+    }
+  } catch (e) { }
+
   updateBuildInfo();
 
   // UI 初期化後に翻訳を適用

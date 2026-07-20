@@ -712,12 +712,12 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
           // 現在のアクティブタブを取得
           const activeTabEl = document.querySelector('.tab.active');
           const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home'; // デフォルトは home
-          if (activeTab && key && key.includes(activeTab)) {
+          if (activeTab && key && (key === activeTab || key.startsWith(activeTab + '_'))) {
             isHighPriority = true;
           }
         }
       } catch (e) {
-        if (key && key.includes('home')) isHighPriority = true;
+        if (key && (key === 'home' || key.startsWith('home_'))) isHighPriority = true;
       }
 
       if (isHighPriority) {
@@ -922,6 +922,48 @@ function canStartForAll(relays, type, priority = false) {
   }
   return true;
 }
+/**
+ * 現在のアクティブタブに基づいてキュー内のリクエスト優先度を再評価し、並び替える
+ */
+export function reevaluateQueuePriorities() {
+  try {
+    const activeTabEl = document.querySelector('.tab.active');
+    const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
+
+    // 各キュー要素の priority を再設定
+    for (const req of subscribeQueue) {
+      let isHighPriority = false;
+      const key = req.key;
+      if (key === 'follows' || (key && key.includes('profile'))) {
+        isHighPriority = true;
+      } else if (activeTab && key && (key === activeTab || key.startsWith(activeTab + '_'))) {
+        isHighPriority = true;
+      }
+      req.priority = isHighPriority;
+    }
+
+    // 優先度の高いものが先に来るように安定ソート
+    subscribeQueue.sort((a, b) => {
+      const aPri = a.priority ? 1 : 0;
+      const bPri = b.priority ? 1 : 0;
+      return bPri - aPri; // 1 (true) が先、0 (false) が後
+    });
+
+    debugRelay('[Relay] Queue priorities reevaluated. Active tab:', activeTab);
+    processSubscribeQueue();
+  } catch (e) {
+    console.warn('[Relay] reevaluateQueuePriorities failed:', e);
+  }
+}
+
+// タブ変更イベントをリッスン
+try {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('tab:changed', () => {
+      try { reevaluateQueuePriorities(); } catch (e) { }
+    });
+  }
+} catch (e) { }
 
 function processSubscribeQueue() {
   if (!subscribeQueue.length) return;

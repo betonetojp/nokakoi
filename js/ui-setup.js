@@ -447,6 +447,11 @@ export function setupTabs(settingsManager, preserveActive = false) {
 
       // タブ切替時に reply/geohash ターゲットをクリア
       try { clearReplyTarget(); } catch(e) {}
+
+      // タブ変更イベントを発火
+      try {
+        window.dispatchEvent(new CustomEvent('tab:changed', { detail: { tab: btn.dataset.tab } }));
+      } catch (e) { }
     };
     // omochat 設定用の長押し/右クリックハンドラ
     if (cfg.id === 'bitchat') {
