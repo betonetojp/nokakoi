@@ -2,10 +2,11 @@
 // モーダルダイアログ
 // ============================================================================
 
-import { $, buildReactionEmojiTags, buildStoredReactionValue, getReactionContent, isReactionShortcodeOnly, resolveReactionCustomEmoji } from '../../utils/utils.js';
+import { $, buildReactionEmojiTags, buildStoredReactionValue, getReactionContent, getReactionEmojiTags, isReactionShortcodeOnly, resolveReactionCustomEmoji } from '../../utils/utils.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { DEFAULT_OMOCHAT_RELAYS } from '../../config/constants.js';
 import { attachEmojiShortcodeSuggest } from '../../features/emoji/emoji-shortcode-suggest.js';
+import { registerTextShortcodeVariant } from '../../features/emoji/custom-emoji-store.js';
 import { getClosestRelays } from '../../features/relay/geo-relay-directory.js';
 
 const HIDDEN_TAG_CHARS_RE = /[\u{E0100}-\u{E01EF}]+/gu;
@@ -164,6 +165,21 @@ function renderRecentReactions(modal, input, statusEl) {
     btn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
+
+      // 最近使ったリアクションがカスタム絵文字の場合、そのバリアント（URL）をレジストリに登録しておく
+      if (isReactionShortcodeOnly(reaction)) {
+        const scMatch = content.match(/^:([a-zA-Z0-9_+-]+):$/);
+        if (scMatch) {
+          const shortcode = scMatch[1];
+          const tags = getReactionEmojiTags(reaction);
+          const tag = (Array.isArray(tags) && tags[0]) ? tags[0] : null;
+          if (tag && tag[2]) {
+            const variant = { url: tag[2], address: tag[3] || '' };
+            registerTextShortcodeVariant(shortcode, variant, shortcode);
+          }
+        }
+      }
+
       input.value = content;
       updateReactionPreview(modal, input);
       if (statusEl) statusEl.textContent = '';
@@ -218,6 +234,20 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
     const savedValue = settingsManager.get('reactionDefault');
     if (savedValue) {
       initialValue = savedValue;
+    }
+  }
+
+  // 初期値がカスタム絵文字の場合、そのバリアント（URL）をレジストリに登録しておく
+  if (isReactionShortcodeOnly(initialValue)) {
+    const scMatch = getReactionContent(initialValue).match(/^:([a-zA-Z0-9_+-]+):$/);
+    if (scMatch) {
+      const shortcode = scMatch[1];
+      const tags = getReactionEmojiTags(initialValue);
+      const tag = (Array.isArray(tags) && tags[0]) ? tags[0] : null;
+      if (tag && tag[2]) {
+        const variant = { url: tag[2], address: tag[3] || '' };
+        registerTextShortcodeVariant(shortcode, variant, shortcode);
+      }
     }
   }
 
@@ -336,7 +366,7 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
   };
 
   // クイックリアクションボタンセットアップ
-  const quickButtons = modal.querySelectorAll('.quick-reaction');
+  const quickButtons = modal.querySelectorAll('.reaction-quick-row .quick-reaction');
   quickButtons.forEach(btn => {
     btn.onclick = (e) => {
       e.preventDefault();
