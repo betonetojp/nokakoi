@@ -105,10 +105,13 @@ export function markFeedHistBufferStart(feedId) {
 /**
  * 履歴バッファリング終了時のフック
  */
-export function markFeedHistBufferEnd(feedId) {
+export function markFeedHistBufferEnd(feedId, actuallyLoaded = false) {
   try {
     if (!feedLoadState[feedId]) feedLoadState[feedId] = {};
     feedLoadState[feedId].histLoading = false;
+    if (actuallyLoaded) {
+      feedLoadState[feedId].histLoaded = true;
+    }
   } catch (e) { }
 }
 
@@ -583,7 +586,25 @@ export function addToFeed(feedId, ev, keepLatestCount = null, relay = null) {
     }
   }
   
-  trimFeedToMax(feedId);
+  // 非アクティブなタブ（且つ bitchat 以外）への追加の場合、トリム上限を EVENTS_FETCH_LIMIT に制限する
+  try {
+    let isActive = false;
+    if (typeof document !== 'undefined') {
+      const activeTabEl = document.querySelector('.tab.active');
+      const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
+      isActive = feedId === activeTab;
+    } else {
+      isActive = true;
+    }
+    if (!isActive && feedId !== 'bitchat') {
+      trimFeedToMax(feedId, EVENTS_FETCH_LIMIT);
+    } else {
+      trimFeedToMax(feedId);
+    }
+  } catch (e) {
+    trimFeedToMax(feedId);
+  }
+  
   if (!feedLoadState[feedId]?.histLoading) scheduleRender(feedId);
   
   if (feedId === 'home' && settingsManager.get('globalMergeHome') === true && ev != null && isGlobalMergeKind(ev)) {
@@ -1244,18 +1265,14 @@ export function handleTabChange(oldTab, newTab) {
   if (!state) return;
 
   // 1. 切り替え元 (oldTab) のクリア処理
-  const mergeHome = settingsManager.get('globalMergeHome') === true;
-  const isProtectedHome = oldTab === 'home' && mergeHome;
-
-  if (oldTab && oldTab !== newTab && oldTab !== 'bitchat' && !isProtectedHome) {
-    console.log(`[FeedManager] Clearing source tab feed: ${oldTab}`);
+  // bitchat 以外の非アクティブ化したタブについて、メモリを完全クリアせず、EVENTS_FETCH_LIMIT 件にトリムして保持する
+  if (oldTab && oldTab !== newTab && oldTab !== 'bitchat') {
+    console.log(`[FeedManager] Trimming source tab feed for retention: ${oldTab}`);
     
-    // 履歴取得のみ停止 (警告: f.stopHist() は内部で controller.abort() を呼び、live購読も止めてしまうため呼び出さない)
+    // フィードデータを EVENTS_FETCH_LIMIT 件にトリムしてメモリに保持
+    trimFeedToMax(oldTab, EVENTS_FETCH_LIMIT);
     
-    // フィードのデータ（メモリ）をクリア
-    clearFeed(state, oldTab);
-    
-    // DOMをクリア
+    // DOMはメモリ節約のためクリアする
     const el = document.getElementById('feed-' + oldTab);
     if (el) {
       el.innerHTML = '';
@@ -1263,32 +1280,33 @@ export function handleTabChange(oldTab, newTab) {
     }
   }
 
-  // 2. 切り替え先 (newTab) のソフトリロード処理
+  // 2. 切り替え先 (newTab) の処理
   if (newTab && newTab !== 'bitchat') {
-    console.log(`[FeedManager] Soft reloading target tab feed: ${newTab}`);
-    
-    // 既存の fetcher を完全に停止して破棄
     const fetcherKey = `_${newTab === 'global' ? 'global' : newTab}Fetcher`;
     const f = state[fetcherKey];
-    if (f) {
-      try { if (f.controller && typeof f.controller.abort === 'function') f.controller.abort(); } catch (e) { }
-      try { if (typeof f.stopHist === 'function') f.stopHist(); } catch (e) { }
-      try { if (typeof f.stopLive === 'function') f.stopLive(); } catch (e) { }
-      delete state[fetcherKey];
+    const isHistLoaded = feedLoadState[newTab] && feedLoadState[newTab].histLoaded === true;
+
+    // すでに fetcher が存在し、live 購読等が動いており、且つ過去ログもロード済みの場合は再ロードをスキップ
+    if (f && isHistLoaded) {
+      console.log(`[FeedManager] Target tab feed ${newTab} is already setup and hist loaded. Re-rendering from memory...`);
+      markFeedPreferFullRender(newTab);
+      scheduleRender(newTab);
+    } else {
+      console.log(`[FeedManager] Soft reloading target tab feed: ${newTab}`);
+      
+      // フィードデータをクリア
+      clearFeed(state, newTab);
+      
+      // DOMとtopEventIdをクリア
+      const el = document.getElementById('feed-' + newTab);
+      if (el) {
+        el.innerHTML = '';
+        delete el.dataset.topEventId;
+      }
+      
+      // 新規にセットアップ（履歴＆ライブ取得開始）
+      setupSingleFeed(newTab);
     }
-    
-    // フィードデータをクリア
-    clearFeed(state, newTab);
-    
-    // DOMとtopEventIdをクリア
-    const el = document.getElementById('feed-' + newTab);
-    if (el) {
-      el.innerHTML = '';
-      delete el.dataset.topEventId;
-    }
-    
-    // 新規にセットアップ（履歴＆ライブ取得開始）
-    setupSingleFeed(newTab);
   }
 }
 

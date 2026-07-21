@@ -129,7 +129,7 @@ export function setupFeedFetcher(opts) {
         } catch (e) { }
       }
     } catch (e) { }
-    try { if (typeof onHistBufferEnd === 'function') onHistBufferEnd(feedId); } catch (e) { }
+    try { if (typeof onHistBufferEnd === 'function') onHistBufferEnd(feedId, histFilters && histFilters.length > 0); } catch (e) { }
     try { if (typeof scheduleRender === 'function') scheduleRender(feedId); } catch (e) { }
     try { if (typeof onHistFinalize === 'function') onHistFinalize(); } catch (e) { }
     try {
