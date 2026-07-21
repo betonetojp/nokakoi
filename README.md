@@ -55,7 +55,6 @@ npm run preview
 ```text
 nokakoi/
 ├── index.html              # メインUI (Viteエントリーポイント)
-├── style.css               # スタイル
 ├── package.json            # プロジェクト設定・依存関係
 ├── vite.config.mjs         # Vite設定ファイル
 ├── eslint.config.mjs       # ESLint設定ファイル
@@ -67,16 +66,15 @@ nokakoi/
 │   ├── gyouza/             # セクシー餃子ツール
 │   ├── i18n/               # 多言語翻訳データ
 │   └── icon/               # アイコン
+├── src/                    # スタイル定義
+│   └── styles/             # 機能別分割CSS (base, components, features, layout, utilities)
 └── js/                     # JavaScriptモジュール
     ├── main.js             # エントリーポイント
-    ├── auth.js             # 認証
-    ├── webauthn.js         # Passkey
-    ├── relay.js            # リレー接続
-    ├── renderer.js         # 描画
-    ├── composer.js         # 投稿UI
-    ├── settings.js         # 設定
-    ├── i18n.js             # 多言語
-    └── ...
+    ├── config/             # 設定・定数・バージョン
+    ├── core/               # コアロジック (auth, relay, state, bootstrap)
+    ├── features/           # 機能モジュール (channel, emoji, post, profile, timeline, relay)
+    ├── ui/                 # UI制御・レンダラー・モダル (modals, renderers, setup)
+    └── utils/              # ユーティリティ (content, helpers, i18n, notification)
 ```
 
 ## 開発ルール

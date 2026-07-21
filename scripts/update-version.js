@@ -2,7 +2,7 @@
 // ============================================================================
 // VERSION UPDATE SCRIPT (for public nokakoi repo)
 // ============================================================================
-// Updates version numbers in all files from js/version.js
+// Updates version numbers in all files from js/config/version.js
 
 const fs = require('fs');
 const path = require('path');

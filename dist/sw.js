@@ -3,9 +3,9 @@
 // バージョン管理によるキャッシュバスティング
 // ============================================================================
 
-// バージョンは app/js/version.js で一元管理
-// サービスワーカー用にここにもコピー（リリース時は手動で更新・version.jsと一致させること）
-const CACHE_VERSION = 'v1.101.8';
+// バージョンは js/config/version.js で一元管理
+// (リリース時は `npm run version:update` で自動同期されます)
+const CACHE_VERSION = 'v1.101.9';
 const CACHE_NAME = `nokakoi-${CACHE_VERSION}`;
 
 // ローカル開発時のみ詳細ログを有効化

@@ -259,8 +259,7 @@ export function linkifyText(text, emojiTags = [], options = {}) {
   for (let i = 0; i < result.length; i++) {
     out += result[i];
     if (i < result.length - 1) {
-      if (isBlock[i] || isBlock[i + 1]) {
-      } else {
+      if (!isBlock[i] && !isBlock[i + 1]) {
         out += '<br>';
       }
     }

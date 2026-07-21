@@ -260,12 +260,18 @@ body.theme-light #eventModalContent::-webkit-scrollbar-thumb {
   margin-right: 12px;
 }
 
-/* モーダル内の入力エリア、テキストコンテンツ、JSON表示エリアなどの選択を再許可 */
+/* モーダル内の入力エリア、テキストコンテンツ、JSON表示エリア、プロフィール情報などの選択を再許可 */
 .modal input,
 .modal textarea,
+.modal pre,
 .modal .content,
 .modal .debug-pre,
 .modal .json-pre,
+.modal #debugContent,
+.modal #jsonContent,
+.modal #profileNpub,
+.modal #profileDisplayName,
+.modal #profileUsername,
 .modal #profileAbout,
 .modal #eventModalContent {
   -webkit-user-select: text;

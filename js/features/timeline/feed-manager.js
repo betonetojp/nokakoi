@@ -2,6 +2,7 @@ import { insertEventSorted, findEventById, clearFeed } from '../../core/state.js
 import { getReadRelays, subOnce, relayConnect, unsubscribeAll } from '../../core/relay.js';
 import { EVENTS_MAX, EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT } from '../../config/constants.js';
 import { setupFeedFetcher } from '../../features/timeline/feed-fetcher.js';
+import { setupCustomEmojiSubscription } from '../../features/emoji/custom-emoji-sub.js';
 import { renderFeed, scheduleRender, userKind7Memory, feedLoadState, ensureEventRestored } from '../../features/timeline/feed-renderer.js';
 import { pickChannelRootId, prefetchChannelMetadata } from '../../features/channel/channel.js';
 import { updateUserStatusDom, updateNameDom, loadProfile } from '../../features/profile/profile.js';
