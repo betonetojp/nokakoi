@@ -1046,6 +1046,14 @@ export function restartFeeds(fullReset = false) {
         }
       } catch (e) { }
       try { if (state && state[k]) delete state[k]; } catch (e) { }
+
+      // 対応する feedId の histLoaded をクリアして、次回アクティブ時に過去ログを取得させる
+      try {
+        const feedId = k.replace('_', '').replace('Fetcher', '').replace('homeOmochat', 'home');
+        if (feedLoadState[feedId]) {
+          feedLoadState[feedId].histLoaded = false;
+        }
+      } catch (e) { }
     }
   } catch (e) { }
 
@@ -1053,7 +1061,12 @@ export function restartFeeds(fullReset = false) {
 
   if (fullReset) {
     ['home', 'global', 'mentions', 'me', 'bitchat'].forEach(id => {
-      try { clearFeed(state, id); } catch (e) { }
+      try {
+        clearFeed(state, id);
+        if (feedLoadState[id]) {
+          feedLoadState[id].histLoaded = false;
+        }
+      } catch (e) { }
     });
   }
 
@@ -1296,6 +1309,9 @@ export function handleTabChange(oldTab, newTab) {
       
       // フィードデータをクリア
       clearFeed(state, newTab);
+      if (feedLoadState[newTab]) {
+        feedLoadState[newTab].histLoaded = false;
+      }
       
       // DOMとtopEventIdをクリア
       const el = document.getElementById('feed-' + newTab);
