@@ -611,6 +611,12 @@ export function addToFeed(feedId, ev, keepLatestCount = null, relay = null) {
 export function setupGlobalFeed() {
   const relays = resolveGlobalRelays(settingsManager, state.relays);
   const mergeHome = settingsManager.get('globalMergeHome') === true;
+
+  if (mergeHome && !state._homeFetcher && localStorage.getItem('pubkey')) {
+    console.log('[FeedManager] globalMergeHome is enabled but home feed is not setup. Setting up home feed...');
+    try { setupSingleFeed('home'); } catch (e) { console.warn('[FeedManager] Failed to auto setup home feed for merge:', e); }
+  }
+
   if (!relays || relays.length === 0) {
     if (!mergeHome) {
       console.warn('[警告] グローバルフィード用リレーがありません');
@@ -839,8 +845,10 @@ export function setupAuthedFeeds() {
     try {
       const activeTabEl = document.querySelector('.tab.active');
       const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
+      const mergeHome = settingsManager.get('globalMergeHome') === true;
       const isHomeActive = activeTab === 'home';
-      const homeHist = isHomeActive ? [
+      const shouldFetchHomeHist = isHomeActive || (mergeHome && activeTab === 'global');
+      const homeHist = shouldFetchHomeHist ? [
         { kinds: [1, 6, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
         { kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
         { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
@@ -1236,7 +1244,10 @@ export function handleTabChange(oldTab, newTab) {
   if (!state) return;
 
   // 1. 切り替え元 (oldTab) のクリア処理
-  if (oldTab && oldTab !== newTab && oldTab !== 'bitchat') {
+  const mergeHome = settingsManager.get('globalMergeHome') === true;
+  const isProtectedHome = oldTab === 'home' && mergeHome;
+
+  if (oldTab && oldTab !== newTab && oldTab !== 'bitchat' && !isProtectedHome) {
     console.log(`[FeedManager] Clearing source tab feed: ${oldTab}`);
     
     // 履歴取得のみ停止 (警告: f.stopHist() は内部で controller.abort() を呼び、live購読も止めてしまうため呼び出さない)
