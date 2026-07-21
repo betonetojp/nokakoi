@@ -66,6 +66,43 @@ function addMentionTags(draft) {
 }
 
 /**
+ * 本文中の #ハッシュタグ から t タグを追加 (半角#のみ対象、小文字統一)
+ */
+function addHashtagTags(draft) {
+  if (!draft || !draft.content) return;
+  if (draft.kind !== 1 && draft.kind !== 42) return;
+
+  try {
+    const regex = /(?:^|\s)#([^\s#!"$%&'()*+,\-./:;<=>?@[\\\]^`{|}~]+)/g;
+    let match;
+    const foundTags = new Set();
+
+    while ((match = regex.exec(draft.content)) !== null) {
+      try {
+        let tag = match[1];
+        if (!tag) continue;
+        if (/^\d+$/.test(tag)) continue; // 数字のみは除外
+
+        tag = tag.toLowerCase();
+
+        if (!foundTags.has(tag)) {
+          foundTags.add(tag);
+          if (!draft.tags) draft.tags = [];
+          const alreadyExists = draft.tags.some(t => Array.isArray(t) && t[0] === 't' && t[1] && t[1].toLowerCase() === tag);
+          if (!alreadyExists) {
+            draft.tags.push(['t', tag]);
+          }
+        }
+      } catch (e) {
+        console.warn('[Actions] ハッシュタグの解析に失敗:', match[0], e);
+      }
+    }
+  } catch (e) {
+    console.warn('[Actions] ハッシュタグ抽出処理全体でエラー:', e);
+  }
+}
+
+/**
  * 現在の署名モードでイベントに署名
  */
 export async function signEventWithMode(state, draft) {
@@ -310,6 +347,7 @@ export async function publishNote(state, content, statusEl, options) {
     }
 
     addMentionTags(draft);
+    addHashtagTags(draft);
 
     const ev = await signEventWithMode(effectiveState, draft);
 
@@ -576,6 +614,7 @@ export async function replyToEvent(state, targetEv, text) {
     }
 
     addMentionTags(draft);
+    addHashtagTags(draft);
 
     const ev = await signEventWithMode(effectiveState, draft);
 
