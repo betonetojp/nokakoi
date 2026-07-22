@@ -895,13 +895,28 @@ export function setupAuthedFeeds() {
             return;
           }
 
+          const multicastAddToFeed = (fid, ev, keepCount, relay) => {
+            addToFeed('home', ev, keepCount, relay);
+            if (ev && typeof ev === 'object') {
+              if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7) {
+                const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => t[0] === 'p') : [];
+                if (pTags.some(t => t[1] === pubkey)) {
+                  addToFeed('mentions', ev, keepCount, relay);
+                }
+              }
+              if (ev.pubkey === pubkey && [1, 6, 7, 42, 16, 30315].includes(ev.kind)) {
+                addToFeed('me', ev, keepCount, relay);
+              }
+            }
+          };
+
           const fetcher = setupFeedFetcher({
             state,
             feedId: 'home',
             histFilters: homeHist,
             liveFilters: homeLive,
             relays: relaysForHist,
-            addToFeed,
+            addToFeed: multicastAddToFeed,
             scheduleRender,
             eventsFetchLimit: EVENTS_FETCH_LIMIT,
             eventsTimeout: EVENTS_TIMEOUT,
@@ -917,15 +932,13 @@ export function setupAuthedFeeds() {
       try {
         if (!state.feeds['mentions']) state.feeds['mentions'] = { list: [], map: new Map() };
         try { window.__mentionsInitialLoading = true; } catch (e) { }
-        const sinceM = Math.floor(Date.now() / 1000);
         const isMentionsActive = activeTab === 'mentions';
         const mentionsHist = isMentionsActive ? [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }] : [];
-        const mentionsLive = [{ kinds: [1, 6, 7], '#p': [pubkey], since: sinceM }];
         const mentionsFetcher = setupFeedFetcher({
           state,
           feedId: 'mentions',
           histFilters: mentionsHist,
-          liveFilters: mentionsLive,
+          liveFilters: null, // home_live に統合されたため個別の live 購読は作成しない
           relays: getReadRelays(state.relays),
           addToFeed,
           scheduleRender,
@@ -940,36 +953,25 @@ export function setupAuthedFeeds() {
       } catch (e) {
         // 例外時のフォールバック処理
         try {
-          const sinceM = Math.floor(Date.now() / 1000);
           subOnce(state, 'mentions_hist', [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }], (ev2, relay, done) => {
             if (ev2) addToFeed('mentions', ev2);
             if (done) {
               try { window.__mentionsInitialLoading = false; checkMentionBlink(); } catch (ee) { }
             }
           });
-          subOnce(state, 'mentions_live', [{ kinds: [1, 6, 7], '#p': [pubkey], since: sinceM }], ev2 => addToFeed('mentions', ev2));
         } catch (ee) { }
       }
 
       // 自分（me）フィードのセットアップ
       try {
         if (!state.feeds['me']) state.feeds['me'] = { list: [], map: new Map() };
-        const sinceMe = Math.floor(Date.now() / 1000);
         const isMeActive = activeTab === 'me';
         const meHist = isMeActive ? [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }] : [];
-        const meLive = [
-          { kinds: [1, 6, 7, 42, 16], authors: [pubkey], since: sinceMe }
-        ];
-        try {
-          if (settingsManager.get('showMusicStatus') !== false) {
-            meLive.push({ kinds: [30315], authors: [pubkey], '#d': ['music'], since: sinceMe });
-          }
-        } catch (e) { }
         const meFetcher = setupFeedFetcher({
           state,
           feedId: 'me',
           histFilters: meHist,
-          liveFilters: meLive,
+          liveFilters: null, // home_live に統合されたため個別の live 購読は作成しない
           relays: getReadRelays(state.relays),
           addToFeed,
           scheduleRender,
@@ -981,7 +983,6 @@ export function setupAuthedFeeds() {
       } catch (e) {
         // 例外時のフォールバック処理
         try {
-          const sinceMe = Math.floor(Date.now() / 1000);
           subOnce(state, 'me_hist', [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }], (ev3, relay, done) => {
             if (ev3) addToFeed('me', ev3);
             if (done) {
@@ -1200,6 +1201,21 @@ export function setupSingleFeed(feedId) {
         }
       } catch (e) { }
 
+      const multicastAddToFeed = (fid, ev, keepCount, relay) => {
+        addToFeed('home', ev, keepCount, relay);
+        if (ev && typeof ev === 'object') {
+          if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7) {
+            const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => t[0] === 'p') : [];
+            if (pTags.some(t => t[1] === pubkey)) {
+              addToFeed('mentions', ev, keepCount, relay);
+            }
+          }
+          if (ev.pubkey === pubkey && [1, 6, 7, 42, 16, 30315].includes(ev.kind)) {
+            addToFeed('me', ev, keepCount, relay);
+          }
+        }
+      };
+
       const relaysForHist = getReadRelays(state.relays) || [];
       const fetcher = setupFeedFetcher({
         state,
@@ -1207,7 +1223,7 @@ export function setupSingleFeed(feedId) {
         histFilters: homeHist,
         liveFilters: homeLive,
         relays: relaysForHist,
-        addToFeed,
+        addToFeed: multicastAddToFeed,
         scheduleRender,
         eventsFetchLimit: EVENTS_FETCH_LIMIT,
         eventsTimeout: EVENTS_TIMEOUT,
@@ -1228,14 +1244,12 @@ export function setupSingleFeed(feedId) {
         }
       }
     } else if (feedId === 'mentions') {
-      const sinceM = Math.floor(Date.now() / 1000);
       const mentionsHist = [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }];
-      const mentionsLive = [{ kinds: [1, 6, 7], '#p': [pubkey], since: sinceM }];
       const mentionsFetcher = setupFeedFetcher({
         state,
         feedId: 'mentions',
         histFilters: mentionsHist,
-        liveFilters: mentionsLive,
+        liveFilters: null, // home_live に統合されたため個別の live 購読は作成しない
         relays: getReadRelays(state.relays),
         addToFeed,
         scheduleRender,
@@ -1245,21 +1259,12 @@ export function setupSingleFeed(feedId) {
       });
       state._mentionsFetcher = mentionsFetcher;
     } else if (feedId === 'me') {
-      const sinceMe = Math.floor(Date.now() / 1000);
       const meHist = [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
-      const meLive = [
-        { kinds: [1, 6, 7, 42, 16], authors: [pubkey], since: sinceMe }
-      ];
-      try {
-        if (settingsManager.get('showMusicStatus') !== false) {
-          meLive.push({ kinds: [30315], authors: [pubkey], '#d': ['music'], since: sinceMe });
-        }
-      } catch (e) { }
       const meFetcher = setupFeedFetcher({
         state,
         feedId: 'me',
         histFilters: meHist,
-        liveFilters: meLive,
+        liveFilters: null, // home_live に統合されたため個別の live 購読は作成しない
         relays: getReadRelays(state.relays),
         addToFeed,
         scheduleRender,
@@ -1296,6 +1301,12 @@ export function handleTabChange(oldTab, newTab) {
 
   // 2. 切り替え先 (newTab) の処理
   if (newTab && newTab !== 'bitchat') {
+    // どんなタブ（mentions, me, global 等）に切り替える時でも、万が一 _homeFetcher (home_live) が死んでいれば即座に自動復旧する
+    if (localStorage.getItem('pubkey') && !state._homeFetcher) {
+      console.log('[FeedManager] _homeFetcher (home_live) is missing during tab change. Auto-recovering home feed...');
+      try { setupSingleFeed('home'); } catch (e) { console.warn('[FeedManager] Failed to auto-recover home feed:', e); }
+    }
+
     const fetcherKey = `_${newTab === 'global' ? 'global' : newTab}Fetcher`;
     const f = state[fetcherKey];
     const isHistLoaded = feedLoadState[newTab] && feedLoadState[newTab].histLoaded === true;
