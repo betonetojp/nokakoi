@@ -128,6 +128,7 @@ export function setupCustomEmojiSubscription() {
     if (!authors.length) return;
 
     const latestListByAuthor = new Map();
+    let listOoseDone = false;
     const listSub = state.pool.subscribeMany(relays, [{ kinds: [10030], authors, limit: 1000 }], {
       onevent: (ev) => {
         try {
@@ -139,6 +140,8 @@ export function setupCustomEmojiSubscription() {
         } catch (e) { }
       },
       oneose: () => {
+        if (listOoseDone) return;
+        listOoseDone = true;
         try {
           const referenced = new Set();
           const refAuthors = new Set();
@@ -177,6 +180,7 @@ export function setupCustomEmojiSubscription() {
 
           // 参照されている kind:30030 （絵文字セット）を取得する
           const filters = [{ kinds: [30030], authors: Array.from(refAuthors), '#d': Array.from(refDs), limit: 1000 }];
+          let subOoseDone = false;
           const sub = state.pool.subscribeMany(relays, filters, {
             onevent: (ev) => {
               try {
@@ -200,6 +204,8 @@ export function setupCustomEmojiSubscription() {
               }
             },
             oneose: () => {
+              if (subOoseDone) return;
+              subOoseDone = true;
               console.debug('[Custom Emoji] kind:10030 -> kind:30030 初期ロード完了');
             }
           });
