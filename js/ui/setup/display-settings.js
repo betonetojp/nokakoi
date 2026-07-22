@@ -48,6 +48,13 @@ export function setShowHomeReactionsEnabled(settingsManager, enabled, restartFee
   try { if (typeof fn === 'function') fn(true); } catch (e) { }
 }
 
+export function setShowReceivedDeltaEnabled(settingsManager, enabled) {
+  settingsManager.set('showReceivedDelta', enabled);
+  syncDisplayCheckbox('showReceivedDeltaCheck', enabled);
+  syncDisplayCheckbox('homeDisplayQuickDeltaCheck', enabled);
+  try { window.dispatchEvent(new Event('softReloadRequest')); } catch (e) { }
+}
+
 export function setMuteApplyEnabled(settingsManager, enabled, restartFeeds) {
   try {
     localStorage.setItem('mute_apply', enabled ? '1' : '0');
@@ -77,6 +84,7 @@ export function showHomeDisplayQuickModal() {
   const compactCheck = document.getElementById('homeDisplayQuickCompactCheck');
   const mediaCheck = document.getElementById('homeDisplayQuickMediaCheck');
   const reactionsCheck = document.getElementById('homeDisplayQuickReactionsCheck');
+  const deltaCheck = document.getElementById('homeDisplayQuickDeltaCheck');
   const muteCheck = document.getElementById('homeDisplayQuickMuteCheck');
   const closeBtn = document.getElementById('homeDisplayQuickCloseBtn');
   if (!modal || !compactCheck || !mediaCheck || !reactionsCheck || !muteCheck) return;
@@ -84,6 +92,7 @@ export function showHomeDisplayQuickModal() {
   compactCheck.checked = settingsManager.settings.simpleDisplayMode === true;
   mediaCheck.checked = settingsManager.settings.showTimelineMedia === true;
   reactionsCheck.checked = settingsManager.settings.showHomeReactions === true;
+  if (deltaCheck) deltaCheck.checked = settingsManager.settings.showReceivedDelta !== false;
   muteCheck.checked = (localStorage.getItem('mute_apply') || '1') === '1';
 
   compactCheck.onchange = function () {
@@ -95,6 +104,11 @@ export function showHomeDisplayQuickModal() {
   reactionsCheck.onchange = function () {
     setShowHomeReactionsEnabled(settingsManager, reactionsCheck.checked);
   };
+  if (deltaCheck) {
+    deltaCheck.onchange = function () {
+      setShowReceivedDeltaEnabled(settingsManager, deltaCheck.checked);
+    };
+  }
   muteCheck.onchange = function () {
     setMuteApplyEnabled(settingsManager, muteCheck.checked);
   };
@@ -173,6 +187,8 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
   }
   const fetchFollowEmojiCheck = $('fetchFollowEmojiCheck');
   if (fetchFollowEmojiCheck) fetchFollowEmojiCheck.checked = settingsManager.settings.fetchFollowEmoji === true;
+  const showReceivedDeltaCheck = $('showReceivedDeltaCheck');
+  if (showReceivedDeltaCheck) showReceivedDeltaCheck.checked = settingsManager.settings.showReceivedDelta !== false;
   if (showProfileReactionsCheck) showProfileReactionsCheck.checked = settingsManager.settings.showProfileReactions === true;
   const showProfileChannelCheck = $('showProfileChannelCheck');
   if (showProfileChannelCheck) showProfileChannelCheck.checked = settingsManager.settings.showProfileChannel === true;
@@ -230,6 +246,12 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
     fetchFollowEmojiCheck.onchange = function () {
       settingsManager.set('fetchFollowEmoji', fetchFollowEmojiCheck.checked);
       try { window.dispatchEvent(new Event('softReloadRequest')); } catch (e) { }
+    };
+  }
+
+  if (showReceivedDeltaCheck) {
+    showReceivedDeltaCheck.onchange = function () {
+      setShowReceivedDeltaEnabled(settingsManager, showReceivedDeltaCheck.checked);
     };
   }
 

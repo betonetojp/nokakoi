@@ -3,7 +3,7 @@
 window.addEventListener('unhandledrejection', (event) => {
   const reasonStr = event.reason ? event.reason.toString() : '';
   if (reasonStr.includes('Failed to fetch dynamically imported module')) {
-    console.warn('[Main] Chunk load failed. Force reloading to get updates...', event.reason);
+    console.warn('[Main] チャンクの読み込みに失敗しました。最新版取得のため強制再読み込みします...', event.reason);
     window.location.reload();
   }
 });

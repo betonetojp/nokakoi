@@ -65,6 +65,8 @@ export class SettingsManager {
         mentionNotificationMode: (obj && obj.mentionNotificationMode === 'background') ? 'background' : 'off',
         // フォロイーの kind:10030 が参照する絵文字セット(kind:30030)も取得する
         fetchFollowEmoji: (obj && typeof obj.fetchFollowEmoji !== 'undefined') ? obj.fetchFollowEmoji : false,
+        // live受信時の端末時計との差分を表示するか
+        showReceivedDelta: (obj && typeof obj.showReceivedDelta !== 'undefined') ? obj.showReceivedDelta : true,
         // profile modal feed で kind:7 を取得するか
         showProfileReactions: (obj && typeof obj.showProfileReactions !== 'undefined') ? obj.showProfileReactions : false,
         // profile modal feed で kind:42 を取得するか

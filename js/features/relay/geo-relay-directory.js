@@ -114,19 +114,18 @@ async function fetchAndCache() {
       return parsed;
     }
   } catch (error) {
-    console.error('[GeoRelayDirectory] Failed to fetch and cache remote relays:', error);
+    console.error('[GeoRelayDirectory] リモートリレーの取得およびキャッシュに失敗しました:', error);
+    return null;
   }
-  return null;
 }
 
 function loadCachedRelays() {
   try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      return JSON.parse(cached);
-    }
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
   } catch (e) {
-    console.error('[GeoRelayDirectory] Failed to read cached relays:', e);
+    console.error('[GeoRelayDirectory] キャッシュ済みリレーの読み込みに失敗しました:', e);
   }
   return null;
 }

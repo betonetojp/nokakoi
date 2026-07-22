@@ -56,6 +56,7 @@
   "mentionBackgroundNotification": "Browser notifications (for PC)",
   "mentionBackgroundNotification.permission_denied": "Notification permission was denied. Allow notifications in your browser settings.",
   "fetchFollowEmoji": "Also fetch emoji sets referenced by followees' kind:10030",
+  "showReceivedDelta": "Show time diff between live events and device clock",
   "showProfileReactions": "Show reactions in profile feed",
   "showProfileChannel": "Show channel posts in profile feed",
   "showProfileRepost16": "Show generic reposts in profile feed",

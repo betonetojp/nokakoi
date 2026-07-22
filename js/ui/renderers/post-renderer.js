@@ -1019,11 +1019,10 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
       '</div>' : '') +
     '</div>';
 
-  const showReceivedDelta = feedId === 'global';
   const formatTimeForEvent = (eventObj) => {
     try {
       const base = fmtTime(eventObj.created_at);
-      if (showReceivedDelta && eventObj && eventObj.__receivedAt) {
+      if ((!settings || settings.showReceivedDelta !== false) && eventObj && eventObj.__receivedAt) {
         const diffMs = (eventObj.created_at * 1000) - eventObj.__receivedAt;
         const absMs = Math.abs(diffMs);
         let delta = '';

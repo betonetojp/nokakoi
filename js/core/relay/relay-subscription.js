@@ -124,10 +124,10 @@ export function reevaluateQueuePriorities() {
       return bPri - aPri;
     });
 
-    debugRelay('[Relay] Queue priorities reevaluated. Active tab:', activeTab);
+    debugRelay('[Relay] キューの優先度を再評価しました。アクティブタブ:', activeTab);
     processSubscribeQueue();
   } catch (e) {
-    console.warn('[Relay] reevaluateQueuePriorities failed:', e);
+    console.warn('[Relay] キューの優先度再評価に失敗しました:', e);
   }
 }
 

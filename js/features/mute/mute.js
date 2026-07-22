@@ -257,7 +257,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
         const arr = Array.from(detectedFormats).sort();
         console.log('[mute] 検出した暗号化形式:', arr.join(', '));
       }
-      if (window.__nokakoiDebug) console.log('[mute][final] expanded mute list:', expanded);
+      if (window.__nokakoiDebug) console.log('[mute][final] 展開後のミュートリスト:', expanded);
     } catch (e) {
       console.warn('[mute] 保存に失敗', e);
       if (status) status.textContent = t('mute.save.error');

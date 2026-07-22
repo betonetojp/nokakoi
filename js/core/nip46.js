@@ -523,10 +523,10 @@ export class Nip46Client {
 
         debugLog('[NIP-46] Page became visible, ensuring connection', { hiddenFor, unhealthy });
         this.ensureConnected({ force: true }).catch((e) => {
-          console.warn('[NIP-46] resume reconnect failed:', e);
+          console.warn('[NIP-46] 再接続の復旧に失敗しました:', e);
         });
       } catch (e) {
-        console.warn('[NIP-46] visibilitychange handler error:', e);
+        console.warn('[NIP-46] visibilitychange ハンドラーでエラー:', e);
       }
     };
 

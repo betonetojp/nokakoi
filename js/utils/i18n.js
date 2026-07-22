@@ -22,7 +22,7 @@ export function initI18n() {
       ]);
       DICTS = { ja: jaRes, en: enRes };
     } catch (e) {
-      console.error('[i18n] Failed to load translations:', e);
+      console.error('[i18n] 翻訳データの読み込みに失敗しました:', e);
       // フォールバック用の空オブジェクト
       DICTS = { ja: {}, en: {} };
     }

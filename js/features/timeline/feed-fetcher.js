@@ -65,10 +65,9 @@ export function setupFeedFetcher(opts) {
   } = opts || {};
 
   // live 受信のみ: 投稿者時計と閲覧者時計のずれ把握用（履歴・追加取得では付けない）
-  const shouldStampReceivedAtLive = feedId === 'global' || stampReceivedAt === true;
   const stampReceivedAtOnLiveEvent = (ev) => {
     try {
-      if (shouldStampReceivedAtLive && ev && typeof ev === 'object') ev.__receivedAt = Date.now();
+      if (ev && typeof ev === 'object' && !ev.__receivedAt) ev.__receivedAt = Date.now();
     } catch (e) { }
   };
 

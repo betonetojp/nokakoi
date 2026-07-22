@@ -635,8 +635,8 @@ export function setupGlobalFeed() {
   const mergeHome = settingsManager.get('globalMergeHome') === true;
 
   if (mergeHome && !state._homeFetcher && localStorage.getItem('pubkey')) {
-    console.log('[FeedManager] globalMergeHome is enabled but home feed is not setup. Setting up home feed...');
-    try { setupSingleFeed('home'); } catch (e) { console.warn('[FeedManager] Failed to auto setup home feed for merge:', e); }
+    console.log('[FeedManager] globalMergeHome が有効ですがホームフィードがセットアップされていません。ホームフィードをセットアップ中...');
+    try { setupSingleFeed('home'); } catch (e) { console.warn('[FeedManager] マージ用ホームフィードの自動セットアップに失敗しました:', e); }
   }
 
   if (!relays || relays.length === 0) {
@@ -1012,7 +1012,10 @@ export function setupAuthedFeeds() {
               scheduleRender('me');
             }
           }, 3000);
-          subOnce(state, 'me_live', [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], since: sinceMe }], ev3 => addToFeed('me', ev3));
+          subOnce(state, 'me_live', [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], since: sinceMe }], ev3 => {
+            if (ev3 && typeof ev3 === 'object' && !ev3.__receivedAt) ev3.__receivedAt = Date.now();
+            addToFeed('me', ev3);
+          });
         } catch (ee) { }
       }
 
@@ -1286,7 +1289,7 @@ export function handleTabChange(oldTab, newTab) {
   // 1. 切り替え元 (oldTab) のクリア処理
   // bitchat 以外の非アクティブ化したタブについて、メモリを完全クリアせず、EVENTS_FETCH_LIMIT 件にトリムして保持する
   if (oldTab && oldTab !== newTab && oldTab !== 'bitchat') {
-    console.log(`[FeedManager] Trimming source tab feed for retention: ${oldTab}`);
+    console.log(`[FeedManager] 保持件数上限に合わせて切り替え元タブ (${oldTab}) のフィードを整頓中...`);
     
     // フィードデータを EVENTS_FETCH_LIMIT 件にトリムしてメモリに保持
     trimFeedToMax(oldTab, EVENTS_FETCH_LIMIT);
@@ -1303,8 +1306,8 @@ export function handleTabChange(oldTab, newTab) {
   if (newTab && newTab !== 'bitchat') {
     // どんなタブ（mentions, me, global 等）に切り替える時でも、万が一 _homeFetcher (home_live) が死んでいれば即座に自動復旧する
     if (localStorage.getItem('pubkey') && !state._homeFetcher) {
-      console.log('[FeedManager] _homeFetcher (home_live) is missing during tab change. Auto-recovering home feed...');
-      try { setupSingleFeed('home'); } catch (e) { console.warn('[FeedManager] Failed to auto-recover home feed:', e); }
+      console.log('[FeedManager] タブ切り替え時に _homeFetcher (home_live) が存在しません。ホームフィードを自動復旧中...');
+      try { setupSingleFeed('home'); } catch (e) { console.warn('[FeedManager] ホームフィードの自動復旧に失敗しました:', e); }
     }
 
     const fetcherKey = `_${newTab === 'global' ? 'global' : newTab}Fetcher`;
@@ -1313,11 +1316,11 @@ export function handleTabChange(oldTab, newTab) {
 
     // すでに fetcher が存在し、live 購読等が動いており、且つ過去ログもロード済みの場合は再ロードをスキップ
     if (f && isHistLoaded) {
-      console.log(`[FeedManager] Target tab feed ${newTab} is already setup and hist loaded. Re-rendering from memory...`);
+      console.log(`[FeedManager] 切り替え先タブ (${newTab}) のフィードは既にセットアップ・履歴ロード済みです。メモリから再描画中...`);
       markFeedPreferFullRender(newTab);
       scheduleRender(newTab);
     } else {
-      console.log(`[FeedManager] Soft reloading target tab feed: ${newTab}`);
+      console.log(`[FeedManager] 切り替え先タブ (${newTab}) のフィードをソフトリロード中...`);
       
       // フィードデータをクリア
       clearFeed(state, newTab);

@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="description" content="Tiny but cute web client.">
-  <title>nokakoi</title>
+  <title>nokakoi</title>
   <style>
     /* Android のネイティブのプル・トゥ・リフレッシュを有効にし、iOS のスムーズスクロールも維持 */
     html, body, #feeds {
@@ -67,12 +67,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <script type="module" crossorigin src="./assets/index-MhmHA-Rs.js"></script>
+  <script type="module" crossorigin src="./assets/index-0iz21BFe.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/nostr-compat-0ClHyMRw.js">
-  <link rel="modulepreload" crossorigin href="./assets/i18n-B6Ua6U8P.js">
-  <link rel="modulepreload" crossorigin href="./assets/utils-Bmgovg08.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-oPVLS1Vb.js">
+  <link rel="modulepreload" crossorigin href="./assets/utils-dw6GfAlv.js">
   <link rel="modulepreload" crossorigin href="./assets/constants-CurfoY5k.js">
-  <link rel="modulepreload" crossorigin href="./assets/relay-BRH324kN.js">
+  <link rel="modulepreload" crossorigin href="./assets/relay-CxZ26Pxd.js">
   <link rel="modulepreload" crossorigin href="./assets/preload-helper-B7qeedMF.js">
   <link rel="stylesheet" crossorigin href="./assets/index-DMu9aSJq.css">
 </head>
@@ -304,6 +304,12 @@
             <span data-i18n="fetchFollowEmoji">フォロイーのkind:10030参照絵文字も取得する</span>
           </label>
         </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="showReceivedDeltaCheck" checked>
+            <span data-i18n="showReceivedDelta">live受信時の端末時計との差分を表示</span>
+          </label>
+        </div>
         <div class="mt-12">
           <label class="setting-row-clickable">
             <input type="checkbox" id="showClientNameCheck" checked>
@@ -437,6 +443,12 @@
           <label class="setting-row-clickable">
             <input type="checkbox" id="homeDisplayQuickReactionsCheck">
             <span data-i18n="showHomeReactions">ホームにリアクションを表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="homeDisplayQuickDeltaCheck">
+            <span data-i18n="showReceivedDelta">live受信時の端末時計との差分を表示</span>
           </label>
         </div>
         <div class="mt-8">
@@ -1082,7 +1094,7 @@
       // Service Worker なしでもアプリは動作継続
     }
   </script>
-
+
 
 </body>
 </html>

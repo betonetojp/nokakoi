@@ -56,6 +56,7 @@
   "mentionBackgroundNotification": "ブラウザ通知（PC向け）",
   "mentionBackgroundNotification.permission_denied": "通知の許可がありません。ブラウザの設定から通知を許可してください。",
   "fetchFollowEmoji": "フォロイーのkind:10030参照絵文字も取得する",
+  "showReceivedDelta": "live受信時の端末時計との差分を表示",
   "showProfileReactions": "プロフィールにリアクションを表示",
   "showProfileChannel": "プロフィールにチャンネル投稿を表示",
   "showProfileRepost16": "プロフィールに汎用リポストを表示",

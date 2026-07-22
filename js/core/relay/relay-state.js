@@ -54,24 +54,24 @@ export function scheduleReconnect(state, url, restartFeedsCallback) {
 
     relayState.reconnectAttempts++;
     const delay = Math.min(RECONNECT_DELAY * Math.pow(2, relayState.reconnectAttempts - 1), MAX_RECONNECT_DELAY);
-    debugRelay(`[Relay] Scheduling reconnect for ${url} (attempt ${relayState.reconnectAttempts}, delay ${delay}ms)`);
+    debugRelay(`[Relay] ${url} の再接続をスケジュール中 (試行: ${relayState.reconnectAttempts}, 遅延: ${delay}ms)`);
 
     relayState.reconnectTimer = setTimeout(() => {
       try {
         relayState.reconnectTimer = null;
-        debugRelay(`[Relay] Attempting to reconnect to ${url}`);
+        debugRelay(`[Relay] ${url} へ再接続を試行中`);
 
         if (restartFeedsCallback) {
           restartFeedsCallback(false);
         }
       } catch (e) {
-        console.warn(`[Relay] Reconnect timer task failed for ${url}:`, e);
+        console.warn(`[Relay] ${url} の再接続タイマー処理に失敗しました:`, e);
       }
     }, delay);
 
     relayStates.set(url, relayState);
   } catch (e) {
-    console.warn(`[Relay] scheduleReconnect failed for ${url}:`, e);
+    console.warn(`[Relay] ${url} の scheduleReconnect に失敗しました:`, e);
   }
 }
 
@@ -90,7 +90,7 @@ export function startKeepalive(state) {
           const kaId = 'ka_' + Date.now().toString(36);
           ws.send(JSON.stringify(["REQ", kaId, { "kinds": [0], "authors": [KEEPALIVE_DUMMY_AUTHOR], "limit": 1 }]));
           ws.send(JSON.stringify(["CLOSE", kaId]));
-          debugRelay('[Relay] keepalive sent to', url);
+          debugRelay('[Relay] keepalive 送信先:', url);
         } catch (e) { }
       }
     } catch (e) {
@@ -125,7 +125,7 @@ export function setupVisibilityHandler(state, restartFeedsCallback) {
       const hiddenFor = state._feedHiddenAt ? (Date.now() - state._feedHiddenAt) : 0;
       state._feedHiddenAt = null;
 
-      debugRelay('[Relay] Page became visible, checking connections', { hiddenFor });
+      debugRelay('[Relay] 画面が表示状態になりました。接続状態を確認中', { hiddenFor });
       if (!state.pool || !state.pool.relays) return;
 
       const allRelays = getAllRelayUrls(state.relays);
@@ -151,13 +151,13 @@ export function setupVisibilityHandler(state, restartFeedsCallback) {
 
       const forceRestart = hiddenFor >= RESUME_RESTART_MS;
       if (anyDisconnected || forceRestart) {
-        debugRelay('[Relay] Triggering feed restart', { anyDisconnected, forceRestart, hiddenFor });
+        debugRelay('[Relay] フィード再起動をトリガー', { anyDisconnected, forceRestart, hiddenFor });
         setTimeout(() => {
           try { if (restartFeedsCallback) restartFeedsCallback(false); } catch (e) { }
         }, 500);
       }
     } catch (e) {
-      console.warn('[Relay] visibilitychange handler error:', e);
+      console.warn('[Relay] visibilitychange ハンドラーでエラー:', e);
     }
   };
 

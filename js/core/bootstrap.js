@@ -163,7 +163,7 @@ async function refreshClosestOmochatRelays(geohash) {
       return true;
     }
   } catch (e) {
-    console.error('[Main] refreshClosestOmochatRelays failed:', e);
+    console.error('[Main] 最寄りの omochat リレーの取得に失敗しました:', e);
   }
   return false;
 }
@@ -257,7 +257,7 @@ export async function initApp() {
     await initI18n();
     await applyTranslations(document);
   } catch (e) {
-    console.error('[Main] i18n initialization failed:', e);
+    console.error('[Main] i18n の初期化に失敗しました:', e);
   }
 
   initFeedManager(state, settingsManager);
@@ -372,7 +372,7 @@ export async function initApp() {
       if (updated) {
         const newRelaysStr = JSON.stringify(settingsManager.get('omochatComputedRelays') || []);
         if (originalRelaysStr !== newRelaysStr) {
-          console.log('[Main] Omochat relays updated on boot, reloading feed...');
+          console.log('[Main] 起動時に Omochat リレーが更新されました。フィードを再読み込み中...');
           if (typeof window.softReload === 'function') window.softReload();
         }
       }
@@ -412,18 +412,18 @@ export async function initApp() {
               const sourceTab = lastActiveTab || (document.querySelector('.tab.active')?.dataset?.tab || null);
               handleTabChange(sourceTab, activeTab);
             } catch (err) {
-              console.warn('[Main] handleTabChange failed:', err);
+              console.warn('[Main] タブ切り替え処理に失敗しました:', err);
             }
             lastActiveTab = activeTab;
           }
           if (activeTab === 'bitchat') {
             if (!state._bitchatFetcher) {
-              console.log('[Main] Activating bitchat tab, setting up feed...');
+              console.log('[Main] bitchat タブを有効化し、フィードをセットアップ中...');
               setupBitchatFeed();
             }
           }
         } catch (err) {
-          console.warn('[Main] tab:changed event handling failed:', err);
+          console.warn('[Main] tab:changed イベント処理に失敗しました:', err);
         }
       });
     }

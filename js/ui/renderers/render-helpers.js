@@ -172,7 +172,7 @@ export async function invokeShowProfileModalProxy(pubkey) {
       return;
     }
   } catch (e) {
-    if (window.__nokakoiDebug) console.warn('invokeShowProfileModalProxy failed', e);
+    if (window.__nokakoiDebug) console.warn('[Profile] invokeShowProfileModalProxy に失敗しました:', e);
   }
 }
 
