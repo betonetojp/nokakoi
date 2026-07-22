@@ -36,6 +36,9 @@ function renderRelayList(relays) {
     urlInput.value = relay.url || '';
     urlInput.placeholder = t('relay.input.placeholder');
     urlInput.setAttribute('data-field', 'url');
+    urlInput.name = `relay_url_${index}`;
+    urlInput.id = `relay_url_${index}`;
+    urlInput.setAttribute('aria-label', t('relay.input.placeholder') || 'Relay URL');
     // 任意: 極端に長いペイロード対策として長さ制限
     try { urlInput.maxLength = 256; } catch (e) { }
 

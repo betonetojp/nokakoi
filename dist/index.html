@@ -67,7 +67,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <script type="module" crossorigin src="./assets/index-C7jHENEa.js"></script>
+  <script type="module" crossorigin src="./assets/index-D7LsFcmb.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/nostr-compat-0ClHyMRw.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-B6Ua6U8P.js">
   <link rel="modulepreload" crossorigin href="./assets/utils-Bmgovg08.js">
@@ -375,7 +375,7 @@
         <div id="replyContextContent" class="reply-context-content"></div>
       </div>
       <h2 id="composerTitle" data-i18n="composer.title">投稿</h2>
-      <textarea id="noteInput" rows="4" data-i18n="composer.placeholder" placeholder="どんな感じ？"></textarea>
+      <textarea id="noteInput" name="noteInput" rows="4" data-i18n="composer.placeholder" data-i18n-aria-label="composer.placeholder" aria-label="投稿内容" placeholder="どんな感じ？"></textarea>
       <div class="row composer-row">
         <button id="publishBtn" type="button" data-i18n="publish">投稿する</button>
         <span id="publishResult" class="muted"></span>
@@ -457,9 +457,9 @@
         <h2 class="modal-title" data-i18n="omochat.settings.title">omochat設定</h2>
         <p class="muted text-sm mb-12" data-i18n="omochat.modal.hint">購読するgeohashを設定できます。</p>
 
-        <label class="d-block mb-4 font-bold" data-i18n="omochat.geohash.label">geohash (#g)</label>
+        <label for="omochatGeohashInput" class="d-block mb-4 font-bold" data-i18n="omochat.geohash.label">geohash (#g)</label>
         <div class="flex-row gap-6 mb-12">
-          <input type="text" id="omochatGeohashInput" placeholder="xn, ..." data-i18n-placeholder="omochat.geohash.placeholder" class="flex-1">
+          <input type="text" id="omochatGeohashInput" name="omochatGeohashInput" placeholder="xn, ..." data-i18n-placeholder="omochat.geohash.placeholder" class="flex-1">
           <button id="omochatGeohashHistoryBtn" type="button" class="secondary text-base" data-i18n="omochat.geohash_history.btn" title="履歴">履歴</button>
         </div>
         <div id="omochatGeohashHistoryPopup" class="geohash-history-popup"></div>
@@ -488,7 +488,7 @@
 
         <!-- アルゴリズム選択（自動選択ON時のみ表示） -->
         <div id="omochatAutoRelayAlgoContainer">
-          <label class="modal-field-label font-bold" data-i18n="omochat.auto_relay_algo.label">自動選択モード</label>
+          <label for="omochatAutoRelayAlgoSelect" class="modal-field-label font-bold" data-i18n="omochat.auto_relay_algo.label">自動選択モード</label>
           <select id="omochatAutoRelayAlgoSelect" class="w-full">
             <option value="merged" data-i18n="omochat.auto_relay_algo.merged">両アプリの選出を結合 (デフォルト・推奨)</option>
             <option value="ios" data-i18n="omochat.auto_relay_algo.ios">iOSアプリ互換 (決定論的)</option>
@@ -604,7 +604,7 @@
         <p class="muted" data-i18n="nip46.qr.hint">nsecBunkerアプリでスキャンしてください</p>
         <div id="nip46QrCode"></div>
         <div class="flex-row mb-12">
-          <input type="text" id="nip46ConnectUri" readonly>
+          <input type="text" id="nip46ConnectUri" name="nip46ConnectUri" aria-label="Nostr Connect URI" readonly>
           <button id="nip46CopyUri" type="button" data-i18n="copy">コピー</button>
         </div>
       </div>
@@ -612,7 +612,7 @@
       <!-- bunker:// タブ -->
       <div id="nip46BunkerTab" class="nip46-tab-content" hidden>
         <p class="muted" data-i18n="nip46.bunker.hint">bunker:// URLを入力してください</p>
-        <input type="text" id="nip46BunkerInput" placeholder="bunker://..." class="w-full mb-12">
+        <input type="text" id="nip46BunkerInput" name="nip46BunkerInput" aria-label="bunker:// URL" placeholder="bunker://..." class="w-full mb-12">
         <button id="nip46BunkerConnect" type="button" data-i18n="nip46.bunker.connect">接続</button>
       </div>
 

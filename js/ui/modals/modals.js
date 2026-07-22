@@ -734,6 +734,9 @@ export function showOmochatSettingsModal(settingsManager) {
       inp.type = 'text';
       inp.value = relay;
       inp.className = 'relay-input-flex';
+      inp.name = `omochat_relay_${index}`;
+      inp.id = `omochat_relay_${index}`;
+      inp.setAttribute('aria-label', (typeof t === 'function' ? t('relay.input.placeholder') : '') || 'Relay URL');
       inp.onchange = () => { omochatRelays[index] = inp.value.trim(); };
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
