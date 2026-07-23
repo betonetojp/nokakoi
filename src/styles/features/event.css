@@ -170,10 +170,17 @@ body.theme-light .event-actions-react .btn-react[data-reacted="true"] {
   font-size: 1.1em;
   cursor: pointer;
   transition: color 0.2s, background 0.2s;
+  min-width: 34px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .event-actions-bottom .btn-repost:hover,
 .event-actions-bottom .btn-reply:hover,
-.event-actions-bottom .btn-quote:hover {
+.event-actions-bottom .btn-quote:hover,
+.event-actions-bottom .btn-omochat-h:hover,
+.event-actions-bottom .btn-omochat-t:hover {
   color: var(--accent);
   background: var(--accent-muted);
 }

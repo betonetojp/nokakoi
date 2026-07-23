@@ -33,15 +33,16 @@
   background: transparent;
   border: 0;
   cursor: pointer;
-  font-size: 0.8em;
+  font-size: 1.05em;
   padding: 4px 8px;
+  line-height: 1;
+  width: 34px;
+  min-width: 34px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: background 0.2s, color 0.2s;
-}
-.btn-omochat-h {
-  margin-right: 4px;
-}
-.btn-omochat-t {
-  margin-right: 8px;
 }
 .btn-omochat-h:hover,
 .btn-omochat-t:hover {
