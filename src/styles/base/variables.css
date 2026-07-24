@@ -32,9 +32,18 @@
 }
 
 body {
-  --bg: color-mix(in srgb, var(--bg-base), var(--bg-mix-color) var(--bg-mix-amount));
-  --panel: color-mix(in srgb, var(--panel-base), var(--bg-mix-color) var(--bg-mix-amount));
-  --topbar-bg: color-mix(in srgb, var(--topbar-bg-base), var(--bg-mix-color) var(--bg-mix-amount));
+  /* Safari 15 以前 (iPadOS 15 等) の color-mix 未対応環境用フォールバック */
+  --bg: var(--bg-base);
+  --panel: var(--panel-base);
+  --topbar-bg: var(--topbar-bg-base);
+}
+
+@supports (color: color-mix(in srgb, red, blue)) {
+  body {
+    --bg: color-mix(in srgb, var(--bg-base), var(--bg-mix-color) var(--bg-mix-amount));
+    --panel: color-mix(in srgb, var(--panel-base), var(--bg-mix-color) var(--bg-mix-amount));
+    --topbar-bg: color-mix(in srgb, var(--topbar-bg-base), var(--bg-mix-color) var(--bg-mix-amount));
+  }
 }
 
 /* body.theme-light 適用時のシックなライトテーマ上書き */
