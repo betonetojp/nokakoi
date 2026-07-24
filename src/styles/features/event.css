@@ -506,6 +506,7 @@ body.theme-light img.icon-btn {
   background: transparent;
   color: var(--muted);
   font-size: 0.85em;
+  font-weight: 500;
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 4px 8px;
@@ -546,6 +547,7 @@ button.btn-kind:hover {
   margin: 8px auto;
   background: transparent;
   color: var(--muted);
+  font-weight: 500;
   border: 1px solid var(--border);
   padding: 6px 12px;
   border-radius: 8px;

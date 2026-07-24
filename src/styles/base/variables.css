@@ -2,32 +2,33 @@
   --bg-mix-color: #000000;
   --bg-mix-amount: 0%;
 
-  --bg-base: #0d0e12;
-  --panel-base: #16181f;
-  --topbar-bg-base: rgba(13, 14, 18, 0.9);
-  --text: #f1f5f9;
-  --muted: #94a3b8;
-  --border: #1e293b;
-  --panel-hover: #1e293b;
-  --button-text: #0f172a;
-  
-  /* 既定 of アクセント (ブルー) */
-  --accent: #3b82f6;
-  --accent-muted: rgba(59, 130, 246, 0.12);
-  --accent-focus: rgba(59, 130, 246, 0.3);
-  --border-accent: rgba(59, 130, 246, 0.15);
+  /* マット＆シックなダークテーマベース */
+  --bg-base: #0b0c10;
+  --panel-base: #141620;
+  --topbar-bg-base: rgba(11, 12, 16, 0.95);
+  --text: #e2e8f0;
+  --muted: #8492a6;
+  --border: #1a1d29;
+  --panel-hover: #1e2232;
+  --button-text: #0b0c10;
 
-  /* カード配色 (ダークテーマ用) */
-  --reply-bg: rgba(236, 72, 153, 0.1);
-  --reply-border: #ec4899;
-  --reaction-bg: rgba(251, 191, 36, 0.1);
-  --reaction-border: #fbbf24;
-  --repost-bg: rgba(76, 175, 80, 0.1);
-  --repost-border: #4caf50;
-  --quote-bg: rgba(167, 139, 250, 0.1);
-  --quote-border: #a78bfa;
-  --channel-bg: rgba(59, 130, 246, 0.1);
-  --channel-border: #3b82f6;
+  /* 既定 of アクセント (スモーキーブルー) */
+  --accent: #7ca5d8;
+  --accent-muted: rgba(124, 165, 216, 0.12);
+  --accent-focus: rgba(124, 165, 216, 0.25);
+  --border-accent: rgba(124, 165, 216, 0.2);
+
+  /* カード配色 (ダークテーマ用: ギラツキを排除した落ち着いたトーン) */
+  --reply-bg: rgba(226, 135, 178, 0.07);
+  --reply-border: rgba(226, 135, 178, 0.35);
+  --reaction-bg: rgba(224, 159, 103, 0.07);
+  --reaction-border: rgba(224, 159, 103, 0.35);
+  --repost-bg: rgba(152, 176, 161, 0.07);
+  --repost-border: rgba(152, 176, 161, 0.35);
+  --quote-bg: rgba(170, 150, 218, 0.07);
+  --quote-border: rgba(170, 150, 218, 0.35);
+  --channel-bg: rgba(124, 165, 216, 0.07);
+  --channel-border: rgba(124, 165, 216, 0.35);
 }
 
 body {
@@ -36,124 +37,132 @@ body {
   --topbar-bg: color-mix(in srgb, var(--topbar-bg-base), var(--bg-mix-color) var(--bg-mix-amount));
 }
 
-/* body.theme-light 適用時のライトテーマ上書き */
+/* body.theme-light 適用時のシックなライトテーマ上書き */
 body.theme-light {
   --bg-base: #f8fafc;
   --panel-base: #ffffff;
-  --topbar-bg-base: rgba(255, 255, 255, 0.95);
+  --topbar-bg-base: rgba(248, 250, 252, 0.95);
   --text: #0f172a;
   --muted: #64748b;
   --border: #e2e8f0;
   --panel-hover: #f1f5f9;
   --button-text: #ffffff;
-  
-  /* 既定 of アクセント (ピンク) */
-  --accent: #ec4899;
-  --accent-muted: rgba(236, 72, 153, 0.08);
-  --accent-focus: rgba(236, 72, 153, 0.2);
-  --border-accent: rgba(236, 72, 153, 0.15);
+
+  /* 既定 of アクセント (ローズピンク) */
+  --accent: #c24172;
+  --accent-muted: rgba(194, 65, 114, 0.08);
+  --accent-focus: rgba(194, 65, 114, 0.2);
+  --border-accent: rgba(194, 65, 114, 0.15);
 
   /* カード配色 (ライトテーマ用) */
-  --reply-bg: rgba(236, 72, 153, 0.08);
-  --reply-border: #ec4899;
-  --reaction-bg: rgba(251, 191, 36, 0.08);
-  --reaction-border: #fbbf24;
-  --repost-bg: rgba(76, 175, 80, 0.08);
-  --repost-border: #4caf50;
-  --quote-bg: rgba(167, 139, 250, 0.08);
-  --quote-border: #a78bfa;
-  --channel-bg: rgba(59, 130, 246, 0.08);
-  --channel-border: #3b82f6;
+  --reply-bg: rgba(194, 65, 114, 0.05);
+  --reply-border: rgba(194, 65, 114, 0.28);
+  --reaction-bg: rgba(196, 91, 40, 0.05);
+  --reaction-border: rgba(196, 91, 40, 0.28);
+  --repost-bg: rgba(46, 107, 84, 0.05);
+  --repost-border: rgba(46, 107, 84, 0.28);
+  --quote-bg: rgba(107, 76, 154, 0.05);
+  --quote-border: rgba(107, 76, 154, 0.28);
+  --channel-bg: rgba(59, 98, 155, 0.05);
+  --channel-border: rgba(59, 98, 155, 0.28);
 }
 
 /* ---------------------------------
    カラーテーマ定義 (ダークモード)
    --------------------------------- */
 body:not(.theme-light).color-theme-pink {
-  --accent: #f472b6;
-  --accent-muted: rgba(244, 114, 182, 0.12);
-  --accent-focus: rgba(244, 114, 182, 0.3);
-  --button-text: #0f172a;
+  --accent: #e287b2;
+  --accent-muted: rgba(226, 135, 178, 0.12);
+  --accent-focus: rgba(226, 135, 178, 0.25);
+  --border-accent: rgba(226, 135, 178, 0.2);
+  --button-text: #0b0c10;
 }
 body:not(.theme-light).color-theme-blue {
-  --accent: #3b82f6;
-  --accent-muted: rgba(59, 130, 246, 0.12);
-  --accent-focus: rgba(59, 130, 246, 0.3);
-  --button-text: #ffffff;
+  --accent: #7ca5d8;
+  --accent-muted: rgba(124, 165, 216, 0.12);
+  --accent-focus: rgba(124, 165, 216, 0.25);
+  --border-accent: rgba(124, 165, 216, 0.2);
+  --button-text: #0b0c10;
 }
 body:not(.theme-light).color-theme-purple {
-  --accent: #a78bfa;
-  --accent-muted: rgba(167, 139, 250, 0.12);
-  --accent-focus: rgba(167, 139, 250, 0.3);
-  --button-text: #0f172a;
+  --accent: #aa96da;
+  --accent-muted: rgba(170, 150, 218, 0.12);
+  --accent-focus: rgba(170, 150, 218, 0.25);
+  --border-accent: rgba(170, 150, 218, 0.2);
+  --button-text: #0b0c10;
 }
 body:not(.theme-light).color-theme-green {
-  --accent: #34d399;
-  --accent-muted: rgba(52, 211, 153, 0.12);
-  --accent-focus: rgba(52, 211, 153, 0.3);
-  --button-text: #0f172a;
+  --accent: #98b0a1;
+  --accent-muted: rgba(152, 176, 161, 0.14);
+  --accent-focus: rgba(152, 176, 161, 0.28);
+  --border-accent: rgba(152, 176, 161, 0.22);
+  --button-text: #0b0c10;
 }
 body:not(.theme-light).color-theme-orange {
-  --accent: #fb923c;
-  --accent-muted: rgba(251, 146, 60, 0.12);
-  --accent-focus: rgba(251, 146, 60, 0.3);
-  --button-text: #0f172a;
+  --accent: #e09f67;
+  --accent-muted: rgba(224, 159, 103, 0.12);
+  --accent-focus: rgba(224, 159, 103, 0.25);
+  --border-accent: rgba(224, 159, 103, 0.2);
+  --button-text: #0b0c10;
 }
 body:not(.theme-light).color-theme-gray {
   --accent: #94a3b8;
   --accent-muted: rgba(148, 163, 184, 0.12);
-  --accent-focus: rgba(148, 163, 184, 0.3);
-  --button-text: #0f172a;
+  --accent-focus: rgba(148, 163, 184, 0.25);
+  --border-accent: rgba(148, 163, 184, 0.2);
+  --button-text: #0b0c10;
 }
 
 /* ---------------------------------
    カラーテーマ定義 (ライトモード)
    --------------------------------- */
 body.theme-light.color-theme-pink {
-  --accent: #ec4899;
-  --accent-muted: rgba(236, 72, 153, 0.08);
-  --accent-focus: rgba(236, 72, 153, 0.2);
-  --border: #fce7f3;
+  --accent: #c24172;
+  --accent-muted: rgba(194, 65, 114, 0.08);
+  --accent-focus: rgba(194, 65, 114, 0.2);
+  --border-accent: rgba(194, 65, 114, 0.15);
   --button-text: #ffffff;
 }
 body.theme-light.color-theme-blue {
-  --accent: #2563eb;
-  --accent-muted: rgba(37, 99, 235, 0.08);
-  --accent-focus: rgba(37, 99, 235, 0.2);
-  --border: #dbeafe;
+  --accent: #3b629b;
+  --accent-muted: rgba(59, 98, 155, 0.08);
+  --accent-focus: rgba(59, 98, 155, 0.2);
+  --border-accent: rgba(59, 98, 155, 0.15);
   --button-text: #ffffff;
 }
 body.theme-light.color-theme-purple {
-  --accent: #7c3aed;
-  --accent-muted: rgba(124, 58, 237, 0.08);
-  --accent-focus: rgba(124, 58, 237, 0.2);
-  --border: #ede9fe;
+  --accent: #6b4c9a;
+  --accent-muted: rgba(107, 76, 154, 0.08);
+  --accent-focus: rgba(107, 76, 154, 0.2);
+  --border-accent: rgba(107, 76, 154, 0.15);
   --button-text: #ffffff;
 }
 body.theme-light.color-theme-green {
-  --accent: #059669;
-  --accent-muted: rgba(5, 150, 105, 0.08);
-  --accent-focus: rgba(5, 150, 105, 0.2);
-  --border: #d1fae5;
+  --accent: #2e6b54;
+  --accent-muted: rgba(46, 107, 84, 0.08);
+  --accent-focus: rgba(46, 107, 84, 0.2);
+  --border-accent: rgba(46, 107, 84, 0.15);
   --button-text: #ffffff;
 }
 body.theme-light.color-theme-orange {
-  --accent: #ea580c;
-  --accent-muted: rgba(234, 88, 12, 0.08);
-  --accent-focus: rgba(234, 88, 12, 0.2);
-  --border: #ffedd5;
+  --accent: #c45b28;
+  --accent-muted: rgba(196, 91, 40, 0.08);
+  --accent-focus: rgba(196, 91, 40, 0.2);
+  --border-accent: rgba(196, 91, 40, 0.15);
   --button-text: #ffffff;
 }
 body.theme-light.color-theme-gray {
   --accent: #475569;
   --accent-muted: rgba(71, 85, 105, 0.08);
   --accent-focus: rgba(71, 85, 105, 0.2);
-  --border: #e2e8f0;
+  --border-accent: rgba(71, 85, 105, 0.15);
   --button-text: #ffffff;
 }
 
-/* ネイティブ checkbox/radio にアクセント色を使用 */
+/* フォーム要素 (checkbox, radio, range, select) にテーマ色を統一適用 */
 input[type="checkbox"],
-input[type="radio"] {
+input[type="radio"],
+input[type="range"],
+select {
   accent-color: var(--accent);
 }

@@ -34,11 +34,91 @@ textarea {
   width: 100%;
 }
 
-/* select（コンボボックス）にもテーマ色を適用 */
-select, select:focus {
+/* select（コンボボックス）にテーマ色と可読性を確保 */
+select {
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s;
+}
+body.theme-light select {
+  color-scheme: light;
+}
+body:not(.theme-light) select {
+  color-scheme: dark;
+}
+select:hover {
+  border-color: var(--accent);
+  background: var(--panel-hover);
+}
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-focus);
+}
+/* option の背景・文字色は常に可読性を確保 */
+select option {
+  background-color: var(--panel-base);
+  color: var(--text);
+  padding: 6px 10px;
+}
+
+/* スライドバー (input[type="range"]) のカスタムスタイリング (四角枠を除去しテーマ色を適用) */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  accent-color: var(--accent);
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--border);
+  outline: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+input[type="range"]:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+input[type="range"]:hover {
+  background: var(--border-accent);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-base);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.18);
+  box-shadow: 0 0 0 4px var(--accent-focus);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-base);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.18);
+  box-shadow: 0 0 0 4px var(--accent-focus);
 }
 
 /* theme select は右寄せ固定にしない */

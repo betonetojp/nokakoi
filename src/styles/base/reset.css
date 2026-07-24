@@ -10,7 +10,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans JP, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans JP, Helvetica, Arial, sans-serif;
 }
 
 /* iOSの長押しによる文字選択・画像プレビューなどを無効化（インタラクティブ要素用） */
@@ -35,3 +35,21 @@ button img,
   user-select: none;
   -webkit-touch-callout: none;
 }
+
+/* グローバルスクロールバーにテーマ色を適用 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
