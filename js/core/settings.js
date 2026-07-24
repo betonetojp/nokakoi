@@ -43,6 +43,9 @@ export class SettingsManager {
         // 既定は 'system'（OS の配色に自動追従）
         theme: (obj && obj.theme) || 'system',
         colorTheme: (obj && obj.colorTheme) || 'gray',
+        bgBrightness: (obj && typeof obj.bgBrightness !== 'undefined') ? obj.bgBrightness : 100,
+        bgBrightness_light: (obj && typeof obj.bgBrightness_light !== 'undefined') ? obj.bgBrightness_light : 100,
+        bgBrightness_dark: (obj && typeof obj.bgBrightness_dark !== 'undefined') ? obj.bgBrightness_dark : 100,
                 // post link 設定: 保存済み値を優先し、未保存なら妥当な既定値を使用
         postLinkUrl: (obj && typeof obj.postLinkUrl !== 'undefined') ? obj.postLinkUrl : POSTLINK_DEFAULT_URL,
         postLinkTitle: (obj && typeof obj.postLinkTitle !== 'undefined') ? obj.postLinkTitle : POSTLINK_DEFAULT_TITLE,
@@ -122,6 +125,9 @@ export class SettingsManager {
         passkeyDeviceInfo: null,
         theme: 'system',
         colorTheme: 'gray',
+        bgBrightness: 100,
+        bgBrightness_light: 100,
+        bgBrightness_dark: 100,
         postLinkUrl: POSTLINK_DEFAULT_URL,
         postLinkTitle: POSTLINK_DEFAULT_TITLE,
         postLinkOpenInNewTab: false,

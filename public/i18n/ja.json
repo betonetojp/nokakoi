@@ -38,6 +38,7 @@
   "colorTheme.green": "グリーン",
   "colorTheme.orange": "オレンジ",
   "colorTheme.gray": "モノクロ",
+  "bgBrightness.label": "背景の明るさ",
   "simpleDisplayMode": "コンパクト表示",
   "homeDisplayQuick.title": "表示のクイック設定",
   "showAvatars": "プロフィール画像を表示",

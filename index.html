@@ -164,6 +164,15 @@
         </div>
         <div class="mt-12">
           <label class="setting-row">
+            <span data-i18n="bgBrightness.label">背景の明るさ</span>
+            <div class="flex-align-center gap-8">
+              <input type="range" id="bgBrightnessInput" min="50" max="150" value="100" step="5" style="vertical-align: middle; cursor: pointer;">
+              <span id="bgBrightnessValue" class="muted" style="min-width: 42px; text-align: right;">100%</span>
+            </div>
+          </label>
+        </div>
+        <div class="mt-12">
+          <label class="setting-row">
             <span>言語 / Language</span>
             <select id="langSelect">
               <option value="ja">日本語</option>

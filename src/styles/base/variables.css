@@ -1,11 +1,14 @@
 :root {
-  --bg: #0d0e12;
-  --panel: #16181f;
+  --bg-mix-color: #000000;
+  --bg-mix-amount: 0%;
+
+  --bg-base: #0d0e12;
+  --panel-base: #16181f;
+  --topbar-bg-base: rgba(13, 14, 18, 0.9);
   --text: #f1f5f9;
   --muted: #94a3b8;
   --border: #1e293b;
   --panel-hover: #1e293b;
-  --topbar-bg: rgba(13, 14, 18, 0.9);
   --button-text: #0f172a;
   
   /* 既定 of アクセント (ブルー) */
@@ -27,15 +30,21 @@
   --channel-border: #3b82f6;
 }
 
+body {
+  --bg: color-mix(in srgb, var(--bg-base), var(--bg-mix-color) var(--bg-mix-amount));
+  --panel: color-mix(in srgb, var(--panel-base), var(--bg-mix-color) var(--bg-mix-amount));
+  --topbar-bg: color-mix(in srgb, var(--topbar-bg-base), var(--bg-mix-color) var(--bg-mix-amount));
+}
+
 /* body.theme-light 適用時のライトテーマ上書き */
 body.theme-light {
-  --bg: #f8fafc;
-  --panel: #ffffff;
+  --bg-base: #f8fafc;
+  --panel-base: #ffffff;
+  --topbar-bg-base: rgba(255, 255, 255, 0.95);
   --text: #0f172a;
   --muted: #64748b;
   --border: #e2e8f0;
   --panel-hover: #f1f5f9;
-  --topbar-bg: rgba(255, 255, 255, 0.95);
   --button-text: #ffffff;
   
   /* 既定 of アクセント (ピンク) */

@@ -67,14 +67,14 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <script type="module" crossorigin src="./assets/index-BDhdcOjD.js"></script>
+  <script type="module" crossorigin src="./assets/index-CyCJHozV.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/nostr-compat-0ClHyMRw.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-oPVLS1Vb.js">
   <link rel="modulepreload" crossorigin href="./assets/utils-dw6GfAlv.js">
   <link rel="modulepreload" crossorigin href="./assets/constants-CurfoY5k.js">
   <link rel="modulepreload" crossorigin href="./assets/relay-DtT9uQEL.js">
   <link rel="modulepreload" crossorigin href="./assets/preload-helper-B7qeedMF.js">
-  <link rel="stylesheet" crossorigin href="./assets/index-OjC2OJeC.css">
+  <link rel="stylesheet" crossorigin href="./assets/index-vAw-puZz.css">
 </head>
 <body>
   <script>
@@ -167,6 +167,15 @@
               <option value="orange" data-i18n="colorTheme.orange">オレンジ</option>
               <option value="gray" data-i18n="colorTheme.gray">モノクロ</option>
             </select>
+          </label>
+        </div>
+        <div class="mt-12">
+          <label class="setting-row">
+            <span data-i18n="bgBrightness.label">背景の明るさ</span>
+            <div class="flex-align-center gap-8">
+              <input type="range" id="bgBrightnessInput" min="50" max="150" value="100" step="5" style="vertical-align: middle; cursor: pointer;">
+              <span id="bgBrightnessValue" class="muted" style="min-width: 42px; text-align: right;">100%</span>
+            </div>
           </label>
         </div>
         <div class="mt-12">

@@ -38,6 +38,7 @@
   "colorTheme.green": "Green",
   "colorTheme.orange": "Orange",
   "colorTheme.gray": "Monochrome",
+  "bgBrightness.label": "Background Brightness",
   "simpleDisplayMode": "Compact view",
   "homeDisplayQuick.title": "Quick display settings",
   "showAvatars": "Show avatars",

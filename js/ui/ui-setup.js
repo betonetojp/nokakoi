@@ -8,6 +8,7 @@ export {
   applyTheme,
   applyColorTheme,
   updateMetaThemeColor,
+  applyBgBrightness,
   applySimpleDisplayMode,
   setSimpleDisplayModeEnabled,
   setShowTimelineMediaEnabled,

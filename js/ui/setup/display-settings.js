@@ -3,7 +3,7 @@ import { showToast, debounce } from '../../utils/utils.js';
 import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, EVENTLINK_DEFAULT_TITLE, EVENTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH, EVENTS_MAX } from '../../config/constants.js';
 import { ensureNotificationPermission } from '../../utils/notification.js';
 import { teardownDomPurge } from '../../features/timeline/feed-renderer.js';
-import { applyTheme, applyColorTheme } from './theme-manager.js';
+import { applyTheme, applyColorTheme, applyBgBrightness, getBrightnessForCurrentTheme, getCurrentThemeMode } from './theme-manager.js';
 import { setMentionBlink } from './mention-blink.js';
 import { renderTabSettingsUI, setupTabs } from './tab-manager.js';
 import { bringModalToFront } from './modal-helper.js';
@@ -398,6 +398,22 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
     };
   }
 
+  const bgBrightnessInput = $('bgBrightnessInput');
+  if (bgBrightnessInput) {
+    const currentBrightness = getBrightnessForCurrentTheme(settingsManager);
+    bgBrightnessInput.value = currentBrightness;
+    applyBgBrightness(currentBrightness);
+    bgBrightnessInput.oninput = function () {
+      applyBgBrightness(bgBrightnessInput.value);
+    };
+    bgBrightnessInput.onchange = function () {
+      const v = parseInt(bgBrightnessInput.value, 10) || 100;
+      const mode = getCurrentThemeMode();
+      settingsManager.set(`bgBrightness_${mode}`, v);
+      applyBgBrightness(v);
+    };
+  }
+
   const eventLinkTitleInput = $('eventLinkTitleInput');
   const eventLinkUrlInput = $('eventLinkUrlInput');
   const eventLinkSaveStatus = $('eventLinkSaveStatus');
@@ -453,6 +469,14 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
           settingsManager.set('showClientName', true);
           settingsManager.set('attachClientName', true);
           settingsManager.set('clientName', 'nokakoi');
+        } catch (e) { }
+        try {
+          settingsManager.set('bgBrightness', 100);
+          settingsManager.set('bgBrightness_light', 100);
+          settingsManager.set('bgBrightness_dark', 100);
+          applyBgBrightness(100);
+          const bgInput = $('bgBrightnessInput');
+          if (bgInput) bgInput.value = 100;
         } catch (e) { }
         if (typeof updatePostLinkButtonAndModal === 'function') updatePostLinkButtonAndModal(POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL);
         if (typeof resetScrollToTopButtonPosition === 'function') resetScrollToTopButtonPosition();
