@@ -30,13 +30,11 @@ export function updatePerFilterUntil(state, feedId, filters, eventsList) {
   try {
     if (!state || !state.feeds || !state.feeds[feedId] || !Array.isArray(filters) || !filters.length) return;
     const feed = state.feeds[feedId];
-    if (!Array.isArray(feed.perFilterUntil) || feed.perFilterUntil.length !== filters.length) {
-      feed.perFilterUntil = new Array(filters.length).fill(null);
-    }
+    const perFilter = new Array(filters.length).fill(null);
     const events = Array.isArray(eventsList) ? eventsList : (eventsList && typeof eventsList.values === 'function' ? Array.from(eventsList.values()) : []);
     for (let i = 0; i < filters.length; i++) {
       const filter = filters[i];
-      let minTs = feed.perFilterUntil[i];
+      let minTs = null;
       for (const ev of events) {
         if (!ev || typeof ev.created_at !== 'number') continue;
         if (matchesFilter(ev, filter)) {
@@ -45,12 +43,9 @@ export function updatePerFilterUntil(state, feedId, filters, eventsList) {
           }
         }
       }
-      if (minTs != null) {
-        if (feed.perFilterUntil[i] == null || minTs < feed.perFilterUntil[i]) {
-          feed.perFilterUntil[i] = minTs;
-        }
-      }
+      perFilter[i] = minTs;
     }
+    feed.perFilterUntil = perFilter;
   } catch (e) { }
 }
 

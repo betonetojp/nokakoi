@@ -5,7 +5,7 @@
 
 // バージョンは js/config/version.js で一元管理
 // (リリース時は `npm run version:update` で自動同期されます)
-const CACHE_VERSION = 'v1.103.3';
+const CACHE_VERSION = 'v1.103.4';
 const CACHE_NAME = `nokakoi-${CACHE_VERSION}`;
 
 // ローカル開発時のみ詳細ログを有効化

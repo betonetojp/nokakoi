@@ -1,7 +1,7 @@
 import { insertEventSorted, findEventById, clearFeed } from '../../core/state.js';
 import { getReadRelays, subOnce, relayConnect, unsubscribeAll } from '../../core/relay.js';
 import { EVENTS_MAX, EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT } from '../../config/constants.js';
-import { setupFeedFetcher } from '../../features/timeline/feed-fetcher.js';
+import { setupFeedFetcher, updatePerFilterUntil } from '../../features/timeline/feed-fetcher.js';
 import { setupCustomEmojiSubscription } from '../../features/emoji/custom-emoji-sub.js';
 import { renderFeed, scheduleRender, userKind7Memory, feedLoadState, ensureEventRestored } from '../../features/timeline/feed-renderer.js';
 import { pickChannelRootId, prefetchChannelMetadata } from '../../features/channel/channel.js';
@@ -166,6 +166,40 @@ export function buildHomeLoadMoreFiltersForGlobalMerge(until) {
 }
 
 /**
+ * フィードのデフォルトベースフィルターを構築して返す
+ */
+export function getFeedBaseFilters(feedId) {
+  try {
+    if (feedId === 'home') {
+      const pubkey = localStorage.getItem('pubkey');
+      const followsForMore = (state && state.feeds && state.feeds['home'] && state.feeds['home'].follows) || [];
+      if (!followsForMore.length) return [];
+      const optionalHomeFollowKinds = [];
+      if (settingsManager && settingsManager.get('showHomeReactions') === true) optionalHomeFollowKinds.push(7);
+      if (settingsManager && settingsManager.get('showHomeChannel') === true) optionalHomeFollowKinds.push(42);
+      if (settingsManager && settingsManager.get('showHomeRepost16') === true) optionalHomeFollowKinds.push(16);
+
+      return [
+        { kinds: [1, 6, ...optionalHomeFollowKinds], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
+      ];
+    } else if (feedId === 'mentions') {
+      const pubkey = localStorage.getItem('pubkey');
+      return [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }];
+    } else if (feedId === 'me') {
+      const pubkey = localStorage.getItem('pubkey');
+      return [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
+    } else if (feedId === 'bitchat') {
+      return [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT }];
+    } else if (feedId === 'global') {
+      return [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT }];
+    }
+  } catch (e) { }
+  return [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT }];
+}
+
+/**
  * ホームタイムラインの追加取得用フィルターを構築する
  */
 export function buildHomeLoadMoreFilters(until) {
@@ -200,6 +234,10 @@ export function trimFeedToMax(feedId, maxCount = EVENTS_MAX) {
   if (!Array.isArray(list) || list.length <= maxCount) return;
   const removed = list.splice(maxCount);
   for (const e of removed) feed.map.delete(e.id);
+  try {
+    const baseFilters = getFeedBaseFilters(feedId);
+    updatePerFilterUntil(state, feedId, baseFilters, feed.list);
+  } catch (e) { }
 }
 
 /**
