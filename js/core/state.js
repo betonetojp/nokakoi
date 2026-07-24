@@ -125,5 +125,6 @@ export function clearFeed(state, feedId) {
     feed.map = new Map();
     feed.lastSeen = 0;
     delete feed.mergedPaginationUntil;
+    delete feed.perFilterUntil;
   }
 }

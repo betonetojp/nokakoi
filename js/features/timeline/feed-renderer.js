@@ -6,7 +6,7 @@ import { renderEvent, applyReactionToButton } from '../../ui/renderer.js';
 import { reactToEvent, repostEvent } from '../post/actions.js';
 import { setReplyTarget } from '../post/composer.js';
 import { getReadRelays } from '../../core/relay.js';
-import { fetchMore } from './feed-fetcher.js';
+import { fetchMore, applyPerFilterUntil } from './feed-fetcher.js';
 import { EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT, EVENTS_MAX } from '../../config/constants.js';
 import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } from '../../utils/url-parser.js';
 import { t } from '../../utils/i18n.js';
@@ -761,8 +761,6 @@ export function renderFeed(id = 'global', force = false) {
         if (bottomBar) bottomBar.textContent = t('loading');
 
         const oldest = listForClick[listForClick.length - 1];
-        // 隙間バグを防ぐため、投稿頻度の高い kind:1 または kind:6 の中での最古のイベント時間を基準にする
-        const oldestTextEvent = listForClick.slice().reverse().find(e => e && (e.kind === 1 || e.kind === 6));
 
         const isValidTimestamp = (ts) => {
           if (typeof ts !== 'number' || isNaN(ts)) return false;
@@ -771,20 +769,18 @@ export function renderFeed(id = 'global', force = false) {
           return ts > 1262304000 && ts < nowSec + 86400;
         };
 
-        let until = Math.floor(Date.now() / 1000);
-        if (oldestTextEvent && isValidTimestamp(oldestTextEvent.created_at)) {
-          until = oldestTextEvent.created_at;
-        } else if (oldest && isValidTimestamp(oldest.created_at)) {
-          until = oldest.created_at;
+        let untilFallback = Math.floor(Date.now() / 1000);
+        if (oldest && isValidTimestamp(oldest.created_at)) {
+          untilFallback = oldest.created_at;
         } else {
           const validEvent = listForClick.slice().reverse().find(e => e && isValidTimestamp(e.created_at));
           if (validEvent) {
-            until = validEvent.created_at;
+            untilFallback = validEvent.created_at;
           }
         }
         const startListLength = listForClick.length;
 
-        let filtersToUse = [];
+        let baseFilters = [];
         if (id === 'home') {
           try {
             const pubkey = localStorage.getItem('pubkey');
@@ -799,7 +795,7 @@ export function renderFeed(id = 'global', force = false) {
             if (_options.settingsManager.get('showHomeChannel') === true) optionalHomeFollowKinds.push(42);
             if (_options.settingsManager.get('showHomeRepost16') === true) optionalHomeFollowKinds.push(16);
 
-            const baseFilters = [
+            baseFilters = [
               // 1. フォロイーの全対象投稿（基本の1,6 ＋ オンになっているオプション）を1つに統合
               { kinds: [1, 6, ...optionalHomeFollowKinds], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
               // 2. 自分宛ての投稿
@@ -807,21 +803,22 @@ export function renderFeed(id = 'global', force = false) {
               // 3. 自分自身の投稿
               { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
             ];
-            filtersToUse = baseFilters.map(f => Object.assign({}, f, { until: until - 1 }));
-          } catch (e) { console.error('[FeedRenderer] home filter err:', e); filtersToUse = []; }
+          } catch (e) { console.error('[FeedRenderer] home filter err:', e); baseFilters = []; }
         } else if (id === 'mentions') {
           const pubkey = localStorage.getItem('pubkey');
-          filtersToUse = [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT, until: until - 1 }];
+          baseFilters = [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }];
         } else if (id === 'me') {
           const pubkey = localStorage.getItem('pubkey');
-          filtersToUse = [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT, until: until - 1 }];
+          baseFilters = [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
         } else if (id === 'bitchat') {
-          filtersToUse = [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT, until: until - 1 }];
+          baseFilters = [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT }];
         } else if (id === 'global') {
-          filtersToUse = [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT, until: until - 1 }];
+          baseFilters = [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT }];
         } else {
-          filtersToUse = [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT, until: until - 1 }];
+          baseFilters = [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT }];
         }
+
+        const filtersToUse = applyPerFilterUntil(_state, id, baseFilters, untilFallback);
 
         const finishLoadMore = (result) => {
           try {

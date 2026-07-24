@@ -1,6 +1,77 @@
 import { subOnce, getReadRelays } from '../../core/relay.js';
 import { EVENTS_MAX } from '../../config/constants.js';
 
+function matchesFilter(ev, filter) {
+  if (!ev || !filter) return false;
+  if (filter.kinds && Array.isArray(filter.kinds) && filter.kinds.length > 0) {
+    if (!filter.kinds.includes(ev.kind)) return false;
+  }
+  if (filter.authors && Array.isArray(filter.authors) && filter.authors.length > 0) {
+    if (!filter.authors.includes(ev.pubkey)) return false;
+  }
+  if (filter['#p'] && Array.isArray(filter['#p']) && filter['#p'].length > 0) {
+    const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && t[0] === 'p').map(t => t[1]) : [];
+    if (!pTags.some(p => filter['#p'].includes(p))) return false;
+  }
+  if (filter['#d'] && Array.isArray(filter['#d']) && filter['#d'].length > 0) {
+    const dTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && t[0] === 'd').map(t => t[1]) : [];
+    if (!dTags.some(d => filter['#d'].includes(d))) return false;
+  }
+  if (filter['#e'] && Array.isArray(filter['#e']) && filter['#e'].length > 0) {
+    const eTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && t[0] === 'e').map(t => t[1]) : [];
+    if (!eTags.some(e => filter['#e'].includes(e))) return false;
+  }
+  if (filter.until != null && typeof ev.created_at === 'number' && ev.created_at > filter.until) return false;
+  if (filter.since != null && typeof ev.created_at === 'number' && ev.created_at < filter.since) return false;
+  return true;
+}
+
+export function updatePerFilterUntil(state, feedId, filters, eventsList) {
+  try {
+    if (!state || !state.feeds || !state.feeds[feedId] || !Array.isArray(filters) || !filters.length) return;
+    const feed = state.feeds[feedId];
+    if (!Array.isArray(feed.perFilterUntil) || feed.perFilterUntil.length !== filters.length) {
+      feed.perFilterUntil = new Array(filters.length).fill(null);
+    }
+    const events = Array.isArray(eventsList) ? eventsList : (eventsList && typeof eventsList.values === 'function' ? Array.from(eventsList.values()) : []);
+    for (let i = 0; i < filters.length; i++) {
+      const filter = filters[i];
+      let minTs = feed.perFilterUntil[i];
+      for (const ev of events) {
+        if (!ev || typeof ev.created_at !== 'number') continue;
+        if (matchesFilter(ev, filter)) {
+          if (minTs == null || ev.created_at < minTs) {
+            minTs = ev.created_at;
+          }
+        }
+      }
+      if (minTs != null) {
+        if (feed.perFilterUntil[i] == null || minTs < feed.perFilterUntil[i]) {
+          feed.perFilterUntil[i] = minTs;
+        }
+      }
+    }
+  } catch (e) { }
+}
+
+export function applyPerFilterUntil(state, feedId, baseFilters, fallbackUntil = null) {
+  try {
+    if (!Array.isArray(baseFilters) || !baseFilters.length) return [];
+    const feed = state && state.feeds && state.feeds[feedId];
+    const perFilterUntil = feed && Array.isArray(feed.perFilterUntil) ? feed.perFilterUntil : [];
+    return baseFilters.map((filter, i) => {
+      const filterUntil = (perFilterUntil[i] != null) ? (perFilterUntil[i] - 1) : (fallbackUntil != null ? fallbackUntil - 1 : null);
+      const updated = Object.assign({}, filter);
+      if (filterUntil != null) {
+        updated.until = filterUntil;
+      }
+      return updated;
+    });
+  } catch (e) {
+    return Array.isArray(baseFilters) ? baseFilters.slice() : [];
+  }
+}
+
 function mergeHistBufferIntoFeed(state, feedId, histBuffer, histKeepLimit) {
   const feed = state.feeds[feedId];
   if (!feed) return;
@@ -128,6 +199,7 @@ export function setupFeedFetcher(opts) {
         } catch (e) { }
       }
     } catch (e) { }
+    try { updatePerFilterUntil(state, feedId, histFilters, state.feeds[feedId]?.list || []); } catch (e) { }
     try { if (typeof onHistBufferEnd === 'function') onHistBufferEnd(feedId, histFilters && histFilters.length > 0); } catch (e) { }
     try { if (typeof scheduleRender === 'function') scheduleRender(feedId); } catch (e) { }
     try { if (typeof onHistFinalize === 'function') onHistFinalize(); } catch (e) { }
@@ -332,6 +404,7 @@ export function fetchMore(opts) {
         appended = Math.max(0, (keepCount - startListLength));
         total = keep.length;
       } catch (e) { }
+      try { updatePerFilterUntil(state, feedId, filters, state.feeds[feedId]?.list || []); } catch (e) { }
       try { cleanupAll(); } catch (e) { }
       // abort リスナーを解除
       try { if (abortListener && controller && controller.signal) controller.signal.removeEventListener('abort', abortListener); } catch (e) { }
