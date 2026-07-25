@@ -333,4 +333,31 @@ body.theme-light .editor-confirm-dialog {
   justify-content: flex-end;
 }
 
+/* Drag and Drop styles for Mute / Follow Editor */
+.drag-handle {
+  cursor: grab;
+  color: var(--muted);
+  user-select: none;
+  font-size: 1rem;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  touch-action: none;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
 
+.editor-list-item.dragging {
+  opacity: 0.4;
+  background: var(--bg-base);
+  border: 1px dashed var(--accent);
+}
+
+.editor-list-item.drag-over-top {
+  border-top: 2px solid var(--accent) !important;
+}
+
+.editor-list-item.drag-over-bottom {
+  border-bottom: 2px solid var(--accent) !important;
+}

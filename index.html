@@ -362,9 +362,12 @@
           <button id="openFollowEditModalBtn" type="button" data-i18n="editor.follow.title">フォローリストを編集</button>
         </div>
         <div class="mt-16">
-          <button id="fetchMuteListBtn" type="button" data-i18n="fetchMuteList">ミュートリストを取得</button>
-          <span id="fetchMuteListStatus" class="muted settings-status-inline"></span>
-          <div id="muteCounts" hidden>
+          <div class="flex-row gap-8 align-center wrap mb-4">
+            <button id="fetchMuteListBtn" type="button" data-i18n="fetchMuteList">ミュートリストを取得</button>
+            <button id="openMuteEditModalBtn" type="button" data-i18n="editor.mute.title">ミュートリストを編集</button>
+            <span id="fetchMuteListStatus" class="muted settings-status-inline"></span>
+          </div>
+          <div id="muteCounts" class="muted text-sm mt-4" hidden>
             <div><span data-i18n="mute.public_label">公開ミュート：</span> <span id="mutePubPublicCount">0</span> users / <span id="muteWordPublicCount">0</span> words</div>
             <div><span data-i18n="mute.private_label">非公開ミュート：</span> <span id="mutePubPrivateCount">0</span> users / <span id="muteWordPrivateCount">0</span> words</div>
           </div>
@@ -456,8 +459,9 @@
             <span data-i18n="showReceivedDelta">live受信時の端末時計との差分を表示</span>
           </label>
         </div>
-        <div class="mt-12 mb-8">
-          <button id="openFollowEditModalQuickBtn" type="button" data-i18n="editor.follow.title">フォローリスト編集</button>
+        <div class="mt-12 mb-8 flex-col gap-8 items-start">
+          <button id="openFollowEditModalQuickBtn" type="button" class="w-auto" data-i18n="editor.follow.title">フォローリスト編集</button>
+          <button id="openMuteEditModalQuickBtn" type="button" class="w-auto" data-i18n="editor.mute.title">ミュートリスト編集</button>
         </div>
         <div class="mt-8">
           <label class="setting-row-clickable">
@@ -837,6 +841,22 @@
       <div class="row mt-16">
         <button id="followEditSaveBtn" type="button" data-i18n="editor.common.save">保存</button>
         <button id="followEditCancelBtn" class="secondary" type="button" data-i18n="editor.common.cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ミュートリスト編集モーダル -->
+  <div id="muteEditModal" class="modal" hidden>
+    <div class="modal-body modal-body--md panel">
+      <div class="modal-header-row">
+        <h2 class="modal-title" data-i18n="editor.mute.title">ミュートリスト編集</h2>
+        <button id="muteEditClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div id="muteEditStatus" class="muted mb-12"></div>
+      <div id="muteEditContent"></div>
+      <div class="row mt-16">
+        <button id="muteEditSaveBtn" type="button" data-i18n="editor.common.save">保存</button>
+        <button id="muteEditCancelBtn" class="secondary" type="button" data-i18n="editor.common.cancel">キャンセル</button>
       </div>
     </div>
   </div>

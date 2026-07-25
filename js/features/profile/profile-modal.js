@@ -200,6 +200,11 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   if (existingFollowBtn) {
     existingFollowBtn.remove();
   }
+  const existingMuteBtn = document.getElementById('profileMuteToggleBtn');
+  if (existingMuteBtn) {
+    existingMuteBtn.remove();
+  }
+
   if (myPubkey) {
     import('./follow-editor.js').then(mod => {
       if (mod && typeof mod.updateFollowButtonState === 'function') {
@@ -219,6 +224,27 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     }).catch(e => {
       console.warn('[ProfileModal] フォローボタン初期化失敗:', e);
     });
+
+    if (myPubkey !== pubkey) {
+      import('../mute/mute-editor.js').then(mod => {
+        if (mod && typeof mod.updateMuteButtonState === 'function') {
+          const muteBtn = document.createElement('button');
+          muteBtn.id = 'profileMuteToggleBtn';
+          muteBtn.type = 'button';
+          muteBtn.className = 'ml-8 text-sm';
+          const infoTextEl = document.querySelector('#profileModal .profile-info-text');
+          if (infoTextEl) {
+            infoTextEl.appendChild(muteBtn);
+            mod.updateMuteButtonState(state, muteBtn, pubkey);
+            muteBtn.onclick = async () => {
+              await mod.toggleMuteUser(state, pubkey, muteBtn);
+            };
+          }
+        }
+      }).catch(e => {
+        console.warn('[ProfileModal] ミュートボタン初期化失敗:', e);
+      });
+    }
   }
 
   if (aboutEl) {

@@ -67,7 +67,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <script type="module" crossorigin src="./assets/index-DADbTOYU.js"></script>
+  <script type="module" crossorigin src="./assets/index-COrRysqy.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/nostr-compat-0ClHyMRw.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-oPVLS1Vb.js">
   <link rel="modulepreload" crossorigin href="./assets/utils-dw6GfAlv.js">
@@ -78,10 +78,10 @@
   <link rel="modulepreload" crossorigin href="./assets/profile-BneZWO-B.js">
   <link rel="modulepreload" crossorigin href="./assets/actions-B36QMGcv.js">
   <link rel="modulepreload" crossorigin href="./assets/modals-CJ-xD46v.js">
-  <link rel="modulepreload" crossorigin href="./assets/url-parser-DRoQwmid.js">
+  <link rel="modulepreload" crossorigin href="./assets/url-parser-CeLfGF9T.js">
   <link rel="modulepreload" crossorigin href="./assets/json-modal-oAydLwPm.js">
-  <link rel="modulepreload" crossorigin href="./assets/renderer-VKcyOFX3.js">
-  <link rel="stylesheet" crossorigin href="./assets/index-B2LmbBI6.css">
+  <link rel="modulepreload" crossorigin href="./assets/renderer-Ba2-CjlY.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-DyRfXn42.css">
 </head>
 <body>
   <script>
@@ -376,9 +376,12 @@
           <button id="openFollowEditModalBtn" type="button" data-i18n="editor.follow.title">フォローリストを編集</button>
         </div>
         <div class="mt-16">
-          <button id="fetchMuteListBtn" type="button" data-i18n="fetchMuteList">ミュートリストを取得</button>
-          <span id="fetchMuteListStatus" class="muted settings-status-inline"></span>
-          <div id="muteCounts" hidden>
+          <div class="flex-row gap-8 align-center wrap mb-4">
+            <button id="fetchMuteListBtn" type="button" data-i18n="fetchMuteList">ミュートリストを取得</button>
+            <button id="openMuteEditModalBtn" type="button" data-i18n="editor.mute.title">ミュートリストを編集</button>
+            <span id="fetchMuteListStatus" class="muted settings-status-inline"></span>
+          </div>
+          <div id="muteCounts" class="muted text-sm mt-4" hidden>
             <div><span data-i18n="mute.public_label">公開ミュート：</span> <span id="mutePubPublicCount">0</span> users / <span id="muteWordPublicCount">0</span> words</div>
             <div><span data-i18n="mute.private_label">非公開ミュート：</span> <span id="mutePubPrivateCount">0</span> users / <span id="muteWordPrivateCount">0</span> words</div>
           </div>
@@ -470,8 +473,9 @@
             <span data-i18n="showReceivedDelta">live受信時の端末時計との差分を表示</span>
           </label>
         </div>
-        <div class="mt-12 mb-8">
-          <button id="openFollowEditModalQuickBtn" type="button" data-i18n="editor.follow.title">フォローリスト編集</button>
+        <div class="mt-12 mb-8 flex-col gap-8 items-start">
+          <button id="openFollowEditModalQuickBtn" type="button" class="w-auto" data-i18n="editor.follow.title">フォローリスト編集</button>
+          <button id="openMuteEditModalQuickBtn" type="button" class="w-auto" data-i18n="editor.mute.title">ミュートリスト編集</button>
         </div>
         <div class="mt-8">
           <label class="setting-row-clickable">
@@ -851,6 +855,22 @@
       <div class="row mt-16">
         <button id="followEditSaveBtn" type="button" data-i18n="editor.common.save">保存</button>
         <button id="followEditCancelBtn" class="secondary" type="button" data-i18n="editor.common.cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ミュートリスト編集モーダル -->
+  <div id="muteEditModal" class="modal" hidden>
+    <div class="modal-body modal-body--md panel">
+      <div class="modal-header-row">
+        <h2 class="modal-title" data-i18n="editor.mute.title">ミュートリスト編集</h2>
+        <button id="muteEditClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div id="muteEditStatus" class="muted mb-12"></div>
+      <div id="muteEditContent"></div>
+      <div class="row mt-16">
+        <button id="muteEditSaveBtn" type="button" data-i18n="editor.common.save">保存</button>
+        <button id="muteEditCancelBtn" class="secondary" type="button" data-i18n="editor.common.cancel">キャンセル</button>
       </div>
     </div>
   </div>

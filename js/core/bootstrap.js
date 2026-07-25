@@ -591,5 +591,37 @@ export async function initApp() {
         };
       }
     });
+
+    // ミュートリスト編集ボタン (設定パネル & クイック設定モーダル)
+    ['openMuteEditModalBtn', 'openMuteEditModalQuickBtn'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.onclick = () => {
+          if (!state.pubkey && !localStorage.getItem('pubkey')) return;
+          import('../features/mute/mute-editor.js').then(mod => {
+            if (mod && typeof mod.openMuteEditor === 'function') {
+              const quickModal = document.getElementById('homeDisplayQuickModal');
+              if (quickModal) quickModal.hidden = true;
+
+              mod.openMuteEditor(state);
+            }
+          }).catch(err => {
+            console.warn('[Bootstrap] ミュートリスト編集モーダルの読み込み失敗:', err);
+          });
+        };
+      }
+    });
+
+    // 「ミュートを適用」チェックボックスの相互同期
+    const displayMuteCheck = document.getElementById('displayMuteCheck');
+    const quickMuteCheck = document.getElementById('homeDisplayQuickMuteCheck');
+    if (displayMuteCheck && quickMuteCheck) {
+      displayMuteCheck.onchange = () => {
+        quickMuteCheck.checked = displayMuteCheck.checked;
+      };
+      quickMuteCheck.onchange = () => {
+        displayMuteCheck.checked = quickMuteCheck.checked;
+      };
+    }
   } catch (e) {}
 }

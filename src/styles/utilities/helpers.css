@@ -40,6 +40,8 @@
 .font-bold { font-weight: bold; }
 
 .w-full { width: 100%; }
+.w-auto { width: auto !important; }
+.w-fit { width: fit-content !important; }
 .d-block { display: block; }
 .d-none { display: none; }
 .d-flex { display: flex; }

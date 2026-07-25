@@ -514,11 +514,28 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         applyCheckbox.checked = (localStorage.getItem('mute_apply') || '1') === '1';
 
         const applyText = document.createElement('span');
-        // 後から再翻訳できるよう data-i18n を使用
         applyText.setAttribute('data-i18n', 'mute.apply');
+
+        const inlineStatus = document.createElement('span');
+        inlineStatus.className = 'muted settings-status-inline ml-8';
 
         applyLabel.appendChild(applyCheckbox);
         applyLabel.appendChild(applyText);
+
+        const applyRow = document.createElement('div');
+        applyRow.className = 'flex-row align-center';
+        applyRow.appendChild(applyLabel);
+        applyRow.appendChild(inlineStatus);
+
+        const showSavedStatus = function (msg) {
+          const text = msg || t('settings.saved');
+          inlineStatus.textContent = text;
+          setTimeout(() => {
+            if (inlineStatus && inlineStatus.textContent === text) {
+              inlineStatus.textContent = '';
+            }
+          }, 1200);
+        };
 
         const modeWrap = document.createElement('div');
         modeWrap.className = 'mt-8 flex-col items-start';
@@ -537,7 +554,6 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
 
         const storedMode = localStorage.getItem('mute_display_mode') || 'collapse';
         modeCollapse.checked = storedMode === 'collapse';
-        // ラベル文言は data-i18n 経由
         const modeCollapseText = document.createElement('span');
         modeCollapseText.setAttribute('data-i18n', 'mute.mode.collapse');
         modeCollapseLabel.appendChild(modeCollapse);
@@ -561,13 +577,18 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
 
         modeWrap.appendChild(modeFieldset);
 
-        container.appendChild(applyLabel);
+        container.appendChild(applyRow);
         container.appendChild(modeWrap);
 
         // UI挿入時の sticky/tabbar ジャンプを避けるためスクロール位置を保持
         try {
           const prevScroll = (typeof window !== 'undefined') ? (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0) : 0;
-          btn.parentNode && btn.parentNode.insertBefore(container, btn.nextSibling);
+          const parentRow = btn.closest('.flex-row') || btn.parentNode;
+          if (parentRow && parentRow.parentNode) {
+            parentRow.parentNode.insertBefore(container, parentRow.nextSibling);
+          } else {
+            btn.parentNode && btn.parentNode.insertBefore(container, btn.nextSibling);
+          }
           try { window.scrollTo(0, prevScroll); } catch (e) { }
         } catch (e) {
           btn.parentNode && btn.parentNode.insertBefore(container, btn.nextSibling);
@@ -583,7 +604,6 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         const kind0Checkbox = document.createElement('input');
         kind0Checkbox.type = 'checkbox';
         kind0Checkbox.id = 'muteApplyKind0Checkbox';
-        // 既定OFF
         kind0Checkbox.checked = (localStorage.getItem('mute_apply_kind0') || '0') === '1';
 
         const kind0Text = document.createElement('span');
@@ -602,7 +622,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
               if (renderFeed) {
                 ['home', 'global', 'mentions', 'me'].forEach(id => { try { renderFeed(id); } catch (e) { } });
               }
-              if (status) { status.textContent = t('settings.saved'); setTimeout(() => { if (status) status.textContent = ''; },1200); }
+              showSavedStatus(t('settings.saved'));
             } catch (e) { }
           } catch (e) { console.warn('[Mute] kind0 保存に失敗', e); }
         });
@@ -616,7 +636,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
                   try { renderFeed(id); } catch (e) { }
                 });
               }
-              if (status) { status.textContent = t('mute.mode.saved'); setTimeout(() => { if (status) status.textContent = ''; }, 1200); }
+              showSavedStatus(t('mute.mode.saved'));
             } catch (e) { console.warn('[Mute] モード描画に失敗', e); }
           } catch (e) { console.warn('[Mute] モード保存に失敗', e); }
         };
@@ -628,7 +648,6 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         applyCheckbox.addEventListener('change', function () {
           try {
             localStorage.setItem('mute_apply', applyCheckbox.checked ? '1' : '0');
-            // 表示のクイック設定側も同期
             try {
               const quickMuteCheck = document.getElementById('homeDisplayQuickMuteCheck');
               if (quickMuteCheck) quickMuteCheck.checked = applyCheckbox.checked;
@@ -641,7 +660,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
               } else if (renderFeed) {
                 ['home', 'global', 'mentions', 'me'].forEach(id => { try { renderFeed(id); } catch (e) { } });
               }
-              if (status) { status.textContent = t('settings.saved'); setTimeout(() => { if (status && status.textContent === t('settings.saved')) status.textContent = ''; },1200); }
+              showSavedStatus(t('settings.saved'));
             } catch (e) { console.warn('[Mute] 適用時の描画に失敗', e); }
           } catch (e) { console.warn('[Mute] 適用設定の保存に失敗', e); }
         });

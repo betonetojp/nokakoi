@@ -230,7 +230,7 @@ export function updateFollowButtonState(state, buttonEl, targetPubkey) {
     buttonEl.className = 'secondary';
   } else {
     buttonEl.textContent = t('editor.follow.follow') || 'Follow';
-    buttonEl.className = '';
+    buttonEl.className = 'secondary';
   }
 }
 
