@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="description" content="Tiny but cute web client.">
-  <title>nokakoi</title>
+  <title>nokakoi</title>
   <style>
     /* Android のネイティブのプル・トゥ・リフレッシュを有効にし、iOS のスムーズスクロールも維持 */
     html, body, #feeds {
@@ -67,14 +67,16 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <script type="module" crossorigin src="./assets/index-Bq8L81sN.js"></script>
+  <script type="module" crossorigin src="./assets/index-DekDxjHE.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/nostr-compat-0ClHyMRw.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-oPVLS1Vb.js">
   <link rel="modulepreload" crossorigin href="./assets/utils-dw6GfAlv.js">
   <link rel="modulepreload" crossorigin href="./assets/constants-CurfoY5k.js">
-  <link rel="modulepreload" crossorigin href="./assets/relay-DtT9uQEL.js">
+  <link rel="modulepreload" crossorigin href="./assets/nip46-BGN02Gh1.js">
+  <link rel="modulepreload" crossorigin href="./assets/relay-D1apncQ-.js">
   <link rel="modulepreload" crossorigin href="./assets/preload-helper-B7qeedMF.js">
-  <link rel="stylesheet" crossorigin href="./assets/index-B1wvPbPq.css">
+  <link rel="modulepreload" crossorigin href="./assets/profile-Cdnuzp4z.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-6hqI_fg4.css">
 </head>
 <body>
   <script>
@@ -119,7 +121,7 @@
       <button id="nsecLoginBtn" class="secondary" type="button" data-i18n="login.nsec">nsec</button>
       <button id="nip46LoginBtn" class="secondary" type="button" data-i18n="login.nip46">NIP-46</button>
       <button id="loginBtn" class="secondary" type="button" data-i18n="login.nip07">NIP-07</button>
-      <span id="userInfo" class="muted"></span>
+      <span id="userInfo" class="muted" role="button" tabindex="0"></span>
       <button id="logoutBtn" class="secondary" hidden type="button" data-i18n="logout">ログアウト</button>
     </nav>
   </header>
@@ -810,6 +812,22 @@
     </div>
   </div>
 
+  <!-- Profile editor modal -->
+  <div id="profileEditModal" class="modal" hidden>
+    <div class="modal-body modal-body--md panel">
+      <div class="modal-header-row">
+        <h2 class="modal-title" data-i18n="editor.profile.title">プロフィール編集</h2>
+        <button id="profileEditClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div id="profileEditContent"></div>
+      <div id="profileEditStatus" class="muted"></div>
+      <div class="row mt-16">
+        <button id="profileEditSaveBtn" type="button" data-i18n="editor.common.save">保存</button>
+        <button id="profileEditCancelBtn" class="secondary" type="button" data-i18n="editor.common.cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
   <!-- JSON viewer modal -->
   <div id="jsonModal" class="modal" hidden>
     <div class="modal-body modal-body--lg panel">
@@ -1103,7 +1121,7 @@
       // Service Worker なしでもアプリは動作継続
     }
   </script>
-
+
 
 </body>
 </html>

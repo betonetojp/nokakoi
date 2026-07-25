@@ -1,0 +1,173 @@
+import { getReadRelays, getWriteRelays } from './relay.js';
+import { signEventWithMode } from '../features/post/actions.js';
+import { awaitAny } from '../utils/utils.js';
+
+/**
+ * 全 read リレーから指定 kind の最新イベントを取得。
+ * subscribeMany で全リレーに問い合わせ、created_at が最大のものを返す。
+ */
+export async function fetchLatestEvent(state, kind, pubkey, options = {}) {
+  try {
+    const timeoutMs = options.timeout || 4000;
+    
+    if (!state || !state.pool || !pubkey) {
+      return null;
+    }
+
+    const readRelays = getReadRelays(state.relays);
+    if (!readRelays || readRelays.length === 0) {
+      return null;
+    }
+
+    return new Promise((resolve) => {
+      let latestEvent = null;
+      const events = [];
+
+      const sub = state.pool.subscribeMany(
+        readRelays,
+        [{ kinds: [kind], authors: [pubkey], limit: 10 }],
+        {
+          onevent(event) {
+            events.push(event);
+          },
+          oneose() {
+            sub.close();
+            resolve(findLatest());
+          }
+        }
+      );
+
+      const timeout = setTimeout(() => {
+        sub.close();
+        resolve(findLatest());
+      }, timeoutMs);
+
+      function findLatest() {
+        clearTimeout(timeout);
+        if (events.length === 0) return null;
+        latestEvent = events[0];
+        for (const ev of events) {
+          if (ev.created_at > latestEvent.created_at) {
+            latestEvent = ev;
+          }
+        }
+        return latestEvent;
+      }
+    });
+  } catch (e) {
+    console.error('Failed to fetch latest event:', e);
+    return null;
+  }
+}
+
+/**
+ * バックアップを localStorage に保存
+ */
+export function backupEvent(kind, event) {
+  try {
+    if (!event) return;
+    const key = `backup_kind${kind}`;
+    const data = {
+      event,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.error('Failed to backup event:', e);
+  }
+}
+
+/**
+ * バックアップを復元
+ */
+export function restoreBackup(kind) {
+  try {
+    const key = `backup_kind${kind}`;
+    const dataStr = localStorage.getItem(key);
+    if (!dataStr) return null;
+    
+    const data = JSON.parse(dataStr);
+    return data.event || null;
+  } catch (e) {
+    console.error('Failed to restore backup:', e);
+    return null;
+  }
+}
+
+/**
+ * 署名済みイベントを全 write リレーへ発行し、少なくとも1つの OK を待つ
+ */
+export async function publishReplaceableEvent(state, draft) {
+  try {
+    const signedEvent = await signEventWithMode(state, draft);
+    
+    if (!signedEvent || !signedEvent.id || (!signedEvent.sig && !signedEvent.signature)) {
+      return { ok: false, error: 'Sign failed' };
+    }
+
+    const writeRelays = getWriteRelays(state.relays);
+    if (!writeRelays || writeRelays.length === 0) {
+      return { ok: false, error: 'No write relays' };
+    }
+
+    const pubs = state.pool.publish(writeRelays, signedEvent);
+    
+    try {
+      await awaitAny(pubs);
+      return { ok: true, event: signedEvent };
+    } catch (publishError) {
+      return { ok: false, error: publishError.message || 'Publish failed on all relays' };
+    }
+  } catch (e) {
+    console.error('Failed to publish replaceable event:', e);
+    return { ok: false, error: e.message || 'Unknown error' };
+  }
+}
+
+/**
+ * バックアップを自動で読み込み、最新としてリレーへ再発行する
+ */
+export async function restoreAndPublishBackup(kind) {
+  try {
+    const ev = restoreBackup(kind);
+    if (!ev) {
+      console.warn(`[ReplaceableEvent] Backup for kind:${kind} not found`);
+      return { ok: false, error: 'Backup not found' };
+    }
+    const state = (typeof window !== 'undefined' && window.__nostrState) ? window.__nostrState : null;
+    if (!state) {
+      console.warn('[ReplaceableEvent] Global state window.__nostrState not found');
+      return { ok: false, error: 'State not found' };
+    }
+    const draft = {
+      kind: ev.kind,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: ev.tags || [],
+      content: ev.content || '',
+      pubkey: ev.pubkey || localStorage.getItem('pubkey') || ''
+    };
+    console.log(`[ReplaceableEvent] Restoring backup kind:${kind}...`, draft);
+    const res = await publishReplaceableEvent(state, draft);
+    if (res && res.ok) {
+      console.log(`[ReplaceableEvent] Successfully restored & published kind:${kind}`);
+    } else {
+      console.error(`[ReplaceableEvent] Failed to publish restored backup:`, res && res.error);
+    }
+    return res;
+  } catch (e) {
+    console.error(`[ReplaceableEvent] Error restoring backup kind:${kind}:`, e);
+    return { ok: false, error: e.message || e };
+  }
+}
+
+// デベロッパーコンソールから呼び出せるように window にバインド
+try {
+  if (typeof window !== 'undefined') {
+    window.restoreBackup = restoreBackup;
+    window.backupEvent = backupEvent;
+    window.fetchLatestEvent = (kind, pubkey, options) => fetchLatestEvent(window.__nostrState, kind, pubkey || localStorage.getItem('pubkey'), options);
+    window.publishReplaceableEvent = (draft) => publishReplaceableEvent(window.__nostrState, draft);
+    window.restoreAndPublishBackup = restoreAndPublishBackup;
+  }
+} catch (e) { }
+

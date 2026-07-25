@@ -548,5 +548,27 @@ export async function initApp() {
         showReactionModal(undefined, undefined, settingsManager);
       };
     }
+
+    // ログインユーザー名タップでプロフィール編集モーダルを開く
+    const userInfoEl = document.getElementById('userInfo');
+    if (userInfoEl) {
+      const handleOpenEditor = () => {
+        if (!state.pubkey && !localStorage.getItem('pubkey')) return;
+        import('../features/profile/profile-editor.js').then(mod => {
+          if (mod && typeof mod.openProfileEditor === 'function') {
+            mod.openProfileEditor(state);
+          }
+        }).catch(err => {
+          console.warn('[Bootstrap] プロフィール編集モーダルの読み込み失敗:', err);
+        });
+      };
+      userInfoEl.onclick = handleOpenEditor;
+      userInfoEl.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleOpenEditor();
+        }
+      };
+    }
   } catch (e) {}
 }

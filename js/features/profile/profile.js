@@ -69,7 +69,7 @@ function loadProfileCache() {
 /**
  * プロフィールをキャッシュに保存
  */
-function saveProfileToCache(pubkey, profile) {
+export function saveProfileToCache(pubkey, profile) {
   try {
     const cached = localStorage.getItem(PROFILE_CACHE_KEY);
     const data = cached ? JSON.parse(cached) : {};

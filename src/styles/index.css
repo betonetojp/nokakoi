@@ -22,6 +22,7 @@
 @import "./features/auth.css";
 @import "./features/settings.css";
 @import "./features/navigation.css";
+@import "./features/editor.css";
 
 @import "./utilities/animations.css";
 @import "./utilities/helpers.css";

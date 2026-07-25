@@ -243,10 +243,24 @@ export function setupRelaySettingsUI(state, relayConnect, getSimplePool, restart
           return;
         }
 
+        // 複数リレーから取得したイベントのうち、作者ごとの最新（created_at が最大）のイベントのみを抽出
+        const latestResultsMap = new Map();
+        for (const ev of results) {
+          try {
+            const key = ev.pubkey || '__unknown';
+            const ts = Number(ev.created_at) || 0;
+            const prev = latestResultsMap.get(key);
+            if (!prev || (Number(prev.created_at) || 0) < ts) {
+              latestResultsMap.set(key, ev);
+            }
+          } catch (e) { }
+        }
+        const latestResults = Array.from(latestResultsMap.values());
+
         // イベントから候補リレーURLを抽出（content JSON / tags / プレーンテキスト）
         const candidates = new Set();
         const urlRegex = /(wss?:\/\/[^\s,)\]]+)/g;
-        for (const ev of results) {
+        for (const ev of latestResults) {
           try {
             if (ev.tags && Array.isArray(ev.tags)) {
               for (const tag of ev.tags) {
@@ -322,8 +336,8 @@ export function setupRelaySettingsUI(state, relayConnect, getSimplePool, restart
           } catch (e) { /* 無視 */ }
         };
 
-        // 解析済み content から構造化エントリを抽出（results は JSON を含む可能性あり）
-        for (const ev of results) {
+        // 解析済み content から構造化エントリを抽出（latestResults は JSON を含む可能性あり）
+        for (const ev of latestResults) {
           try {
             // tags由来エントリ: 2要素目URL + 3要素目任意フラグ
             if (Array.isArray(ev.tags)) {
