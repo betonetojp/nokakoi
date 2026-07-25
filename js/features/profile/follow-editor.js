@@ -414,24 +414,39 @@ export async function openFollowEditor(state) {
       nameEl.className = 'editor-list-name';
       nameEl.textContent = item.pubkey.substring(0, 10) + '...';
 
+      const subEl = document.createElement('span');
+      subEl.className = 'editor-list-sub d-none';
+
       loadProfile(state, item.pubkey).then(prof => {
         if (prof) {
           if (prof.picture) {
             avatar.src = prof.picture;
             avatar.classList.remove('d-none');
           }
-          const names = displayNameWithUsername(state, item.pubkey, getNip19(), { usePetname: false });
-          nameEl.textContent = names.main + (names.sub ? ` (@${names.sub})` : '');
+          const names = displayNameWithUsername(state, item.pubkey, getNip19(), { usePetname: false, noTruncate: true });
+          nameEl.textContent = names.main;
+          if (names.sub) {
+            subEl.textContent = `@${names.sub}`;
+            subEl.classList.remove('d-none');
+          } else {
+            subEl.textContent = '';
+            subEl.classList.add('d-none');
+          }
         } else {
           const nip19 = getNip19();
           nameEl.textContent = nip19 ? nip19.npubEncode(item.pubkey).substring(0, 12) + '...' : item.pubkey.substring(0, 10) + '...';
+          subEl.textContent = '';
+          subEl.classList.add('d-none');
         }
       }).catch(() => {
         nameEl.textContent = item.pubkey.substring(0, 10) + '...';
+        subEl.textContent = '';
+        subEl.classList.add('d-none');
       });
 
       profileInfo.appendChild(avatar);
       profileInfo.appendChild(nameEl);
+      profileInfo.appendChild(subEl);
 
       // 名前タップでプロフィールモーダルを開く
       profileInfo.onclick = (e) => {

@@ -59,20 +59,15 @@ export function setReplyTarget(state, event, nip19) {
   // タイトル更新
   composerTitle.textContent = t('composer.replyTitle');
 
-  // 返信対象情報表示
-  function truncateComposerName(str) {
-    return truncateByGraphemeVisible(str, COMPOSER_AUTHOR_LIMIT);
-  }
-  // kind:20000 ならnタグか#xxxxを即時採用し、displayName()結果を無視
   let authorName;
   if (event && event.kind === 20000) {
     const pk = event.pubkey || '';
     const hash = (pk && pk.length >= 4) ? '#' + pk.slice(-4) : '';
     const nTag = Array.isArray(event.tags) ? event.tags.find(t => t && t[0] === 'n') : null;
     const nName = (nTag && nTag[1]) ? String(nTag[1]).trim() : '';
-    authorName = truncateComposerName(nName || hash);
+    authorName = nName || hash;
   } else {
-    authorName = truncateComposerName(displayName(state, event.pubkey, nip19));
+    authorName = displayName(state, event.pubkey, nip19);
   }
   const content = (event.content || '').split('\n')[0];
   const contentShort = content.length > 100 ? content.substring(0, 100) + '...' : content;
@@ -122,17 +117,15 @@ export function setQuoteTarget(state, event, nip19) {
   replyContext.hidden = false;
   composerTitle.textContent = t('composer.title');
 
-  // 引用元は最小限の情報のみ表示
-  // kind:20000 ならnタグか#xxxxを即時採用し、displayName()結果を無視
   let authorName;
   if (event && event.kind === 20000) {
     const pk = event.pubkey || '';
     const hash = (pk && pk.length >= 4) ? '#' + pk.slice(-4) : '';
     const nTag = Array.isArray(event.tags) ? event.tags.find(t => t && t[0] === 'n') : null;
     const nName = (nTag && nTag[1]) ? String(nTag[1]).trim() : '';
-    authorName = truncateName(nName || hash);
+    authorName = nName || hash;
   } else {
-    authorName = truncateName(displayName(state, event.pubkey, nip19));
+    authorName = displayName(state, event.pubkey, nip19);
   }
   const content = (event.content || '').split('\n')[0];
   const contentShort = content.length > 100 ? content.substring(0,100) + '...' : content;

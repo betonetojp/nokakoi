@@ -22,6 +22,20 @@
 
 .composer-spacer-btn { margin-left: auto; }
 
+.reply-context-content {
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.reply-author {
+  font-weight: bold;
+  color: var(--text);
+}
+
 .compose-preview {
   margin-bottom: 8px;
   padding: 8px;

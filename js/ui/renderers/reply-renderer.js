@@ -33,7 +33,7 @@ export function renderReplyContext(state, ev, nip19, settings) {
     }
   }
 
-  const replyToAuthor = truncateName(displayName(state, replyToEvent.pubkey, nip19));
+  const replyToAuthor = displayName(state, replyToEvent.pubkey, nip19);
   const replyToContent = replyToEvent.content || '';
   const replyToPubkey = replyToEvent.pubkey;
 

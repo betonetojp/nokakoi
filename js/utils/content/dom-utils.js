@@ -451,9 +451,9 @@ export async function renderEventQuote(state, event, nip19, settings = {}) {
     const hash = (pk && pk.length >= 4) ? '#' + pk.slice(-4) : '';
     const nTag = Array.isArray(event.tags) ? event.tags.find(t => t && t[0] === 'n') : null;
     const nName = (nTag && nTag[1]) ? String(nTag[1]).trim() : '';
-    author = truncateName(nName || hash);
+    author = nName || hash;
   } else {
-    author = truncateName(displayName(state, event.pubkey, nip19));
+    author = displayName(state, event.pubkey, nip19);
   }
   const content = event.content || '';
   let quoteContentHtml;

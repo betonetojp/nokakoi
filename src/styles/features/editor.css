@@ -166,7 +166,7 @@ body.theme-light .editor-confirm-dialog {
   align-items: center;
   gap: 0.4rem;
   flex: 1 1 180px;
-  min-width: 120px;
+  min-width: 0;
   overflow: hidden;
   cursor: pointer;
   border-radius: 6px;
@@ -184,6 +184,8 @@ body.theme-light .editor-confirm-dialog {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .editor-list-sub {
@@ -192,6 +194,8 @@ body.theme-light .editor-confirm-dialog {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .editor-petname-badge {

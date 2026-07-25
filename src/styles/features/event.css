@@ -327,6 +327,12 @@ body.theme-light img.icon-btn {
 .reply-to-author {
   font-size: 0.9em;
   color: var(--text);
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 .reply-to-content {
   margin-top: 4px;
@@ -427,13 +433,23 @@ body.theme-light img.icon-btn {
   border-radius: 4px;
   font-size: 0.85em;
 }
-.event-quote-header { margin-bottom: 6px; }
+.event-quote-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  min-width: 0;
+}
 .event-quote-label {
   font-size: 0.9em;
   color: var(--text);
   font-weight: normal;
   cursor: pointer;
   transition: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 .event-quote-label:hover {
   color: var(--text);

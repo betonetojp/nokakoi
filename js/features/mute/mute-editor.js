@@ -1105,19 +1105,30 @@ export async function openMuteEditor(state) {
         nameEl.className = 'editor-list-name';
         nameEl.textContent = item.pubkey.substring(0, 10) + '...';
 
+        const subEl = document.createElement('span');
+        subEl.className = 'editor-list-sub d-none';
+
         loadProfile(state, item.pubkey).then(prof => {
           if (prof) {
             if (prof.picture) {
               avatar.src = prof.picture;
               avatar.classList.remove('d-none');
             }
-            const names = displayNameWithUsername(state, item.pubkey, getNip19(), { usePetname: false });
-            nameEl.textContent = names.main + (names.sub ? ` (@${names.sub})` : '');
+            const names = displayNameWithUsername(state, item.pubkey, getNip19(), { usePetname: false, noTruncate: true });
+            nameEl.textContent = names.main;
+            if (names.sub) {
+              subEl.textContent = `@${names.sub}`;
+              subEl.classList.remove('d-none');
+            } else {
+              subEl.textContent = '';
+              subEl.classList.add('d-none');
+            }
           }
         }).catch(() => { });
 
         info.appendChild(avatar);
         info.appendChild(nameEl);
+        info.appendChild(subEl);
 
         info.onclick = (e) => {
           e.stopPropagation();
