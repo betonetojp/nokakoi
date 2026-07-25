@@ -419,15 +419,18 @@ async function parseMuteEvent(ev, state) {
       const myPubkey = state.pubkey || localStorage.getItem('pubkey');
       const skHex = getSecretKeyHex(state);
 
+      const targetPubkey = (ev && ev.pubkey) ? ev.pubkey : myPubkey;
+
       // 1. NIP-44 復号試行
       if (encryptionMode === 'nip44') {
         if (nip44 && nip44.v2 && skHex && myPubkey) {
           try {
             const skBytes = hexToBytes(skHex);
-            const convKey = nip44.v2.utils.getConversationKey(skBytes, myPubkey);
-            const decrypted = nip44.v2.decrypt(content, convKey);
+            const convKey = nip44.v2.utils.getConversationKey(skBytes, targetPubkey);
+            let decrypted = nip44.v2.decrypt(content, convKey);
+            if (decrypted && typeof decrypted.then === 'function') decrypted = await decrypted;
             if (decrypted) {
-              const parsed = JSON.parse(decrypted);
+              const parsed = typeof decrypted === 'string' ? JSON.parse(decrypted) : decrypted;
               extractMuteObj(parsed, privateUsers, privateWords);
               decryptedSuccess = true;
             }
@@ -435,7 +438,7 @@ async function parseMuteEvent(ev, state) {
         }
         if (!decryptedSuccess && window.nostr && window.nostr.nip44 && typeof window.nostr.nip44.decrypt === 'function') {
           try {
-            let decrypted = window.nostr.nip44.decrypt(myPubkey, content);
+            let decrypted = window.nostr.nip44.decrypt(targetPubkey, content);
             if (decrypted && typeof decrypted.then === 'function') decrypted = await decrypted;
             if (decrypted) {
               const parsed = typeof decrypted === 'string' ? JSON.parse(decrypted) : decrypted;
@@ -446,7 +449,7 @@ async function parseMuteEvent(ev, state) {
         }
         if (!decryptedSuccess && state.signer === 'nip46' && state.nip46 && state.nip46.client && typeof state.nip46.client.nip44Decrypt === 'function') {
           try {
-            const decrypted = await state.nip46.client.nip44Decrypt(myPubkey, content);
+            const decrypted = await state.nip46.client.nip44Decrypt(targetPubkey, content);
             if (decrypted) {
               const parsed = typeof decrypted === 'string' ? JSON.parse(decrypted) : decrypted;
               extractMuteObj(parsed, privateUsers, privateWords);
@@ -460,9 +463,16 @@ async function parseMuteEvent(ev, state) {
       if (!decryptedSuccess) {
         if (nip04 && skHex && myPubkey) {
           try {
-            const decrypted = nip04.decrypt(skHex, myPubkey, content);
+            let decrypted = nip04.decrypt(skHex, myPubkey, content);
+            if (decrypted && typeof decrypted.then === 'function') decrypted = await decrypted;
+            if (!decrypted) {
+              try {
+                decrypted = nip04.decrypt(skHex, content);
+                if (decrypted && typeof decrypted.then === 'function') decrypted = await decrypted;
+              } catch (e) { }
+            }
             if (decrypted) {
-              const parsed = JSON.parse(decrypted);
+              const parsed = typeof decrypted === 'string' ? JSON.parse(decrypted) : decrypted;
               extractMuteObj(parsed, privateUsers, privateWords);
               decryptedSuccess = true;
               encryptionMode = 'nip04';
@@ -587,7 +597,9 @@ async function encryptPrivateMutes(state, privateUsers, privateWords, encryption
   // NIP-04 暗号化
   if (encryptionMode === 'nip04') {
     if (nip04 && skHex && myPubkey) {
-      return nip04.encrypt(skHex, myPubkey, plaintext);
+      let res = nip04.encrypt(skHex, myPubkey, plaintext);
+      if (res && typeof res.then === 'function') res = await res;
+      return res;
     }
     if (window.nostr && window.nostr.nip04 && typeof window.nostr.nip04.encrypt === 'function') {
       let res = window.nostr.nip04.encrypt(myPubkey, plaintext);
