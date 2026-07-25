@@ -341,6 +341,30 @@ function showConfirmDialog(parentElement, msgKey, okBtnKey) {
   });
 }
 
+function getSecretKeyHex(state) {
+  let sk = (state && state.sk) ? state.sk : null;
+  if (!sk) {
+    sk = localStorage.getItem('sk') || localStorage.getItem('nsec') || localStorage.getItem('privkey');
+  }
+  if (!sk) return null;
+  if (typeof sk === 'string' && sk.startsWith('nsec1')) {
+    try {
+      const nip19 = getNip19();
+      if (nip19 && typeof nip19.decode === 'function') {
+        const decoded = nip19.decode(sk);
+        if (decoded && decoded.data) {
+          if (typeof decoded.data === 'string') {
+            sk = decoded.data;
+          } else if (decoded.data instanceof Uint8Array) {
+            sk = bytesToHex(decoded.data);
+          }
+        }
+      }
+    } catch (e) { }
+  }
+  return (typeof sk === 'string' && sk.length === 64) ? sk : null;
+}
+
 /**
  * ミュートデータの初期パース
  */
@@ -393,12 +417,13 @@ async function parseMuteEvent(ev, state) {
       const nip44 = getNip44();
       const nip04 = getNip04();
       const myPubkey = state.pubkey || localStorage.getItem('pubkey');
+      const skHex = getSecretKeyHex(state);
 
       // 1. NIP-44 復号試行
       if (encryptionMode === 'nip44') {
-        if (nip44 && nip44.v2 && state.sk && myPubkey) {
+        if (nip44 && nip44.v2 && skHex && myPubkey) {
           try {
-            const skBytes = hexToBytes(state.sk);
+            const skBytes = hexToBytes(skHex);
             const convKey = nip44.v2.utils.getConversationKey(skBytes, myPubkey);
             const decrypted = nip44.v2.decrypt(content, convKey);
             if (decrypted) {
@@ -433,9 +458,9 @@ async function parseMuteEvent(ev, state) {
 
       // 2. NIP-04 復号試行
       if (!decryptedSuccess) {
-        if (nip04 && state.sk && myPubkey) {
+        if (nip04 && skHex && myPubkey) {
           try {
-            const decrypted = nip04.decrypt(state.sk, myPubkey, content);
+            const decrypted = nip04.decrypt(skHex, myPubkey, content);
             if (decrypted) {
               const parsed = JSON.parse(decrypted);
               extractMuteObj(parsed, privateUsers, privateWords);
@@ -534,14 +559,15 @@ async function encryptPrivateMutes(state, privateUsers, privateWords, encryption
 
   const plaintext = JSON.stringify(muteTags);
   const myPubkey = state.pubkey || localStorage.getItem('pubkey');
+  const skHex = getSecretKeyHex(state);
 
   const nip44 = getNip44();
   const nip04 = getNip04();
 
   // NIP-44 暗号化
   if (encryptionMode === 'nip44') {
-    if (nip44 && nip44.v2 && state.sk && myPubkey) {
-      const skBytes = hexToBytes(state.sk);
+    if (nip44 && nip44.v2 && skHex && myPubkey) {
+      const skBytes = hexToBytes(skHex);
       const convKey = nip44.v2.utils.getConversationKey(skBytes, myPubkey);
       return nip44.v2.encrypt(plaintext, convKey);
     }
@@ -560,8 +586,8 @@ async function encryptPrivateMutes(state, privateUsers, privateWords, encryption
 
   // NIP-04 暗号化
   if (encryptionMode === 'nip04') {
-    if (nip04 && state.sk && myPubkey) {
-      return nip04.encrypt(state.sk, myPubkey, plaintext);
+    if (nip04 && skHex && myPubkey) {
+      return nip04.encrypt(skHex, myPubkey, plaintext);
     }
     if (window.nostr && window.nostr.nip04 && typeof window.nostr.nip04.encrypt === 'function') {
       let res = window.nostr.nip04.encrypt(myPubkey, plaintext);
