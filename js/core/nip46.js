@@ -532,6 +532,10 @@ export class Nip46Client {
 
     try {
       document.addEventListener('visibilitychange', this._visibilityHandler);
+      if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('focus', this._visibilityHandler);
+        window.addEventListener('pageshow', this._visibilityHandler);
+      }
     } catch (e) {
       this._visibilityHandler = null;
     }
@@ -541,10 +545,14 @@ export class Nip46Client {
    * 復帰ハンドラを解除
    */
   removeResumeHandler() {
-    if (this._visibilityHandler && typeof document !== 'undefined') {
-      try {
-        document.removeEventListener('visibilitychange', this._visibilityHandler);
-      } catch (e) { }
+    if (this._visibilityHandler) {
+      if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
+        try { document.removeEventListener('visibilitychange', this._visibilityHandler); } catch (e) { }
+      }
+      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+        try { window.removeEventListener('focus', this._visibilityHandler); } catch (e) { }
+        try { window.removeEventListener('pageshow', this._visibilityHandler); } catch (e) { }
+      }
     }
     this._visibilityHandler = null;
     this._hiddenAt = null;

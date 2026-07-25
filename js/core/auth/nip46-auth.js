@@ -211,7 +211,12 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         state.signer = 'nip46';
         try { bunkerClient.setupResumeHandler(); } catch (e) { }
 
+        settingsManager.set('nip46LocalSecretKey', bunkerClient.localSecretKey);
+        settingsManager.set('nip46RemotePubkey', bunkerClient.remotePubkey);
+        settingsManager.set('nip46Secret', bunkerClient.secret);
         settingsManager.set('nip46Relays', bunkerClient.relays);
+        settingsManager.set('preferredSigner', 'nip46');
+        try { localStorage.setItem('lastLoginMethod', 'nip46'); } catch (e) { }
 
         hideModal('#nip46Modal');
         await loginFn();
@@ -252,7 +257,12 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         state.signer = 'nip46';
         try { client.setupResumeHandler(); } catch (e) { }
 
+        settingsManager.set('nip46LocalSecretKey', client.localSecretKey);
+        settingsManager.set('nip46RemotePubkey', client.remotePubkey);
+        settingsManager.set('nip46Secret', client.secret);
         settingsManager.set('nip46Relays', nip46Relays);
+        settingsManager.set('preferredSigner', 'nip46');
+        try { localStorage.setItem('lastLoginMethod', 'nip46'); } catch (e) { }
 
         hideModal('#nip46Modal');
         await loginFn();
