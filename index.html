@@ -911,6 +911,82 @@
     <img src="icon/up.png" class="icon-btn" data-i18n-alt="scroll.top.title">
   </button>
 
+  <!-- 情報ハブ (クッションモーダル) -->
+  <div id="infoHubModal" class="modal" hidden>
+    <div class="modal-body panel" style="max-width: 480px; width: 90%;">
+      <div class="modal-header-row">
+        <h2 class="modal-title" data-i18n="infohub.title">nokakoi 情報ハブ</h2>
+        <button id="infoHubClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+
+      <div class="info-hub-content mt-12">
+        <p class="muted" style="font-size: 0.9em; margin-bottom: 16px;">
+          <span data-i18n="infohub.version">バージョン：</span><span id="infoHubVersion" style="font-weight: bold; color: var(--color-text);"></span>
+        </p>
+
+        <div class="info-hub-section mb-16">
+          <h3 class="muted" style="font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;" data-i18n="infohub.docs_section">📚 ドキュメント & ガイド</h3>
+          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+            <li>
+              <a href="https://nokakoi.com/docs/login-guide.html" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 8px; text-decoration: none; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; color: var(--color-text);">
+                <span>🔒</span> <strong data-i18n="infohub.login_guide">ログインガイド</strong>
+                <span class="muted" style="font-size: 0.8em; margin-left: auto;">nokakoi.com ↗</span>
+              </a>
+            </li>
+            <li>
+              <a href="https://nokakoi.com/docs/PASSKEY_GUIDE.md" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 8px; text-decoration: none; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; color: var(--color-text);">
+                <span>🔑</span> <strong data-i18n="infohub.passkey_guide">パスキー設定ガイド</strong>
+                <span class="muted" style="font-size: 0.8em; margin-left: auto;">nokakoi.com ↗</span>
+              </a>
+            </li>
+            <li>
+              <a href="https://nokakoi.com/docs/keyboard-guide.html" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 8px; text-decoration: none; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; color: var(--color-text);">
+                <span>⌨️</span> <strong data-i18n="infohub.keyboard_guide">キーボード操作ガイド</strong>
+                <span class="muted" style="font-size: 0.8em; margin-left: auto;">nokakoi.com ↗</span>
+              </a>
+            </li>
+            <li>
+              <a href="https://nokakoi.com/docs/mobile-guide.html" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 8px; text-decoration: none; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; color: var(--color-text);">
+                <span>📱</span> <strong data-i18n="infohub.mobile_guide">スマホ操作・トラブルガイド</strong>
+                <span class="muted" style="font-size: 0.8em; margin-left: auto;">nokakoi.com ↗</span>
+              </a>
+            </li>
+            <li>
+              <a href="https://nokakoi.com/docs/settings-guide.html" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 8px; text-decoration: none; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; color: var(--color-text);">
+                <span>⚙️</span> <strong data-i18n="infohub.settings_guide">設定ガイド</strong>
+                <span class="muted" style="font-size: 0.8em; margin-left: auto;">nokakoi.com ↗</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="info-hub-section mb-16">
+          <h3 class="muted" style="font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;" data-i18n="infohub.family_section">🥟 ファミリーツール & 開発</h3>
+          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+            <li>
+              <a href="https://nokakoi.com/app/gyouza/" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 8px; text-decoration: none; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; color: var(--color-text);">
+                <span>🥟</span> <strong data-i18n="infohub.gyouza_tool">セクシー餃子ツール</strong>
+                <span class="muted" style="font-size: 0.8em; margin-left: auto;">nokakoi.com ↗</span>
+              </a>
+            </li>
+            <li>
+              <a href="https://github.com/betonetojp/nokakoi" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 8px; text-decoration: none; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; color: var(--color-text);">
+                <span>📦</span> <strong data-i18n="infohub.github_repo">GitHub リポジトリ</strong>
+                <span class="muted" style="font-size: 0.8em; margin-left: auto;">GitHub ↗</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="info-hub-section pt-12" style="border-top: 1px solid rgba(255,255,255,0.1);">
+          <button id="openDebugFromInfoHubBtn" type="button" class="secondary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 16px;">
+            <span>🛠️</span> <strong data-i18n="infohub.debug_button">デバッグ情報を表示</strong>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- デバッグログモーダル -->
   <div id="debugModal" class="modal" hidden>
     <div class="modal-body modal-body--lg panel">

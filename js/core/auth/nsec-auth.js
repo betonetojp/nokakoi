@@ -1,6 +1,7 @@
 import { $ } from '../../utils/utils.js';
 import { getNip19 } from '../nostr-compat.js';
 import { bytesToHex, encryptNsec } from '../crypto.js';
+import { signer } from '../signer.js';
 import { t } from '../../utils/i18n.js';
 import { isUserVerifyingPlatformAvailable, registerPasskey, authenticateWithPasskey, encryptNsecWithPasskey } from '../webauthn.js';
 
@@ -106,7 +107,7 @@ export function showNsecLoginModal(state, settings, settingsManager, loginFn) {
 
       if (!/^[0-9a-f]{64}$/i.test(skHex)) throw new Error(t('nsec.invalid_key'));
 
-      state.sk = skHex.toLowerCase();
+      signer.setKey(skHex);
       state.signer = 'nsec';
 
       if (saveCheck && saveCheck.checked) {

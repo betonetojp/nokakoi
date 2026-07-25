@@ -22,7 +22,6 @@ export function makeFeedState() {
 export function createState() {
   return {
     pubkey: null,
-    sk: null,
     signer: 'auto', // 'auto' | 'nip07' | 'nsec' | 'nip46'
     relays: loadRelays(),
     pool: null,

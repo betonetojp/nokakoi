@@ -1,6 +1,7 @@
 import { $ } from '../../utils/utils.js';
 import { bytesToHex, decryptNsec } from '../crypto.js';
 import { getNip19, getPublicKey as getPublicKeyFn } from '../nostr-compat.js';
+import { signer } from '../signer.js';
 import { displayNameWithUsername, loadProfile, updateNameDom } from '../../features/profile/profile.js';
 import { resolveLoginOrder } from '../../features/post/actions.js';
 import { t } from '../../utils/i18n.js';
@@ -31,7 +32,7 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
       selected = 'nip07';
       break;
     }
-    if (m === 'nsec' && state.sk) {
+    if (m === 'nsec' && signer.hasKey()) {
       selected = 'nsec';
       break;
     }
@@ -46,7 +47,7 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
     return;
   }
 
-  if (state.sk) {
+  if (signer.hasKey()) {
     state.signer = 'nsec';
   } else if (state.nip46 && state.nip46.connected) {
     state.signer = 'nip46';
@@ -68,7 +69,7 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
     if (selected === 'nip07') {
       pubkey = await window.nostr.getPublicKey();
     } else if (selected === 'nsec') {
-      pubkey = getPublicKey(state.sk);
+      pubkey = signer.getPublicKey();
     } else if (selected === 'nip46') {
       pubkey = state.nip46.client.remotePubkey;
     }
@@ -173,7 +174,7 @@ export function logout(state, settings, settingsManager, restartFeeds) {
   } catch (e) { }
 
   state.pubkey = null;
-  state.sk = null;
+  signer.clearKey();
   state.signer = 'auto';
 
   try {
@@ -268,7 +269,7 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
         if (result && result.success) {
           const skHex = await decryptNsecWithPasskey(settings.passkeyEncryptedNsec, result.prfKey);
           if (skHex && /^[0-9a-f]{64}$/i.test(skHex)) {
-            state.sk = skHex.toLowerCase();
+            signer.setKey(skHex);
             state.signer = 'nsec';
             await loginFn();
             isPasskeyAuthPending = false;
@@ -343,7 +344,7 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
       try {
         const skHex = await decryptNsec(settings.encryptedNsec, '');
         if (skHex && /^[0-9a-f]{64}$/i.test(skHex)) {
-          state.sk = skHex.toLowerCase();
+          signer.setKey(skHex);
           state.signer = 'nsec';
           await loginFn();
           isPasskeyAuthPending = false;
@@ -357,7 +358,7 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
         try {
           const skHex = await decryptNsec(settings.encryptedNsec, password);
           if (skHex && /^[0-9a-f]{64}$/i.test(skHex)) {
-            state.sk = skHex.toLowerCase();
+            signer.setKey(skHex);
             state.signer = 'nsec';
             await loginFn();
           } else {

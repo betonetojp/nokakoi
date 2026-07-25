@@ -7,6 +7,7 @@ import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../co
 import { getNip04, getNip44, hexToBytes, getNip19 } from '../../core/nostr-compat.js';
 import { t } from '../../utils/i18n.js';
 import { displayNameWithUsername, loadProfile, updateNameDom } from '../profile/profile.js';
+import { signer } from '../../core/signer.js';
 
 const MUTE_SNAPSHOTS_KEY = 'mute_list_snapshots';
 
@@ -342,27 +343,7 @@ function showConfirmDialog(parentElement, msgKey, okBtnKey) {
 }
 
 function getSecretKeyHex(state) {
-  let sk = (state && state.sk) ? state.sk : null;
-  if (!sk) {
-    sk = localStorage.getItem('sk') || localStorage.getItem('nsec') || localStorage.getItem('privkey');
-  }
-  if (!sk) return null;
-  if (typeof sk === 'string' && sk.startsWith('nsec1')) {
-    try {
-      const nip19 = getNip19();
-      if (nip19 && typeof nip19.decode === 'function') {
-        const decoded = nip19.decode(sk);
-        if (decoded && decoded.data) {
-          if (typeof decoded.data === 'string') {
-            sk = decoded.data;
-          } else if (decoded.data instanceof Uint8Array) {
-            sk = bytesToHex(decoded.data);
-          }
-        }
-      }
-    } catch (e) { }
-  }
-  return (typeof sk === 'string' && sk.length === 64) ? sk : null;
+  return signer.hasKey();
 }
 
 /**
@@ -417,17 +398,13 @@ async function parseMuteEvent(ev, state) {
       const nip44 = getNip44();
       const nip04 = getNip04();
       const myPubkey = state.pubkey || localStorage.getItem('pubkey');
-      const skHex = getSecretKeyHex(state);
-
       const targetPubkey = (ev && ev.pubkey) ? ev.pubkey : myPubkey;
 
       // 1. NIP-44 復号試行
       if (encryptionMode === 'nip44') {
-        if (nip44 && nip44.v2 && skHex && myPubkey) {
+        if (nip44 && nip44.v2 && signer.hasKey() && myPubkey) {
           try {
-            const skBytes = hexToBytes(skHex);
-            const convKey = nip44.v2.utils.getConversationKey(skBytes, targetPubkey);
-            let decrypted = nip44.v2.decrypt(content, convKey);
+            let decrypted = signer.nip44Decrypt(nip44, content, targetPubkey);
             if (decrypted && typeof decrypted.then === 'function') decrypted = await decrypted;
             if (decrypted) {
               const parsed = typeof decrypted === 'string' ? JSON.parse(decrypted) : decrypted;
@@ -461,16 +438,10 @@ async function parseMuteEvent(ev, state) {
 
       // 2. NIP-04 復号試行
       if (!decryptedSuccess) {
-        if (nip04 && skHex && myPubkey) {
+        if (nip04 && signer.hasKey() && myPubkey) {
           try {
-            let decrypted = nip04.decrypt(skHex, myPubkey, content);
+            let decrypted = signer.nip04Decrypt(nip04, myPubkey, content);
             if (decrypted && typeof decrypted.then === 'function') decrypted = await decrypted;
-            if (!decrypted) {
-              try {
-                decrypted = nip04.decrypt(skHex, content);
-                if (decrypted && typeof decrypted.then === 'function') decrypted = await decrypted;
-              } catch (e) { }
-            }
             if (decrypted) {
               const parsed = typeof decrypted === 'string' ? JSON.parse(decrypted) : decrypted;
               extractMuteObj(parsed, privateUsers, privateWords);
@@ -569,17 +540,14 @@ async function encryptPrivateMutes(state, privateUsers, privateWords, encryption
 
   const plaintext = JSON.stringify(muteTags);
   const myPubkey = state.pubkey || localStorage.getItem('pubkey');
-  const skHex = getSecretKeyHex(state);
 
   const nip44 = getNip44();
   const nip04 = getNip04();
 
   // NIP-44 暗号化
   if (encryptionMode === 'nip44') {
-    if (nip44 && nip44.v2 && skHex && myPubkey) {
-      const skBytes = hexToBytes(skHex);
-      const convKey = nip44.v2.utils.getConversationKey(skBytes, myPubkey);
-      return nip44.v2.encrypt(plaintext, convKey);
+    if (nip44 && nip44.v2 && signer.hasKey() && myPubkey) {
+      return signer.nip44Encrypt(nip44, plaintext, myPubkey);
     }
     if (window.nostr && window.nostr.nip44 && typeof window.nostr.nip44.encrypt === 'function') {
       let res = window.nostr.nip44.encrypt(myPubkey, plaintext);
@@ -596,8 +564,8 @@ async function encryptPrivateMutes(state, privateUsers, privateWords, encryption
 
   // NIP-04 暗号化
   if (encryptionMode === 'nip04') {
-    if (nip04 && skHex && myPubkey) {
-      let res = nip04.encrypt(skHex, myPubkey, plaintext);
+    if (nip04 && signer.hasKey() && myPubkey) {
+      let res = signer.nip04Encrypt(nip04, myPubkey, plaintext);
       if (res && typeof res.then === 'function') res = await res;
       return res;
     }
@@ -631,10 +599,8 @@ async function encryptPrivateMutes(state, privateUsers, privateWords, encryption
     }
   }
 
-  if (nip44 && nip44.v2 && state.sk && myPubkey) {
-    const skBytes = hexToBytes(state.sk);
-    const convKey = nip44.v2.utils.getConversationKey(skBytes, myPubkey);
-    return nip44.v2.encrypt(plaintext, convKey);
+  if (nip44 && nip44.v2 && signer.hasKey() && myPubkey) {
+    return signer.nip44Encrypt(nip44, plaintext, myPubkey);
   }
 
   throw new Error('Encryption unavailable for selected mode: ' + encryptionMode);

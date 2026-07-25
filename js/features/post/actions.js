@@ -9,6 +9,7 @@ import { authenticateWithPasskey, decryptNsecWithPasskey, isWebAuthnSupported } 
 import { bytesToHex, randomBytes } from '../../core/crypto.js';
 import { t } from '../../utils/i18n.js';
 import { DEFAULT_OMOCHAT_RELAYS } from '../../config/constants.js';
+import { signer } from '../../core/signer.js';
 
 /**
  * サインイン順序を解決（署名モードに応じて）
@@ -110,13 +111,13 @@ export async function signEventWithMode(state, draft) {
   const finalizeEvent = getFinalizeEvent();
 
   // 実効署名者を決定（local sk があれば nsec 署名を優先）
-  const effectiveSigner = (state && state.sk) ? 'nsec' : (state && state.signer) || 'auto';
+  const effectiveSigner = signer.hasKey() ? 'nsec' : (state && state.signer) || 'auto';
 
   // デバッグ: 署名者選択と利用可否を追跡
   try {
     console.debug('[signEventWithMode] 設定署名者:', state && state.signer);
     console.debug('[signEventWithMode] 実効署名者:', effectiveSigner);
-    console.debug('[signEventWithMode] state.sk の有無:', !!(state && state.sk));
+    console.debug('[signEventWithMode] state.sk の有無:', signer.hasKey());
     console.debug('[signEventWithMode] window.nostr 利用可否:', !!(window && window.nostr));
     console.debug('[signEventWithMode] window.nostr.signEvent 利用可否:', !!(window && window.nostr && window.nostr.signEvent));
     console.debug('[signEventWithMode] finalizeEvent 利用可否:', !!finalizeEvent);
@@ -143,8 +144,8 @@ export async function signEventWithMode(state, draft) {
   }
 
   // local 秘密鍵がある場合は拡張依存を避けるため local 署名を優先
-  if (effectiveSigner === 'nsec' && state.sk && finalizeEvent) {
-    return finalizeEvent(draft, state.sk);
+  if (effectiveSigner === 'nsec' && signer.hasKey()) {
+    return signer.sign(draft);
   }
 
   // NIP-07 明示指定
@@ -157,14 +158,9 @@ export async function signEventWithMode(state, draft) {
     return await window.nostr.signEvent(draft);
   }
 
-  // 補足: 投稿/リアクション/返信ごとに認証プロンプトが出ないよう、
-  // ここでの都度パスキー復号は廃止。
-  // パスキー復号は autoLogin または明示ログイン時のみ行い、
-  // state.sk をログアウトまでメモリ保持する。
-
   // 最後の手段として、local sk があれば finalizeEvent を再試行
-  if (state.sk && finalizeEvent) {
-    return finalizeEvent(draft, state.sk);
+  if (signer.hasKey()) {
+    return signer.sign(draft);
   }
 
   throw new Error('署名者が利用できません');
@@ -242,7 +238,7 @@ export async function publishNote(state, content, statusEl, options) {
     time: new Date().toISOString(),
     state: {
       signer: effectiveState.signer,
-      sk: effectiveState.sk,
+      sk: '[closure]',
       pubkey: localStorage.getItem('pubkey')
     },
     content,
@@ -252,8 +248,8 @@ export async function publishNote(state, content, statusEl, options) {
   try {
     if (!content || !content.trim()) return false;
 
-    // 署名者チェック（skがnullならエラー）
-    if (effectiveState.signer === 'nsec' && !effectiveState.sk) {
+    // 署名者チェック（skがなければエラー）
+    if (effectiveState.signer === 'nsec' && !signer.hasKey()) {
       if (statusEl) statusEl.textContent = t('publish.nsec_error');
       return false;
     }
@@ -384,7 +380,7 @@ export async function reactToEvent(state, targetEv, sym = '+') {
     time: new Date().toISOString(),
     state: {
       signer: effectiveState.signer,
-      sk: effectiveState.sk,
+      sk: '[closure]',
       pubkey: localStorage.getItem('pubkey')
     },
     targetEv,
@@ -392,8 +388,8 @@ export async function reactToEvent(state, targetEv, sym = '+') {
   };
   try {
     if (!effectiveState.pool) return false;
-    // 署名者チェック（skがnullならエラー）
-    if (effectiveState.signer === 'nsec' && !effectiveState.sk) {
+    // 署名者チェック（skがなければエラー）
+    if (effectiveState.signer === 'nsec' && !signer.hasKey()) {
       alert(t('publish.nsec_error'));
       return false;
     }
@@ -465,7 +461,7 @@ export async function replyToEvent(state, targetEv, text) {
     time: new Date().toISOString(),
     state: {
       signer: effectiveState.signer,
-      sk: effectiveState.sk,
+      sk: '[closure]',
       pubkey: localStorage.getItem('pubkey')
     },
     text,
@@ -478,8 +474,8 @@ export async function replyToEvent(state, targetEv, text) {
 
     const { getWriteRelays } = await import('../../core/relay.js');
 
-    // 署名者チェック（skがnullならエラー）
-    if (effectiveState.signer === 'nsec' && !effectiveState.sk) {
+    // 署名者チェック（skがなければエラー）
+    if (effectiveState.signer === 'nsec' && !signer.hasKey()) {
       alert(t('publish.nsec_error'));
       return false;
     }
@@ -608,7 +604,7 @@ export async function replyToEvent(state, targetEv, text) {
 
     // デバッグ: 署名前の signer 状態を記録
     try {
-      console.debug('[replyToEvent] 署名前状態: state.signer=', effectiveState.signer, 'state.sk の有無=', !!effectiveState.sk, 'pubkey=', localStorage.getItem('pubkey'));
+      console.debug('[replyToEvent] 署名前状態: state.signer=', effectiveState.signer, 'hasKey=', signer.hasKey(), 'pubkey=', localStorage.getItem('pubkey'));
     } catch (dbe) {
       // エラーを無視
     }
@@ -630,8 +626,7 @@ export async function replyToEvent(state, targetEv, text) {
     try {
       console.error('[replyToEvent] 送信失敗時のstate:', {
         signer: effectiveState && effectiveState.signer,
-        hasSk: !!(effectiveState && effectiveState.sk),
-        skPreview: effectiveState && effectiveState.sk ? (effectiveState.sk.slice ? effectiveState.sk.slice(0, 8) + '...' : '(set)') : null,
+        hasSk: signer.hasKey(),
         pubkey: localStorage.getItem('pubkey'),
         lastAction: window.__nokakoiLastAction
       });
@@ -655,7 +650,7 @@ export async function repostEvent(state, targetEv) {
     time: new Date().toISOString(),
     state: {
       signer: effectiveState.signer,
-      sk: effectiveState.sk,
+      sk: '[closure]',
       pubkey: localStorage.getItem('pubkey')
     },
     targetEv

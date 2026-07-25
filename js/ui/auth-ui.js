@@ -1,6 +1,7 @@
 import { $ } from '../utils/utils.js';
 import { isWebAuthnSupported, authenticateWithPasskey, decryptNsecWithPasskey } from '../core/webauthn.js';
 import { decryptNsec } from '../core/crypto.js';
+import { signer } from '../core/signer.js';
 import { login, logout } from '../core/auth/auth-core.js';
 import { nsecLoginPrompt, showPasswordModal } from '../core/auth/nsec-auth.js';
 import { showNip46LoginModal } from '../core/auth/nip46-auth.js';
@@ -24,7 +25,7 @@ export function setupAuthUI(state, settings, settingsManager, {
               if (authRes && authRes.success) {
                 const skHex = await decryptNsecWithPasskey(settings.passkeyEncryptedNsec);
                 if (skHex && /^[0-9a-f]{64}$/i.test(skHex)) {
-                  state.sk = skHex.toLowerCase();
+                  signer.setKey(skHex);
                   state.signer = 'nsec';
                   try { await login(state, settings, settingsManager, restartFeeds, enableComposerScroll); } catch (e) { console.warn('[Auth] パスキーログイン後のログインに失敗', e); }
                   return;
@@ -40,7 +41,7 @@ export function setupAuthUI(state, settings, settingsManager, {
           try {
             const skHex = await decryptNsec(settings.encryptedNsec, '');
             if (skHex && /^[0-9a-f]{64}$/i.test(skHex)) {
-              state.sk = skHex.toLowerCase();
+              signer.setKey(skHex);
               state.signer = 'nsec';
               try { await login(state, settings, settingsManager, restartFeeds, enableComposerScroll); } catch (e) { console.warn('[Auth] 空パスワード復号後のログインに失敗', e); }
               return;
@@ -52,7 +53,7 @@ export function setupAuthUI(state, settings, settingsManager, {
             try {
               const skHex = await decryptNsec(settings.encryptedNsec, password);
               if (skHex && /^[0-9a-f]{64}$/i.test(skHex)) {
-                state.sk = skHex.toLowerCase();
+                signer.setKey(skHex);
                 state.signer = 'nsec';
                 try { await login(state, settings, settingsManager, restartFeeds, enableComposerScroll); } catch (e) { console.warn('[Auth] パスワード復号後のログインに失敗', e); }
               } else {

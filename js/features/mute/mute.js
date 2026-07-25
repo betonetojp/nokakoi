@@ -2,6 +2,7 @@ import { getNip04, getNip44, hexToBytes } from '../../core/nostr-compat.js';
 import { getReadRelays } from '../../core/relay.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { addAutoCloseCheckbox, waitForEhagakiPublish } from '../../ui/ehagaki-autoclose.js';
+import { signer } from '../../core/signer.js';
 
 function restoreMuteListFromStorage(ui = {}) {
   const status = ui.status || null;
@@ -155,14 +156,12 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
       let decrypted = null;
 
       if (nip44 && nip44.v2 && hasContent) {
-        if (!(state.signer === 'nip07' && !state.sk)) {
+        if (!(state.signer === 'nip07' && !signer.hasKey())) {
           try {
             const attempts = [];
-            if (state.sk && ev.pubkey) {
+            if (signer.hasKey() && ev.pubkey) {
               try {
-                const skBytes = hexToBytes(state.sk);
-                const conversationKey = nip44.v2.utils.getConversationKey(skBytes, ev.pubkey);
-                const result = nip44.v2.decrypt(content, conversationKey);
+                const result = signer.nip44Decrypt(nip44, content, ev.pubkey);
                 attempts.push(['nip44.v2.decrypt(content, conversationKey)', result]);
               } catch (e) {
                 attempts.push(['nip44.v2.decrypt(content, conversationKey) failed', e]);
@@ -187,20 +186,19 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
       }
 
       if (!decrypted && nip04 && hasContent) {
-        if (!(state.signer === 'nip07' && !state.sk)) {
+        if (!(state.signer === 'nip07' && !signer.hasKey())) {
           try {
             const attempts = [];
-            if (state.sk) {
+            if (signer.hasKey()) {
               try {
-                const res = await nip04.decrypt(state.sk, ev.pubkey, content);
-                attempts.push(['nip04.decrypt(state.sk, ev.pubkey, content)', res]);
-              } catch (e) { attempts.push(['nip04.decrypt(state.sk, ev.pubkey,content) failed', e]); }
+                const res = await signer.nip04Decrypt(nip04, ev.pubkey, content);
+                attempts.push(['nip04.decrypt(signer, ev.pubkey, content)', res]);
+              } catch (e) { attempts.push(['nip04.decrypt(signer, ev.pubkey, content) failed', e]); }
             } else {
-              attempts.push(['nip04.decrypt(state.sk, ev.pubkey, content) skipped - no sk', 'no-sk']);
+              attempts.push(['nip04.decrypt skipped - no signer key', 'no-sk']);
             }
             try { attempts.push(['nip04.decrypt(content)', await nip04.decrypt(content)]); } catch (e) { attempts.push(['nip04.decrypt(content) failed', e]); }
             try { attempts.push(['nip04.decrypt(ev.pubkey, content)', await nip04.decrypt(ev.pubkey, content)]); } catch (e) { attempts.push(['nip04.decrypt(ev.pubkey, content) failed', e]); }
-            try { attempts.push(['nip04.decrypt(content, state.sk)', await nip04.decrypt(content, state.sk)]); } catch (e) { attempts.push(['nip04.decrypt(content, state.sk) failed', e]); }
 
             let candidateLabel = null;
             for (const a of attempts) {
