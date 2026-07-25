@@ -129,24 +129,33 @@ body.theme-light .editor-confirm-dialog {
   background: var(--muted);
 }
 
+.editor-list {
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 .editor-list-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
-  padding: 0.6rem 0;
+  gap: 0.4rem 0.5rem;
+  padding: 0.5rem 0;
   border-bottom: 1px solid var(--border);
   transition: background-color 0.15s ease;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .editor-list-item:hover {
-  background-color: var(--bg-hover, rgba(255, 255, 255, 0.03));
+  background-color: var(--panel-hover, rgba(255, 255, 255, 0.03));
 }
 
 .editor-list-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
@@ -155,9 +164,9 @@ body.theme-light .editor-confirm-dialog {
 .editor-list-info {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex: 1 1 140px;
-  min-width: 0;
+  gap: 0.4rem;
+  flex: 1 1 180px;
+  min-width: 120px;
   overflow: hidden;
   cursor: pointer;
   border-radius: 6px;
@@ -186,8 +195,8 @@ body.theme-light .editor-confirm-dialog {
 }
 
 .editor-petname-badge {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   object-fit: contain;
   flex-shrink: 0;
   opacity: 0.85;
@@ -197,21 +206,24 @@ body.theme-light .editor-confirm-dialog {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .editor-petname-input {
-  width: 40px;
+  width: 140px !important;
+  min-width: 60px !important;
+  max-width: 140px !important;
+  flex: 0 1 140px !important;
+  box-sizing: border-box !important;
   padding: 4px 6px;
   font-size: 0.85rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   background-color: var(--panel);
   color: var(--text);
-  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .editor-petname-input:focus {
-  width: 100px;
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-focus);
