@@ -194,6 +194,33 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     }
   }
 
+  // プロフィールモーダルに「フォローする / フォロー中」ボタンを配置
+  const myPubkey = (state && state.pubkey) || localStorage.getItem('pubkey');
+  let existingFollowBtn = document.getElementById('profileFollowToggleBtn');
+  if (existingFollowBtn) {
+    existingFollowBtn.remove();
+  }
+  if (myPubkey) {
+    import('./follow-editor.js').then(mod => {
+      if (mod && typeof mod.updateFollowButtonState === 'function') {
+        const followBtn = document.createElement('button');
+        followBtn.id = 'profileFollowToggleBtn';
+        followBtn.type = 'button';
+        followBtn.className = 'ml-8 text-sm';
+        const infoTextEl = document.querySelector('#profileModal .profile-info-text');
+        if (infoTextEl) {
+          infoTextEl.appendChild(followBtn);
+          mod.updateFollowButtonState(state, followBtn, pubkey);
+          followBtn.onclick = async () => {
+            await mod.toggleFollowUser(state, pubkey, followBtn);
+          };
+        }
+      }
+    }).catch(e => {
+      console.warn('[ProfileModal] フォローボタン初期化失敗:', e);
+    });
+  }
+
   if (aboutEl) {
     const about = (profile && profile.about) || '';
     if (about) {

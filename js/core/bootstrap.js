@@ -570,5 +570,26 @@ export async function initApp() {
         }
       };
     }
+
+    // フォローリスト編集ボタン (設定パネル & クイック設定モーダル)
+    ['openFollowEditModalBtn', 'openFollowEditModalQuickBtn'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.onclick = () => {
+          if (!state.pubkey && !localStorage.getItem('pubkey')) return;
+          import('../features/profile/follow-editor.js').then(mod => {
+            if (mod && typeof mod.openFollowEditor === 'function') {
+              // クイック設定モーダルが開いている場合は一旦閉じる
+              const quickModal = document.getElementById('homeDisplayQuickModal');
+              if (quickModal) quickModal.hidden = true;
+
+              mod.openFollowEditor(state);
+            }
+          }).catch(err => {
+            console.warn('[Bootstrap] フォローリスト編集モーダルの読み込み失敗:', err);
+          });
+        };
+      }
+    });
   } catch (e) {}
 }

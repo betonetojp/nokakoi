@@ -359,6 +359,9 @@
           <span id="eventLinkSaveStatus" class="muted"></span>
         </div>
         <div class="mt-16">
+          <button id="openFollowEditModalBtn" type="button" data-i18n="editor.follow.title">フォローリストを編集</button>
+        </div>
+        <div class="mt-16">
           <button id="fetchMuteListBtn" type="button" data-i18n="fetchMuteList">ミュートリストを取得</button>
           <span id="fetchMuteListStatus" class="muted settings-status-inline"></span>
           <div id="muteCounts" hidden>
@@ -452,6 +455,9 @@
             <input type="checkbox" id="homeDisplayQuickDeltaCheck">
             <span data-i18n="showReceivedDelta">live受信時の端末時計との差分を表示</span>
           </label>
+        </div>
+        <div class="mt-12 mb-8">
+          <button id="openFollowEditModalQuickBtn" type="button" data-i18n="editor.follow.title">フォローリスト編集</button>
         </div>
         <div class="mt-8">
           <label class="setting-row-clickable">
@@ -815,6 +821,22 @@
       <div class="row mt-16">
         <button id="profileEditSaveBtn" type="button" data-i18n="editor.common.save">保存</button>
         <button id="profileEditCancelBtn" class="secondary" type="button" data-i18n="editor.common.cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Follow list editor modal -->
+  <div id="followEditModal" class="modal" hidden>
+    <div class="modal-body modal-body--md panel">
+      <div class="modal-header-row">
+        <h2 class="modal-title" data-i18n="editor.follow.title">フォローリスト編集</h2>
+        <button id="followEditClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div id="followEditStatus" class="muted mb-12"></div>
+      <div id="followEditContent"></div>
+      <div class="row mt-16">
+        <button id="followEditSaveBtn" type="button" data-i18n="editor.common.save">保存</button>
+        <button id="followEditCancelBtn" class="secondary" type="button" data-i18n="editor.common.cancel">キャンセル</button>
       </div>
     </div>
   </div>

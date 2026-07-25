@@ -104,3 +104,221 @@ body.theme-light .editor-confirm-dialog {
   pointer-events: none;
 }
 
+/* Follow List Editor */
+.editor-list {
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--bg);
+}
+
+.editor-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.editor-list::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+.editor-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.editor-list::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+.editor-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.15s ease;
+}
+
+.editor-list-item:hover {
+  background-color: var(--bg-hover, rgba(255, 255, 255, 0.03));
+}
+
+.editor-list-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.editor-list-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 140px;
+  min-width: 0;
+  overflow: hidden;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 2px 4px;
+  transition: background-color 0.15s ease;
+}
+
+.editor-list-info:hover {
+  background-color: var(--panel-hover, rgba(255, 255, 255, 0.06));
+}
+
+.editor-list-name {
+  font-weight: bold;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-list-sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-petname-badge {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.editor-petname-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editor-petname-input {
+  width: 40px;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background-color: var(--panel);
+  color: var(--text);
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.editor-petname-input:focus {
+  width: 100px;
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-focus);
+}
+
+.editor-list-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.editor-list-actions button {
+  white-space: nowrap;
+}
+
+/* Subtabs inside editor modals */
+.editor-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
+.editor-tab {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.editor-tab:hover {
+  color: var(--text);
+  background: var(--panel-hover, rgba(255, 255, 255, 0.05));
+}
+
+.editor-tab.active {
+  color: var(--text);
+  background: var(--accent-muted, rgba(124, 165, 216, 0.15));
+  font-weight: 600;
+}
+
+/* Snapshot List Card */
+.snapshot-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--panel);
+  margin-bottom: 0.75rem;
+  transition: border-color 0.2s ease;
+}
+
+.snapshot-card:hover {
+  border-color: var(--border-accent, var(--accent));
+}
+
+.snapshot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.snapshot-title-input {
+  font-size: 0.95rem;
+  font-weight: bold;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  flex: 1;
+  min-width: 0;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.snapshot-title-input:hover,
+.snapshot-title-input:focus {
+  background: var(--bg-base);
+  border-color: var(--border);
+  outline: none;
+}
+
+.snapshot-meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.snapshot-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.25rem;
+  justify-content: flex-end;
+}
+
+
