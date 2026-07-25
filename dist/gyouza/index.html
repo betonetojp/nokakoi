@@ -8,6 +8,81 @@
   <link rel="icon" type="image/png" href="../icon/nokakoi.png">
   <meta name="theme-color" content="#ffeaf5">
   <style>
+    :root {
+      --bg: #0e0b14;
+      --panel: #1c1726;
+      --text: #f0edf5;
+      --muted: #9b93a8;
+      --border: rgba(228, 0, 125, 0.2);
+      --accent: #e4007d;
+      --accent-light: #ff5cad;
+      --radius: 12px;
+    }
+    body.theme-light {
+      --bg: #fffafa;
+      --panel: #ffffff;
+      --text: #1a0e14;
+      --muted: #7a6872;
+      --border: rgba(228, 0, 125, 0.15);
+      --accent: #e4007d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans JP", sans-serif;
+      line-height: 1.5;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+    .container {
+      max-width: 640px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    button, textarea, input[type="text"] {
+      font-family: inherit;
+    }
+    button {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(228, 0, 125, 0.15);
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: rgba(228, 0, 125, 0.25);
+    }
+    button.secondary {
+      background: transparent;
+    }
+    textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      resize: vertical;
+    }
     .gyouza-container {
       max-width: 640px;
       padding-bottom: 48px;
