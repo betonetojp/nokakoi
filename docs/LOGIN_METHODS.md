@@ -50,12 +50,12 @@ WebAuthn PRF (Pseudo-Random Function) 拡張を利用して、デバイスの生
 
 ### データフロー
 1. ユーザーがNIP-46接続URLを入力、または既存接続を復元
-2. ローカルで通信用の一時鍵ペア（`nip46LocalSecretKey`）を生成し、**sessionStorage にのみ**保持（localStorage へは永続化しない）
+2. ローカルで通信用の一時鍵ペアを生成し、専用キー `nokakoi.nip46.localSecretKey`（localStorage）に保持（`appSettings` には混ぜない）
 3. イベント署名時: `client.signEvent(draft)` を送信し、リモート署名器からの署名済みレスポンスを受信
 
 ### セキュリティ特徴
 - メインの秘密鍵（nsec）はリモート署名器内に留まり、Webアプリ側には存在しません。
-- ローカル通信鍵はタブセッション限定。ブラウザ／タブを閉じた後は再ペアが必要です。
+- ローカル通信鍵は自動再接続用に永続化され、ログアウト時に消去されます。
 
 ---
 

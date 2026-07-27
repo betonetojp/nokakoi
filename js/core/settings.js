@@ -7,7 +7,7 @@ import { DEFAULT_NIP46_RELAYS } from './nip46.js';
 export class SettingsManager {
   constructor() {
     this.settings = this.load();
-    // 過去に localStorage へ平文保存されていた NIP-46 鍵を除去
+    // 過去に appSettings へ混在していた NIP-46 鍵を専用キーへ移行して除去
     this._purgeLegacyNip46LocalSecretKey();
     if (this.settings && this.settings.maxEvents) {
       try { setEventsMax(this.settings.maxEvents); } catch (e) {}
@@ -105,7 +105,7 @@ export class SettingsManager {
         // 最大保持件数
         useDomPurge: (obj && typeof obj.useDomPurge !== 'undefined') ? obj.useDomPurge : false,
         maxEvents: (obj && typeof obj.maxEvents !== 'undefined') ? obj.maxEvents : 500,
-        // NIP-46 ローカル通信鍵は sessionStorage のみ（localStorage には残さない）
+        // NIP-46 ローカル通信鍵は専用キーへ（appSettings には残さない）
         nip46RemotePubkey: (obj && obj.nip46RemotePubkey) || null,
         nip46Secret: (obj && obj.nip46Secret) || null
       };
@@ -176,7 +176,7 @@ export class SettingsManager {
   save() {
     try {
       const toSave = { ...(this.settings || {}) };
-      // NIP-46 ローカル通信鍵は永続化しない
+      // NIP-46 ローカル通信鍵は専用キーで管理（appSettings には混ぜない）
       delete toSave.nip46LocalSecretKey;
       localStorage.setItem('appSettings', JSON.stringify(toSave));
     } catch (e) {
@@ -185,7 +185,7 @@ export class SettingsManager {
   }
 
   /**
-   * 旧版で localStorage に残った NIP-46 ローカル鍵を削除
+   * 旧版で appSettings に混在していた NIP-46 ローカル鍵を専用キーへ移行して除去
    */
   _purgeLegacyNip46LocalSecretKey() {
     try {
@@ -193,6 +193,10 @@ export class SettingsManager {
       if (!raw) return;
       const obj = JSON.parse(raw);
       if (obj && Object.prototype.hasOwnProperty.call(obj, 'nip46LocalSecretKey')) {
+        const legacy = obj.nip46LocalSecretKey;
+        if (legacy && typeof legacy === 'string' && !localStorage.getItem('nokakoi.nip46.localSecretKey')) {
+          localStorage.setItem('nokakoi.nip46.localSecretKey', legacy);
+        }
         delete obj.nip46LocalSecretKey;
         localStorage.setItem('appSettings', JSON.stringify(obj));
       }

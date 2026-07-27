@@ -14,7 +14,7 @@ Nostr Webクライアントの実装。
 
 - NIP-07（ブラウザ拡張）認証
 - `nsec` + パスワード暗号化（PBKDF2 + AES-GCM）／パスキー（WebAuthn PRF）
-- NIP-46（リモート署名・ローカル通信鍵は sessionStorage 限定）
+- NIP-46（リモート署名・ローカル通信鍵は専用 localStorage キー、ログアウト時に消去）
 - カスタム絵文字（NIP-30）
 - PWA
 - i18n（日本語/英語）
