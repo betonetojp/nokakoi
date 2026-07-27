@@ -5,6 +5,19 @@
 import { getFinalizeEvent, getPublicKey as getPublicKeyFn } from './nostr-compat.js';
 import { hexToBytes } from './crypto.js';
 
+/**
+ * nostr-tools >= 2.x は SecretKey を Uint8Array で受け取る
+ * @param {string} skHex
+ * @returns {Uint8Array}
+ */
+function skBytes(skHex) {
+  const bytes = hexToBytes(skHex);
+  if (!bytes || bytes.length !== 32) {
+    throw new Error('Invalid secret key');
+  }
+  return bytes;
+}
+
 export const signer = (() => {
   let _sk = null;
 
@@ -42,7 +55,7 @@ export const signer = (() => {
       if (!_sk || !finalizeEvent) {
         throw new Error('署名者が利用できません');
       }
-      return finalizeEvent(draft, _sk);
+      return finalizeEvent(draft, skBytes(_sk));
     },
 
     /**
@@ -51,7 +64,12 @@ export const signer = (() => {
     getPublicKey() {
       const getPublicKey = getPublicKeyFn();
       if (!_sk || !getPublicKey) return null;
-      return getPublicKey(_sk);
+      try {
+        return getPublicKey(skBytes(_sk));
+      } catch (e) {
+        console.warn('[Signer] getPublicKey 失敗:', e);
+        return null;
+      }
     },
 
     /**
@@ -84,8 +102,7 @@ export const signer = (() => {
       if (!nip44?.v2?.utils?.getConversationKey || !nip44?.v2?.decrypt) {
         throw new Error('NIP-44 ライブラリが利用できません');
       }
-      const skBytes = hexToBytes(_sk);
-      const conversationKey = nip44.v2.utils.getConversationKey(skBytes, pubkey);
+      const conversationKey = nip44.v2.utils.getConversationKey(skBytes(_sk), pubkey);
       return nip44.v2.decrypt(ciphertext, conversationKey);
     },
 
@@ -97,8 +114,7 @@ export const signer = (() => {
       if (!nip44?.v2?.utils?.getConversationKey || !nip44?.v2?.encrypt) {
         throw new Error('NIP-44 ライブラリが利用できません');
       }
-      const skBytes = hexToBytes(_sk);
-      const conversationKey = nip44.v2.utils.getConversationKey(skBytes, pubkey);
+      const conversationKey = nip44.v2.utils.getConversationKey(skBytes(_sk), pubkey);
       return nip44.v2.encrypt(plaintext, conversationKey);
     }
   };

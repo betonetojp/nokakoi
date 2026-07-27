@@ -101,7 +101,16 @@ export class SimplePool extends NostrSimplePool {
  * windowまたはインポートしたNostrToolsを取得
  */
 export function getNostrTools() {
-  return { nip19, SimplePool, getPublicKey: getPublicKeyFn, finalizeEvent, kinds, utils, nip04, nip44 };
+  return {
+    nip19,
+    SimplePool,
+    getPublicKey: getPublicKey(),
+    finalizeEvent: getFinalizeEvent(),
+    kinds,
+    utils,
+    nip04,
+    nip44
+  };
 }
 
 /**
@@ -119,17 +128,32 @@ export function getSimplePool() {
 }
 
 /**
- * getPublicKey関数取得
+ * SecretKey を Uint8Array に正規化（nostr-tools >= 2.x 互換）
+ * @param {string|Uint8Array} sk
+ * @returns {Uint8Array}
  */
-export function getPublicKey() {
-  return getPublicKeyFn;
+function normalizeSecretKey(sk) {
+  if (sk instanceof Uint8Array) return sk;
+  if (typeof sk === 'string') {
+    const bytes = hexToBytes(sk);
+    if (!bytes) throw new Error('Invalid secret key');
+    return bytes;
+  }
+  throw new Error('expected Uint8Array, got type=' + typeof sk);
 }
 
 /**
- * finalizeEvent関数取得
+ * getPublicKey関数取得（hex / Uint8Array 両対応）
+ */
+export function getPublicKey() {
+  return (sk) => getPublicKeyFn(normalizeSecretKey(sk));
+}
+
+/**
+ * finalizeEvent関数取得（hex / Uint8Array 両対応）
  */
 export function getFinalizeEvent() {
-  return finalizeEvent;
+  return (event, sk) => finalizeEvent(event, normalizeSecretKey(sk));
 }
 
 /**
