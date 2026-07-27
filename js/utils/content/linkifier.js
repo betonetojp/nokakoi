@@ -2,6 +2,7 @@ import { escapeHtml } from '../utils.js';
 import { t } from '../i18n.js';
 import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
 import { URL_REGEX, NOSTR_URI_REGEX, EMOJI_SHORTCODE_REGEX } from './text-preview.js';
+import { sanitizeUrlCandidate } from '../sanitize-url.js';
 
 export function isImageUrl(url) {
   const imageExtensions = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i;
@@ -210,8 +211,15 @@ export function linkifyText(text, emojiTags = [], options = {}) {
             continue;
           }
           if (url) {
+            const safeUrl = sanitizeUrlCandidate(url);
+            if (!safeUrl) {
+              if (emojiSeq.length > 0) { lineParts.push('<span class="emoji-inline-group">' + emojiSeq.join('') + '</span>'); emojiSeq = []; }
+              lineParts.push('<span class="plain-text">' + escapeHtml(m.text) + '</span>');
+              lastIndex = m.index + m.length;
+              continue;
+            }
             const imgHtml = '<span class="emoji-wrap" style="display:inline-block;line-height:1;margin:0;padding:0;vertical-align:middle;max-width:100%;">' +
-              '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(m.text) + '" class="custom-emoji" style="max-width:100%;"/>' +
+              '<img src="' + escapeHtml(safeUrl) + '" alt="' + escapeHtml(m.text) + '" class="custom-emoji" style="max-width:100%;"/>' +
               '</span>';
             emojiSeq.push(imgHtml);
           } else {

@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; connect-src 'self' wss: https: ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: https: blob:; media-src 'self' https: blob:; style-src 'self' 'unsafe-inline'; frame-src 'self' https:; worker-src 'self';">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="description" content="Tiny but cute web client.">
-  <title>nokakoi</title>
+  <title>nokakoi</title>
   <style>
     /* Android のネイティブのプル・トゥ・リフレッシュを有効にし、iOS のスムーズスクロールも維持 */
     html, body, #feeds {
@@ -67,21 +68,22 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <script type="module" crossorigin src="./assets/index-BHclKMPD.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/nostr-compat-0ClHyMRw.js">
-  <link rel="modulepreload" crossorigin href="./assets/i18n-oPVLS1Vb.js">
-  <link rel="modulepreload" crossorigin href="./assets/utils-BNqFc6js.js">
+  <script type="module" crossorigin src="./assets/index-C6b5U4ip.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-DK3Fl9T5.js">
+  <link rel="modulepreload" crossorigin href="./assets/nostr-compat--env2s2_.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-xIk5e5Dp.js">
+  <link rel="modulepreload" crossorigin href="./assets/utils-CdssvYLQ.js">
   <link rel="modulepreload" crossorigin href="./assets/constants-CurfoY5k.js">
-  <link rel="modulepreload" crossorigin href="./assets/crypto-Dkn7hYDx.js">
-  <link rel="modulepreload" crossorigin href="./assets/relay-BnXL9-nD.js">
+  <link rel="modulepreload" crossorigin href="./assets/crypto-lKsyqvzw.js">
+  <link rel="modulepreload" crossorigin href="./assets/relay-CwdugE5S.js">
   <link rel="modulepreload" crossorigin href="./assets/preload-helper-B7qeedMF.js">
-  <link rel="modulepreload" crossorigin href="./assets/profile-PK-AgJn4.js">
-  <link rel="modulepreload" crossorigin href="./assets/signer-Ceif2DS6.js">
-  <link rel="modulepreload" crossorigin href="./assets/actions-DUhYqPm0.js">
-  <link rel="modulepreload" crossorigin href="./assets/modals-BmULQ8V-.js">
-  <link rel="modulepreload" crossorigin href="./assets/url-parser-qN_HIsaq.js">
-  <link rel="modulepreload" crossorigin href="./assets/json-modal-DnJaY-ag.js">
-  <link rel="modulepreload" crossorigin href="./assets/renderer-SEFCaRB9.js">
+  <link rel="modulepreload" crossorigin href="./assets/profile-CmMIMCZt.js">
+  <link rel="modulepreload" crossorigin href="./assets/signer-Dj80qt2g.js">
+  <link rel="modulepreload" crossorigin href="./assets/actions-D_FN3m9P.js">
+  <link rel="modulepreload" crossorigin href="./assets/modals-D0XqRYVN.js">
+  <link rel="modulepreload" crossorigin href="./assets/url-parser-WobZ4pYy.js">
+  <link rel="modulepreload" crossorigin href="./assets/json-modal-BJe7tgxe.js">
+  <link rel="modulepreload" crossorigin href="./assets/renderer-CIDdzHOU.js">
   <link rel="stylesheet" crossorigin href="./assets/index-CptgcO_0.css">
 </head>
 <body>
@@ -414,7 +416,7 @@
     </section>
 
     <!-- eHagaki モーダル -->
-    <div id="ehagakiModal" class="modal" hidden>
+    <div id="ehagakiModal" class="modal" role="dialog" aria-modal="true" hidden>
       <div class="modal-body modal-body--md panel">
         <div class="modal-header-row">
           <h2 class="modal-title" data-i18n="ehagaki">eHagaki</h2>
@@ -425,7 +427,7 @@
     </div>
 
     <!-- 隠し文字埋め込みモーダル -->
-    <div id="steganographyModal" class="modal" hidden>
+    <div id="steganographyModal" class="modal" role="dialog" aria-modal="true" hidden>
       <div class="modal-body modal-body--sm panel">
         <div class="modal-header-row">
           <h2 class="modal-title" data-i18n="steganography.title">隠し文字埋め込み</h2>
@@ -447,7 +449,7 @@
     </div>
 
     <!-- ホームタブ クイック表示設定モーダル -->
-    <div id="homeDisplayQuickModal" class="modal" hidden>
+    <div id="homeDisplayQuickModal" class="modal" role="dialog" aria-modal="true" hidden>
       <div class="modal-body modal-body--sm panel">
         <h2 class="modal-title" data-i18n="homeDisplayQuick.title">表示のクイック設定</h2>
         <div class="mt-12">
@@ -491,7 +493,7 @@
     </div>
 
     <!-- omochat設定モーダル -->
-    <div id="omochatModal" class="modal" hidden>
+    <div id="omochatModal" class="modal" role="dialog" aria-modal="true" hidden>
       <div class="modal-body modal-body--sm panel">
         <h2 class="modal-title" data-i18n="omochat.settings.title">omochat設定</h2>
         <p class="muted text-sm mb-12" data-i18n="omochat.modal.hint">購読するgeohashを設定できます。</p>
@@ -578,7 +580,7 @@
   </main>
 
   <!-- nsecログインモーダル -->
-  <div id="nsecModal" class="modal" hidden>
+  <div id="nsecModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body panel">
       <form id="nsecForm" onsubmit="return false;">
       <!-- パスワードマネージャー/アクセシビリティ向けの非表示ユーザー名 -->
@@ -624,7 +626,7 @@
   </div>
 
   <!-- NIP-46 Nostr Connect ログインモーダル -->
-  <div id="nip46Modal" class="modal" hidden>
+  <div id="nip46Modal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body modal-body--nip46 panel">
       <div class="modal-header-row">
         <h2 class="modal-title" data-i18n="nip46.modal.title">Nostr Connect (NIP-46)</h2>
@@ -677,13 +679,13 @@
   </div>
 
   <!-- パスワード入力モーダル -->
-  <div id="passwordModal" class="modal" hidden>
+  <div id="passwordModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body panel">
       <form id="decryptForm" onsubmit="return false;">
       <!-- パスワードマネージャー/アクセシビリティ向けの非表示ユーザー名 -->
       <input type="text" id="decrypt_username" name="username" autocomplete="username" class="sr-only" aria-hidden="true">
       <h2 data-i18n="password.modal.title">パスワード入力</h2>
-      <p class="muted" data-i18n="password.modal.hint">保存されたnsecを復号化するため、パスワードを入力してください。パスワードなしで保存した場合は空欄のままOKを押してください。</p>
+      <p class="muted" data-i18n="password.modal.hint">保存されたnsecを復号化するため、パスワードを入力してください。</p>
       <label for="decryptPassword" class="modal-field-label" data-i18n="password.label">パスワード</label>
       <input type="password" id="decryptPassword" autocomplete="current-password" data-i18n="password.placeholder" placeholder="パスワード">
       <div class="row mt-12">
@@ -696,7 +698,7 @@
   </div>
 
   <!-- リアクション記号入力モーダル -->
-  <div id="reactionModal" class="modal" hidden>
+  <div id="reactionModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body panel">
       <div class="modal-header-row">
         <h2 class="modal-title" data-i18n="reaction.default.title">リアクション設定</h2>
@@ -731,7 +733,7 @@
   </div>
 
   <!-- Confirm dialog modal -->
-  <div id="confirmModal" class="modal" hidden>
+  <div id="confirmModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body panel">
       <h2 id="confirmTitle" data-i18n="confirm.title">確認</h2>
       <p id="confirmMessage" class="confirm-message"></p>
@@ -743,7 +745,7 @@
   </div>
 
   <!-- Service Worker Update modal -->
-  <div id="swUpdateModal" class="modal" hidden>
+  <div id="swUpdateModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body panel">
       <h2 data-i18n="update.available">アップデート</h2>
       <p class="confirm-message" data-i18n="update.prompt">新しいバージョンがあります。更新しますか？</p>
@@ -755,7 +757,7 @@
   </div>
 
   <!-- eHagaki Signature Confirmation Modal -->
-  <div id="ehagakiConfirmModal" class="modal" hidden>
+  <div id="ehagakiConfirmModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body panel">
       <h2 data-i18n="ehagaki.confirm.title">署名要求の確認</h2>
       <p class="confirm-message">
@@ -780,7 +782,7 @@
   </div>
 
   <!-- Media viewer modal -->
-  <div id="mediaModal" class="modal" hidden>
+  <div id="mediaModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body modal-body--media panel">
       <div class="media-modal-header">
         <h2 id="mediaTitle" class="modal-title" data-i18n="media.title">メディア</h2>
@@ -796,7 +798,7 @@
   </div>
 
   <!-- User profile modal -->
-  <div id="profileModal" class="modal" hidden>
+  <div id="profileModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body panel">
       <div class="modal-header-row">
         <h2 class="modal-title" data-i18n="profile.title">プロフィール</h2>
@@ -829,7 +831,7 @@
   </div>
 
   <!-- Profile editor modal -->
-  <div id="profileEditModal" class="modal" hidden>
+  <div id="profileEditModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body modal-body--md panel">
       <div class="modal-header-row">
         <h2 class="modal-title" data-i18n="editor.profile.title">プロフィール編集</h2>
@@ -845,7 +847,7 @@
   </div>
 
   <!-- Follow list editor modal -->
-  <div id="followEditModal" class="modal" hidden>
+  <div id="followEditModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body modal-body--md panel">
       <div class="modal-header-row">
         <h2 class="modal-title" data-i18n="editor.follow.title">フォローリスト編集</h2>
@@ -861,7 +863,7 @@
   </div>
 
   <!-- ミュートリスト編集モーダル -->
-  <div id="muteEditModal" class="modal" hidden>
+  <div id="muteEditModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body modal-body--md panel">
       <div class="modal-header-row">
         <h2 class="modal-title" data-i18n="editor.mute.title">ミュートリスト編集</h2>
@@ -877,7 +879,7 @@
   </div>
 
   <!-- JSON viewer modal -->
-  <div id="jsonModal" class="modal" hidden>
+  <div id="jsonModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body modal-body--lg panel">
       <div class="modal-header-row">
         <h2 class="modal-title" data-i18n="json.title">イベントJSON</h2>
@@ -896,7 +898,7 @@
   </div>
 
   <!-- イベント詳細モーダル（タイムラインと同じ順序） -->
-  <div id="eventModal" class="modal" hidden>
+  <div id="eventModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body modal-body--md panel">
       <div class="modal-header-row">
         <h2 class="modal-title" data-i18n="event.detail.title">イベント詳細</h2>
@@ -927,7 +929,7 @@
   </button>
 
   <!-- 情報ハブ (クッションモーダル) -->
-  <div id="infoHubModal" class="modal" hidden>
+  <div id="infoHubModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body panel" style="max-width: 480px; width: 90%;">
       <div class="modal-header-row">
         <h2 class="modal-title" data-i18n="infohub.title">nokakoi 情報ハブ</h2>
@@ -1003,7 +1005,7 @@
   </div>
 
   <!-- デバッグログモーダル -->
-  <div id="debugModal" class="modal" hidden>
+  <div id="debugModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body modal-body--lg panel">
       <div class="modal-header-row">
         <h2 class="modal-title" data-i18n="debug.title">デバッグ情報</h2>
@@ -1245,7 +1247,7 @@
       // Service Worker なしでもアプリは動作継続
     }
   </script>
-
+
 
 </body>
 </html>

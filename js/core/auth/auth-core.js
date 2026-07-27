@@ -8,6 +8,7 @@ import { t } from '../../utils/i18n.js';
 import { isWebAuthnSupported, authenticateWithPasskey, decryptNsecWithPasskey } from '../webauthn.js';
 import { Nip46Client, DEFAULT_NIP46_RELAYS } from '../nip46.js';
 import { showPasswordModal } from './nsec-auth.js';
+import { getNip46LocalSecretKey, clearNip46LocalSecretKey } from './nip46-session.js';
 
 let isPasskeyAuthPending = false;
 
@@ -192,9 +193,9 @@ export function logout(state, settings, settingsManager, restartFeeds) {
     settingsManager.set('passkeyEncryptedNsec', null);
     settingsManager.set('preferredSigner', null);
     settingsManager.set('nip46RemotePubkey', null);
-    settingsManager.set('nip46LocalSecretKey', null);
     settingsManager.set('nip46Relays', null);
     settingsManager.set('nip46Secret', null);
+    clearNip46LocalSecretKey();
   } catch (e) { }
 
   const nameEl = $('#userInfo');
@@ -291,7 +292,8 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
       try { window.__nokakoiAuthPending = false; } catch (e) { }
     }
 
-    if (!state.pubkey && settings.preferredSigner === 'nip46' && settings.nip46RemotePubkey && settings.nip46LocalSecretKey) {
+    const nip46LocalSecretKey = getNip46LocalSecretKey();
+    if (!state.pubkey && settings.preferredSigner === 'nip46' && settings.nip46RemotePubkey && nip46LocalSecretKey) {
       try {
         const client = new Nip46Client({
           relays: settings.nip46Relays || DEFAULT_NIP46_RELAYS,
@@ -299,7 +301,7 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
         });
 
         await client.restoreConnection({
-          localSecretKey: settings.nip46LocalSecretKey,
+          localSecretKey: nip46LocalSecretKey,
           remotePubkey: settings.nip46RemotePubkey,
           relays: settings.nip46Relays,
           secret: settings.nip46Secret
@@ -341,21 +343,12 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
     }
 
     if (!state.pubkey && settings.preferredSigner === 'nsec' && settings.encryptedNsec) {
-      try {
-        const skHex = await decryptNsec(settings.encryptedNsec, '');
-        if (skHex && /^[0-9a-f]{64}$/i.test(skHex)) {
-          signer.setKey(skHex);
-          state.signer = 'nsec';
-          await loginFn();
-          isPasskeyAuthPending = false;
-          try { window.__nokakoiAuthPending = false; } catch (e) { }
-          return;
-        }
-      } catch (e) {
-      }
-
       showPasswordModal(async (password) => {
         try {
+          if (!password) {
+            alert(t('auth.password_required'));
+            return;
+          }
           const skHex = await decryptNsec(settings.encryptedNsec, password);
           if (skHex && /^[0-9a-f]{64}$/i.test(skHex)) {
             signer.setKey(skHex);

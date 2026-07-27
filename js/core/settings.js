@@ -7,6 +7,8 @@ import { DEFAULT_NIP46_RELAYS } from './nip46.js';
 export class SettingsManager {
   constructor() {
     this.settings = this.load();
+    // 過去に localStorage へ平文保存されていた NIP-46 鍵を除去
+    this._purgeLegacyNip46LocalSecretKey();
     if (this.settings && this.settings.maxEvents) {
       try { setEventsMax(this.settings.maxEvents); } catch (e) {}
     }
@@ -103,7 +105,7 @@ export class SettingsManager {
         // 最大保持件数
         useDomPurge: (obj && typeof obj.useDomPurge !== 'undefined') ? obj.useDomPurge : false,
         maxEvents: (obj && typeof obj.maxEvents !== 'undefined') ? obj.maxEvents : 500,
-        nip46LocalSecretKey: (obj && obj.nip46LocalSecretKey) || null,
+        // NIP-46 ローカル通信鍵は sessionStorage のみ（localStorage には残さない）
         nip46RemotePubkey: (obj && obj.nip46RemotePubkey) || null,
         nip46Secret: (obj && obj.nip46Secret) || null
       };
@@ -162,7 +164,6 @@ export class SettingsManager {
         previewMaxLength: MAX_PREVIEW_LENGTH,
         useDomPurge: false,
         maxEvents: 500,
-        nip46LocalSecretKey: null,
         nip46RemotePubkey: null,
         nip46Secret: null
       };
@@ -174,10 +175,28 @@ export class SettingsManager {
    */
   save() {
     try {
-      localStorage.setItem('appSettings', JSON.stringify(this.settings || {}));
+      const toSave = { ...(this.settings || {}) };
+      // NIP-46 ローカル通信鍵は永続化しない
+      delete toSave.nip46LocalSecretKey;
+      localStorage.setItem('appSettings', JSON.stringify(toSave));
     } catch (e) {
       console.warn('[Settings] 設定保存失敗:', e);
     }
+  }
+
+  /**
+   * 旧版で localStorage に残った NIP-46 ローカル鍵を削除
+   */
+  _purgeLegacyNip46LocalSecretKey() {
+    try {
+      const raw = localStorage.getItem('appSettings');
+      if (!raw) return;
+      const obj = JSON.parse(raw);
+      if (obj && Object.prototype.hasOwnProperty.call(obj, 'nip46LocalSecretKey')) {
+        delete obj.nip46LocalSecretKey;
+        localStorage.setItem('appSettings', JSON.stringify(obj));
+      }
+    } catch (e) { }
   }
 
   /**

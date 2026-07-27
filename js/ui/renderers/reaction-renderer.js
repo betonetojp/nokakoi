@@ -1,5 +1,6 @@
 import { escapeHtml, getReactionContent, getReactionEmojiTags } from '../../utils/utils.js';
 import { fitCustomEmoji } from '../../utils/url-parser.js';
+import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { t } from '../../utils/i18n.js';
 import { formatReactionForTitle } from './render-helpers.js';
 
@@ -12,8 +13,9 @@ export function formatReaction(reaction, emojiTags = []) {
   } else if (typeof reactionContent === 'string' && reactionContent.startsWith(':') && reactionContent.endsWith(':')) {
     const shortcode = reactionContent.slice(1, -1);
     const emojiTag = effectiveEmojiTags.find(tag => tag[0] === 'emoji' && tag[1] === shortcode);
-    if (emojiTag && emojiTag[2]) {
-      return '<img src="' + escapeHtml(emojiTag[2]) + '" alt="' + escapeHtml(reactionContent) + '" class="custom-emoji" style="max-width: 100%; max-height: 18px; width: auto; height: auto; vertical-align: middle;">';
+    const safeUrl = emojiTag && emojiTag[2] ? sanitizeUrlCandidate(emojiTag[2]) : null;
+    if (safeUrl) {
+      return '<img src="' + escapeHtml(safeUrl) + '" alt="' + escapeHtml(reactionContent) + '" class="custom-emoji" style="max-width: 100%; max-height: 18px; width: auto; height: auto; vertical-align: middle;">';
     }
     return escapeHtml(reactionContent);
   } else if (reactionContent) {
@@ -40,9 +42,10 @@ export function setReactionDisplay(btn, reaction, emojiTags = []) {
     if (typeof reactionContent === 'string' && reactionContent.startsWith(':') && reactionContent.endsWith(':')) {
       const shortcode = reactionContent.slice(1, -1);
       const emojiTag = effectiveEmojiTags.find(tag => tag[0] === 'emoji' && tag[1] === shortcode);
-      if (emojiTag && emojiTag[2]) {
+      const safeUrl = emojiTag && emojiTag[2] ? sanitizeUrlCandidate(emojiTag[2]) : null;
+      if (safeUrl) {
         const img = document.createElement('img');
-        img.src = emojiTag[2];
+        img.src = safeUrl;
         img.alt = reactionContent;
         img.className = 'custom-emoji';
         img.onerror = function () { try { img.classList.add('d-none'); } catch (e) { } };

@@ -775,7 +775,7 @@ export function showOmochatSettingsModal(settingsManager) {
       const algo = autoRelayAlgoSelect ? autoRelayAlgoSelect.value : 'merged';
       const mergeParent = mergeParentCheck ? mergeParentCheck.checked : false;
       const myUpdateId = ++activeUpdateId;
-      relayListEl.innerHTML = '<div class="muted text-sm" style="padding:4px;">リレーを計算中...</div>';
+      relayListEl.innerHTML = '<div class="muted text-sm" style="padding:4px;">' + t('omochat.relays.computing') + '</div>';
 
       const autoRelays = await getClosestRelays(currentGeohash, 5, algo, mergeParent);
       if (myUpdateId !== activeUpdateId) return;
@@ -794,7 +794,7 @@ export function showOmochatSettingsModal(settingsManager) {
           relayListEl.appendChild(row);
         });
       } else {
-        relayListEl.innerHTML = '<div class="muted text-sm text-accent" style="padding:4px;">位置情報リレーの取得に失敗しました。フォールバックリレーを使用します。</div>';
+        relayListEl.innerHTML = '<div class="muted text-sm text-accent" style="padding:4px;">' + t('omochat.relays.geo_failed') + '</div>';
       }
     } else {
       if (addRelayBtn) addRelayBtn.classList.remove('d-none');

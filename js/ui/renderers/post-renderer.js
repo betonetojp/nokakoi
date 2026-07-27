@@ -1,4 +1,5 @@
 import { escapeHtml, fmtTime, processHiddenTagChars, buildReactionEmojiTags, replaceBadgeEmoji } from '../../utils/utils.js';
+import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { findEventById } from '../../core/state.js';
 import { displayNameWithUsername } from '../../features/profile/profile.js';
 import { showReactionModal, showConfirmModal } from '../modals/modals.js';
@@ -272,7 +273,7 @@ function buildEventNameBlockHtml(state, ev, settings, names, statusHtml) {
   let avatarHtml = '';
   if (showAvatars) {
     const profile = state.profiles.get(pk);
-    const avatarUrl = (profile && profile.picture) || '';
+    const avatarUrl = sanitizeUrlCandidate((profile && profile.picture) || '') || '';
     if (avatarUrl) {
       avatarHtml = '<img src="' + escapeHtml(avatarUrl) + '" alt="avatar" class="avatar" loading="lazy" onerror="this.classList.add(\'d-none\')">';
     }

@@ -1,12 +1,14 @@
 {
   "name": "nokakoi-app",
-  "version": "1.108.3",
+  "version": "1.109.0",
   "description": "Nostr Web Client",
   "scripts": {
     "start": "vite",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview -p 8000",
+    "preview": "vite preview --port 8000",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "version:update": "node scripts/update-version.js",
     "version:check": "node scripts/update-version.js --check",
     "lint": "eslint js/**/*.js",
@@ -17,10 +19,11 @@
     "eslint": "^10.7.0",
     "globals": "^17.7.0",
     "http-server": "^14.1.1",
-    "vite": "^8.1.5"
+    "vite": "^8.1.5",
+    "vitest": "^3.2.7"
   },
   "dependencies": {
-    "nostr-tools": "^2.9.4",
+    "nostr-tools": "^2.24.1",
     "qrcode-generator": "^2.0.4"
   }
 }

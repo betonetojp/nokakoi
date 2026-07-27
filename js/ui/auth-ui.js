@@ -38,19 +38,12 @@ export function setupAuthUI(state, settings, settingsManager, {
         }
 
         if (settings.encryptedNsec) {
-          try {
-            const skHex = await decryptNsec(settings.encryptedNsec, '');
-            if (skHex && /^[0-9a-f]{64}$/i.test(skHex)) {
-              signer.setKey(skHex);
-              state.signer = 'nsec';
-              try { await login(state, settings, settingsManager, restartFeeds, enableComposerScroll); } catch (e) { console.warn('[Auth] 空パスワード復号後のログインに失敗', e); }
-              return;
-            }
-          } catch (e) {
-          }
-
           showPasswordModal(async (password) => {
             try {
+              if (!password) {
+                alert(t('auth.password_required'));
+                return;
+              }
               const skHex = await decryptNsec(settings.encryptedNsec, password);
               if (skHex && /^[0-9a-f]{64}$/i.test(skHex)) {
                 signer.setKey(skHex);

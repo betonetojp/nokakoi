@@ -2,7 +2,100 @@
 // Nostrツール互換レイヤー
 // ============================================================================
 
-import { nip19, SimplePool, getPublicKey as getPublicKeyFn, finalizeEvent, kinds, utils, nip04, nip44 } from 'nostr-tools';
+import { nip19, SimplePool as NostrSimplePool, getPublicKey as getPublicKeyFn, finalizeEvent, kinds, utils, nip04, nip44 } from 'nostr-tools';
+
+/**
+ * Filter | Filter[] を Filter[] に正規化
+ * nostr-tools >= 2.10 付近で subscribeMany が単一 Filter 専用になったための互換処理
+ */
+function normalizeFilters(filterOrFilters) {
+  if (!filterOrFilters) return [];
+  if (Array.isArray(filterOrFilters)) {
+    return filterOrFilters.filter((f) => f && typeof f === 'object' && !Array.isArray(f));
+  }
+  if (typeof filterOrFilters === 'object') return [filterOrFilters];
+  return [];
+}
+
+/**
+ * 複数 Filter を同一 REQ に載せるため subscribeMap へ展開する
+ */
+function subscribeWithFilters(pool, relays, filterOrFilters, params, eoseOnly) {
+  const filters = normalizeFilters(filterOrFilters);
+  const urls = Array.isArray(relays) ? relays : [relays];
+  if (!filters.length || !urls.length) {
+    return { close() { } };
+  }
+
+  if (filters.length === 1) {
+    if (eoseOnly) {
+      return NostrSimplePool.prototype.subscribeEose.call(pool, urls, filters[0], params);
+    }
+    return NostrSimplePool.prototype.subscribe.call(pool, urls, filters[0], params);
+  }
+
+  const requests = [];
+  for (let i = 0; i < urls.length; i++) {
+    for (let j = 0; j < filters.length; j++) {
+      requests.push({ url: urls[i], filter: filters[j] });
+    }
+  }
+
+  if (eoseOnly) {
+    let subcloser;
+    subcloser = pool.subscribeMap(requests, {
+      ...params,
+      oneose() {
+        const reason = 'closed automatically on eose';
+        if (subcloser) subcloser.close(reason);
+        else if (typeof params?.onclose === 'function') {
+          params.onclose(urls.map((url) => ({ url, reason })));
+        }
+      }
+    });
+    return subcloser;
+  }
+
+  return pool.subscribeMap(requests, params);
+}
+
+/**
+ * 旧 API（Filter[] 受け取り）を維持する SimplePool 互換クラス
+ */
+export class SimplePool extends NostrSimplePool {
+  subscribe(relays, filterOrFilters, params) {
+    return subscribeWithFilters(this, relays, filterOrFilters, params, false);
+  }
+
+  subscribeMany(relays, filterOrFilters, params) {
+    return subscribeWithFilters(this, relays, filterOrFilters, params, false);
+  }
+
+  subscribeEose(relays, filterOrFilters, params) {
+    return subscribeWithFilters(this, relays, filterOrFilters, params, true);
+  }
+
+  subscribeManyEose(relays, filterOrFilters, params) {
+    return subscribeWithFilters(this, relays, filterOrFilters, params, true);
+  }
+
+  async querySync(relays, filterOrFilters, params) {
+    const filters = normalizeFilters(filterOrFilters);
+    if (filters.length <= 1) {
+      return super.querySync(relays, filters[0] || {}, params);
+    }
+    const groups = await Promise.all(
+      filters.map((filter) => super.querySync(relays, filter, params))
+    );
+    const byId = new Map();
+    for (const events of groups) {
+      for (const ev of events) {
+        if (ev && ev.id) byId.set(ev.id, ev);
+      }
+    }
+    return Array.from(byId.values());
+  }
+}
 
 /**
  * windowまたはインポートしたNostrToolsを取得

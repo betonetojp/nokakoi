@@ -6,6 +6,7 @@ import { getNip19 } from '../../core/nostr-compat.js';
 import { signEventWithMode } from './actions.js';
 import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL } from '../../config/constants.js';
 import { debounce } from '../../utils/utils.js';
+import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 
 const DEFAULT_TITLE = POSTLINK_DEFAULT_TITLE;
 const DEFAULT_URL = POSTLINK_DEFAULT_URL;
@@ -115,27 +116,7 @@ function promptEhagakiSignature(origin, eventDraft) {
   });
 }
 
-// ヘルパー: URL候補をサニタイズして正規化
-// 許可スキームは http/https のみ。正規化済み絶対URL文字列または null を返す。
-function sanitizeUrlCandidate(u) {
-  try {
-    if (!u || typeof u !== 'string') return null;
-    const trimmed = u.trim();
-    if (!trimmed) return null;
-    // 異常に長い入力は拒否
-    if (trimmed.length > 2048) return null;
-    let urlObj;
-    try {
-      urlObj = new URL(trimmed);
-    } catch (e) {
-      // 現在URL基準の相対URLとして再試行
-      try { urlObj = new URL(trimmed, window.location.href); } catch (ee) { return null; }
-    }
-    const proto = (urlObj.protocol || '').toLowerCase();
-    if (proto === 'http:' || proto === 'https:') return urlObj.toString();
-  } catch (e) { }
-  return null;
-}
+// URL サニタイズは utils/sanitize-url.js を利用
 
 function clearComposerNoteInput(noteEl) {
   if (!noteEl) return;
@@ -715,10 +696,20 @@ export async function setupPostLinkUI(settingsManager) {
           if (!e || !e.data) return;
           const data = e.data;
 
-          // レガシー自動クローズ（namespace なし）
+          // レガシー自動クローズ（namespace なし）— origin/source を検証
           if (typeof data === 'object' && (data.type === 'posted' || data.type === 'POST_SUCCESS')) {
-            const modalEl = document.getElementById('ehagakiModal');
             const iframeEl = document.getElementById('ehagakiFrame');
+            if (iframeEl && iframeEl.src) {
+              try {
+                const expectedOrigin = new URL(iframeEl.src).origin;
+                if (e.origin !== expectedOrigin) return;
+              } catch (ee) { return; }
+            } else {
+              return;
+            }
+            if (iframeEl && e.source !== iframeEl.contentWindow) return;
+
+            const modalEl = document.getElementById('ehagakiModal');
             const chk = modalEl && modalEl.querySelector && modalEl.querySelector('#ehagakiAutoCloseCheckbox');
             const autoClose = chk ? chk.checked : (localStorage.getItem('ehagaki_auto_close') !== '0');
             if (autoClose) {

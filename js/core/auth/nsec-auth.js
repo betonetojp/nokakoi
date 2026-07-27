@@ -141,12 +141,9 @@ export function showNsecLoginModal(state, settings, settingsManager, loginFn) {
         } else if (radioPassword && radioPassword.checked) {
           const password = passwordInput ? passwordInput.value : '';
           if (!password) {
-            const acceptRisk = confirm(t('auth.warn_empty_password'));
-            if (!acceptRisk) {
-              if (statusEl) statusEl.textContent = '';
-              if (passwordInput) passwordInput.focus();
-              return;
-            }
+            if (statusEl) statusEl.textContent = t('auth.password_required');
+            if (passwordInput) passwordInput.focus();
+            return;
           }
           const encrypted = await encryptNsec(skHex, password);
           settingsManager.set('encryptedNsec', encrypted);

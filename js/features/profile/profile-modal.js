@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { $, escapeHtml, fmtTime } from '../../utils/utils.js';
+import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { subOnce, getReadRelays, relayConnect } from '../../core/relay.js';
 import { getSimplePool } from '../../core/nostr-compat.js';
 import { renderEvent } from '../../ui/renderer.js';
@@ -258,7 +259,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   }
 
   if (pictureEl) {
-    const picture = (profile && profile.picture) || '';
+    const picture = sanitizeUrlCandidate((profile && profile.picture) || '') || '';
     if (picture) {
       pictureEl.src = picture;
       pictureEl.classList.remove('d-none');
@@ -274,7 +275,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   }
 
   if (bannerEl) {
-    const banner = (profile && profile.banner) || '';
+    const banner = sanitizeUrlCandidate((profile && profile.banner) || '') || '';
     // 設定でバナー表示が有効か確認
     const showBanner = settingsManager.get('showProfileBanner') !== false;
     if (banner && showBanner) {

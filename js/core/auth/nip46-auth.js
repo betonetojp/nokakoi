@@ -1,6 +1,7 @@
 import { $ } from '../../utils/utils.js';
 import { t } from '../../utils/i18n.js';
 import { Nip46Client, DEFAULT_NIP46_RELAYS, generateQRCodeSVG } from '../nip46.js';
+import { setNip46LocalSecretKey } from './nip46-session.js';
 
 function showModal(modalId) {
   const modal = $(modalId);
@@ -211,11 +212,11 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         state.signer = 'nip46';
         try { bunkerClient.setupResumeHandler(); } catch (e) { }
 
-        settingsManager.set('nip46LocalSecretKey', bunkerClient.localSecretKey);
         settingsManager.set('nip46RemotePubkey', bunkerClient.remotePubkey);
         settingsManager.set('nip46Secret', bunkerClient.secret);
         settingsManager.set('nip46Relays', bunkerClient.relays);
         settingsManager.set('preferredSigner', 'nip46');
+        setNip46LocalSecretKey(bunkerClient.localSecretKey);
         try { localStorage.setItem('lastLoginMethod', 'nip46'); } catch (e) { }
 
         hideModal('#nip46Modal');
@@ -257,11 +258,11 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         state.signer = 'nip46';
         try { client.setupResumeHandler(); } catch (e) { }
 
-        settingsManager.set('nip46LocalSecretKey', client.localSecretKey);
         settingsManager.set('nip46RemotePubkey', client.remotePubkey);
         settingsManager.set('nip46Secret', client.secret);
         settingsManager.set('nip46Relays', nip46Relays);
         settingsManager.set('preferredSigner', 'nip46');
+        setNip46LocalSecretKey(client.localSecretKey);
         try { localStorage.setItem('lastLoginMethod', 'nip46'); } catch (e) { }
 
         hideModal('#nip46Modal');

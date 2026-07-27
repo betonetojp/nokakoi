@@ -57,17 +57,30 @@ export const signer = (() => {
 
 | 脅威シナリオ | 保護状況 | 採用している対策 |
 |-------------|----------|------------------|
-| LocalStorageの第三者閲覧 | ✅ 保護済み | WebAuthn PRF または PBKDF2+AES-GCM による強力な暗号化 |
-| 端末の物理的強奪 | ✅ 保護済み | Touch ID / Face ID / Windows Hello 生体認証が必須 |
+| LocalStorageの第三者閲覧（nsec） | ✅ 保護済み | WebAuthn PRF または PBKDF2+AES-GCM による強力な暗号化。空パスワードでの保存は不可 |
+| LocalStorageの第三者閲覧（NIP-46） | ✅ 保護済み | ローカル通信鍵は **localStorage に永続化しない**（後述） |
+| 端末の物理的強奪 | ✅ 保護済み | Touch ID / Face ID / Windows Hello 生体認証が必須（パスキー方式） |
 | XSSによる `window.sk` の直接窃取 | ✅ 保護済み | **クロージャ保護**によりグローバル空間から隔離 |
 | コンソールログからの鍵漏洩 | ✅ 保護済み | デバッグログおよび `lastAction` から鍵情報をマスク・除外 |
 | 偽サイトでのパスキー利用 | ✅ 保護済み | WebAuthn のオリジン検証 (RP ID = nokakoi.com) |
 
 ---
 
-## 4. 今後の改善候補（Future Security Enhancements）
+## 4. NIP-46 ローカル通信鍵の保護
 
-1. **NIP-46 ローカル通信鍵のセキュリティ強化**:
-   NIP-46リモート署名で使用するローカル通信鍵（`nip46LocalSecretKey`）の保護レベル向上。
-2. **コンテンツセキュリティポリシー (CSP) の強化**:
-   `connect-src` や `script-src` を厳格化し、不正な外部通信・スクリプト実行を遮断。
+NIP-46（リモート署名）でクライアント側が保持するローカル通信鍵（`nip46LocalSecretKey`）は、ユーザーの Nostr 秘密鍵そのものではありませんが、リモートサイナーとのセッションなりすましに使えるため保護が必要です。
+
+**採用している対策（セッション限定保持）:**
+1. 鍵は `sessionStorage` にのみ保存し、`localStorage` / `appSettings` には書き込まない
+2. 設定保存時および起動時に、過去バージョンで残った平文鍵を `appSettings` から除去する
+3. ログアウト時に `sessionStorage` 上の鍵も消去する
+4. ブラウザ／タブを閉じた後は再ペア（再接続）が必要
+
+これによりディスク上の長期永続化やバックアップ経由の漏洩面を縮小します。同一タブセッション内の再読み込みでは自動再接続が可能です。
+
+---
+
+## 5. 今後の改善候補（Future Security Enhancements）
+
+1. **コンテンツセキュリティポリシー (CSP) のさらなる厳格化**:
+   現状は `index.html` の meta CSP と `.htaccess` で基本ポリシーを適用済み。`'unsafe-inline'` や CDN 依存の削減、SRI 付与を進める。

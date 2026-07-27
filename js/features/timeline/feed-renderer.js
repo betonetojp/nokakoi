@@ -836,11 +836,12 @@ export function renderFeed(id = 'global', force = false) {
 
           const gfeed = _state.feeds['global'];
           const displayed = listForClick;
+          const fallbackUntil = Math.floor(Date.now() / 1000);
           const mergeUntil = (typeof gfeed?.mergedPaginationUntil === 'number')
             ? gfeed.mergedPaginationUntil
             : (displayed.length > 0
-              ? (displayed[displayed.length - 1]?.created_at ?? until) - 1
-              : until - 1);
+              ? (displayed[displayed.length - 1]?.created_at ?? fallbackUntil) - 1
+              : fallbackUntil - 1);
 
           if (globalRelays.length === 0 && _options.buildHomeLoadMoreFiltersForGlobalMerge(mergeUntil).length === 0) {
             finishLoadMore();

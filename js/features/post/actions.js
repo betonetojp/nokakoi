@@ -349,7 +349,7 @@ export async function publishNote(state, content, statusEl, options) {
 
     // 返却イベントが適切に署名済みか検証
     if (!ensureSignedEvent(ev)) {
-      throw new Error(t('publish.failed', { msg: '署名に失敗しました' }));
+      throw new Error(t('publish.failed', { msg: t('publish.sign_failed') }));
     }
 
     const pubs = await effectiveState.pool.publish(writeRelays, ev);
@@ -438,7 +438,7 @@ export async function reactToEvent(state, targetEv, sym = '+') {
     const ev = await signEventWithMode(effectiveState, draft);
 
     if (!ensureSignedEvent(ev)) {
-      throw new Error('署名に失敗しました');
+      throw new Error(t('publish.sign_failed'));
     }
 
     const pubs = await effectiveState.pool.publish(writeRelays, ev);
@@ -615,7 +615,7 @@ export async function replyToEvent(state, targetEv, text) {
     const ev = await signEventWithMode(effectiveState, draft);
 
     if (!ensureSignedEvent(ev)) {
-      throw new Error('署名に失敗しました');
+      throw new Error(t('publish.sign_failed'));
     }
 
     const pubs = await effectiveState.pool.publish(writeRelays, ev);
@@ -714,7 +714,7 @@ export async function repostEvent(state, targetEv) {
     const ev = await signEventWithMode(effectiveState, draft);
 
     if (!ensureSignedEvent(ev)) {
-      throw new Error('署名に失敗しました');
+      throw new Error(t('publish.sign_failed'));
     }
 
     const pubs = await effectiveState.pool.publish(writeRelays, ev);

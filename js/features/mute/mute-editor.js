@@ -1077,7 +1077,7 @@ export async function openMuteEditor(state) {
     // ユーザー一覧レンダリング
     const usersListEl = container.querySelector('#muteUsersList');
     if (userItems.length === 0) {
-      usersListEl.innerHTML = `<div class="muted p-8 text-center text-sm">なし</div>`;
+      usersListEl.innerHTML = `<div class="muted p-8 text-center text-sm">${t('editor.mute.empty')}</div>`;
     } else {
       userItems.forEach((item, index) => {
         const row = document.createElement('div');
@@ -1205,7 +1205,7 @@ export async function openMuteEditor(state) {
     // 単語一覧レンダリング
     const wordsListEl = container.querySelector('#muteWordsList');
     if (wordItems.length === 0) {
-      wordsListEl.innerHTML = `<div class="muted p-8 text-center text-sm">なし</div>`;
+      wordsListEl.innerHTML = `<div class="muted p-8 text-center text-sm">${t('editor.mute.empty')}</div>`;
     } else {
       wordItems.forEach((item, index) => {
         const row = document.createElement('div');
