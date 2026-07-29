@@ -33,6 +33,8 @@ Nostr Webクライアントの実装。
 npm install
 ```
 
+`node_modules` は Git 管理外です。初回 clone 時に加え、`git pull` 後に `package.json` / `package-lock.json` が変わっていた場合も、もう一度 `npm install` を実行してください。古い依存のままだと実行時エラーの原因になります。
+
 ### 開発サーバーの起動
 
 ```bash
