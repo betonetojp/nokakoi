@@ -736,19 +736,32 @@ export function renderFeed(id = 'global', force = false) {
   }
 
   let bottomBar = null;
+  let scrollSentinel = null;
   const displayCount = feed.list?.length || 0;
   const showLoadMore = displayCount < EVENTS_MAX && !(feedLoadState[id] && feedLoadState[id].noMoreEvents);
   if (showLoadMore && id !== 'bitchat') {
+    scrollSentinel = document.createElement('div');
+    scrollSentinel.className = 'feed-scroll-sentinel';
+    scrollSentinel.style.height = '1px';
+    scrollSentinel.style.pointerEvents = 'none';
+
+    const isFailedMode = !!(feedLoadState[id] && feedLoadState[id].autoFetchFailed);
+    const isLoadingMore = !!(feedLoadState[id] && feedLoadState[id].loadingMore);
+    const isAutoMode = !isFailedMode;
+
     bottomBar = document.createElement('button');
     bottomBar.type = 'button';
-    bottomBar.className = 'feed-bar feed-bar-bottom accent-center load-more-btn';
-    bottomBar.textContent = feedLoadState[id] && feedLoadState[id].loadingMore ? t('loading') : t('feed.load_more');
+    bottomBar.className = 'feed-bar feed-bar-bottom accent-center load-more-btn' + (isAutoMode ? ' is-loading-auto' : '');
+    bottomBar.textContent = isAutoMode ? t('loading') : (isLoadingMore ? t('loading') : t('feed.load_more'));
 
     if (_options.setupInfiniteScrollObserver) {
       _options.setupInfiniteScrollObserver();
       _infiniteScrollObserver = _options.getInfiniteScrollObserver();
     }
-    if (_infiniteScrollObserver) _infiniteScrollObserver.observe(bottomBar);
+    if (_infiniteScrollObserver) {
+      _infiniteScrollObserver.observe(scrollSentinel);
+      _infiniteScrollObserver.observe(bottomBar);
+    }
 
     bottomBar.onclick = () => {
       try {
@@ -758,7 +771,10 @@ export function renderFeed(id = 'global', force = false) {
         }
         feedLoadState[id] = feedLoadState[id] || {};
         feedLoadState[id].loadingMore = true;
-        if (bottomBar) bottomBar.textContent = t('loading');
+        if (bottomBar) {
+          bottomBar.classList.add('is-loading-auto');
+          bottomBar.textContent = t('loading');
+        }
 
         const oldest = listForClick[listForClick.length - 1];
 
@@ -823,11 +839,27 @@ export function renderFeed(id = 'global', force = false) {
         const finishLoadMore = (result) => {
           try {
             feedLoadState[id].loadingMore = false;
-            if (result && typeof result === 'object' && result.appendedCount === 0) {
-              feedLoadState[id].noMoreEvents = true;
+            if (result && typeof result === 'object') {
+              if (result.appendedCount === 0) {
+                feedLoadState[id].autoFetchFailed = true;
+              } else if (result.appendedCount > 0) {
+                feedLoadState[id].autoFetchFailed = false;
+              }
+            } else {
+              feedLoadState[id].autoFetchFailed = true;
             }
           } catch (e) { }
-          try { if (bottomBar) bottomBar.textContent = t('feed.load_more'); } catch (e) { }
+          try {
+            if (bottomBar) {
+              if (feedLoadState[id].autoFetchFailed) {
+                bottomBar.classList.remove('is-loading-auto');
+                bottomBar.textContent = t('feed.load_more');
+              } else {
+                bottomBar.classList.add('is-loading-auto');
+                bottomBar.textContent = t('loading');
+              }
+            }
+          } catch (e) { }
           try { scheduleRender(id); } catch (e) { }
         };
 
@@ -849,15 +881,19 @@ export function renderFeed(id = 'global', force = false) {
           }
 
           _options.runMergedGlobalLoadMore({ mergeUntil, startListLength })
-            .then(({ madeProgress }) => {
+            .then(({ madeProgress, appendedCount }) => {
               try {
                 if (!gfeed) return;
                 if (madeProgress) delete gfeed.mergedPaginationUntil;
                 else gfeed.mergedPaginationUntil = mergeUntil - 86400;
               } catch (e) { }
+              const count = typeof appendedCount === 'number' ? appendedCount : (madeProgress ? 1 : 0);
+              finishLoadMore({ appendedCount: count });
             })
-            .catch((err) => { console.error('[FeedRenderer] runMergedGlobalLoadMore err:', err); })
-            .finally(finishLoadMore);
+            .catch((err) => {
+              console.error('[FeedRenderer] runMergedGlobalLoadMore err:', err);
+              finishLoadMore({ appendedCount: 0 });
+            });
           return;
         }
 
@@ -974,8 +1010,11 @@ export function renderFeed(id = 'global', force = false) {
             if (obs) obs.observe(node);
           }
         }
+        const existingSentinel = el.querySelector('.feed-scroll-sentinel');
+        if (existingSentinel) existingSentinel.remove();
         const existingBottom = el.querySelector('.feed-bar-bottom');
         if (existingBottom) existingBottom.remove();
+        if (scrollSentinel) el.appendChild(scrollSentinel);
         if (bottomBar) el.appendChild(bottomBar);
         finalizeTopEventMarker();
         return;
@@ -988,6 +1027,7 @@ export function renderFeed(id = 'global', force = false) {
     const node = buildEventNode(eventsToRender[i], id);
     if (node) frag.appendChild(node);
   }
+  if (scrollSentinel) frag.appendChild(scrollSentinel);
   if (bottomBar) frag.appendChild(bottomBar);
 
   const prevTopId = el.dataset.topEventId || '';

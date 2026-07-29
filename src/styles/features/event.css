@@ -569,11 +569,20 @@ button.btn-kind:hover {
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.95em;
+  transition: all 0.2s ease;
 }
 .load-more-btn:hover {
   background: var(--accent-muted);
   color: var(--text);
   border-color: var(--border);
+}
+.load-more-btn.is-loading-auto {
+  border-color: transparent;
+  background: transparent;
+  opacity: 0.65;
+  font-size: 0.85em;
+  padding: 4px 8px;
+  cursor: default;
 }
 
 .feed-bar {

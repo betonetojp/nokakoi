@@ -202,16 +202,31 @@ function setupInfiniteScrollObserver() {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         const target = entry.target;
-        if (target && typeof target.click === 'function') {
-          try { _infiniteScrollObserver.unobserve(target); } catch (e) { }
-          target.click();
+        if (!target) return;
+
+        let btn = null;
+        if (target.classList && target.classList.contains('load-more-btn')) {
+          btn = target;
+        } else {
+          const feedEl = target.closest ? target.closest('.feed') : null;
+          if (feedEl) {
+            btn = feedEl.querySelector('.load-more-btn');
+          }
+        }
+
+        if (btn && typeof btn.click === 'function') {
+          // 物理的に disabled または実際に処理中の場合のみスキップ
+          if (btn.disabled) {
+            return;
+          }
+          btn.click();
         }
       }
     });
   }, {
     root: null,
-    rootMargin: '200px',
-    threshold: 0.1
+    rootMargin: '600px 0px 600px 0px',
+    threshold: 0
   });
 }
 
