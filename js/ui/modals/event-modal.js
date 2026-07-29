@@ -8,6 +8,8 @@ import { showJsonModal } from './json-modal.js';
 import { linkifyText, fitCustomEmoji, updateNostrNpubLinks, updateNostrNoteLinks, linkifyNostrUri } from '../../utils/url-parser.js';
 import { parseMarkdownSafe } from '../../utils/markdown.js';
 import { setupReactButton, setupRepostButton, setupReplyButton, renderReplyContext, applyClientBadgeToContainer } from '../renderer.js';
+import { renderChannelContext, bindChannelLabelClickHandler } from '../renderers/channel-renderer.js';
+import { pickChannelRootId, scheduleChannelLabelUpdate } from '../../features/channel/channel.js';
 import { findEventById } from '../../core/state.js';
 import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
 import { t } from '../../utils/i18n.js';
@@ -183,37 +185,20 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
         replyHtml = renderReplyContext(state, event, nip19, { isModal: true });
       }
     }
-    // kind:30023のみマークダウン解釈（==で型を許容）
-    if (event.kind == 30023) {
-      parseMarkdownSafe(event.content || '').then(html => {
-        contentEl.innerHTML = (replyHtml ? replyHtml : '') + html;
-        normalizeNostrUrisInMarkdownRoot(contentEl);
-        attachReplyPreviewHandlers(contentEl);
-        // メディアリンクハンドラをセットアップ
-        import('../../utils/url-parser.js').then(mod => {
-          if (mod.setupMediaLinkHandlers) mod.setupMediaLinkHandlers(contentEl);
-        });
-        // npub/neventリンク解決
-        try {
-          try { updateNostrNpubLinks(contentEl); } catch (e) { }
-          try {
-            updateNostrNoteLinks(contentEl, showEventModal, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
-          } catch (e) { }
-        } catch (e) { }
-        try { processHiddenTagChars(contentEl); } catch (e) { }
-        // カスタム絵文字
-        try { if (typeof fitCustomEmoji === 'function') fitCustomEmoji(contentEl, 28); } catch (e) { }
-      });
-    } else {
-      // event.tags を linkifyText に渡し、絵文字ショートコードを画像へ置換
-      contentEl.innerHTML = (replyHtml ? replyHtml : '') + linkifyText(event.content || '', event.tags || []);
+    const channelHtml = event.kind === 42 ? renderChannelContext(state, event) : '';
+
+    function afterContentMounted() {
       attachReplyPreviewHandlers(contentEl);
-      // メディアリンクハンドラをセットアップ
+      if (event.kind === 42) {
+        try {
+          const channelRootId = pickChannelRootId(event);
+          if (channelRootId) scheduleChannelLabelUpdate(state, channelRootId, contentEl);
+        } catch (e) { }
+        try { bindChannelLabelClickHandler(contentEl, event, state); } catch (e) { }
+      }
       import('../../utils/url-parser.js').then(mod => {
         if (mod.setupMediaLinkHandlers) mod.setupMediaLinkHandlers(contentEl);
       });
-
-      // reply 領域内の npub/nevent リンクを解決し、表示名と引用イベントを描画
       try {
         try { updateNostrNpubLinks(contentEl); } catch (e) { }
         try {
@@ -221,9 +206,20 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
         } catch (e) { }
       } catch (e) { }
       try { processHiddenTagChars(contentEl); } catch (e) { }
-
-      // モーダル内でも custom emoji のサイズ調整を適用
       try { if (typeof fitCustomEmoji === 'function') fitCustomEmoji(contentEl, 28); } catch (e) { }
+    }
+
+    // kind:30023のみマークダウン解釈（==で型を許容）
+    if (event.kind == 30023) {
+      parseMarkdownSafe(event.content || '').then(html => {
+        contentEl.innerHTML = channelHtml + (replyHtml ? replyHtml : '') + html;
+        normalizeNostrUrisInMarkdownRoot(contentEl);
+        afterContentMounted();
+      });
+    } else {
+      // event.tags を linkifyText に渡し、絵文字ショートコードを画像へ置換
+      contentEl.innerHTML = channelHtml + (replyHtml ? replyHtml : '') + linkifyText(event.content || '', event.tags || []);
+      afterContentMounted();
     }
   }
 

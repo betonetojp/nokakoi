@@ -119,6 +119,7 @@ function promptEhagakiSignature(origin, eventDraft) {
 
     const cleanUp = () => {
       modal.hidden = true;
+      try { modal.style.zIndex = ''; } catch (e) { }
       yesBtn.onclick = null;
       noBtn.onclick = null;
     };
@@ -138,6 +139,15 @@ function promptEhagakiSignature(origin, eventDraft) {
     };
 
     modal.hidden = false;
+    try {
+      if (typeof window.bringModalToFront === 'function') {
+        window.bringModalToFront(modal);
+      } else {
+        modal.style.zIndex = '9999';
+      }
+    } catch (e) {
+      try { modal.style.zIndex = '9999'; } catch (ee) { }
+    }
   });
 }
 
@@ -251,12 +261,28 @@ export async function setupPostLinkUI(settingsManager) {
     }
 
     let iframeTeardownTimer = null;
+    function clearEhagakiModalZIndex() {
+      try { if (modal) modal.style.zIndex = ''; } catch (e) { }
+    }
+    function bringEhagakiModalToFront() {
+      if (!modal) return;
+      try {
+        if (typeof window.bringModalToFront === 'function') {
+          window.bringModalToFront(modal);
+        } else {
+          modal.style.zIndex = '9999';
+        }
+      } catch (e) {
+        try { modal.style.zIndex = '9999'; } catch (ee) { }
+      }
+    }
     function teardownEhagakiIframe(delayMs = 240) {
       try { clearDelayedAuthSync(); } catch (e) { }
       try { clearComposerContextSyncTimers(); } catch (e) { }
       embedAuthEstablished = false;
       pendingSettingsAfterAuth = false;
       pendingComposerContextPayload = null;
+      clearEhagakiModalZIndex();
       try {
         if (iframeTeardownTimer) clearTimeout(iframeTeardownTimer);
       } catch (e) { }
@@ -1235,7 +1261,10 @@ export async function setupPostLinkUI(settingsManager) {
         return;
       }
 
-      if (modal) modal.hidden = false;
+      if (modal) {
+        modal.hidden = false;
+        bringEhagakiModalToFront();
+      }
 
       try {
         if (modal) {

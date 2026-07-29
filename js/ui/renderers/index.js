@@ -1,4 +1,4 @@
-export { renderChannelContext } from './channel-renderer.js';
+export { renderChannelContext, bindChannelLabelClickHandler } from './channel-renderer.js';
 export { applyReactionToButton } from './reaction-renderer.js';
 export { applyClientBadgeToContainer } from './badge-renderer.js';
 export { renderReplyContext } from './reply-renderer.js';
