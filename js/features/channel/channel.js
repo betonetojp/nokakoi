@@ -4,7 +4,8 @@
 
 import { truncateName } from '../../utils/utils.js';
 import { findEventById, cacheEvent } from '../../core/state.js';
-import { getReadRelays } from '../../core/relay.js';
+import { getReadRelays, getEventSeenOn } from '../../core/relay.js';
+import { getNip19 } from '../../core/nostr-compat.js';
 
 const __labelCache = new Map();
 const __inflight = new Map();
@@ -34,19 +35,193 @@ export function pickChannelRootId(ev) {
  * 単一イベントからチャンネル表示名を抽出
  */
 function extractChannelNameFromContent(content) {
+  const fields = parseChannelContentFields(content);
+  if (fields && fields.name) return fields.name;
   const trimmed = (content || '').trim();
   if (!trimmed) return null;
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        const name = parsed.name || parsed.title || parsed.label;
-        if (name && String(name).trim()) return String(name).trim();
-        return null;
-      }
-    } catch (e) { /* パース失敗時は通常テキストへ */ }
-  }
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) return null;
   return truncateName(trimmed);
+}
+
+/**
+ * kind:40 / kind:41 content JSON からプロファイル項目を抽出
+ */
+function parseChannelContentFields(content) {
+  const trimmed = (content || '').trim();
+  if (!trimmed) return null;
+  if (!(trimmed.startsWith('{') || trimmed.startsWith('['))) return null;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const out = {};
+    const name = parsed.name || parsed.title || parsed.label;
+    if (name && String(name).trim()) out.name = String(name).trim();
+    if (parsed.about != null && String(parsed.about).trim()) out.about = String(parsed.about).trim();
+    if (parsed.picture != null && String(parsed.picture).trim()) out.picture = String(parsed.picture).trim();
+    if (Array.isArray(parsed.relays)) {
+      const relays = [];
+      const seen = new Set();
+      for (const r of parsed.relays) {
+        if (typeof r !== 'string') continue;
+        const trimmedRelay = r.trim();
+        if (!trimmedRelay || !/^wss?:\/\//i.test(trimmedRelay)) continue;
+        const key = trimmedRelay.replace(/\/+$/, '').toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        relays.push(trimmedRelay);
+      }
+      if (relays.length) out.relays = relays;
+    }
+    return Object.keys(out).length ? out : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function pickNonEmptyString(...candidates) {
+  for (const value of candidates) {
+    if (typeof value !== 'string') continue;
+    const trimmed = value.trim();
+    if (trimmed) return trimmed;
+  }
+  return undefined;
+}
+
+function mergeRelayLists(...lists) {
+  const out = [];
+  const seen = new Set();
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const r of list) {
+      if (typeof r !== 'string') continue;
+      const trimmed = r.trim();
+      if (!trimmed || !/^wss?:\/\//i.test(trimmed)) continue;
+      const key = trimmed.replace(/\/+$/, '').toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(trimmed);
+      if (out.length >= 3) return out;
+    }
+  }
+  return out;
+}
+
+/**
+ * kind:42 の e タグからチャンネル root 向け relay hint を拾う
+ */
+export function pickChannelRootRelayHints(ev, rootId) {
+  if (!ev || !Array.isArray(ev.tags) || !rootId) return [];
+  const hints = [];
+  const seen = new Set();
+  for (const tag of ev.tags) {
+    if (!tag || tag[0] !== 'e' || tag[1] !== rootId) continue;
+    const relay = typeof tag[2] === 'string' ? tag[2].trim() : '';
+    if (!relay || !/^wss?:\/\//i.test(relay)) continue;
+    const key = relay.replace(/\/+$/, '').toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    hints.push(relay);
+  }
+  return hints;
+}
+
+/**
+ * kind:41 優先で name / about / picture / relays を解決
+ */
+export function extractChannelProfileFields(rootEvent, metaEvent) {
+  const fromMeta = parseChannelContentFields(metaEvent && metaEvent.content);
+  const fromRoot = parseChannelContentFields(rootEvent && rootEvent.content);
+  const nameFromLabel = resolveChannelLabelFromEvents(rootEvent, metaEvent);
+
+  const name = pickNonEmptyString(
+    fromMeta && fromMeta.name,
+    nameFromLabel,
+    fromRoot && fromRoot.name,
+  );
+  const about = pickNonEmptyString(
+    fromMeta && fromMeta.about,
+    fromRoot && fromRoot.about,
+  );
+  const picture = pickNonEmptyString(
+    fromMeta && fromMeta.picture,
+    fromRoot && fromRoot.picture,
+  );
+  const relays = mergeRelayLists(
+    fromMeta && fromMeta.relays,
+    fromRoot && fromRoot.relays,
+  );
+
+  const out = {};
+  if (name) out.name = name;
+  if (about) out.about = about;
+  if (picture) out.picture = picture;
+  if (relays.length) out.relays = relays;
+  return out;
+}
+
+function encodeChannelNevent(eventId, options = {}) {
+  let nevent = null;
+  const relays = Array.isArray(options.relays) ? options.relays : [];
+  const payload = { id: eventId, relays };
+  if (options.author && typeof options.author === 'string') payload.author = options.author;
+  try {
+    const nip19local = getNip19 && getNip19();
+    if (nip19local) {
+      try {
+        if (nip19local.nevent && typeof nip19local.nevent.encode === 'function') {
+          nevent = nip19local.nevent.encode(payload);
+        }
+      } catch (e) { }
+      try {
+        if (!nevent && typeof nip19local.neventEncode === 'function') {
+          nevent = nip19local.neventEncode(payload);
+        }
+      } catch (e) { }
+    }
+  } catch (e) { }
+  if (!nevent) nevent = 'nevent1' + eventId;
+  return String(nevent).replace(/^nostr:/i, '');
+}
+
+/**
+ * eHagaki composer.setContext / URL クエリ用の channel context を組み立てる
+ */
+export async function buildChannelEmbedContext(state, rootId, kind42Ev = null) {
+  if (!rootId) return null;
+
+  const meta = await fetchChannelMetadata(state, rootId);
+  const rootEvent = (meta && meta.rootEvent) || findEventById(state, rootId) || null;
+  const metaEvent = (meta && meta.metaEvent) || null;
+  const profile = extractChannelProfileFields(rootEvent, metaEvent);
+
+  const tagHints = pickChannelRootRelayHints(kind42Ev, rootId);
+  let seenHints = [];
+  try {
+    if (state && rootEvent) {
+      seenHints = getEventSeenOn(state, rootEvent) || [];
+    }
+  } catch (e) { }
+  let readHints = [];
+  try {
+    if (state && state.relays) {
+      readHints = getReadRelays(state.relays) || [];
+    }
+  } catch (e) { }
+
+  const relays = mergeRelayLists(tagHints, profile.relays, seenHints, readHints);
+  const reference = encodeChannelNevent(rootId, {
+    relays,
+    author: (rootEvent && typeof rootEvent.pubkey === 'string') ? rootEvent.pubkey : undefined,
+  });
+  if (!reference) return null;
+
+  const channel = { reference };
+  if (relays.length) channel.relays = relays;
+  if (profile.name) channel.name = profile.name;
+  else if (meta && meta.label) channel.name = meta.label;
+  if (profile.about) channel.about = profile.about;
+  if (profile.picture) channel.picture = profile.picture;
+  return channel;
 }
 
 export function resolveChannelLabelFromEvent(ev) {

@@ -13,6 +13,28 @@ import { findEventById } from '../../core/state.js';
 const DEFAULT_TITLE = POSTLINK_DEFAULT_TITLE;
 const DEFAULT_URL = POSTLINK_DEFAULT_URL;
 const EMBED_STORAGE_PREFIX = 'ehagaki.embed.storage.v1:';
+
+/** setupPostLinkUI 内で代入。チャンネル名クリックから eHagaki を開く */
+let __openEhagakiWithChannel = null;
+
+/**
+ * チャンネル context を載せて eHagaki を開く（モーダル or 新規タブ）
+ * @param {{ reference: string, relays?: string[], name?: string, about?: string, picture?: string }} channelContext
+ */
+export async function openEhagakiWithChannel(channelContext) {
+  if (!channelContext || typeof channelContext !== 'object') return false;
+  if (typeof channelContext.reference !== 'string' || !channelContext.reference.trim()) return false;
+  if (typeof __openEhagakiWithChannel !== 'function') {
+    console.warn('[PostLink] openEhagakiWithChannel: UI 未初期化');
+    return false;
+  }
+  try {
+    return await __openEhagakiWithChannel(channelContext);
+  } catch (e) {
+    console.warn('[PostLink] openEhagakiWithChannel に失敗', e);
+    return false;
+  }
+}
 const EMBED_ALLOWED_STORAGE_KEYS = new Set([
   'locale',
   'themeMode',
@@ -432,9 +454,15 @@ export async function setupPostLinkUI(settingsManager) {
       return payload;
     }
 
+    function hasChannelContext(payload) {
+      return !!(payload && payload.channel && typeof payload.channel === 'object'
+        && typeof payload.channel.reference === 'string' && payload.channel.reference.trim());
+    }
+
     function postEmbedComposerContext(payload, reason) {
       if (!payload || typeof payload !== 'object') return;
-      if (payload.reply == null && !(Array.isArray(payload.quotes) && payload.quotes.length) && typeof payload.content !== 'string') {
+      const hasQuotes = Array.isArray(payload.quotes) && payload.quotes.length > 0;
+      if (payload.reply == null && !hasQuotes && typeof payload.content !== 'string' && !hasChannelContext(payload)) {
         return;
       }
       const requestId = 'composer-sync-' + String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8);
@@ -444,6 +472,7 @@ export async function setupPostLinkUI(settingsManager) {
           reply: payload.reply || null,
           quotes: Array.isArray(payload.quotes) ? payload.quotes.length : 0,
           hasContent: typeof payload.content === 'string',
+          channel: hasChannelContext(payload) ? payload.channel.reference : null,
         });
       } catch (e) { }
       postToEhagakiIframe({
@@ -496,6 +525,30 @@ export async function setupPostLinkUI(settingsManager) {
         const replyNevent = encodeTargetNevent(rt);
         if (replyNevent) {
           try { urlObj.searchParams.set('reply', replyNevent); } catch (e) { }
+        }
+      } catch (e) { }
+    }
+
+    function applyChannelParams(urlObj, channel) {
+      if (!urlObj || !channel || typeof channel !== 'object') return;
+      try {
+        if (typeof channel.reference === 'string' && channel.reference.trim()) {
+          urlObj.searchParams.set('channel', channel.reference.trim());
+        }
+        if (Array.isArray(channel.relays) && channel.relays.length) {
+          const relays = channel.relays
+            .filter((r) => typeof r === 'string' && /^wss?:\/\//i.test(r.trim()))
+            .map((r) => r.trim());
+          if (relays.length) urlObj.searchParams.set('channelRelays', relays.join(','));
+        }
+        if (typeof channel.name === 'string' && channel.name.trim()) {
+          urlObj.searchParams.set('channelName', channel.name.trim());
+        }
+        if (typeof channel.about === 'string' && channel.about.trim()) {
+          urlObj.searchParams.set('channelAbout', channel.about.trim());
+        }
+        if (typeof channel.picture === 'string' && channel.picture.trim()) {
+          urlObj.searchParams.set('channelPicture', channel.picture.trim());
         }
       } catch (e) { }
     }
@@ -1142,23 +1195,258 @@ export async function setupPostLinkUI(settingsManager) {
       window.__ehagakiPostMessageListenerInstalled = true;
     }
 
-    // ボタンクリック時の挙動
-    if (btn) {
-      let overlayClickHandler = null;
-      btn.onclick = async function () {
+    // eHagaki 起動（ボタン / チャンネル名クリック共通）
+    let overlayClickHandler = null;
+
+    function resolveOpenInNewTab() {
+      try {
+        const chk = document.getElementById('postLinkOpenNewTabCheck');
+        if (chk) return !!chk.checked;
+        if (btn && btn.dataset && btn.dataset.postlinkNewTab) return btn.dataset.postlinkNewTab === '1';
+        return !!settingsManager.get('postLinkOpenInNewTab');
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function resolvePostLinkBaseStr() {
+      return ((urlInput && typeof urlInput.value === 'string' && urlInput.value.trim())
+        ? urlInput.value
+        : (settingsManager.get('postLinkUrl') || DEFAULT_URL));
+    }
+
+    async function launchEhagakiAt(targetUrl) {
+      const openInNewTab = resolveOpenInNewTab();
+
+      if (openInNewTab) {
+        pendingComposerContextPayload = null;
         try {
-          // クリック時点の新規タブ設定を決定: checkbox > dataset > settings
-          let openInNewTab = false;
+          const a = document.createElement('a');
+          a.href = targetUrl;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { try { document.body.removeChild(a); } catch (e) { } }, 1000);
+        } catch (e) {
+          try { window.open(targetUrl, '_blank', 'noopener'); } catch (e2) { try { window.location.href = targetUrl; } catch (ee) { } }
+        }
+        return;
+      }
+
+      if (modal) modal.hidden = false;
+
+      try {
+        if (modal) {
+          overlayClickHandler = function (ev) {
+            try {
+              if (ev.target === modal) {
+                modal.hidden = true;
+                teardownEhagakiIframe();
+                try { modal.removeEventListener('click', overlayClickHandler); delete modal._overlayClickHandler; } catch (e) { }
+              }
+            } catch (e) { }
+          };
+          modal.addEventListener('click', overlayClickHandler);
+          try { modal._overlayClickHandler = overlayClickHandler; } catch (e) { }
+        }
+      } catch (e) { }
+
+      if (iframe) {
+        embedAuthEstablished = false;
+        try { clearComposerContextSyncTimers(); } catch (e) { }
+        queueSettingsAfterAuth();
+        let safeTarget = sanitizePostLinkTarget(targetUrl) || DEFAULT_URL;
+        try {
+          const u = new URL(safeTarget, window.location.href);
+
+          if (!u.searchParams.has('parentOrigin')) {
+            try { u.searchParams.set('parentOrigin', window.location.origin); } catch (e) { }
+          }
           try {
-            // HTML側のチェックボックスIDは 'postLinkOpenNewTabCheck'
-            const chk = document.getElementById('postLinkOpenNewTabCheck');
-            if (chk) openInNewTab = !!chk.checked;
-            else if (btn && btn.dataset && btn.dataset.postlinkNewTab) openInNewTab = btn.dataset.postlinkNewTab === '1';
-            else openInNewTab = !!settingsManager.get('postLinkOpenInNewTab');
+            const themeForEmbed = resolveEmbedTheme();
+            try { u.searchParams.set('embedTheme', themeForEmbed); } catch (e) { }
           } catch (e) { }
 
-          // 末尾スラッシュ/既存クエリを保持できるよう、サニタイズ済み base から target URL を構築
-          const baseStr = ((urlInput && typeof urlInput.value === 'string' && urlInput.value.trim()) ? urlInput.value : (settingsManager.get('postLinkUrl') || DEFAULT_URL));
+          try {
+            const localeForEmbed = resolveEmbedLocale();
+            try { u.searchParams.set('embedLocale', localeForEmbed); } catch (e) { }
+          } catch (e) { }
+
+          try {
+            const uploadEndpointForEmbed = readDelegatedSetting('uploadEndpoint');
+            if (typeof uploadEndpointForEmbed === 'string' && uploadEndpointForEmbed) {
+              try { u.searchParams.set('embedUploadEndpoint', uploadEndpointForEmbed); } catch (e) { }
+            }
+          } catch (e) { }
+
+          try {
+            const imageQualityLevel = readDelegatedSetting('imageQualityLevel');
+            if (typeof imageQualityLevel === 'string' && imageQualityLevel) {
+              try { u.searchParams.set('embedImageQuality', imageQualityLevel); } catch (e) { }
+            }
+          } catch (e) { }
+          try {
+            const videoQualityLevel = readDelegatedSetting('videoQualityLevel');
+            if (typeof videoQualityLevel === 'string' && videoQualityLevel) {
+              try { u.searchParams.set('embedVideoQuality', videoQualityLevel); } catch (e) { }
+            }
+          } catch (e) { }
+
+          try {
+            const clientTagEnabled = parseStoredBool(readDelegatedSetting('clientTagEnabled'));
+            if (clientTagEnabled !== null) {
+              try { u.searchParams.set('embedClientTag', clientTagEnabled ? 'true' : 'false'); } catch (e) { }
+            }
+          } catch (e) { }
+          try {
+            const quoteNotificationEnabled = parseStoredBool(readDelegatedSetting('quoteNotificationEnabled'));
+            if (quoteNotificationEnabled !== null) {
+              try { u.searchParams.set('embedQuoteNotification', quoteNotificationEnabled ? 'true' : 'false'); } catch (e) { }
+            }
+          } catch (e) { }
+          try {
+            const replyNotificationEnabled = parseStoredBool(readDelegatedSetting('replyNotificationEnabled'));
+            if (replyNotificationEnabled !== null) {
+              try { u.searchParams.set('embedReplyNotification', replyNotificationEnabled ? 'true' : 'false'); } catch (e) { }
+            }
+          } catch (e) { }
+          try {
+            const mediaFreePlacement = parseStoredBool(readDelegatedSetting('mediaFreePlacement'));
+            if (mediaFreePlacement !== null) {
+              try { u.searchParams.set('embedMediaFreePlacement', mediaFreePlacement ? 'true' : 'false'); } catch (e) { }
+            }
+          } catch (e) { }
+          try {
+            const showMascot = parseStoredBool(readDelegatedSetting('showMascot'));
+            if (showMascot !== null) {
+              try { u.searchParams.set('embedShowMascot', showMascot ? 'true' : 'false'); } catch (e) { }
+            }
+          } catch (e) { }
+          try {
+            const showFlavorText = parseStoredBool(readDelegatedSetting('showFlavorText'));
+            if (showFlavorText !== null) {
+              try { u.searchParams.set('embedShowFlavorText', showFlavorText ? 'true' : 'false'); } catch (e) { }
+            }
+          } catch (e) { }
+          safeTarget = u.toString();
+        } catch (e) { /* URL操作エラーは無視 */ }
+        iframe.src = safeTarget;
+        try {
+          [300, 900, 1600].forEach((delay) => {
+            setTimeout(() => {
+              try {
+                if (!iframe || !iframe.contentWindow) return;
+                const themeForEmbed = resolveVisualThemeForEmbed();
+                postToEhagakiIframe({ namespace: 'ehagaki.embed', version: 1, type: 'embed.theme', payload: { theme: themeForEmbed } });
+              } catch (e) { }
+            }, delay);
+          });
+        } catch (e) { }
+      }
+
+      let autoCloseController = null;
+      try {
+        if (modal) {
+          autoCloseController = addAutoCloseCheckbox(modal);
+          try { modal.dataset.ehagakiAutoCloseDisabled = (localStorage.getItem('ehagaki_auto_close') === '0') ? '1' : '0'; } catch (e) { }
+          try {
+            const chk = modal.querySelector('#ehagakiAutoCloseCheckbox');
+            if (chk) chk.addEventListener('change', () => { try { modal.dataset.ehagakiAutoCloseDisabled = chk.checked ? '0' : '1'; } catch (e) { } });
+          } catch (e) { }
+        }
+      } catch (e) { }
+
+      try {
+        const expectedClientName = (titleInput && typeof titleInput.value === 'string') ? titleInput.value : settingsManager.get('postLinkTitle') || DEFAULT_TITLE;
+        const closeFn = () => {
+          try {
+            if (modal) {
+              try {
+                const chk = modal.querySelector && modal.querySelector('#ehagakiAutoCloseCheckbox');
+                if (chk) { try { localStorage.setItem('ehagaki_auto_close', chk.checked ? '1' : '0'); } catch (e) { } }
+              } catch (e) { }
+              modal.hidden = true;
+              try { if (modal._overlayClickHandler) { modal.removeEventListener('click', modal._overlayClickHandler); delete modal._overlayClickHandler; } } catch (e) { }
+            }
+          } catch (e) { }
+          teardownEhagakiIframe();
+        };
+
+        let autoCloseStarted = false;
+        let startSince = Math.floor(Date.now() / 1000);
+        let autoCloseCancel = null;
+        function startAutoClose() {
+          if (autoCloseStarted) return;
+          if (!modal) return;
+          if (modal.dataset && modal.dataset.ehagakiAutoCloseDisabled === '1') return;
+          startSince = Math.floor(Date.now() / 1000);
+          autoCloseStarted = true;
+          const timeout = settingsManager.get('postLinkAutoCloseTimeout');
+          const timeoutMs = (typeof timeout === 'number') ? timeout : 0;
+          let cancelled = false;
+          autoCloseCancel = () => { cancelled = true; };
+          waitForEhagakiPublish(() => { if (!cancelled) closeFn(); }, { timeoutMs, expectedClientName, modalEl: modal, startSince })
+            .catch(() => { })
+            .finally(() => { autoCloseStarted = false; });
+        }
+
+        try {
+          if (modal) {
+            const chk = modal.querySelector('#ehagakiAutoCloseCheckbox');
+            if (chk) {
+              chk.addEventListener('change', () => {
+                try {
+                  modal.dataset.ehagakiAutoCloseDisabled = chk.checked ? '0' : '1';
+                  if (chk.checked) startAutoClose();
+                  else { if (typeof autoCloseCancel === 'function') autoCloseCancel(); }
+                } catch (e) { }
+              });
+            }
+            if (autoCloseController && typeof autoCloseController.isChecked === 'function' && autoCloseController.isChecked()) { setTimeout(() => { try { startAutoClose(); } catch (e) { } }, 150); }
+          }
+        } catch (e) { }
+
+        try {
+          const chk3 = modal && modal.querySelector && modal.querySelector('#ehagakiAutoCloseCheckbox');
+          if (chk3 && chk3.checked) { setTimeout(() => { try { startAutoClose(); } catch (e) { } }, 50); }
+        } catch (e) { }
+
+      } catch (e) { }
+    }
+
+    __openEhagakiWithChannel = async function (channelContext) {
+      const baseStr = resolvePostLinkBaseStr();
+      let targetUrl;
+      try {
+        const safeBase = sanitizeUrlCandidate(baseStr) || DEFAULT_URL;
+        let urlObj = null;
+        try { urlObj = new URL(safeBase); } catch (e) { urlObj = new URL(safeBase, window.location.href); }
+        applyChannelParams(urlObj, channelContext);
+        targetUrl = urlObj.toString();
+      } catch (e) {
+        const base = (sanitizeUrlCandidate(baseStr) || DEFAULT_URL).replace(/\?.*$/, '');
+        const urlObj = new URL(base, window.location.href);
+        applyChannelParams(urlObj, channelContext);
+        targetUrl = urlObj.toString();
+      }
+
+      // reply/quote は明示クリア（patch で前回の context が残らないようにする）
+      pendingComposerContextPayload = {
+        channel: channelContext,
+        reply: null,
+        quotes: [],
+      };
+
+      await launchEhagakiAt(targetUrl);
+      return true;
+    };
+
+    if (btn) {
+      btn.onclick = async function () {
+        try {
+          const baseStr = resolvePostLinkBaseStr();
           const noteEl = document.getElementById('noteInput');
           const rawComposerText = noteEl ? (noteEl.value || '') : '';
 
@@ -1187,7 +1475,6 @@ export async function setupPostLinkUI(settingsManager) {
             targetUrl = urlObj.toString();
             pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText);
           } catch (e) {
-            // フォールバック: safe base + エンコード済み content の単純結合
             try {
               const base = (sanitizeUrlCandidate(baseStr) || DEFAULT_URL).replace(/\?.*$/, '');
               const urlObj = new URL(base, window.location.href);
@@ -1219,217 +1506,7 @@ export async function setupPostLinkUI(settingsManager) {
             }
           } catch (e) { }
 
-          if (openInNewTab) {
-            pendingComposerContextPayload = null;
-            // リダイレクト時のクエリ保持性を高めるため、プログラム生成 anchor で開く
-            try {
-              const a = document.createElement('a');
-              a.href = targetUrl;
-              a.target = '_blank';
-              a.rel = 'noopener';
-              a.style.display = 'none';
-              document.body.appendChild(a);
-              a.click();
-              setTimeout(() => { try { document.body.removeChild(a); } catch (e) { } }, 1000);
-            } catch (e) {
-              try { window.open(targetUrl, '_blank', 'noopener'); } catch (e) { try { window.location.href = targetUrl; } catch (ee) { } }
-            }
-            return;
-          }
-
-          // モーダルを開いて iframe を設定
-          if (modal) modal.hidden = false;
-
-          try {
-            if (modal) {
-              overlayClickHandler = function (ev) {
-                try {
-                  if (ev.target === modal) {
-                    modal.hidden = true;
-                    teardownEhagakiIframe();
-                    try { modal.removeEventListener('click', overlayClickHandler); delete modal._overlayClickHandler; } catch (e) { }
-                  }
-                } catch (e) { }
-              };
-              modal.addEventListener('click', overlayClickHandler);
-              try { modal._overlayClickHandler = overlayClickHandler; } catch (e) { }
-            }
-          } catch (e) { }
-
-          if (iframe) {
-            embedAuthEstablished = false;
-            try { clearComposerContextSyncTimers(); } catch (e) { }
-            queueSettingsAfterAuth();
-            // iframe src にはサニタイズ済みURLのみ設定
-            let safeTarget = sanitizePostLinkTarget(targetUrl) || DEFAULT_URL;
-            try {
-              // eHagaki 側が parentOrigin を期待するため、親の origin をクエリに付与して渡す
-              // 既に parentOrigin が指定されていなければ追加する
-              const u = new URL(safeTarget, window.location.href);
-
-              // reply/quote は targetUrl 構築時に付与済み。ここでは embed 設定のみ追加する
-              if (!u.searchParams.has('parentOrigin')) {
-                try { u.searchParams.set('parentOrigin', window.location.origin); } catch (e) { }
-              }
-              // embedTheme: eHagaki の埋め込みテーマ指定（system|light|dark）を親の設定から注入
-              try {
-                const themeForEmbed = resolveEmbedTheme();
-                try { u.searchParams.set('embedTheme', themeForEmbed); } catch (e) { }
-              } catch (e) { }
-
-              // embedLocale: eHagaki の埋め込み言語指定（ja|en）を親の設定から注入
-              try {
-                const localeForEmbed = resolveEmbedLocale();
-                try { u.searchParams.set('embedLocale', localeForEmbed); } catch (e) { }
-              } catch (e) { }
-
-              // embedUploadEndpoint: アップロード先を起動時に強制適用
-              try {
-                const uploadEndpointForEmbed = readDelegatedSetting('uploadEndpoint');
-                if (typeof uploadEndpointForEmbed === 'string' && uploadEndpointForEmbed) {
-                  try { u.searchParams.set('embedUploadEndpoint', uploadEndpointForEmbed); } catch (e) { }
-                }
-              } catch (e) { }
-
-              // embedImageQuality / embedVideoQuality: 圧縮設定を注入
-              try {
-                const imageQualityLevel = readDelegatedSetting('imageQualityLevel');
-                if (typeof imageQualityLevel === 'string' && imageQualityLevel) {
-                  try { u.searchParams.set('embedImageQuality', imageQualityLevel); } catch (e) { }
-                }
-              } catch (e) { }
-              try {
-                const videoQualityLevel = readDelegatedSetting('videoQualityLevel');
-                if (typeof videoQualityLevel === 'string' && videoQualityLevel) {
-                  try { u.searchParams.set('embedVideoQuality', videoQualityLevel); } catch (e) { }
-                }
-              } catch (e) { }
-
-              // embed boolean settings: postMessage 前でも初回描画に反映させる
-              try {
-                const clientTagEnabled = parseStoredBool(readDelegatedSetting('clientTagEnabled'));
-                if (clientTagEnabled !== null) {
-                  try { u.searchParams.set('embedClientTag', clientTagEnabled ? 'true' : 'false'); } catch (e) { }
-                }
-              } catch (e) { }
-              try {
-                const quoteNotificationEnabled = parseStoredBool(readDelegatedSetting('quoteNotificationEnabled'));
-                if (quoteNotificationEnabled !== null) {
-                  try { u.searchParams.set('embedQuoteNotification', quoteNotificationEnabled ? 'true' : 'false'); } catch (e) { }
-                }
-              } catch (e) { }
-              try {
-                const replyNotificationEnabled = parseStoredBool(readDelegatedSetting('replyNotificationEnabled'));
-                if (replyNotificationEnabled !== null) {
-                  try { u.searchParams.set('embedReplyNotification', replyNotificationEnabled ? 'true' : 'false'); } catch (e) { }
-                }
-              } catch (e) { }
-              try {
-                const mediaFreePlacement = parseStoredBool(readDelegatedSetting('mediaFreePlacement'));
-                if (mediaFreePlacement !== null) {
-                  try { u.searchParams.set('embedMediaFreePlacement', mediaFreePlacement ? 'true' : 'false'); } catch (e) { }
-                }
-              } catch (e) { }
-              try {
-                const showMascot = parseStoredBool(readDelegatedSetting('showMascot'));
-                if (showMascot !== null) {
-                  try { u.searchParams.set('embedShowMascot', showMascot ? 'true' : 'false'); } catch (e) { }
-                }
-              } catch (e) { }
-              try {
-                const showFlavorText = parseStoredBool(readDelegatedSetting('showFlavorText'));
-                if (showFlavorText !== null) {
-                  try { u.searchParams.set('embedShowFlavorText', showFlavorText ? 'true' : 'false'); } catch (e) { }
-                }
-              } catch (e) { }
-              safeTarget = u.toString();
-            } catch (e) { /* URL操作エラーは無視 */ }
-            iframe.src = safeTarget;
-            // iframe 読み込み直後にテーマ通知のみ複数回実施（settings.set は ready 後の再送を正とする）
-            try {
-              [300, 900, 1600].forEach((delay) => {
-                setTimeout(() => {
-                  try {
-                    if (!iframe || !iframe.contentWindow) return;
-                    const themeForEmbed = resolveVisualThemeForEmbed();
-                    postToEhagakiIframe({ namespace: 'ehagaki.embed', version: 1, type: 'embed.theme', payload: { theme: themeForEmbed } });
-                  } catch (e) { }
-                }, delay);
-              });
-            } catch (e) { }
-          }
-
-          // 自動クローズ用チェックボックスを追加
-          let autoCloseController = null;
-          try {
-            if (modal) {
-              autoCloseController = addAutoCloseCheckbox(modal);
-              try { modal.dataset.ehagakiAutoCloseDisabled = (localStorage.getItem('ehagaki_auto_close') === '0') ? '1' : '0'; } catch (e) { }
-              try {
-                const chk = modal.querySelector('#ehagakiAutoCloseCheckbox');
-                if (chk) chk.addEventListener('change', () => { try { modal.dataset.ehagakiAutoCloseDisabled = chk.checked ? '0' : '1'; } catch (e) { } });
-              } catch (e) { }
-            }
-          } catch (e) { }
-
-          // 自動クローズ監視を開始
-          try {
-            const expectedClientName = (titleInput && typeof titleInput.value === 'string') ? titleInput.value : settingsManager.get('postLinkTitle') || DEFAULT_TITLE;
-            const closeFn = () => {
-              try {
-                if (modal) {
-                  try {
-                    const chk = modal.querySelector && modal.querySelector('#ehagakiAutoCloseCheckbox');
-                    if (chk) { try { localStorage.setItem('ehagaki_auto_close', chk.checked ? '1' : '0'); } catch (e) { } }
-                  } catch (e) { }
-                  modal.hidden = true;
-                  try { if (modal._overlayClickHandler) { modal.removeEventListener('click', modal._overlayClickHandler); delete modal._overlayClickHandler; } } catch (e) { }
-                }
-              } catch (e) { }
-              teardownEhagakiIframe();
-            };
-
-            let autoCloseStarted = false;
-            let startSince = Math.floor(Date.now() /1000);
-            let autoCloseCancel = null;
-            function startAutoClose() {
-              if (autoCloseStarted) return;
-              if (!modal) return;
-              if (modal.dataset && modal.dataset.ehagakiAutoCloseDisabled === '1') return;
-              startSince = Math.floor(Date.now() /1000);
-              autoCloseStarted = true;
-              const timeout = settingsManager.get('postLinkAutoCloseTimeout');
-              const timeoutMs = (typeof timeout === 'number') ? timeout :0;
-              let cancelled = false;
-              autoCloseCancel = () => { cancelled = true; };
-              waitForEhagakiPublish(() => { if (!cancelled) closeFn(); }, { timeoutMs, expectedClientName, modalEl: modal, startSince })
-                .catch(() => { })
-                .finally(() => { autoCloseStarted = false; });
-            }
-
-            try {
-              if (modal) {
-                const chk = modal.querySelector('#ehagakiAutoCloseCheckbox');
-                if (chk) {
-                  chk.addEventListener('change', () => {
-                    try {
-                      modal.dataset.ehagakiAutoCloseDisabled = chk.checked ? '0' : '1';
-                      if (chk.checked) startAutoClose();
-                      else { if (typeof autoCloseCancel === 'function') autoCloseCancel(); }
-                    } catch (e) { }
-                  });
-                }
-                if (autoCloseController && typeof autoCloseController.isChecked === 'function' && autoCloseController.isChecked()) { setTimeout(() => { try { startAutoClose(); } catch (e) { } },150); }
-              }
-            } catch (e) { }
-
-            try {
-              const chk3 = modal && modal.querySelector && modal.querySelector('#ehagakiAutoCloseCheckbox');
-              if (chk3 && chk3.checked) { setTimeout(() => { try { startAutoClose(); } catch (e) { } },50); }
-            } catch (e) { }
-
-          } catch (e) { }
-
+          await launchEhagakiAt(targetUrl);
         } catch (e) { }
       };
     }

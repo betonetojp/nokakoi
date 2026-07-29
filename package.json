@@ -1,6 +1,6 @@
 {
   "name": "nokakoi-app",
-  "version": "1.110.1",
+  "version": "1.111.0",
   "description": "Nostr Web Client",
   "scripts": {
     "start": "vite",
@@ -25,5 +25,8 @@
   "dependencies": {
     "nostr-tools": "^2.24.1",
     "qrcode-generator": "^2.0.4"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
   }
 }

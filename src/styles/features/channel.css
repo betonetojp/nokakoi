@@ -6,3 +6,10 @@
 .channel .reply-marker {
   color: var(--channel-border);
 }
+.channel-label {
+  cursor: pointer;
+}
+.channel-label.is-busy {
+  opacity: 0.6;
+  pointer-events: none;
+}

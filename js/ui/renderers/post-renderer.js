@@ -11,7 +11,8 @@ import { showMediaViewer } from '../media-viewer.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { replyToEvent as apiReplyToEvent } from '../../features/post/actions.js';
 import { MAX_PREVIEW_LENGTH, MAX_PREVIEW_LINES } from '../../config/constants.js';
-import { pickChannelRootId, scheduleChannelLabelUpdate } from '../../features/channel/channel.js';
+import { pickChannelRootId, scheduleChannelLabelUpdate, buildChannelEmbedContext } from '../../features/channel/channel.js';
+import { openEhagakiWithChannel } from '../../features/post/postlink.js';
 
 import {
   pickETagEventId,
@@ -970,6 +971,7 @@ function bindEventListeners(div, ev, state, nip19, settings, settingsManager, re
   bindJsonButtonHandlers(div, ev, nip19);
   bindQuoteButtonHandler(div, ev, state, nip19);
   bindContentClickHandlers(div, ev, state, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent);
+  bindChannelLabelClickHandler(div, ev, state);
 
   if (!localStorage.getItem('pubkey')) return;
 
@@ -980,6 +982,33 @@ function bindEventListeners(div, ev, state, nip19, settings, settingsManager, re
   if (ev.kind === 20000) {
     bindOmochatHandlers(div, ev, state, nip19);
   }
+}
+
+function bindChannelLabelClickHandler(div, ev, state) {
+  if (!ev || ev.kind !== 42) return;
+  const labelEl = div.querySelector('.channel-label[data-channel-root-id]');
+  if (!labelEl) return;
+
+  labelEl.onclick = async function (e) {
+    try {
+      e.stopPropagation();
+      e.preventDefault();
+    } catch (err) { }
+
+    const rootId = labelEl.getAttribute('data-channel-root-id') || pickChannelRootId(ev);
+    if (!rootId) return;
+
+    try {
+      labelEl.classList.add('is-busy');
+      const channel = await buildChannelEmbedContext(state, rootId, ev);
+      if (!channel || !channel.reference) return;
+      await openEhagakiWithChannel(channel);
+    } catch (err) {
+      console.warn('[Channel] eHagaki へのチャンネル受け渡しに失敗', err);
+    } finally {
+      try { labelEl.classList.remove('is-busy'); } catch (err) { }
+    }
+  };
 }
 
 export function renderEvent(state, ev, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent, feedId = null) {
