@@ -1,5 +1,7 @@
 export {
   defaultRelays,
+  defaultIntlRelayUrl,
+  defaultJaRelayUrl,
   profileIndexerRelay,
   stopMonitoringRelays,
   loadRelays,

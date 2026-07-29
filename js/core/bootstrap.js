@@ -3,7 +3,7 @@ import { logInitInfo, getNip19, getSimplePool, getNostrTools } from './nostr-com
 import { VERSION } from '../config/version.js';
 import { $, $$, showToast } from '../utils/utils.js';
 import { SettingsManager } from './settings.js';
-import { relayConnect, stopMonitoringRelays, loadRelays } from './relay.js';
+import { relayConnect, stopMonitoringRelays, loadRelays, defaultIntlRelayUrl, defaultJaRelayUrl } from './relay.js';
 import { createState, clearFeed, findEventById } from './state.js';
 import { initializeProfileCache } from '../features/profile/profile.js';
 import { reactToEvent, repostEvent } from '../features/post/actions.js';
@@ -246,8 +246,8 @@ export async function initApp() {
     }
     if (!settingsManager.hasRaw('globalRelay')) {
       const lang = storedLang || detectBrowserLang();
-      if (lang === 'ja') settingsManager.set('globalRelay', ['wss://yabu.me']);
-      else settingsManager.set('globalRelay', ['wss://relay.damus.io']);
+      if (lang === 'ja') settingsManager.set('globalRelay', [defaultJaRelayUrl]);
+      else settingsManager.set('globalRelay', [defaultIntlRelayUrl]);
     }
   } catch (e) { }
 
