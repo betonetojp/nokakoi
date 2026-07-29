@@ -741,24 +741,44 @@ function bindQuoteButtonHandler(div, ev, state, nip19) {
         if (composer) composer.hidden = false;
         const noteInput = document.getElementById('noteInput');
         if (noteInput) {
-          import('../../core/nostr-compat.js').then(mod => {
+          Promise.all([
+            import('../../core/nostr-compat.js'),
+            import('../../core/relay.js'),
+          ]).then(([compatMod, relayMod]) => {
             try {
-              const nip19local = mod.getNip19 && mod.getNip19();
+              const nip19local = compatMod.getNip19 && compatMod.getNip19();
+              const relays = [];
+              try {
+                const seen = relayMod.getEventSeenOn ? relayMod.getEventSeenOn(state, ev) : [];
+                for (const r of (seen || [])) {
+                  if (typeof r === 'string' && /^wss?:\/\//i.test(r) && !relays.includes(r)) relays.push(r);
+                }
+                if (relays.length === 0 && relayMod.getReadRelays && state && state.relays) {
+                  for (const r of relayMod.getReadRelays(state.relays).slice(0, 3)) {
+                    if (typeof r === 'string' && /^wss?:\/\//i.test(r) && !relays.includes(r)) relays.push(r);
+                  }
+                }
+              } catch (err) { }
+              const encodePayload = {
+                id: ev.id,
+                relays: relays.slice(0, 3),
+              };
+              if (ev && typeof ev.pubkey === 'string') encodePayload.author = ev.pubkey;
               let nevent = null;
               if (nip19local) {
                 try {
-                  if (nip19local.nevent && typeof nip19local.nevent.encode === 'function') nevent = nip19local.nevent.encode({ id: ev.id, relays: [] });
-                } catch (e) { }
+                  if (nip19local.nevent && typeof nip19local.nevent.encode === 'function') nevent = nip19local.nevent.encode(encodePayload);
+                } catch (err) { }
                 try {
-                  if (!nevent && typeof nip19local.neventEncode === 'function') nevent = nip19local.neventEncode({ id: ev.id, relays: [] });
-                } catch (e) { }
+                  if (!nevent && typeof nip19local.neventEncode === 'function') nevent = nip19local.neventEncode(encodePayload);
+                } catch (err) { }
               }
               if (!nevent) nevent = 'nevent1' + ev.id;
               if (!/^nostr:/i.test(nevent)) nevent = 'nostr:' + nevent;
               noteInput.value = '\n' + nevent + '\n';
               noteInput.focus();
               noteInput.selectionStart = noteInput.selectionEnd = 0;
-            } catch (e) {
+            } catch (err) {
               noteInput.value = '\nnostr:nevent1' + ev.id + '\n';
               noteInput.focus();
               noteInput.selectionStart = noteInput.selectionEnd = 0;
@@ -769,7 +789,7 @@ function bindQuoteButtonHandler(div, ev, state, nip19) {
             noteInput.selectionStart = noteInput.selectionEnd = 0;
           });
         }
-        try { setQuoteTarget(state, ev, nip19); window.__nokakoiQuoteMode = true; } catch (e) { }
+        try { setQuoteTarget(state, ev, nip19); window.__nokakoiQuoteMode = true; } catch (err) { }
       };
     }
   } catch (e) { }

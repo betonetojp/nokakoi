@@ -7,6 +7,8 @@ import { signEventWithMode } from './actions.js';
 import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL } from '../../config/constants.js';
 import { debounce } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
+import { getEventSeenOn, getReadRelays } from '../../core/relay.js';
+import { findEventById } from '../../core/state.js';
 
 const DEFAULT_TITLE = POSTLINK_DEFAULT_TITLE;
 const DEFAULT_URL = POSTLINK_DEFAULT_URL;
@@ -18,6 +20,7 @@ const EMBED_ALLOWED_STORAGE_KEYS = new Set([
   'uploadEndpoint',
   'clientTagEnabled',
   'quoteNotificationEnabled',
+  'replyNotificationEnabled',
   'imageQualityLevel',
   'videoQualityLevel',
   'imageCompressionLevel',
@@ -127,6 +130,30 @@ function clearComposerNoteInput(noteEl) {
   } catch (e) { }
 }
 
+/**
+ * PostLink 用 URL サニタイズ。
+ * content / reply / quote 付き URL は 2048 超になり得るため、
+ * フル URL が弾かれた場合は base のみ検証してクエリを再付与する。
+ */
+function sanitizePostLinkTarget(targetUrl) {
+  const safe = sanitizeUrlCandidate(targetUrl);
+  if (safe) return safe;
+  try {
+    if (!targetUrl || typeof targetUrl !== 'string') return null;
+    const u = new URL(targetUrl.trim(), typeof window !== 'undefined' ? window.location.href : undefined);
+    const proto = (u.protocol || '').toLowerCase();
+    if (proto !== 'http:' && proto !== 'https:') return null;
+    const baseSafe = sanitizeUrlCandidate(u.origin + u.pathname);
+    if (!baseSafe) return null;
+    const out = new URL(baseSafe);
+    out.search = u.search;
+    out.hash = '';
+    return out.toString();
+  } catch (e) {
+    return null;
+  }
+}
+
 export function updatePostLinkButtonAndModal(title, url, openInNewTab = false) {
   try {
     const btn = document.getElementById('ehagakiBtn');
@@ -171,6 +198,8 @@ export async function setupPostLinkUI(settingsManager) {
     let delayedAuthSyncTimer = null;
     let embedAuthEstablished = false;
     let pendingSettingsAfterAuth = false;
+    let pendingComposerContextPayload = null;
+    let composerContextSyncTimers = [];
     let clearDelayedAuthSync = () => {
       try {
         if (delayedAuthSyncTimer) clearInterval(delayedAuthSyncTimer);
@@ -178,6 +207,13 @@ export async function setupPostLinkUI(settingsManager) {
       delayedAuthSyncTimer = null;
     };
     let startDelayedAuthAndSettingsSync = () => { };
+
+    function clearComposerContextSyncTimers() {
+      for (const timerId of composerContextSyncTimers) {
+        try { clearTimeout(timerId); } catch (e) { }
+      }
+      composerContextSyncTimers = [];
+    }
 
     function queueSettingsAfterAuth() {
       pendingSettingsAfterAuth = true;
@@ -187,13 +223,18 @@ export async function setupPostLinkUI(settingsManager) {
       if (!pendingSettingsAfterAuth) return;
       try { postEmbedSettings(); } catch (e) { }
       pendingSettingsAfterAuth = false;
+      // URL 起動時の参照イベント取得は auth/relay 復元前に走り失敗しやすい。
+      // 認証後に composer.setContext で再ハイドレートして content を取る。
+      try { scheduleComposerContextSync(); } catch (e) { }
     }
 
     let iframeTeardownTimer = null;
     function teardownEhagakiIframe(delayMs = 240) {
       try { clearDelayedAuthSync(); } catch (e) { }
+      try { clearComposerContextSyncTimers(); } catch (e) { }
       embedAuthEstablished = false;
       pendingSettingsAfterAuth = false;
+      pendingComposerContextPayload = null;
       try {
         if (iframeTeardownTimer) clearTimeout(iframeTeardownTimer);
       } catch (e) { }
@@ -300,6 +341,198 @@ export async function setupPostLinkUI(settingsManager) {
       try { return window.__nostrState || null; } catch (e) { return null; }
     }
 
+    function collectRelayHintsForEvent(ev) {
+      const hints = [];
+      const seen = new Set();
+      const add = (url) => {
+        if (typeof url !== 'string') return;
+        const trimmed = url.trim();
+        if (!trimmed) return;
+        if (!/^wss?:\/\//i.test(trimmed)) return;
+        const key = trimmed.replace(/\/+$/, '').toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        hints.push(trimmed);
+      };
+
+      try {
+        const state = getNostrState();
+        if (state && ev) {
+          for (const r of getEventSeenOn(state, ev)) add(r);
+        }
+      } catch (e) { }
+
+      if (hints.length === 0) {
+        try {
+          const state = getNostrState();
+          if (state && state.relays) {
+            for (const r of getReadRelays(state.relays)) add(r);
+          }
+        } catch (e) { }
+      }
+
+      return hints.slice(0, 3);
+    }
+
+    function encodeNeventForEmbed(eventId, options = {}) {
+      let nevent = null;
+      const relays = Array.isArray(options.relays) ? options.relays : [];
+      const payload = { id: eventId, relays };
+      if (options.author && typeof options.author === 'string') payload.author = options.author;
+      try {
+        const nip19local = getNip19 && getNip19();
+        if (nip19local) {
+          try {
+            if (nip19local.nevent && typeof nip19local.nevent.encode === 'function') {
+              nevent = nip19local.nevent.encode(payload);
+            }
+          } catch (e) { }
+          try {
+            if (!nevent && typeof nip19local.neventEncode === 'function') {
+              nevent = nip19local.neventEncode(payload);
+            }
+          } catch (e) { }
+        }
+      } catch (e) { }
+      if (!nevent) nevent = 'nevent1' + eventId;
+      return String(nevent).replace(/^nostr:/i, '');
+    }
+
+    function encodeTargetNevent(rt) {
+      const targetId = rt && (rt.id || rt.eventId) ? (rt.id || rt.eventId) : null;
+      if (!targetId) return null;
+      return encodeNeventForEmbed(targetId, {
+        relays: collectRelayHintsForEvent(rt),
+        author: (rt && typeof rt.pubkey === 'string') ? rt.pubkey : undefined,
+      });
+    }
+
+    function buildComposerContextPayload(extractedQuoteRefs, content) {
+      const payload = {};
+      if (typeof content === 'string') payload.content = content;
+
+      try {
+        const isQuoteMode = (typeof getQuoteMode === 'function') && getQuoteMode();
+        const rt = (typeof getReplyTarget === 'function') ? getReplyTarget() : null;
+
+        if (isQuoteMode) {
+          const nevent = encodeTargetNevent(rt);
+          if (nevent) {
+            payload.quotes = [nevent];
+          } else if (extractedQuoteRefs && extractedQuoteRefs.length > 0) {
+            payload.quotes = extractedQuoteRefs.map((ref) => enrichQuoteRef(ref));
+          }
+          return payload;
+        }
+
+        const replyNevent = encodeTargetNevent(rt);
+        if (replyNevent) payload.reply = replyNevent;
+      } catch (e) { }
+
+      return payload;
+    }
+
+    function postEmbedComposerContext(payload, reason) {
+      if (!payload || typeof payload !== 'object') return;
+      if (payload.reply == null && !(Array.isArray(payload.quotes) && payload.quotes.length) && typeof payload.content !== 'string') {
+        return;
+      }
+      const requestId = 'composer-sync-' + String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8);
+      try {
+        console.info('[PostLink] composer.setContext', reason || '', {
+          requestId,
+          reply: payload.reply || null,
+          quotes: Array.isArray(payload.quotes) ? payload.quotes.length : 0,
+          hasContent: typeof payload.content === 'string',
+        });
+      } catch (e) { }
+      postToEhagakiIframe({
+        namespace: EMBED_NS,
+        version: 1,
+        type: 'composer.setContext',
+        requestId,
+        payload,
+      });
+    }
+
+    function scheduleComposerContextSync() {
+      clearComposerContextSyncTimers();
+      if (!pendingComposerContextPayload) return;
+      // auth 直後・リレー復元後に再送（URL 起動時の早すぎる取得失敗をリカバリ）
+      [0, 900, 2200].forEach((delay) => {
+        const timerId = setTimeout(() => {
+          try {
+            if (!pendingComposerContextPayload) return;
+            const modalEl = document.getElementById('ehagakiModal');
+            if (!modalEl || modalEl.hidden) return;
+            postEmbedComposerContext(pendingComposerContextPayload, 'hydrate@' + delay + 'ms');
+          } catch (e) { }
+        }, delay);
+        composerContextSyncTimers.push(timerId);
+      });
+    }
+
+    function applyReplyQuoteParams(urlObj, extractedQuoteRefs) {
+      try {
+        const isQuoteMode = (typeof getQuoteMode === 'function') && getQuoteMode();
+        const rt = (typeof getReplyTarget === 'function') ? getReplyTarget() : null;
+
+        if (isQuoteMode) {
+          // 引用: composer 内の nevent は hint 無しのことが多いので、
+          // setQuoteTarget で保持しているイベントから hint 付きで再エンコードする
+          const nevent = encodeTargetNevent(rt);
+          if (nevent) {
+            try { urlObj.searchParams.append('quote', nevent); } catch (e) { }
+            return;
+          }
+          if (extractedQuoteRefs && extractedQuoteRefs.length > 0) {
+            for (const ref of extractedQuoteRefs) {
+              try { urlObj.searchParams.append('quote', enrichQuoteRef(ref)); } catch (e) { }
+            }
+          }
+          return;
+        }
+
+        const replyNevent = encodeTargetNevent(rt);
+        if (replyNevent) {
+          try { urlObj.searchParams.set('reply', replyNevent); } catch (e) { }
+        }
+      } catch (e) { }
+    }
+
+    function enrichQuoteRef(ref) {
+      try {
+        const raw = String(ref || '').replace(/^nostr:/i, '');
+        if (!raw) return ref;
+        const nip19local = getNip19 && getNip19();
+        if (!nip19local || typeof nip19local.decode !== 'function') return raw;
+        const decoded = nip19local.decode(raw);
+        if (!decoded) return raw;
+
+        let eventId = null;
+        let author = undefined;
+        let existingRelays = [];
+        if (decoded.type === 'nevent' && decoded.data) {
+          eventId = decoded.data.id;
+          author = decoded.data.author;
+          existingRelays = Array.isArray(decoded.data.relays) ? decoded.data.relays.filter(Boolean) : [];
+        } else if (decoded.type === 'note') {
+          eventId = typeof decoded.data === 'string' ? decoded.data : (decoded.data && decoded.data.id);
+        }
+        if (!eventId) return raw;
+        if (existingRelays.length > 0) return raw;
+
+        const state = getNostrState();
+        let ev = null;
+        try { if (state) ev = findEventById(state, eventId); } catch (e) { }
+        const relays = collectRelayHintsForEvent(ev || { id: eventId });
+        if (!author && ev && typeof ev.pubkey === 'string') author = ev.pubkey;
+        return encodeNeventForEmbed(eventId, { relays, author });
+      } catch (e) {
+        return String(ref || '').replace(/^nostr:/i, '');
+      }
+    }
+
     function resolveEmbedTheme() {
       let themeForEmbed = 'system';
       try {
@@ -378,6 +611,9 @@ export async function setupPostLinkUI(settingsManager) {
 
       const quoteNotificationEnabled = parseStoredBool(readDelegatedSetting('quoteNotificationEnabled'));
       if (quoteNotificationEnabled !== null) payload.quoteNotificationEnabled = quoteNotificationEnabled;
+
+      const replyNotificationEnabled = parseStoredBool(readDelegatedSetting('replyNotificationEnabled'));
+      if (replyNotificationEnabled !== null) payload.replyNotificationEnabled = replyNotificationEnabled;
 
       const mediaFreePlacement = parseStoredBool(readDelegatedSetting('mediaFreePlacement'));
       if (mediaFreePlacement !== null) payload.mediaFreePlacement = mediaFreePlacement;
@@ -780,6 +1016,13 @@ export async function setupPostLinkUI(settingsManager) {
               } catch (e) { }
               // 都度生成 iframe パターンでは ready 受信後に settings.set を再送する
               try { postEmbedSettings(); } catch (e) { }
+              // URL 起動の参照イベント取得が auth 前に失敗しても、ready 時点で setContext を送っておく
+              // （pending auth 中は eHagaki 側で queue → auth 後に flush される）
+              try {
+                if (pendingComposerContextPayload) {
+                  postEmbedComposerContext(pendingComposerContextPayload, 'ready');
+                }
+              } catch (e) { }
               // iPhone PWA などで親ログイン初期化が遅れる場合に備えて後追い同期
               startDelayedAuthAndSettingsSync();
             } catch (ee) { console.warn('[PostLink] ready 処理に失敗', ee); }
@@ -940,11 +1183,23 @@ export async function setupPostLinkUI(settingsManager) {
             let urlObj = null;
             try { urlObj = new URL(safeBase); } catch (e) { urlObj = new URL(safeBase, window.location.href); }
             urlObj.searchParams.set('content', composerText);
+            applyReplyQuoteParams(urlObj, extractedQuoteRefs);
             targetUrl = urlObj.toString();
+            pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText);
           } catch (e) {
             // フォールバック: safe base + エンコード済み content の単純結合
-            const base = (sanitizeUrlCandidate(baseStr) || DEFAULT_URL).replace(/\?.*$/, '');
-            targetUrl = base + '?content=' + encodeURIComponent(composerText);
+            try {
+              const base = (sanitizeUrlCandidate(baseStr) || DEFAULT_URL).replace(/\?.*$/, '');
+              const urlObj = new URL(base, window.location.href);
+              urlObj.searchParams.set('content', composerText);
+              applyReplyQuoteParams(urlObj, extractedQuoteRefs);
+              targetUrl = urlObj.toString();
+              pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText);
+            } catch (ee) {
+              const base = (sanitizeUrlCandidate(baseStr) || DEFAULT_URL).replace(/\?.*$/, '');
+              targetUrl = base + '?content=' + encodeURIComponent(composerText);
+              pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText);
+            }
           }
 
           // composer テキストをクリップボードへコピー後、入力欄をクリア
@@ -965,6 +1220,7 @@ export async function setupPostLinkUI(settingsManager) {
           } catch (e) { }
 
           if (openInNewTab) {
+            pendingComposerContextPayload = null;
             // リダイレクト時のクエリ保持性を高めるため、プログラム生成 anchor で開く
             try {
               const a = document.createElement('a');
@@ -1002,45 +1258,16 @@ export async function setupPostLinkUI(settingsManager) {
 
           if (iframe) {
             embedAuthEstablished = false;
+            try { clearComposerContextSyncTimers(); } catch (e) { }
             queueSettingsAfterAuth();
             // iframe src にはサニタイズ済みURLのみ設定
-            let safeTarget = sanitizeUrlCandidate(targetUrl) || DEFAULT_URL;
+            let safeTarget = sanitizePostLinkTarget(targetUrl) || DEFAULT_URL;
             try {
               // eHagaki 側が parentOrigin を期待するため、親の origin をクエリに付与して渡す
               // 既に parentOrigin が指定されていなければ追加する
               const u = new URL(safeTarget, window.location.href);
 
-              // 引用モード: extractedQuoteRefs を quote パラメータとして付与
-              // 返信モード: nevent 形式で reply クエリを付与
-              try {
-                const isQuoteMode = (typeof getQuoteMode === 'function') && getQuoteMode();
-                if (isQuoteMode && extractedQuoteRefs.length > 0) {
-                  for (const ref of extractedQuoteRefs) {
-                    try { u.searchParams.append('quote', ref); } catch (e) { }
-                  }
-                } else {
-                  const rt = (typeof getReplyTarget === 'function') ? getReplyTarget() : null;
-                  const replyId = rt && (rt.id || rt.eventId) ? (rt.id || rt.eventId) : null;
-                  if (replyId && !isQuoteMode) {
-                    let nevent = null;
-                    try {
-                      const nip19local = getNip19 && getNip19();
-                      if (nip19local) {
-                        try {
-                          if (nip19local.nevent && typeof nip19local.nevent.encode === 'function') nevent = nip19local.nevent.encode({ id: replyId, relays: [] });
-                        } catch (e) { }
-                        try {
-                          if (!nevent && typeof nip19local.neventEncode === 'function') nevent = nip19local.neventEncode({ id: replyId, relays: [] });
-                        } catch (e) { }
-                      }
-                    } catch (e) { }
-                    if (!nevent) nevent = 'nevent1' + replyId;
-                    nevent = String(nevent).replace(/^nostr:/i, '');
-                    try { u.searchParams.set('reply', nevent); } catch (e) { }
-                  }
-                }
-              } catch (e) { }
-
+              // reply/quote は targetUrl 構築時に付与済み。ここでは embed 設定のみ追加する
               if (!u.searchParams.has('parentOrigin')) {
                 try { u.searchParams.set('parentOrigin', window.location.origin); } catch (e) { }
               }
@@ -1089,6 +1316,12 @@ export async function setupPostLinkUI(settingsManager) {
                 const quoteNotificationEnabled = parseStoredBool(readDelegatedSetting('quoteNotificationEnabled'));
                 if (quoteNotificationEnabled !== null) {
                   try { u.searchParams.set('embedQuoteNotification', quoteNotificationEnabled ? 'true' : 'false'); } catch (e) { }
+                }
+              } catch (e) { }
+              try {
+                const replyNotificationEnabled = parseStoredBool(readDelegatedSetting('replyNotificationEnabled'));
+                if (replyNotificationEnabled !== null) {
+                  try { u.searchParams.set('embedReplyNotification', replyNotificationEnabled ? 'true' : 'false'); } catch (e) { }
                 }
               } catch (e) { }
               try {
