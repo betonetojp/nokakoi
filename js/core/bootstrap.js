@@ -22,6 +22,7 @@ import { setupScrollToTopButton, resetScrollToTopButtonPosition } from '../ui/sc
 import { setupMuteListUI } from '../features/mute/mute.js';
 import { setupTabs as uiSetupTabs, setupDisplaySettings as uiSetupDisplaySettings, bringModalToFront as uiBringModalToFront } from '../ui/ui-setup.js';
 import { setupPostLinkUI, updatePostLinkButtonAndModal } from '../features/post/postlink.js';
+import { setupEhagakiPublicChatsPicker } from '../ui/ehagaki-public-chats-picker.js';
 import { t, detectBrowserLang, initI18n, applyTranslations } from '../utils/i18n.js';
 import { getClosestRelays } from '../features/relay/geo-relay-directory.js';
 import { setupKeyboardShortcuts } from '../ui/keyboard-shortcuts.js';
@@ -317,6 +318,7 @@ export async function initApp() {
   setupDisplaySettings();
   
   try { setupPostLinkUI(settingsManager); } catch (e) { console.warn('[Main] setupPostLinkUI に失敗', e); }
+  try { setupEhagakiPublicChatsPicker(); } catch (e) { console.warn('[Main] setupEhagakiPublicChatsPicker に失敗', e); }
 
   setupMediaViewerClose();
   setupProfileModalClose();

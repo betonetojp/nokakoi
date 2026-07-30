@@ -13,11 +13,18 @@ export function addAutoCloseCheckbox(modalEl, opts = {}) {
     if (!container) {
       container = document.createElement('div');
       container.id = containerId;
-      container.style.display = 'flex';
-      container.style.alignItems = 'center';
-      container.style.gap = '8px';
-      container.style.marginTop = '8px';
+      container.className = 'ehagaki-auto-close-slot';
 
+      const footer = modalEl.querySelector('.modal-footer');
+      if (footer) footer.appendChild(container);
+      else {
+        const body = modalEl.querySelector('.modal-body');
+        if (body) body.appendChild(container);
+        else modalEl.appendChild(container);
+      }
+    }
+
+    if (!container.querySelector('#ehagakiAutoCloseCheckbox')) {
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.id = 'ehagakiAutoCloseCheckbox';
@@ -28,13 +35,10 @@ export function addAutoCloseCheckbox(modalEl, opts = {}) {
 
       const label = document.createElement('label');
       label.htmlFor = checkbox.id;
-      // ローカライズ済みラベルがあれば使用し、なければ日本語文言へフォールバック
       label.textContent = opts.labelText || t('postlink.auto_close') || '投稿後自動で閉じる';
 
       checkbox.addEventListener('change', (e) => {
         try {
-          // ユーザー操作での変更時のみ保存する。プログラム変更（isTrusted === false）では
-          // ユーザーの保存済み設定を上書きしない。
           if (e && e.isTrusted) {
             try { localStorage.setItem(key, checkbox.checked ? '1' : '0'); } catch (ee) { }
           }
@@ -43,16 +47,6 @@ export function addAutoCloseCheckbox(modalEl, opts = {}) {
 
       container.appendChild(checkbox);
       container.appendChild(label);
-
-      // モーダル下部に追加。`.modal-footer` があれば優先して配置
-      const footer = modalEl.querySelector('.modal-footer');
-      if (footer) footer.appendChild(container);
-      else {
-        // modal-body の末尾に配置
-        const body = modalEl.querySelector('.modal-body');
-        if (body) body.appendChild(container);
-        else modalEl.appendChild(container);
-      }
     }
 
     return {

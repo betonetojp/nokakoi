@@ -407,6 +407,18 @@
           <button id="ehagakiClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
         </div>
         <iframe id="ehagakiFrame" src="" data-src="" loading="lazy" allow="local-network-access; local-network; loopback-network"></iframe>
+        <div id="ehagakiPublicChatsPanel" class="ehagaki-public-chats-panel" hidden>
+          <div class="ehagaki-public-chats-panel-header">
+            <span class="ehagaki-public-chats-heading">パブリックチャット一覧</span>
+            <button type="button" class="ehagaki-public-chats-refresh secondary" data-i18n="ehagaki.public_chats.refresh">再読込</button>
+          </div>
+          <div class="ehagaki-public-chats-status muted" hidden></div>
+          <div class="ehagaki-public-chats-list" role="list"></div>
+        </div>
+        <div class="ehagaki-modal-toolbar">
+          <div id="ehagakiAutoCloseContainer" class="ehagaki-auto-close-slot"></div>
+          <button id="ehagakiPublicChatsBtn" class="ehagaki-public-chats-fab secondary" type="button" aria-expanded="false" aria-controls="ehagakiPublicChatsPanel" title="パブリックチャット一覧" aria-label="パブリックチャット一覧">🔖</button>
+        </div>
       </div>
     </div>
 

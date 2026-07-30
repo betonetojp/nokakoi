@@ -68,7 +68,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <script type="module" crossorigin src="./assets/index-uHWMAvLC.js"></script>
+  <script type="module" crossorigin src="./assets/index-DAIqx0eg.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-DK3Fl9T5.js">
   <link rel="modulepreload" crossorigin href="./assets/nostr-compat-CDWKioyk.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-xIk5e5Dp.js">
@@ -81,10 +81,10 @@
   <link rel="modulepreload" crossorigin href="./assets/signer-6D2sXShF.js">
   <link rel="modulepreload" crossorigin href="./assets/actions-D4A0dbYL.js">
   <link rel="modulepreload" crossorigin href="./assets/modals-D0XqRYVN.js">
-  <link rel="modulepreload" crossorigin href="./assets/url-parser-Cl6_FTkZ.js">
+  <link rel="modulepreload" crossorigin href="./assets/url-parser-BIHDbYar.js">
   <link rel="modulepreload" crossorigin href="./assets/json-modal-BePFzO2L.js">
-  <link rel="modulepreload" crossorigin href="./assets/renderer-BR21b1wZ.js">
-  <link rel="stylesheet" crossorigin href="./assets/index-B8Wddh9Z.css">
+  <link rel="modulepreload" crossorigin href="./assets/renderer-CzDHhMkM.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-DHuFYgg-.css">
 </head>
 <body>
   <script>
@@ -423,6 +423,18 @@
           <button id="ehagakiClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
         </div>
         <iframe id="ehagakiFrame" src="" data-src="" loading="lazy" allow="local-network-access; local-network; loopback-network"></iframe>
+        <div id="ehagakiPublicChatsPanel" class="ehagaki-public-chats-panel" hidden>
+          <div class="ehagaki-public-chats-panel-header">
+            <span class="ehagaki-public-chats-heading">パブリックチャット一覧</span>
+            <button type="button" class="ehagaki-public-chats-refresh secondary" data-i18n="ehagaki.public_chats.refresh">再読込</button>
+          </div>
+          <div class="ehagaki-public-chats-status muted" hidden></div>
+          <div class="ehagaki-public-chats-list" role="list"></div>
+        </div>
+        <div class="ehagaki-modal-toolbar">
+          <div id="ehagakiAutoCloseContainer" class="ehagaki-auto-close-slot"></div>
+          <button id="ehagakiPublicChatsBtn" class="ehagaki-public-chats-fab secondary" type="button" aria-expanded="false" aria-controls="ehagakiPublicChatsPanel" title="パブリックチャット一覧" aria-label="パブリックチャット一覧">🔖</button>
+        </div>
       </div>
     </div>
 

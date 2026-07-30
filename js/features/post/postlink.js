@@ -16,14 +16,20 @@ const EMBED_STORAGE_PREFIX = 'ehagaki.embed.storage.v1:';
 
 /** setupPostLinkUI 内で代入。チャンネル名クリックから eHagaki を開く */
 let __openEhagakiWithChannel = null;
+/** setupPostLinkUI 内で代入。開いていれば setContext のみ */
+let __applyEhagakiChannelContext = null;
+
+function isValidChannelContext(channelContext) {
+  return !!(channelContext && typeof channelContext === 'object'
+    && typeof channelContext.reference === 'string' && channelContext.reference.trim());
+}
 
 /**
  * チャンネル context を載せて eHagaki を開く（モーダル or 新規タブ）
  * @param {{ reference: string, relays?: string[], name?: string, about?: string, picture?: string }} channelContext
  */
 export async function openEhagakiWithChannel(channelContext) {
-  if (!channelContext || typeof channelContext !== 'object') return false;
-  if (typeof channelContext.reference !== 'string' || !channelContext.reference.trim()) return false;
+  if (!isValidChannelContext(channelContext)) return false;
   if (typeof __openEhagakiWithChannel !== 'function') {
     console.warn('[PostLink] openEhagakiWithChannel: UI 未初期化');
     return false;
@@ -34,6 +40,23 @@ export async function openEhagakiWithChannel(channelContext) {
     console.warn('[PostLink] openEhagakiWithChannel に失敗', e);
     return false;
   }
+}
+
+/**
+ * 既に eHagaki モーダルが開いていれば iframe 再読込なしで channel を渡す。
+ * 閉じていれば openEhagakiWithChannel にフォールバック。
+ */
+export async function applyEhagakiChannelContext(channelContext) {
+  if (!isValidChannelContext(channelContext)) return false;
+  if (typeof __applyEhagakiChannelContext === 'function') {
+    try {
+      return await __applyEhagakiChannelContext(channelContext);
+    } catch (e) {
+      console.warn('[PostLink] applyEhagakiChannelContext に失敗', e);
+      return false;
+    }
+  }
+  return openEhagakiWithChannel(channelContext);
 }
 const EMBED_ALLOWED_STORAGE_KEYS = new Set([
   'locale',
@@ -276,6 +299,14 @@ export async function setupPostLinkUI(settingsManager) {
         try { modal.style.zIndex = '9999'; } catch (ee) { }
       }
     }
+    function closePublicChatsPanel() {
+      try {
+        const panelEl = document.getElementById('ehagakiPublicChatsPanel');
+        const fabBtn = document.getElementById('ehagakiPublicChatsBtn');
+        if (panelEl) panelEl.hidden = true;
+        if (fabBtn) fabBtn.setAttribute('aria-expanded', 'false');
+      } catch (e) { }
+    }
     function teardownEhagakiIframe(delayMs = 240) {
       try { clearDelayedAuthSync(); } catch (e) { }
       try { clearComposerContextSyncTimers(); } catch (e) { }
@@ -283,6 +314,7 @@ export async function setupPostLinkUI(settingsManager) {
       pendingSettingsAfterAuth = false;
       pendingComposerContextPayload = null;
       clearEhagakiModalZIndex();
+      closePublicChatsPanel();
       try {
         if (iframeTeardownTimer) clearTimeout(iframeTeardownTimer);
       } catch (e) { }
@@ -1445,6 +1477,17 @@ export async function setupPostLinkUI(settingsManager) {
       } catch (e) { }
     }
 
+    function isEhagakiModalActive() {
+      try {
+        if (!modal || modal.hidden) return false;
+        if (!iframe || !iframe.contentWindow) return false;
+        const src = iframe.getAttribute('src') || '';
+        return !!src;
+      } catch (e) {
+        return false;
+      }
+    }
+
     __openEhagakiWithChannel = async function (channelContext) {
       const baseStr = resolvePostLinkBaseStr();
       let targetUrl;
@@ -1469,6 +1512,26 @@ export async function setupPostLinkUI(settingsManager) {
       };
 
       await launchEhagakiAt(targetUrl);
+      return true;
+    };
+
+    __applyEhagakiChannelContext = async function (channelContext) {
+      if (!isEhagakiModalActive()) {
+        return __openEhagakiWithChannel(channelContext);
+      }
+
+      pendingComposerContextPayload = {
+        channel: channelContext,
+        reply: null,
+        quotes: [],
+      };
+      try {
+        postEmbedComposerContext(pendingComposerContextPayload, 'public-chats-pick');
+        scheduleComposerContextSync();
+      } catch (e) {
+        console.warn('[PostLink] channel setContext に失敗', e);
+        return false;
+      }
       return true;
     };
 
