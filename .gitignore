@@ -1,8 +1,9 @@
-# Disable global ignore for subdirectories in this project
-!gyouza/
-!i18n/
-!icon/
-!js/
-!scripts/
+# Disable global ignore rules for this repository
+!*
+!*/
+!**/*
+
+# Ignore build artifacts, IDE files, and dependencies
 /.vs
 /node_modules
+/dist
