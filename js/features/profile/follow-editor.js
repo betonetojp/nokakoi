@@ -451,12 +451,22 @@ export async function openFollowEditor(state) {
       // 名前タップでプロフィールモーダルを開く
       profileInfo.onclick = (e) => {
         e.stopPropagation();
-        import('./profile-modal.js').then(mod => {
-          if (mod && typeof mod.showProfileModal === 'function') {
-            mod.showProfileModal(state, item.pubkey);
+        import('../../ui/renderers/render-helpers.js').then(helpers => {
+          if (helpers && typeof helpers.invokeShowProfileModalProxy === 'function') {
+            helpers.invokeShowProfileModalProxy(item.pubkey);
+          } else {
+            import('./profile-modal.js').then(mod => {
+              if (mod && typeof mod.showProfileModal === 'function') {
+                mod.showProfileModal(state, item.pubkey, getNip19());
+              }
+            });
           }
-        }).catch(err => {
-          console.warn('[FollowEditor] プロフィールモーダルの読み込み失敗:', err);
+        }).catch(() => {
+          import('./profile-modal.js').then(mod => {
+            if (mod && typeof mod.showProfileModal === 'function') {
+              mod.showProfileModal(state, item.pubkey, getNip19());
+            }
+          });
         });
       };
 

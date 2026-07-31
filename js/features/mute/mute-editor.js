@@ -1132,10 +1132,22 @@ export async function openMuteEditor(state) {
 
         info.onclick = (e) => {
           e.stopPropagation();
-          import('../profile/profile-modal.js').then(mod => {
-            if (mod && typeof mod.showProfileModal === 'function') {
-              mod.showProfileModal(state, item.pubkey);
+          import('../../ui/renderers/render-helpers.js').then(helpers => {
+            if (helpers && typeof helpers.invokeShowProfileModalProxy === 'function') {
+              helpers.invokeShowProfileModalProxy(item.pubkey);
+            } else {
+              import('../profile/profile-modal.js').then(mod => {
+                if (mod && typeof mod.showProfileModal === 'function') {
+                  mod.showProfileModal(state, item.pubkey);
+                }
+              });
             }
+          }).catch(() => {
+            import('../profile/profile-modal.js').then(mod => {
+              if (mod && typeof mod.showProfileModal === 'function') {
+                mod.showProfileModal(state, item.pubkey);
+              }
+            });
           });
         };
 

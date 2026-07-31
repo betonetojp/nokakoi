@@ -5,7 +5,7 @@
 import { $, escapeHtml, fmtTime } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { subOnce, getReadRelays, relayConnect } from '../../core/relay.js';
-import { getSimplePool } from '../../core/nostr-compat.js';
+import { getSimplePool, getNip19 } from '../../core/nostr-compat.js';
 import { renderEvent } from '../../ui/renderer.js';
 import { showJsonModal } from '../../ui/modals/json-modal.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
@@ -52,6 +52,11 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   // pubkeyが未指定ならlocalStorageから取得
   if (!pubkey) pubkey = localStorage.getItem('pubkey');
   if (!pubkey) return;
+  if (!nip19) {
+    try {
+      nip19 = getNip19();
+    } catch (e) { }
+  }
   // キャッシュからプロフィール取得
   const profile = state.profiles.get(pubkey);
 
@@ -167,30 +172,34 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     }
   }
 
-  if (npubEl && nip19 && nip19.npubEncode) {
-    try {
-      const npub = nip19.npubEncode(pubkey);
-      npubEl.textContent = npub;
-
-      // カスタム表示アプリへのリンクを追加
+  if (npubEl) {
+    if (nip19 && nip19.npubEncode) {
       try {
-        const span = document.createElement('span'); // ラッパー（直接追加でも可）
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'btn-kind ml-8';
-        const sm = window.settingsManager;
-        const appTitle = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkTitle') || 'lumilumi') : 'lumilumi';
-        const appUrl = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkUrl') || 'https://lumilumi.app/') : 'https://lumilumi.app/';
+        const npub = nip19.npubEncode(pubkey);
+        npubEl.textContent = npub;
 
-        btn.textContent = t('profile.open_eventlink', { title: appTitle });
-        btn.onclick = function() {
-           const separator = appUrl.endsWith('/') ? '' : '/';
-           window.open(appUrl + separator + npub, '_blank', 'noopener,noreferrer');
-        };
-        npubEl.appendChild(btn);
-      } catch (e) { }
+        // カスタム表示アプリへのリンクを追加
+        try {
+          const span = document.createElement('span'); // ラッパー（直接追加でも可）
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn-kind ml-8';
+          const sm = window.settingsManager;
+          const appTitle = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkTitle') || 'lumilumi') : 'lumilumi';
+          const appUrl = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkUrl') || 'https://lumilumi.app/') : 'https://lumilumi.app/';
 
-    } catch (e) {
+          btn.textContent = t('profile.open_eventlink', { title: appTitle });
+          btn.onclick = function() {
+             const separator = appUrl.endsWith('/') ? '' : '/';
+             window.open(appUrl + separator + npub, '_blank', 'noopener,noreferrer');
+          };
+          npubEl.appendChild(btn);
+        } catch (e) { }
+
+      } catch (e) {
+        npubEl.textContent = pubkey.substring(0, 16) + '...';
+      }
+    } else {
       npubEl.textContent = pubkey.substring(0, 16) + '...';
     }
   }
