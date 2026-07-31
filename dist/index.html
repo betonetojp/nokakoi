@@ -68,7 +68,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <script type="module" crossorigin src="./assets/index-DZgtmgsO.js"></script>
+  <script type="module" crossorigin src="./assets/index-Bch87v9I.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-DK3Fl9T5.js">
   <link rel="modulepreload" crossorigin href="./assets/nostr-compat-CDWKioyk.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-xIk5e5Dp.js">
@@ -81,11 +81,11 @@
   <link rel="modulepreload" crossorigin href="./assets/signer-6D2sXShF.js">
   <link rel="modulepreload" crossorigin href="./assets/actions-D4A0dbYL.js">
   <link rel="modulepreload" crossorigin href="./assets/modals-D0XqRYVN.js">
-  <link rel="modulepreload" crossorigin href="./assets/url-parser-D1AiOyMN.js">
-  <link rel="modulepreload" crossorigin href="./assets/render-helpers-P32hfOW7.js">
+  <link rel="modulepreload" crossorigin href="./assets/url-parser-Cnwz6mts.js">
+  <link rel="modulepreload" crossorigin href="./assets/render-helpers-aWEYdmHG.js">
   <link rel="modulepreload" crossorigin href="./assets/json-modal-BePFzO2L.js">
-  <link rel="modulepreload" crossorigin href="./assets/renderer-DwH1yqlc.js">
-  <link rel="stylesheet" crossorigin href="./assets/index-DHuFYgg-.css">
+  <link rel="modulepreload" crossorigin href="./assets/renderer-C86FKqk4.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-dlUrG1nq.css">
 </head>
 <body>
   <script>
@@ -836,9 +836,18 @@
             <div id="profileNpub"></div>
           </div>
         </div>
-        <div id="profileAbout"></div>
-        <div id="profileStats"></div>
-        <div id="profileEvents"></div>
+        <div id="profileScrollArea">
+          <details id="profileAboutDetails" class="profile-accordion d-none">
+            <summary class="profile-accordion-summary"><span data-i18n="profile.about">自己紹介</span></summary>
+            <div id="profileAbout"></div>
+          </details>
+          <details id="profileMetadataDetails" class="profile-accordion d-none">
+            <summary class="profile-accordion-summary"><span data-i18n="profile.details">詳細情報</span></summary>
+            <div id="profileMetadata"></div>
+          </details>
+          <div id="profileStats"></div>
+          <div id="profileEvents"></div>
+        </div>
       </div>
     </div>
   </div>

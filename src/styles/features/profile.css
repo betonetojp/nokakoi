@@ -54,15 +54,91 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-#profileAbout {
-  color: var(--text);
-  max-height: 120px;
-  overflow-y: auto;
+.profile-accordion {
   margin-bottom: 8px;
   border-radius: 6px;
   background: rgba(124, 147, 255, 0.04);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  flex: 0 0 auto;
 }
-#profileAbout:empty { display: none; }
+.profile-accordion-summary {
+  padding: 6px 10px;
+  font-weight: 600;
+  font-size: 0.9em;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text);
+  background: rgba(124, 147, 255, 0.08);
+  outline: none;
+  transition: background 0.15s ease;
+}
+.profile-accordion-summary:hover {
+  background: rgba(124, 147, 255, 0.14);
+}
+.profile-accordion[open] .profile-accordion-summary {
+  border-bottom: 1px solid var(--border);
+}
+#profileAbout {
+  color: var(--text);
+  max-height: none;
+  overflow-y: visible;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+#profileMetadata {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.88em;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.profile-metadata-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  word-break: break-all;
+}
+.profile-metadata-label {
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 80px;
+  flex-shrink: 0;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.profile-metadata-value {
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.profile-metadata-value a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.btn-copy-metadata {
+  padding: 2px 6px;
+  font-size: 0.8em;
+  line-height: 1;
+  opacity: 0.7;
+  cursor: pointer;
+  border-radius: 4px;
+  background: rgba(124, 147, 255, 0.1);
+  border: 1px solid var(--border);
+  color: var(--text);
+  flex-shrink: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+.btn-copy-metadata:hover {
+  opacity: 1;
+  background: rgba(124, 147, 255, 0.2);
+}
 #profileStats { padding-top: 12px; border-top: 1px solid var(--border); }
 #profileEvents {
   max-height: calc(var(--vh, 1vh) * 100 - 240px);
@@ -83,6 +159,14 @@
   flex-direction: column;
   flex: 1 1 auto;
   overflow: hidden;
+  min-height: 0;
+}
+#profileScrollArea {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 #profileBannerContainer {
@@ -98,16 +182,16 @@
 }
 #profileAbout {
   flex: 0 0 auto;
-  max-height: 80px;
-  overflow-y: auto;
-  margin-bottom: 12px;
+  max-height: none;
+  overflow-y: visible;
 }
 #profileStats {
   flex: 0 0 auto;
 }
 #profileModal #profileEvents {
-  flex: 1 1 auto;
-  overflow-y: auto;
+  flex: 1 0 auto;
+  min-height: 200px;
+  overflow-y: visible;
   max-height: none;
 }
 

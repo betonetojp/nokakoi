@@ -819,9 +819,18 @@
             <div id="profileNpub"></div>
           </div>
         </div>
-        <div id="profileAbout"></div>
-        <div id="profileStats"></div>
-        <div id="profileEvents"></div>
+        <div id="profileScrollArea">
+          <details id="profileAboutDetails" class="profile-accordion d-none">
+            <summary class="profile-accordion-summary"><span data-i18n="profile.about">自己紹介</span></summary>
+            <div id="profileAbout"></div>
+          </details>
+          <details id="profileMetadataDetails" class="profile-accordion d-none">
+            <summary class="profile-accordion-summary"><span data-i18n="profile.details">詳細情報</span></summary>
+            <div id="profileMetadata"></div>
+          </details>
+          <div id="profileStats"></div>
+          <div id="profileEvents"></div>
+        </div>
       </div>
     </div>
   </div>

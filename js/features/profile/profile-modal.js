@@ -65,6 +65,9 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   const usernameEl = $('#profileUsername');
   const npubEl = $('#profileNpub');
   const aboutEl = $('#profileAbout');
+  const aboutDetailsEl = $('#profileAboutDetails');
+  const metadataDetailsEl = $('#profileMetadataDetails');
+  const metadataEl = $('#profileMetadata');
   const pictureEl = $('#profilePicture');
   const bannerEl = $('#profileBanner');
   const bannerContainerEl = $('#profileBannerContainer');
@@ -73,6 +76,10 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
 
   currentModalPubkey = pubkey;
   if (followStatusEl) followStatusEl.classList.add('d-none');
+
+  // アコーディオンの初期状態（常に閉じた状態にする）
+  if (aboutDetailsEl) aboutDetailsEl.open = false;
+  if (metadataDetailsEl) metadataDetailsEl.open = false;
 
   // フォロー状態確認（非同期）
   if (state && state.pubkey && state.pubkey !== pubkey && followStatusEl) {
@@ -204,66 +211,180 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     }
   }
 
-  // プロフィールモーダルに「フォローする / フォロー中」ボタンを配置
+  // プロフィールモーダルに「フォローする / フォロー中」および「ミュート」ボタンを配置
   const myPubkey = (state && state.pubkey) || localStorage.getItem('pubkey');
-  let existingFollowBtn = document.getElementById('profileFollowToggleBtn');
-  if (existingFollowBtn) {
-    existingFollowBtn.remove();
-  }
-  const existingMuteBtn = document.getElementById('profileMuteToggleBtn');
-  if (existingMuteBtn) {
-    existingMuteBtn.remove();
-  }
+  const targetPubkey = pubkey;
+
+  // 既存のボタンを即座に消去
+  const oldFollowBtn = document.getElementById('profileFollowToggleBtn');
+  if (oldFollowBtn) oldFollowBtn.remove();
+  const oldMuteBtn = document.getElementById('profileMuteToggleBtn');
+  if (oldMuteBtn) oldMuteBtn.remove();
 
   if (myPubkey) {
-    import('./follow-editor.js').then(mod => {
-      if (mod && typeof mod.updateFollowButtonState === 'function') {
+    Promise.all([
+      import('./follow-editor.js').catch(() => null),
+      import('../mute/mute-editor.js').catch(() => null)
+    ]).then(([followMod, muteMod]) => {
+      // 非同期中に別のプロフィールモーダルに切り替わっていたら処理中断
+      if (currentModalPubkey !== targetPubkey) return;
+
+      const infoTextEl = document.querySelector('#profileModal .profile-info-text');
+      if (!infoTextEl) return;
+
+      // 重複防止のため再度クリア
+      const dupFollow = document.getElementById('profileFollowToggleBtn');
+      if (dupFollow) dupFollow.remove();
+      const dupMute = document.getElementById('profileMuteToggleBtn');
+      if (dupMute) dupMute.remove();
+
+      // 1. フォローボタンの配置
+      if (followMod && typeof followMod.updateFollowButtonState === 'function') {
         const followBtn = document.createElement('button');
         followBtn.id = 'profileFollowToggleBtn';
         followBtn.type = 'button';
         followBtn.className = 'ml-8 text-sm';
-        const infoTextEl = document.querySelector('#profileModal .profile-info-text');
-        if (infoTextEl) {
-          infoTextEl.appendChild(followBtn);
-          mod.updateFollowButtonState(state, followBtn, pubkey);
-          followBtn.onclick = async () => {
-            await mod.toggleFollowUser(state, pubkey, followBtn);
-          };
-        }
+        infoTextEl.appendChild(followBtn);
+        followMod.updateFollowButtonState(state, followBtn, targetPubkey);
+        followBtn.onclick = async () => {
+          await followMod.toggleFollowUser(state, targetPubkey, followBtn);
+        };
+      }
+
+      // 2. ミュートボタンの配置（自分自身も含めて表示）
+      if (muteMod && typeof muteMod.updateMuteButtonState === 'function') {
+        const muteBtn = document.createElement('button');
+        muteBtn.id = 'profileMuteToggleBtn';
+        muteBtn.type = 'button';
+        muteBtn.className = 'ml-8 text-sm';
+        infoTextEl.appendChild(muteBtn);
+        muteMod.updateMuteButtonState(state, muteBtn, targetPubkey);
+        muteBtn.onclick = async () => {
+          await muteMod.toggleMuteUser(state, targetPubkey, muteBtn);
+        };
       }
     }).catch(e => {
-      console.warn('[ProfileModal] フォローボタン初期化失敗:', e);
+      console.warn('[ProfileModal] ボタン初期化エラー:', e);
     });
-
-    if (myPubkey !== pubkey) {
-      import('../mute/mute-editor.js').then(mod => {
-        if (mod && typeof mod.updateMuteButtonState === 'function') {
-          const muteBtn = document.createElement('button');
-          muteBtn.id = 'profileMuteToggleBtn';
-          muteBtn.type = 'button';
-          muteBtn.className = 'ml-8 text-sm';
-          const infoTextEl = document.querySelector('#profileModal .profile-info-text');
-          if (infoTextEl) {
-            infoTextEl.appendChild(muteBtn);
-            mod.updateMuteButtonState(state, muteBtn, pubkey);
-            muteBtn.onclick = async () => {
-              await mod.toggleMuteUser(state, pubkey, muteBtn);
-            };
-          }
-        }
-      }).catch(e => {
-        console.warn('[ProfileModal] ミュートボタン初期化失敗:', e);
-      });
-    }
   }
 
   if (aboutEl) {
     const about = (profile && profile.about) || '';
-    if (about) {
+    if (about && about.trim()) {
       aboutEl.textContent = about;
-      aboutEl.classList.remove('d-none');
+      if (aboutDetailsEl) aboutDetailsEl.classList.remove('d-none');
     } else {
-      aboutEl.classList.add('d-none');
+      aboutEl.textContent = '';
+      if (aboutDetailsEl) aboutDetailsEl.classList.add('d-none');
+    }
+  }
+
+  // kind:0 メタデータ項目の描画（NIP-05, Lightning Address, Website 等）
+  if (metadataEl && metadataDetailsEl) {
+    metadataEl.innerHTML = '';
+    const metadataItems = [];
+
+    if (profile) {
+      if (profile.nip05 && String(profile.nip05).trim()) {
+        const strVal = String(profile.nip05).trim();
+        metadataItems.push({
+          label: t('profile.nip05') || 'NIP-05',
+          html: escapeHtml(strVal),
+          rawVal: strVal
+        });
+      }
+      const lud = profile.lud16 || profile.lud06;
+      if (lud && String(lud).trim()) {
+        const strVal = String(lud).trim();
+        metadataItems.push({
+          label: t('profile.lightning') || 'Lightning',
+          html: escapeHtml(strVal),
+          rawVal: strVal,
+          hasCopyBtn: true
+        });
+      }
+      if (profile.website && String(profile.website).trim()) {
+        const urlStr = String(profile.website).trim();
+        const safeUrl = sanitizeUrlCandidate(urlStr);
+        if (safeUrl) {
+          metadataItems.push({
+            label: t('profile.website') || 'Website',
+            html: `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(urlStr)}</a>`,
+            rawVal: urlStr
+          });
+        } else {
+          metadataItems.push({
+            label: t('profile.website') || 'Website',
+            html: escapeHtml(urlStr),
+            rawVal: urlStr
+          });
+        }
+      }
+
+      // その他のカスタムフィールド（内部管理用キーおよび既出キーを除外）
+      const knownKeys = new Set(['name', 'display_name', 'displayName', 'picture', 'banner', 'about', 'nip05', 'lud16', 'lud06', 'website', 'loaded', 'loading', 'fromCache', 'lastAttempt', 'cachedAt', 'created_at', 'pubkey']);
+      for (const [key, val] of Object.entries(profile)) {
+        if (knownKeys.has(key)) continue;
+        if (val === null || val === undefined || val === '') continue;
+        if (typeof val === 'object') continue;
+
+        const valStr = String(val).trim();
+        if (!valStr) continue;
+
+        const safeUrl = (valStr.startsWith('http://') || valStr.startsWith('https://')) ? sanitizeUrlCandidate(valStr) : null;
+        const valHtml = safeUrl
+          ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(valStr)}</a>`
+          : escapeHtml(valStr);
+
+        metadataItems.push({
+          label: escapeHtml(key),
+          html: valHtml,
+          rawVal: valStr
+        });
+      }
+    }
+
+    if (metadataItems.length > 0) {
+      metadataItems.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'profile-metadata-item';
+
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'profile-metadata-label';
+        labelSpan.textContent = item.label + ':';
+
+        const valSpan = document.createElement('span');
+        valSpan.className = 'profile-metadata-value';
+        valSpan.innerHTML = item.html;
+
+        itemDiv.appendChild(labelSpan);
+        itemDiv.appendChild(valSpan);
+
+        if (item.hasCopyBtn && item.rawVal) {
+          const copyBtn = document.createElement('button');
+          copyBtn.type = 'button';
+          copyBtn.className = 'btn-kind btn-copy-metadata ml-4';
+          copyBtn.textContent = '📋';
+          copyBtn.title = t('json.copy') || 'コピー';
+          copyBtn.onclick = async (e) => {
+            e.stopPropagation();
+            try {
+              await navigator.clipboard.writeText(item.rawVal);
+              const orig = copyBtn.textContent;
+              copyBtn.textContent = '✓';
+              setTimeout(() => { copyBtn.textContent = orig; }, 1200);
+            } catch (err) {
+              console.error('Failed to copy metadata:', err);
+            }
+          };
+          itemDiv.appendChild(copyBtn);
+        }
+
+        metadataEl.appendChild(itemDiv);
+      });
+      metadataDetailsEl.classList.remove('d-none');
+    } else {
+      metadataDetailsEl.classList.add('d-none');
     }
   }
 

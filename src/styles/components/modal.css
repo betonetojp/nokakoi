@@ -273,6 +273,7 @@ body.theme-light #eventModalContent::-webkit-scrollbar-thumb {
 .modal #profileDisplayName,
 .modal #profileUsername,
 .modal #profileAbout,
+.modal #profileMetadata,
 .modal #eventModalContent {
   -webkit-user-select: text;
   user-select: text;
