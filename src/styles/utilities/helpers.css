@@ -226,10 +226,33 @@ body.theme-light .json-pre {
 }
 
 .read-more-btn {
-  margin-top: 6px;
-  font-size: 0.92em;
-  font-weight: 500;
-  display: block;
+  background: transparent !important;
+  color: var(--muted) !important;
+  font-size: 0.8em !important;
+  font-weight: 500 !important;
+  border: 1px solid rgba(128, 128, 128, 0.22) !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  cursor: pointer;
+  margin-top: 4px !important;
+  margin-bottom: 2px !important;
+  display: block !important;
+  width: fit-content !important;
+  width: -moz-fit-content !important;
+  box-shadow: none !important;
+  transition: background 0.12s, color 0.12s, border-color 0.12s !important;
+}
+body.theme-light .read-more-btn {
+  background: transparent !important;
+  color: var(--muted) !important;
+  border: 1px solid rgba(128, 128, 128, 0.22) !important;
+}
+.read-more-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.02) !important;
+  color: var(--text) !important;
+  border-color: rgba(128, 128, 128, 0.4) !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 /* ===== ステガノグラフィ (Amethyst 隠し文字) 表示 ===== */

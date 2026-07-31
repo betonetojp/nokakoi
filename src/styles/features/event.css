@@ -518,28 +518,7 @@ body.theme-light img.icon-btn {
   font-weight: 500;
 }
 
-.open-media {
-  background: transparent;
-  color: var(--muted);
-  font-size: 0.85em;
-  font-weight: 500;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 4px 8px;
-  cursor: pointer;
-  margin: 2px 0;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
-}
-body.theme-light .open-media {
-  background: transparent;
-  color: var(--muted);
-  border: 1px solid var(--border);
-}
-.open-media:hover {
-  background: rgba(255,255,255,0.02);
-  color: var(--text);
-  border-color: var(--border);
-}
+/* .open-media などのインライン・補助ボタン共通スタイルは後述のグループルールで定義 */
 
 button.btn-kind {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -694,8 +673,7 @@ body.theme-light .event.muted-event-dim .event-quote {
 .event.muted-event-dim .actions button,
 .event.muted-event-dim .btn-kind,
 .event.muted-event-dim .btn-json,
-.event.muted-event-dim .client-badge,
-.event.muted-event-dim .muted-fold-bar button {
+.event.muted-event-dim .client-badge {
   background: transparent !important;
   color: inherit !important;
   border-color: var(--muted) !important;
@@ -740,11 +718,62 @@ body.theme-light .event.muted-event-dim .event-quote {
   margin-left: 8px;
   height: 100%;
 }
+button.open-media,
+button.cw-fold-bar-btn,
+button.muted-fold-expand-btn,
+.open-media,
+.cw-fold-bar-btn,
 .muted-fold-expand-btn {
-  font-size: 10px;
-  padding: 1px 4px;
-  margin-left: 0;
-  background: transparent;
+  background: transparent !important;
+  color: var(--muted) !important;
+  font-size: 0.8em !important;
+  font-weight: 500 !important;
+  border: 1px solid rgba(128, 128, 128, 0.22) !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  cursor: pointer;
+  box-shadow: none !important;
+  transform: none !important;
+  transition: background 0.12s, color 0.12s, border-color 0.12s !important;
+}
+
+.open-media {
+  display: inline-block;
+  margin: 2px 0;
+}
+
+button.cw-fold-bar-btn,
+.cw-fold-bar-btn {
+  margin-left: 12px;
+}
+
+button.muted-fold-expand-btn,
+.muted-fold-expand-btn {
+  margin-left: 6px;
+}
+
+body.theme-light button.open-media,
+body.theme-light button.cw-fold-bar-btn,
+body.theme-light button.muted-fold-expand-btn,
+body.theme-light .open-media,
+body.theme-light .cw-fold-bar-btn,
+body.theme-light .muted-fold-expand-btn {
+  background: transparent !important;
+  color: var(--muted) !important;
+  border: 1px solid rgba(128, 128, 128, 0.22) !important;
+}
+
+button.open-media:hover:not(:disabled),
+button.cw-fold-bar-btn:hover:not(:disabled),
+button.muted-fold-expand-btn:hover:not(:disabled),
+.open-media:hover:not(:disabled),
+.cw-fold-bar-btn:hover:not(:disabled),
+.muted-fold-expand-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.02) !important;
+  color: var(--text) !important;
+  border-color: rgba(128, 128, 128, 0.4) !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 .mute-event-label {
   opacity: 0.75;
@@ -776,12 +805,4 @@ body.theme-light .event.muted-event-dim .event-quote {
   font-size: 12px;
   display: inline-flex;
   align-items: center;
-}
-.cw-fold-bar-btn {
-  font-size: 11px;
-  padding: 2px 8px;
-  margin-left: 12px;
-  color: var(--muted);
-  border-color: var(--border);
-  background: transparent;
 }

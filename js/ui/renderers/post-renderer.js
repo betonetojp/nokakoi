@@ -387,7 +387,7 @@ function setupContentWarning(div, ev, contentEl, isCwExpanded, markCwExpanded) {
 
         const expandBtn = document.createElement('button');
         expandBtn.type = 'button';
-        expandBtn.className = 'secondary small cw-fold-bar-btn';
+        expandBtn.className = 'cw-fold-bar-btn';
         expandBtn.setAttribute('data-i18n', 'fold.show');
         expandBtn.textContent = t('fold.show');
 
@@ -502,27 +502,15 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
 
         const expandBtn = document.createElement('button');
         expandBtn.type = 'button';
-        expandBtn.className = 'secondary small muted-fold-expand-btn';
+        expandBtn.className = 'muted-fold-expand-btn';
         expandBtn.textContent = t('fold.show');
 
         try {
           const wrapper = left.querySelector('.mute-label-wrap');
-          const muteSpan = wrapper && wrapper.querySelector('span');
-          const muteColor = muteSpan ? (muteSpan.style.color || getComputedStyle(muteSpan).color) : null;
-          if (muteColor) {
-            expandBtn.style.color = muteColor;
-            expandBtn.style.borderColor = muteColor;
-          } else {
-            expandBtn.style.color = 'var(--muted)';
-            expandBtn.style.borderColor = 'var(--muted)';
-          }
           if (wrapper) {
-            expandBtn.style.marginLeft = '6px';
             wrapper.appendChild(expandBtn);
           }
         } catch (e) {
-          expandBtn.style.color = 'var(--muted)';
-          expandBtn.style.borderColor = 'var(--muted)';
         }
 
         foldBar.appendChild(left);
