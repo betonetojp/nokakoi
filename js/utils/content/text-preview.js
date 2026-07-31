@@ -6,7 +6,7 @@ export const URL_REGEX = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
 /**
  * Nostr URI用の正規表現
  */
-export const NOSTR_URI_REGEX = /(nostr:(npub|note|nprofile|nevent|naddr|nsec)[a-z0-9]+)/gi;
+export const NOSTR_URI_REGEX = /((?:nostr:)?(?:npub1|nprofile1|note1|nevent1|naddr1|nsec1)[a-z0-9]+)/gi;
 
 /**
  * :smile: のような絵文字ショートコード用正規表現

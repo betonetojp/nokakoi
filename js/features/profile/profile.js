@@ -356,25 +356,33 @@ export function updateNameDom(state, pubkey, nip19) {
       return;
     }
 
+    const isNpubLink = el.classList.contains('nostr-npub');
+
     // メイン名更新
     if (names.main && names.main.includes('\u200B📛')) {
       el.innerHTML = replaceBadgeEmoji(escapeHtml(names.main));
+    } else if (isNpubLink) {
+      const cleanName = names.main ? names.main.replace(/^@/, '') : '';
+      el.textContent = '@' + cleanName;
     } else {
       el.textContent = names.main;
     }
-    // ユーザー名更新または追加
-    let usernameSpan = el.nextElementSibling;
-    if (usernameSpan && usernameSpan.classList.contains('username')) {
-      if (names.sub) {
+
+    // ユーザー名更新または追加（インラインリンクの場合はサブユーザー名要素を別個追加しない）
+    if (!isNpubLink) {
+      let usernameSpan = el.nextElementSibling;
+      if (usernameSpan && usernameSpan.classList.contains('username')) {
+        if (names.sub) {
+          usernameSpan.textContent = '@' + names.sub;
+        } else {
+          usernameSpan.remove();
+        }
+      } else if (names.sub) {
+        usernameSpan = document.createElement('span');
+        usernameSpan.className = 'username';
         usernameSpan.textContent = '@' + names.sub;
-      } else {
-        usernameSpan.remove();
+        el.parentNode.insertBefore(usernameSpan, el.nextSibling);
       }
-    } else if (names.sub) {
-      usernameSpan = document.createElement('span');
-      usernameSpan.className = 'username';
-      usernameSpan.textContent = '@' + names.sub;
-      el.parentNode.insertBefore(usernameSpan, el.nextSibling);
     }
   });
 }

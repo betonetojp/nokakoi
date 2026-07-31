@@ -36,14 +36,14 @@ export function linkifyNostrUri(uri) {
       case 'npub':
         label = `@${bech32.substring(0, 12)}...`;
         link = `#npub:${bech32}`;
-        return '<a href="' + escapeHtml(link) + '" class="nostr-link nostr-npub" data-uri="' +
+        return '<a href="' + escapeHtml(link) + '" class="nostr-link nostr-npub name" data-uri="' +
           escapeHtml(uri) + '" data-pubkey="' + escapeHtml(decoded.data) +
           '" title="' + escapeHtml(bech32) + '">' +
           escapeHtml(label) + '</a>';
       case 'nprofile':
         label = `@${bech32.substring(0, 12)}...`;
         link = `#nprofile:${bech32}`;
-        return '<a href="' + escapeHtml(link) + '" class="nostr-link nostr-npub" data-uri="' +
+        return '<a href="' + escapeHtml(link) + '" class="nostr-link nostr-npub name" data-uri="' +
           escapeHtml(uri) + '" data-pubkey="' + escapeHtml(decoded.data.pubkey) +
           '" title="' + escapeHtml(bech32) + '">' +
           escapeHtml(label) + '</a>';

@@ -741,11 +741,11 @@ export function updateMuteButtonState(state, buttonEl, targetPubkey) {
   const muted = isUserMuted(state, targetPubkey);
 
   if (muted) {
-    buttonEl.textContent = t('editor.mute.muting') || 'Muted';
-    buttonEl.className = 'secondary';
+    buttonEl.textContent = t('editor.mute.muting') || 'ミュート中';
+    buttonEl.className = 'btn-mute-toggle muting';
   } else {
-    buttonEl.textContent = t('editor.mute.mute') || 'Mute';
-    buttonEl.className = 'secondary';
+    buttonEl.textContent = t('editor.mute.mute') || '🔇 ミュート';
+    buttonEl.className = 'btn-mute-toggle not-muted';
   }
 }
 

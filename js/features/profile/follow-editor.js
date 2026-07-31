@@ -226,11 +226,11 @@ export function updateFollowButtonState(state, buttonEl, targetPubkey) {
   const isFollowing = state.feeds['home'] && state.feeds['home'].followSet && state.feeds['home'].followSet.has(targetPubkey);
 
   if (isFollowing) {
-    buttonEl.textContent = t('editor.follow.following') || 'Following';
-    buttonEl.className = 'secondary';
+    buttonEl.textContent = t('editor.follow.following') || 'フォロー中';
+    buttonEl.className = 'btn-follow-toggle following';
   } else {
-    buttonEl.textContent = t('editor.follow.follow') || 'Follow';
-    buttonEl.className = 'secondary';
+    buttonEl.textContent = t('editor.follow.follow') || '+ フォロー';
+    buttonEl.className = 'btn-follow-toggle not-following';
   }
 }
 

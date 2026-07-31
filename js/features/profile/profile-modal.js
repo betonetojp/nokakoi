@@ -232,19 +232,22 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
       const infoTextEl = document.querySelector('#profileModal .profile-info-text');
       if (!infoTextEl) return;
 
-      // 重複防止のため再度クリア
-      const dupFollow = document.getElementById('profileFollowToggleBtn');
-      if (dupFollow) dupFollow.remove();
-      const dupMute = document.getElementById('profileMuteToggleBtn');
-      if (dupMute) dupMute.remove();
+      let actionGroupEl = infoTextEl.querySelector('.profile-action-group');
+      if (!actionGroupEl) {
+        actionGroupEl = document.createElement('div');
+        actionGroupEl.className = 'profile-action-group';
+        infoTextEl.appendChild(actionGroupEl);
+      } else {
+        actionGroupEl.innerHTML = '';
+      }
 
       // 1. フォローボタンの配置
       if (followMod && typeof followMod.updateFollowButtonState === 'function') {
         const followBtn = document.createElement('button');
         followBtn.id = 'profileFollowToggleBtn';
         followBtn.type = 'button';
-        followBtn.className = 'ml-8 text-sm';
-        infoTextEl.appendChild(followBtn);
+        followBtn.className = 'btn-follow-toggle';
+        actionGroupEl.appendChild(followBtn);
         followMod.updateFollowButtonState(state, followBtn, targetPubkey);
         followBtn.onclick = async () => {
           await followMod.toggleFollowUser(state, targetPubkey, followBtn);
@@ -256,8 +259,8 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
         const muteBtn = document.createElement('button');
         muteBtn.id = 'profileMuteToggleBtn';
         muteBtn.type = 'button';
-        muteBtn.className = 'ml-8 text-sm';
-        infoTextEl.appendChild(muteBtn);
+        muteBtn.className = 'btn-mute-toggle';
+        actionGroupEl.appendChild(muteBtn);
         muteMod.updateMuteButtonState(state, muteBtn, targetPubkey);
         muteBtn.onclick = async () => {
           await muteMod.toggleMuteUser(state, targetPubkey, muteBtn);
@@ -271,7 +274,24 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   if (aboutEl) {
     const about = (profile && profile.about) || '';
     if (about && about.trim()) {
-      aboutEl.textContent = about;
+      import('../../utils/url-parser.js').then(({ linkifyText, setupMediaLinkHandlers }) => {
+        const linkifiedHtml = linkifyText(about, [], { inlineMedia: false });
+        aboutEl.innerHTML = linkifiedHtml;
+        setupMediaLinkHandlers(aboutEl);
+
+        // nostr:npub, nostr:nprofile リンクの名前置換と自動ロードの適用
+        import('./profile.js').then(({ updateNameDom }) => {
+          const npubLinks = aboutEl.querySelectorAll('.nostr-npub[data-pubkey]');
+          npubLinks.forEach(link => {
+            const targetPk = link.getAttribute('data-pubkey');
+            if (targetPk) {
+              updateNameDom(state, targetPk, nip19);
+            }
+          });
+        });
+      }).catch(() => {
+        aboutEl.textContent = about;
+      });
       if (aboutDetailsEl) aboutDetailsEl.classList.remove('d-none');
     } else {
       aboutEl.textContent = '';
@@ -287,10 +307,13 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     if (profile) {
       if (profile.nip05 && String(profile.nip05).trim()) {
         const strVal = String(profile.nip05).trim();
+        const displayVal = strVal.startsWith('_@') ? strVal.slice(2) : strVal;
+        const checkingText = t('profile.nip05.checking') || '検証中...';
         metadataItems.push({
           label: t('profile.nip05') || 'NIP-05',
-          html: escapeHtml(strVal),
-          rawVal: strVal
+          html: `<span class="nip05-val" title="${escapeHtml(strVal)}">${escapeHtml(displayVal)}</span><span class="nip05-status checking" title="${escapeHtml(checkingText)}">⌛ ${escapeHtml(checkingText)}</span>`,
+          rawVal: strVal,
+          isNip05: true
         });
       }
       const lud = profile.lud16 || profile.lud06;
@@ -363,7 +386,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
         if (item.hasCopyBtn && item.rawVal) {
           const copyBtn = document.createElement('button');
           copyBtn.type = 'button';
-          copyBtn.className = 'btn-kind btn-copy-metadata ml-4';
+          copyBtn.className = 'btn-kind btn-copy-metadata';
           copyBtn.textContent = '📋';
           copyBtn.title = t('json.copy') || 'コピー';
           copyBtn.onclick = async (e) => {
@@ -383,6 +406,29 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
         metadataEl.appendChild(itemDiv);
       });
       metadataDetailsEl.classList.remove('d-none');
+
+      // NIP-05 の非同期検証処理を実行
+      if (profile && profile.nip05) {
+        const nip05StatusEl = metadataEl.querySelector('.nip05-status');
+        if (nip05StatusEl) {
+          import('../../core/nip05-verifier.js').then(({ verifyNip05 }) => {
+            verifyNip05(profile.nip05, pubkey).then(res => {
+              if (!nip05StatusEl.isConnected) return;
+              if (res.valid) {
+                nip05StatusEl.className = 'nip05-status valid';
+                nip05StatusEl.textContent = '✓ ' + (t('profile.nip05.valid') || '検証済み');
+                nip05StatusEl.title = t('profile.nip05.valid') || '検証済み';
+              } else {
+                nip05StatusEl.className = 'nip05-status invalid';
+                nip05StatusEl.textContent = '⚠️ ' + (t('profile.nip05.invalid') || '不明');
+                nip05StatusEl.title = t('profile.nip05.invalid') || '不明';
+              }
+            });
+          }).catch(e => {
+            console.warn('[ProfileModal] NIP-05 検証実行失敗:', e);
+          });
+        }
+      }
     } else {
       metadataDetailsEl.classList.add('d-none');
     }
