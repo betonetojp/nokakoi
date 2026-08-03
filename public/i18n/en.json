@@ -369,6 +369,8 @@
   "omochat.relays.geo_failed": "Failed to fetch geographic relays. Using fallback relays.",
   "omochat.relays.updating": "Updating geographic relays...",
   "omochat.relays.updated": "Geographic relays updated",
+  "omochat.relays.refresh_georelays": "Fetch Latest GeoRelays",
+  "omochat.relays.georelays_refreshed": "Fetched and updated latest GeoRelays",
   "omochat.auto_relay_algo.label": "Auto-select Mode",
   "omochat.auto_relay_algo.merged": "Merge both apps' selections (Default/Recommended)",
   "omochat.auto_relay_algo.ios": "iOS app compatible (Deterministic)",

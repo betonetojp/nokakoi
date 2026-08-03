@@ -367,6 +367,8 @@
   "omochat.relays.geo_failed": "位置情報リレーの取得に失敗しました。フォールバックリレーを使用します。",
   "omochat.relays.updating": "位置情報リレーを更新中...",
   "omochat.relays.updated": "位置情報リレーを更新しました",
+  "omochat.relays.refresh_georelays": "最新のGeoRelaysを取得",
+  "omochat.relays.georelays_refreshed": "最新のGeoRelaysを取得・更新しました",
   "omochat.auto_relay_algo.label": "自動選択モード",
   "omochat.auto_relay_algo.merged": "両アプリの選出を結合 (デフォルト・推奨)",
   "omochat.auto_relay_algo.ios": "iOSアプリ互換 (決定論的)",

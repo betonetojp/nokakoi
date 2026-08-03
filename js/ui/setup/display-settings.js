@@ -7,6 +7,7 @@ import { applyTheme, applyColorTheme, applyBgBrightness, getBrightnessForCurrent
 import { setMentionBlink } from './mention-blink.js';
 import { renderTabSettingsUI, setupTabs } from './tab-manager.js';
 import { bringModalToFront } from './modal-helper.js';
+import { clearGeoRelayCache } from '../../features/relay/geo-relay-directory.js';
 
 export let _settingsManagerRef = null;
 export let _restartFeedsRef = null;
@@ -478,6 +479,7 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
           const bgInput = $('bgBrightnessInput');
           if (bgInput) bgInput.value = 100;
         } catch (e) { }
+        try { clearGeoRelayCache(); } catch (e) { }
         if (typeof updatePostLinkButtonAndModal === 'function') updatePostLinkButtonAndModal(POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL);
         if (typeof resetScrollToTopButtonPosition === 'function') resetScrollToTopButtonPosition();
         const registrations = await navigator.serviceWorker.getRegistrations();

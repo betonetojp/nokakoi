@@ -725,12 +725,14 @@ export function setupBitchatFeed() {
   const includeHomeOmochat = settingsManager.get('showHomeOmochat') === true;
 
   try {
-    const histFilters = [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT }];
+    const fiveMinAgo = Math.floor(Date.now() / 1000) - (5 * 60);
+    const histFilters = [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT, since: fiveMinAgo }];
     const since = Math.floor(Date.now() / 1000);
     const liveFilters = [{ kinds: [20000], since }];
 
     const matchesGeohash = (ev) => {
       if (!ev || ev.kind !== 20000) return false;
+      if (ev.created_at && ev.created_at < fiveMinAgo) return false;
       const gTag = ev.tags && ev.tags.find(t => t[0] === 'g');
       const gVal = gTag ? gTag[1] : '';
       if (!gVal) return false;

@@ -624,6 +624,7 @@ function syncMuteStateToApp(state, publicUsers, publicWords, privateUsers, priva
   try {
     localStorage.setItem('muteList_expanded', JSON.stringify(expanded));
     window.__nokakoiMuteList = expanded;
+    try { window.dispatchEvent(new CustomEvent('muteListUpdated')); } catch (e) { }
   } catch (e) { }
 }
 
@@ -1233,9 +1234,14 @@ export async function openMuteEditor(state) {
           attachDragAndTouchHandlers(row, dragHandle, 'word', index, wordItems, container, '#muteWordsList');
         }
 
+        const info = document.createElement('div');
+        info.className = 'editor-list-info';
+
         const textEl = document.createElement('span');
         textEl.className = 'editor-list-name';
         textEl.textContent = item.word;
+
+        info.appendChild(textEl);
 
         const actions = document.createElement('div');
         actions.className = 'editor-list-actions';
@@ -1290,7 +1296,7 @@ export async function openMuteEditor(state) {
           actions.appendChild(toggleBtn);
         }
 
-        row.appendChild(textEl);
+        row.appendChild(info);
         row.appendChild(actions);
         wordsListEl.appendChild(row);
       });

@@ -137,14 +137,26 @@ function isCacheStale() {
 }
 
 /**
- * ジオハッシュの中心に最も近い最大 `count` 個のリレーURL（wss://）を返します。
- * キャッシュが古いか存在しない場合は、まずリモートから取得します。
+ * GeoRelayのキャッシュをクリアします。
  */
-export async function getClosestRelays(geohash, count = 5, algo = 'merged', mergeParent = false) {
-  let entries = loadCachedRelays();
+export function clearGeoRelayCache() {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+    localStorage.removeItem(CACHE_TS_KEY);
+  } catch (e) {
+    console.error('[GeoRelayDirectory] キャッシュクリア失敗:', e);
+  }
+}
+
+/**
+ * ジオハッシュの中心に最も近い最大 `count` 個のリレーURL（wss://）を返します。
+ * キャッシュが古いか存在しない、または forceRefresh が true の場合は、まずリモートから取得します。
+ */
+export async function getClosestRelays(geohash, count = 5, algo = 'merged', mergeParent = false, forceRefresh = false) {
+  let entries = forceRefresh ? null : loadCachedRelays();
   const stale = isCacheStale();
   
-  if (!entries || stale) {
+  if (!entries || stale || forceRefresh) {
     const fetched = await fetchAndCache();
     if (fetched) {
       entries = fetched;

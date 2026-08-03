@@ -2,7 +2,7 @@
 // モーダルダイアログ
 // ============================================================================
 
-import { $, buildReactionEmojiTags, buildStoredReactionValue, getReactionContent, getReactionEmojiTags, isReactionShortcodeOnly, resolveReactionCustomEmoji } from '../../utils/utils.js';
+import { $, showToast, buildReactionEmojiTags, buildStoredReactionValue, getReactionContent, getReactionEmojiTags, isReactionShortcodeOnly, resolveReactionCustomEmoji } from '../../utils/utils.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { DEFAULT_OMOCHAT_RELAYS } from '../../config/constants.js';
 import { attachEmojiShortcodeSuggest } from '../../features/emoji/emoji-shortcode-suggest.js';
@@ -755,7 +755,7 @@ export function showOmochatSettingsModal(settingsManager) {
   }
 
   let activeUpdateId = 0;
-  async function updateRelayListUI() {
+  async function updateRelayListUI(forceRefresh = false) {
     if (!relayListEl) return;
     const isAuto = autoRelayCheck ? autoRelayCheck.checked : false;
     const algoContainer = $('#omochatAutoRelayAlgoContainer');
@@ -765,6 +765,10 @@ export function showOmochatSettingsModal(settingsManager) {
     const mergeParentContainer = $('#omochatMergeParentContainer');
     if (mergeParentContainer) {
       mergeParentContainer.classList.toggle('d-none', !isAuto);
+    }
+    const refreshContainer = $('#omochatRefreshGeoRelaysContainer');
+    if (refreshContainer) {
+      refreshContainer.classList.toggle('d-none', !isAuto);
     }
 
     if (isAuto) {
@@ -777,7 +781,7 @@ export function showOmochatSettingsModal(settingsManager) {
       const myUpdateId = ++activeUpdateId;
       relayListEl.innerHTML = '<div class="muted text-sm" style="padding:4px;">' + t('omochat.relays.computing') + '</div>';
 
-      const autoRelays = await getClosestRelays(currentGeohash, 5, algo, mergeParent);
+      const autoRelays = await getClosestRelays(currentGeohash, 5, algo, mergeParent, forceRefresh);
       if (myUpdateId !== activeUpdateId) return;
 
       relayListEl.innerHTML = '';
@@ -806,19 +810,34 @@ export function showOmochatSettingsModal(settingsManager) {
   updateRelayListUI();
 
   if (autoRelayCheck) {
-    autoRelayCheck.onchange = updateRelayListUI;
+    autoRelayCheck.onchange = () => updateRelayListUI();
   }
   if (autoRelayAlgoSelect) {
-    autoRelayAlgoSelect.onchange = updateRelayListUI;
+    autoRelayAlgoSelect.onchange = () => updateRelayListUI();
   }
   if (mergeParentCheck) {
-    mergeParentCheck.onchange = updateRelayListUI;
+    mergeParentCheck.onchange = () => updateRelayListUI();
   }
   input.oninput = () => {
     if (autoRelayCheck && autoRelayCheck.checked) {
       updateRelayListUI();
     }
   };
+
+  const refreshGeoRelaysBtn = $('#omochatRefreshGeoRelaysBtn');
+  if (refreshGeoRelaysBtn) {
+    refreshGeoRelaysBtn.onclick = async () => {
+      refreshGeoRelaysBtn.disabled = true;
+      try {
+        await updateRelayListUI(true);
+        showToast(t('omochat.relays.georelays_refreshed'), { type: 'success' });
+      } catch (e) {
+        console.error('[omochat] GeoRelays更新失敗:', e);
+      } finally {
+        refreshGeoRelaysBtn.disabled = false;
+      }
+    };
+  }
 
   if (addRelayBtn) {
     addRelayBtn.onclick = () => {

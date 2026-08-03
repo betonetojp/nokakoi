@@ -4,7 +4,7 @@ import { t, applyTranslations } from '../../utils/i18n.js';
 import { addAutoCloseCheckbox, waitForEhagakiPublish } from '../../ui/ehagaki-autoclose.js';
 import { signer } from '../../core/signer.js';
 
-function restoreMuteListFromStorage(ui = {}) {
+export function restoreMuteListFromStorage(ui = {}) {
   const status = ui.status || null;
   const countsWrap = ui.countsWrap || null;
   const pubPubEl = ui.pubPubEl || null;
@@ -32,6 +32,16 @@ function restoreMuteListFromStorage(ui = {}) {
     console.warn('[mute] 保存済み muteList_expanded の解析に失敗', e);
     return null;
   }
+}
+
+export function updateMuteListCountsUI() {
+  const status = document.getElementById('fetchMuteListStatus');
+  const countsWrap = document.getElementById('muteCounts');
+  const pubPubEl = document.getElementById('mutePubPublicCount');
+  const pubPrivEl = document.getElementById('mutePubPrivateCount');
+  const wordPubEl = document.getElementById('muteWordPublicCount');
+  const wordPrivEl = document.getElementById('muteWordPrivateCount');
+  return restoreMuteListFromStorage({ status, countsWrap, pubPubEl, pubPrivEl, wordPubEl, wordPrivEl });
 }
 
 export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = {}) {
@@ -492,7 +502,15 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
     if (!btn) return;
 
     // 初期表示時に localStorage のミュートリストを反映し、件数表示を復元
-    try { restoreMuteListFromStorage({ status, countsWrap, pubPubEl, pubPrivEl, wordPubEl, wordPrivEl }); } catch (e) { }
+    try { updateMuteListCountsUI(); } catch (e) { }
+
+    // ミュート状態変更イベント時に件数表示を自動更新
+    try {
+      window.removeEventListener('muteListUpdated', updateMuteListCountsUI);
+      window.addEventListener('muteListUpdated', updateMuteListCountsUI);
+      window.removeEventListener('muteListFetched', updateMuteListCountsUI);
+      window.addEventListener('muteListFetched', updateMuteListCountsUI);
+    } catch (e) { }
 
     // ミュート設定UIを追加（適用ON/OFF + 表示モード）
     try {
