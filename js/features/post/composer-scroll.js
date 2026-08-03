@@ -131,6 +131,26 @@ function createScrollController(composer) {
   // 投稿窓を隠した時点のスクロール位置（累積上方向スクロールの基準点）
   let directionScrollY = window.scrollY;
   let ticking = false;
+  let resumeGracePeriod = false;
+  let graceTimer = null;
+
+  // バックグラウンド復帰やソフトリロード時にフィード再構築によるスクロール変動で
+  // 投稿窓が隠れるのを防ぐためのリセット処理
+  function resetForFeedRestart() {
+    resumeGracePeriod = true;
+    if (graceTimer) clearTimeout(graceTimer);
+    lastScrollY = window.scrollY;
+    directionScrollY = window.scrollY;
+    if (!(composer.dataset && composer.dataset._settingsHidden)) {
+      setComposerScrollHidden(false);
+    }
+    graceTimer = setTimeout(() => {
+      graceTimer = null;
+      resumeGracePeriod = false;
+      lastScrollY = window.scrollY;
+      directionScrollY = window.scrollY;
+    }, 2000);
+  }
 
   function composerHasTextInputFocus() {
     try {
@@ -262,6 +282,13 @@ function createScrollController(composer) {
           return;
         }
 
+        // フィード再起動の猶予期間中はスクロール判定をスキップ
+        if (resumeGracePeriod) {
+          lastScrollY = currentScrollY;
+          ticking = false;
+          return;
+        }
+
         if (composer.dataset && composer.dataset._settingsHidden) {
           lastScrollY = currentScrollY;
           ticking = false;
@@ -337,6 +364,16 @@ function createScrollController(composer) {
     el.addEventListener('blur', onComposerBlur, { passive: true });
   });
 
+  const handleVisibilityChange = () => {
+    if (document.hidden) return;
+    resetForFeedRestart();
+  };
+  const handleSoftReloadRequest = () => {
+    resetForFeedRestart();
+  };
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('softReloadRequest', handleSoftReloadRequest);
+
   const controller = {
     reveal,
     hideForOverlay,
@@ -355,6 +392,10 @@ function createScrollController(composer) {
         el.removeEventListener('focus', onComposerFocus);
         el.removeEventListener('blur', onComposerBlur);
       });
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('softReloadRequest', handleSoftReloadRequest);
+      if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
+      resumeGracePeriod = false;
       if (scrollTimeout) clearTimeout(scrollTimeout);
       if (scrollController === controller) scrollController = null;
     },
