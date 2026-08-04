@@ -11,14 +11,20 @@ export function relaySetKey(relays) {
 
 export function resolveQuoteRelays(quoteEl, state) {
   const defaultRelays = sanitizeRelays(getReadRelays(state.relays));
-  if (quoteEl && quoteEl.dataset && quoteEl.dataset.relays) {
-    try {
-      const relayHints = JSON.parse(quoteEl.dataset.relays);
-      if (Array.isArray(relayHints) && relayHints.length > 0) {
-        const sanitizedHints = sanitizeRelays(relayHints);
-        if (sanitizedHints.length > 0) return sanitizedHints;
-      }
-    } catch (e) { }
+  if (quoteEl && quoteEl.dataset) {
+    if (quoteEl.dataset.relays) {
+      try {
+        const relayHints = JSON.parse(quoteEl.dataset.relays);
+        if (Array.isArray(relayHints) && relayHints.length > 0) {
+          const sanitizedHints = sanitizeRelays(relayHints);
+          if (sanitizedHints.length > 0) return sanitizedHints;
+        }
+      } catch (e) { }
+    }
+    if (quoteEl.dataset.relayHint) {
+      const sanitized = sanitizeRelays([quoteEl.dataset.relayHint]);
+      if (sanitized.length > 0) return sanitized;
+    }
   }
   return defaultRelays;
 }
@@ -73,7 +79,7 @@ export async function fetchQuoteEventByNaddr(state, relays, kind, pubkey, identi
   return promise;
 }
 
-export async function prefetchQuoteEventIds(state, relays, eventIds) {
+export async function prefetchQuoteEventIds(state, relays, eventIds, options = {}) {
   const uniqueIds = [...new Set(eventIds)].filter(Boolean);
   const missing = uniqueIds.filter((id) => {
     if (findEventById(state, id)) return false;
@@ -90,7 +96,10 @@ export async function prefetchQuoteEventIds(state, relays, eventIds) {
   }
 
   if (missing.length === 1) {
-    await fetchQuoteEventById(state, relays, missing[0]);
+    const fetched = await fetchQuoteEventById(state, relays, missing[0]);
+    if (fetched && options && typeof options.onEvent === 'function') {
+      try { options.onEvent(fetched); } catch (e) { }
+    }
     return;
   }
 
@@ -129,6 +138,9 @@ export async function prefetchQuoteEventIds(state, relays, eventIds) {
         if (!ev?.id || !pending.has(ev.id)) return;
         pending.delete(ev.id);
         cacheEvent(state, ev);
+        if (options && typeof options.onEvent === 'function') {
+          try { options.onEvent(ev); } catch (e) { }
+        }
         if (pending.size === 0) done();
       },
       oneose: done
@@ -140,7 +152,7 @@ export async function prefetchQuoteEventIds(state, relays, eventIds) {
   await batchPromise;
 }
 
-export async function prefetchQuotesForElements(state, quoteElements) {
+export async function prefetchQuotesForElements(state, quoteElements, options = {}) {
   const prefetchByRelay = new Map();
 
   for (const quoteEl of quoteElements) {
@@ -173,7 +185,7 @@ export async function prefetchQuotesForElements(state, quoteElements) {
 
   const tasks = [];
   for (const { relays, ids, naddrs } of prefetchByRelay.values()) {
-    if (ids.length) tasks.push(prefetchQuoteEventIds(state, relays, ids));
+    if (ids.length) tasks.push(prefetchQuoteEventIds(state, relays, ids, options));
     for (const na of naddrs) {
       tasks.push(fetchQuoteEventByNaddr(state, relays, na.kind, na.pubkey, na.identifier));
     }

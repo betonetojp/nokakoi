@@ -1,4 +1,4 @@
-import { escapeHtml, truncateName, replaceBadgeEmoji } from '../utils.js';
+import { escapeHtml, truncateName, replaceBadgeEmoji, processHiddenTagChars } from '../utils.js';
 import { showMediaViewer } from '../../ui/media-viewer.js';
 import { t } from '../i18n.js';
 import { MAX_PREVIEW_LENGTH, MAX_PREVIEW_LINES } from '../../config/constants.js';
@@ -195,8 +195,28 @@ export async function updateNostrNoteLinks(container, showEventModal, state, nip
     : NOSTR_QUOTE_RECURSION_MAX_DEPTH;
   if (depth > maxDepth) return;
 
+  let liveUpdateTimer = null;
+  const scheduleLiveUpdate = () => {
+    if (liveUpdateTimer) return;
+    liveUpdateTimer = setTimeout(async () => {
+      liveUpdateTimer = null;
+      try {
+        await updateReplyContexts(container, state, nip19, settings, settingsManager);
+      } catch (e) { }
+    }, 100);
+  };
+
   const quoteElements = Array.from(container.querySelectorAll('.nostr-quote'));
-  await prefetchQuotesForElements(state, quoteElements);
+  if (container.matches && container.matches('.nostr-quote')) {
+    quoteElements.push(container);
+  }
+  const replyElements = Array.from(container.querySelectorAll('.reply-to-author[data-event-id]'));
+  if (container.matches && container.matches('.reply-to-author[data-event-id]')) {
+    replyElements.push(container);
+  }
+  await prefetchQuotesForElements(state, [...quoteElements, ...replyElements], {
+    onEvent: () => scheduleLiveUpdate()
+  });
 
   for (const quoteEl of quoteElements) {
     const eventId = quoteEl.dataset.eventId;
@@ -221,6 +241,76 @@ export async function updateNostrNoteLinks(container, showEventModal, state, nip
       );
     }
   }
+
+  await updateReplyContexts(container, state, nip19, settings, settingsManager);
+
+  // 初回呼び出し時かつ未解決要素が残っている場合の接続遅延リカバリー（1.5秒後 & 3.5秒後に自動リトライ）
+  if (depth === 0 && !container.dataset.autoRetryInstalled) {
+    container.dataset.autoRetryInstalled = '1';
+    [1500, 3500].forEach(delay => {
+      setTimeout(async () => {
+        try {
+          const hasUnresolved = (container.matches && container.matches('.reply-to[data-owner-event-id]')) ||
+            container.querySelector('.reply-to[data-owner-event-id]');
+          if (hasUnresolved) {
+            delete container.dataset.autoRetryInstalled;
+            await updateNostrNoteLinks(container, showEventModal, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager, { depth: 0, maxDepth });
+          }
+        } catch (e) { }
+      }, delay);
+    });
+  }
+}
+
+export async function updateReplyContexts(container, state, nip19, settings, settingsManager) {
+  if (!container || !state) return;
+  let replyContainers = Array.from(container.querySelectorAll('.reply-to[data-owner-event-id]'));
+  if (container.matches && container.matches('.reply-to[data-owner-event-id]')) {
+    replyContainers.push(container);
+  }
+  if (replyContainers.length === 0) return;
+
+  try {
+    const { renderReplyContext } = await import('../../ui/renderer.js');
+    if (typeof renderReplyContext !== 'function') return;
+
+    for (const replyEl of replyContainers) {
+      try {
+        const ownerEventId = replyEl.getAttribute('data-owner-event-id');
+        const authorEl = replyEl.querySelector('.reply-to-author[data-event-id]');
+        const refEventId = authorEl ? authorEl.getAttribute('data-event-id') : null;
+
+        if (!ownerEventId || !refEventId) continue;
+
+        const refEv = findEventById(state, refEventId);
+        if (!refEv) continue;
+
+        const ownerEv = findEventById(state, ownerEventId);
+        if (!ownerEv) continue;
+
+        const newHtml = renderReplyContext(state, ownerEv, nip19, {
+          ...(settings || {}),
+          settingsManager,
+          isModal: false,
+          showTimelineMedia: true
+        });
+
+        if (!newHtml) continue;
+
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = newHtml;
+        const newReplyEl = tempDiv.firstElementChild;
+        if (newReplyEl && replyEl.parentNode) {
+          const anchor = captureTimelineAnchor(container);
+          replyEl.parentNode.replaceChild(newReplyEl, replyEl);
+          restoreTimelineAnchor(anchor, container);
+          try { updateNostrNpubLinks(newReplyEl); } catch (e) { }
+          try { processHiddenTagChars(newReplyEl); } catch (e) { }
+          try { fitCustomEmoji(newReplyEl, 18); } catch (e) { }
+        }
+      } catch (e) { }
+    }
+  } catch (e) { }
 }
 
 export async function resolveAndRenderQuote(quoteEl, container, showEventModal, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager, depth, maxDepth) {

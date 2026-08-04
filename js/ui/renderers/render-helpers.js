@@ -61,6 +61,41 @@ export function pickETagEventId(ev) {
   return eTags[eTags.length - 1][1];
 }
 
+export function pickETagWithHint(ev) {
+  if (!ev || !Array.isArray(ev.tags)) return { eventId: null, relayHint: '' };
+  const eTags = (ev.tags || []).filter(t => t && t[0] === 'e' && t[1]);
+  if (!eTags || eTags.length === 0) return { eventId: null, relayHint: '' };
+
+  if (ev.kind === 7) {
+    const tag = eTags[eTags.length - 1];
+    return { eventId: tag[1], relayHint: tag[2] || '' };
+  }
+
+  for (const t of eTags) {
+    try {
+      if ((t[3] || '').toString().toLowerCase() === 'reply') return { eventId: t[1], relayHint: t[2] || '' };
+    } catch (e) { }
+  }
+
+  let rootTag = null;
+  const unmarked = [];
+  for (const t of eTags) {
+    try {
+      const marker = (t[3] || '').toString().toLowerCase();
+      if (marker === 'root') rootTag = t;
+      if (!marker) unmarked.push(t);
+    } catch (e) { }
+  }
+
+  if (rootTag && unmarked.length > 0) {
+    const tag = unmarked[unmarked.length - 1];
+    return { eventId: tag[1], relayHint: tag[2] || '' };
+  }
+  if (rootTag) return { eventId: rootTag[1], relayHint: rootTag[2] || '' };
+  const tag = eTags[eTags.length - 1];
+  return { eventId: tag[1], relayHint: tag[2] || '' };
+}
+
 export function pickLastETagEventId(ev) {
   if (!ev || !Array.isArray(ev.tags)) return null;
   const eTags = (ev.tags || []).filter(t => t && t[0] === 'e' && t[1]);

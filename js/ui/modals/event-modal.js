@@ -23,7 +23,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
   if (!nip19) nip19 = getNip19Compat() || null;
   try { window.__nokakoiEventModalEvent = event || null; } catch (e) { }
 
-  async function openReferencedEventById(eventId) {
+  async function openReferencedEventById(eventId, relayHints) {
     try {
       if (!eventId || !state) return;
       const cached = findEventById(state, eventId);
@@ -33,7 +33,9 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       }
       if (!state.pool) return;
       const { getReadRelays } = await import('../../core/relay.js');
-      const relays = getReadRelays(state.relays);
+      const hintRelays = Array.isArray(relayHints) ? relayHints.filter(r => r && /^wss?:\/\//i.test(r)) : [];
+      const readRelays = getReadRelays(state.relays) || [];
+      const relays = [...new Set([...hintRelays, ...readRelays])];
       if (!relays || relays.length === 0) return;
       const fetched = await state.pool.get(relays, { ids: [eventId] });
       if (fetched) {
@@ -64,8 +66,9 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
             return;
           }
           const eventId = el.getAttribute('data-event-id');
+          const relayHint = el.getAttribute('data-relay-hint') || '';
           if (eventId) {
-            openReferencedEventById(eventId);
+            openReferencedEventById(eventId, relayHint ? [relayHint] : []);
           }
         };
       });
@@ -83,7 +86,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
           } catch (err) { }
           e.stopPropagation();
           const eventId = el.getAttribute('data-event-id');
-          if (eventId) openReferencedEventById(eventId);
+          if (eventId) openReferencedEventById(eventId, (() => { try { const h = el.getAttribute('data-relay-hint'); return h ? [h] : []; } catch (e) { return []; } })());
         };
       });
     } catch (e) { }

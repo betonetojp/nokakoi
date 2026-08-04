@@ -4,7 +4,7 @@ import { escapeHtml, truncateName, replaceBadgeEmoji } from '../../utils/utils.j
 import { linkifyText, getEffectiveTextLength, getPreviewWithFullLinksAndEmojis } from '../../utils/url-parser.js';
 import { t } from '../../utils/i18n.js';
 import { MAX_PREVIEW_LINES } from '../../config/constants.js';
-import { pickETagEventId, resolvePreviewMaxLength } from './render-helpers.js';
+import { pickETagEventId, pickETagWithHint, resolvePreviewMaxLength } from './render-helpers.js';
 import { formatReaction } from './reaction-renderer.js';
 
 export function renderReplyContext(state, ev, nip19, settings) {
@@ -15,21 +15,22 @@ export function renderReplyContext(state, ev, nip19, settings) {
   const eTags = (ev.tags || []).filter(t => t && t[0] === 'e' && t[1]);
   if (eTags.length === 0) return '';
 
-  const replyToEventId = pickETagEventId(ev);
+  const { eventId: replyToEventId, relayHint: replyToRelayHint } = pickETagWithHint(ev);
   const effectiveReplyToEventId = replyToEventId;
   const replyToEvent = findEventById(state, effectiveReplyToEventId);
 
   if (!replyToEvent) {
+    const ownerAttr = ' data-owner-event-id="' + escapeHtml(ev.id || '') + '"';
     if (ev.kind === 7) {
       const reactionDisplay = formatReaction(ev.content, ev.tags || []);
       const label = t('reaction.button.title');
-      return '<div class="reply-to reaction"><span class="reply-marker">' + reactionDisplay + '</span><span class="reply-to-author" data-event-id="' + replyToEventId + '"><span>' + label + '</span></span></div>';
+      return '<div class="reply-to reaction"' + ownerAttr + '><span class="reply-marker">' + reactionDisplay + '</span><span class="reply-to-author" data-event-id="' + replyToEventId + '" data-relay-hint="' + escapeHtml(replyToRelayHint) + '"><span>' + label + '</span></span></div>';
     } else if (ev.kind === 6 || ev.kind === 16) {
       const label = t('repost');
-      return '<div class="reply-to repost"><span class="reply-marker"><img src="icon/repost.png" alt="' + escapeHtml(t('repost')) + '" class="icon"/></span><span class="reply-to-author" data-event-id="' + replyToEventId + '"><span>' + label + '</span></span></div>';
+      return '<div class="reply-to repost"' + ownerAttr + '><span class="reply-marker"><img src="icon/repost.png" alt="' + escapeHtml(t('repost')) + '" class="icon"/></span><span class="reply-to-author" data-event-id="' + replyToEventId + '" data-relay-hint="' + escapeHtml(replyToRelayHint) + '"><span>' + label + '</span></span></div>';
     } else {
       const label = t('reply');
-      return '<div class="reply-to"><span class="reply-marker"><img src="icon/reply.png" alt="' + escapeHtml(t('reply')) + '" class="icon"/></span><span class="reply-to-author" data-event-id="' + replyToEventId + '"><span>' + label + '</span></span></div>';
+      return '<div class="reply-to"' + ownerAttr + '><span class="reply-marker"><img src="icon/reply.png" alt="' + escapeHtml(t('reply')) + '" class="icon"/></span><span class="reply-to-author" data-event-id="' + replyToEventId + '" data-relay-hint="' + escapeHtml(replyToRelayHint) + '"><span>' + label + '</span></span></div>';
     }
   }
 

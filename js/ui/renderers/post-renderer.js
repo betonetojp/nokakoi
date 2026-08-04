@@ -15,6 +15,7 @@ import { pickChannelRootId, scheduleChannelLabelUpdate } from '../../features/ch
 
 import {
   pickETagEventId,
+  pickETagWithHint,
   applyMutedToneToEvent,
   evaluateMuteState,
   formatReactionForTitle,
@@ -592,8 +593,16 @@ function bindProfileClickHandlers(div, ev, state, nip19, settings, settingsManag
       replyToAuthorEl.onclick = async function () {
         const eventId = replyToAuthorEl.getAttribute('data-event-id');
         if (eventId && state && state.pool) {
+          const cached = findEventById(state, eventId);
+          if (cached) {
+            showEventModal(cached, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+            return;
+          }
           const { getReadRelays } = await import('../../core/relay.js');
-          const relays = getReadRelays(state.relays);
+          const relayHint = replyToAuthorEl.getAttribute('data-relay-hint') || '';
+          const hintRelays = relayHint ? [relayHint].filter(r => /^wss?:\/\//i.test(r)) : [];
+          const readRelays = getReadRelays(state.relays) || [];
+          const relays = [...new Set([...hintRelays, ...readRelays])];
           let event = null;
           if (relays && relays.length > 0) {
             event = await state.pool.get(relays, { ids: [eventId] });
@@ -810,8 +819,31 @@ function bindContentClickHandlers(div, ev, state, nip19, settings, settingsManag
         }
       } catch (err) { }
       e.stopPropagation();
-      const targetId = pickETagEventId(ev) || ev.id;
-      showEventModal(findEventById(state, targetId) || ev, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+      const { eventId: targetId, relayHint } = pickETagWithHint(ev);
+      const effectiveTargetId = targetId || ev.id;
+      const cachedEv = findEventById(state, effectiveTargetId);
+      if (cachedEv) {
+        showEventModal(cachedEv, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+      } else if (state && state.pool) {
+        (async () => {
+          try {
+            const { getReadRelays } = await import('../../core/relay.js');
+            const hintRelays = relayHint ? [relayHint].filter(r => /^wss?:\/\//i.test(r)) : [];
+            const readRelays = getReadRelays(state.relays) || [];
+            const relays = [...new Set([...hintRelays, ...readRelays])];
+            if (relays.length > 0) {
+              const fetched = await state.pool.get(relays, { ids: [effectiveTargetId] });
+              showEventModal(fetched || ev, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+            } else {
+              showEventModal(ev, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+            }
+          } catch (err) {
+            showEventModal(ev, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+          }
+        })();
+      } else {
+        showEventModal(ev, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+      }
     };
   });
 
@@ -839,8 +871,31 @@ function bindContentClickHandlers(div, ev, state, nip19, settings, settingsManag
         if (e.target.closest('a')) return;
       } catch (err) { }
       e.stopPropagation();
-      const targetId = pickETagEventId(ev) || ev.id;
-      showEventModal(findEventById(state, targetId) || ev, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+      const { eventId: targetId, relayHint: repostRelayHint } = pickETagWithHint(ev);
+      const effectiveTargetId = targetId || ev.id;
+      const cachedEv = findEventById(state, effectiveTargetId);
+      if (cachedEv) {
+        showEventModal(cachedEv, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+      } else if (state && state.pool) {
+        (async () => {
+          try {
+            const { getReadRelays } = await import('../../core/relay.js');
+            const hintRelays = repostRelayHint ? [repostRelayHint].filter(r => /^wss?:\/\//i.test(r)) : [];
+            const readRelays = getReadRelays(state.relays) || [];
+            const relays = [...new Set([...hintRelays, ...readRelays])];
+            if (relays.length > 0) {
+              const fetched = await state.pool.get(relays, { ids: [effectiveTargetId] });
+              showEventModal(fetched || ev, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+            } else {
+              showEventModal(ev, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+            }
+          } catch (err) {
+            showEventModal(ev, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+          }
+        })();
+      } else {
+        showEventModal(ev, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+      }
     };
     el.dataset.repostListenerInstalled = '1';
   });
