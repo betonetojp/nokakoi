@@ -768,6 +768,7 @@ export function setupBitchatFeed() {
       scheduleRender,
       eventsFetchLimit: EVENTS_FETCH_LIMIT,
       eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
+      histKeepLimit: EVENTS_MAX,
       acceptHistEvent: matchesGeohash,
       ...feedFetcherHistHooks()
     });
@@ -1058,7 +1059,7 @@ export function restartFeeds(fullReset = false) {
   try { unsubscribeAll(state); } catch (e) { }
 
   if (fullReset) {
-    ['home', 'global', 'mentions', 'me', 'bitchat'].forEach(id => {
+    ['home', 'global', 'mentions', 'me'].forEach(id => {
       try {
         clearFeed(state, id);
         if (feedLoadState[id]) {
