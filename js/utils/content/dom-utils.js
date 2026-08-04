@@ -183,6 +183,8 @@ export async function updateNostrNpubLinks(container) {
   }
 }
 
+let _replyUpdateDebounceTimer = null;
+
 export async function updateNostrNoteLinks(container, showEventModal, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager, recursionState = null) {
   if (!container) return;
   const globalState = window.__nostrState;
@@ -195,28 +197,42 @@ export async function updateNostrNoteLinks(container, showEventModal, state, nip
     : NOSTR_QUOTE_RECURSION_MAX_DEPTH;
   if (depth > maxDepth) return;
 
-  let liveUpdateTimer = null;
   const scheduleLiveUpdate = () => {
-    if (liveUpdateTimer) return;
-    liveUpdateTimer = setTimeout(async () => {
-      liveUpdateTimer = null;
+    if (_replyUpdateDebounceTimer) return;
+    _replyUpdateDebounceTimer = setTimeout(async () => {
+      _replyUpdateDebounceTimer = null;
       try {
-        await updateReplyContexts(container, state, nip19, settings, settingsManager);
+        await updateReplyContexts(container.ownerDocument || document, state, nip19, settings, settingsManager);
       } catch (e) { }
-    }, 100);
+    }, 150);
   };
 
-  const quoteElements = Array.from(container.querySelectorAll('.nostr-quote'));
-  if (container.matches && container.matches('.nostr-quote')) {
-    quoteElements.push(container);
+  const rawQuoteElements = Array.from(container.querySelectorAll('.nostr-quote:not([data-prefetch-queued])'));
+  if (container.matches && container.matches('.nostr-quote:not([data-prefetch-queued])')) {
+    rawQuoteElements.push(container);
   }
-  const replyElements = Array.from(container.querySelectorAll('.reply-to-author[data-event-id]'));
-  if (container.matches && container.matches('.reply-to-author[data-event-id]')) {
-    replyElements.push(container);
+  const rawReplyElements = Array.from(container.querySelectorAll('.reply-to-author[data-event-id]:not([data-prefetch-queued])'));
+  if (container.matches && container.matches('.reply-to-author[data-event-id]:not([data-prefetch-queued])')) {
+    rawReplyElements.push(container);
   }
-  await prefetchQuotesForElements(state, [...quoteElements, ...replyElements], {
-    onEvent: () => scheduleLiveUpdate()
+
+  // 処理済みフラグを立てて二重クエリを防止
+  const quoteElements = rawQuoteElements.filter(el => {
+    if (el.dataset.prefetchQueued) return false;
+    el.dataset.prefetchQueued = '1';
+    return true;
   });
+  const replyElements = rawReplyElements.filter(el => {
+    if (el.dataset.prefetchQueued) return false;
+    el.dataset.prefetchQueued = '1';
+    return true;
+  });
+
+  if (quoteElements.length > 0 || replyElements.length > 0) {
+    await prefetchQuotesForElements(state, [...quoteElements, ...replyElements], {
+      onEvent: () => scheduleLiveUpdate()
+    });
+  }
 
   for (const quoteEl of quoteElements) {
     const eventId = quoteEl.dataset.eventId;
@@ -244,21 +260,22 @@ export async function updateNostrNoteLinks(container, showEventModal, state, nip
 
   await updateReplyContexts(container, state, nip19, settings, settingsManager);
 
-  // 初回呼び出し時かつ未解決要素が残っている場合の接続遅延リカバリー（1.5秒後 & 3.5秒後に自動リトライ）
-  if (depth === 0 && !container.dataset.autoRetryInstalled) {
-    container.dataset.autoRetryInstalled = '1';
-    [1500, 3500].forEach(delay => {
+  // 初回かつ未解決要素がある場合のみ単一のリトライタイマーを発行（1.5s後に1回だけ、タイマーの乱立・再帰を防止）
+  if (depth === 0 && !container.dataset.autoRetryDone) {
+    const hasUnresolved = (container.matches && container.matches('.reply-to[data-owner-event-id]')) ||
+      container.querySelector('.reply-to[data-owner-event-id]');
+    if (hasUnresolved) {
+      container.dataset.autoRetryDone = '1';
       setTimeout(async () => {
         try {
-          const hasUnresolved = (container.matches && container.matches('.reply-to[data-owner-event-id]')) ||
+          const stillUnresolved = (container.matches && container.matches('.reply-to[data-owner-event-id]')) ||
             container.querySelector('.reply-to[data-owner-event-id]');
-          if (hasUnresolved) {
-            delete container.dataset.autoRetryInstalled;
-            await updateNostrNoteLinks(container, showEventModal, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager, { depth: 0, maxDepth });
+          if (stillUnresolved) {
+            await updateReplyContexts(container, state, nip19, settings, settingsManager);
           }
         } catch (e) { }
-      }, delay);
-    });
+      }, 1800);
+    }
   }
 }
 
