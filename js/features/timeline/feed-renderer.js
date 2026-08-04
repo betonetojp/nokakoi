@@ -812,26 +812,26 @@ export function renderFeed(id = 'global', force = false) {
             if (_options.settingsManager.get('showHomeRepost16') === true) optionalHomeFollowKinds.push(16);
 
             baseFilters = [
-              // 1. フォロイーの全対象投稿（基本の1,6 ＋ オンになっているオプション）を1つに統合
-              { kinds: [1, 6, ...optionalHomeFollowKinds], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
+              // 1. フォロイーの全対象投稿（基本の1,6,1111 ＋ オンになっているオプション）を1つに統合
+              { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
               // 2. 自分宛ての投稿
-              { kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+              { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
               // 3. 自分自身の投稿
               { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
             ];
           } catch (e) { console.error('[FeedRenderer] home filter err:', e); baseFilters = []; }
         } else if (id === 'mentions') {
           const pubkey = localStorage.getItem('pubkey');
-          baseFilters = [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }];
+          baseFilters = [{ kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }];
         } else if (id === 'me') {
           const pubkey = localStorage.getItem('pubkey');
-          baseFilters = [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
+          baseFilters = [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
         } else if (id === 'bitchat') {
           baseFilters = [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT }];
         } else if (id === 'global') {
-          baseFilters = [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT }];
+          baseFilters = [{ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT }];
         } else {
-          baseFilters = [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT }];
+          baseFilters = [{ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT }];
         }
 
         const filtersToUse = applyPerFilterUntil(_state, id, baseFilters, untilFallback);

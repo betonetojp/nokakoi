@@ -10,15 +10,15 @@ function matchesFilter(ev, filter) {
     if (!filter.authors.includes(ev.pubkey)) return false;
   }
   if (filter['#p'] && Array.isArray(filter['#p']) && filter['#p'].length > 0) {
-    const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && t[0] === 'p').map(t => t[1]) : [];
+    const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && (t[0] === 'p' || t[0] === 'P')).map(t => t[1]) : [];
     if (!pTags.some(p => filter['#p'].includes(p))) return false;
   }
   if (filter['#d'] && Array.isArray(filter['#d']) && filter['#d'].length > 0) {
-    const dTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && t[0] === 'd').map(t => t[1]) : [];
+    const dTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && (t[0] === 'd' || t[0] === 'D')).map(t => t[1]) : [];
     if (!dTags.some(d => filter['#d'].includes(d))) return false;
   }
   if (filter['#e'] && Array.isArray(filter['#e']) && filter['#e'].length > 0) {
-    const eTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && t[0] === 'e').map(t => t[1]) : [];
+    const eTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && (t[0] === 'e' || t[0] === 'E')).map(t => t[1]) : [];
     if (!eTags.some(e => filter['#e'].includes(e))) return false;
   }
   if (filter.until != null && typeof ev.created_at === 'number' && ev.created_at > filter.until) return false;

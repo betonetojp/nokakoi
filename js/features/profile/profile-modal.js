@@ -141,7 +141,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     }
     return false;
   })();
-  const profileFeedKinds = [1, 6];
+  const profileFeedKinds = [1, 6, 1111];
   if (includeProfileReactions) profileFeedKinds.push(7);
   if (includeProfileChannel) profileFeedKinds.push(42);
   if (includeProfileRepost16) profileFeedKinds.push(16);

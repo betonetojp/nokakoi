@@ -33,7 +33,7 @@ export async function loadClientsMap() {
 
 export function pickETagEventId(ev) {
   if (!ev || !Array.isArray(ev.tags)) return null;
-  const eTags = (ev.tags || []).filter(t => t && t[0] === 'e' && t[1]);
+  const eTags = (ev.tags || []).filter(t => t && (t[0] === 'e' || t[0] === 'E') && t[1]);
   if (!eTags || eTags.length === 0) return null;
 
   if (ev.kind === 7) {
@@ -51,8 +51,8 @@ export function pickETagEventId(ev) {
   for (const t of eTags) {
     try {
       const marker = (t[3] || '').toString().toLowerCase();
-      if (marker === 'root') rootId = t[1];
-      if (!marker) unmarked.push(t[1]);
+      if (marker === 'root' || t[0] === 'E') rootId = t[1];
+      if (!marker && t[0] === 'e') unmarked.push(t[1]);
     } catch (e) { }
   }
 
@@ -63,7 +63,7 @@ export function pickETagEventId(ev) {
 
 export function pickETagWithHint(ev) {
   if (!ev || !Array.isArray(ev.tags)) return { eventId: null, relayHint: '' };
-  const eTags = (ev.tags || []).filter(t => t && t[0] === 'e' && t[1]);
+  const eTags = (ev.tags || []).filter(t => t && (t[0] === 'e' || t[0] === 'E') && t[1]);
   if (!eTags || eTags.length === 0) return { eventId: null, relayHint: '' };
 
   if (ev.kind === 7) {
@@ -82,8 +82,8 @@ export function pickETagWithHint(ev) {
   for (const t of eTags) {
     try {
       const marker = (t[3] || '').toString().toLowerCase();
-      if (marker === 'root') rootTag = t;
-      if (!marker) unmarked.push(t);
+      if (marker === 'root' || t[0] === 'E') rootTag = t;
+      if (!marker && t[0] === 'e') unmarked.push(t);
     } catch (e) { }
   }
 
@@ -98,7 +98,7 @@ export function pickETagWithHint(ev) {
 
 export function pickLastETagEventId(ev) {
   if (!ev || !Array.isArray(ev.tags)) return null;
-  const eTags = (ev.tags || []).filter(t => t && t[0] === 'e' && t[1]);
+  const eTags = (ev.tags || []).filter(t => t && (t[0] === 'e' || t[0] === 'E') && t[1]);
   if (!eTags || eTags.length === 0) return null;
   return eTags[eTags.length - 1][1];
 }

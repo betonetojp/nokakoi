@@ -199,9 +199,11 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
 
   const showClientNameCheck = $('showClientNameCheck');
   const attachClientNameCheck = $('attachClientNameCheck');
+  const alwaysUseNip22CommentCheck = $('alwaysUseNip22CommentCheck');
   const clientNameInput = $('clientNameInput');
   if (showClientNameCheck) showClientNameCheck.checked = settingsManager.settings.showClientName !== false;
   if (attachClientNameCheck) attachClientNameCheck.checked = settingsManager.settings.attachClientName !== false;
+  if (alwaysUseNip22CommentCheck) alwaysUseNip22CommentCheck.checked = settingsManager.settings.alwaysUseNip22Comment === true;
   if (clientNameInput) clientNameInput.value = settingsManager.settings.clientName || 'nokakoi';
 
   try { if (window && window.settingsComposerManager) window.settingsComposerManager.registerContainer(document.getElementById('displayPanel')); } catch (e) { }
@@ -215,6 +217,11 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
   if (attachClientNameCheck) {
     attachClientNameCheck.onchange = function () {
       settingsManager.set('attachClientName', attachClientNameCheck.checked);
+    };
+  }
+  if (alwaysUseNip22CommentCheck) {
+    alwaysUseNip22CommentCheck.onchange = function () {
+      settingsManager.set('alwaysUseNip22Comment', alwaysUseNip22CommentCheck.checked);
     };
   }
   if (clientNameInput) {

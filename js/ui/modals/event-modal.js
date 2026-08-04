@@ -182,8 +182,8 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
   if (contentEl) {
     // 返信イベント/リアクション/リポストなら参照先を表示
     let replyHtml = '';
-    if ((event.kind === 1 || event.kind === 7 || event.kind === 6 || event.kind === 16) && Array.isArray(event.tags)) {
-      const hasReplyTag = event.tags.some(t => t && t[0] === 'e' && t[1]);
+    if ((event.kind === 1 || event.kind === 1111 || event.kind === 7 || event.kind === 6 || event.kind === 16) && Array.isArray(event.tags)) {
+      const hasReplyTag = event.tags.some(t => t && (t[0] === 'e' || t[0] === 'E') && t[1]);
       if (hasReplyTag && typeof renderReplyContext === 'function') {
         replyHtml = renderReplyContext(state, event, nip19, { isModal: true });
       }
@@ -388,7 +388,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
   // リポスト・返信（下部右）
   const actionsBottom = modal.querySelector('#eventModalActionsBottom');
   if (actionsBottom) {
-    const isKind1 = Number(event && event.kind) === 1;
+    const isKind1 = Number(event && event.kind) === 1 || Number(event && event.kind) === 1111;
     actionsBottom.classList.toggle('d-none', !isKind1);
     if (isKind1) {
       actionsBottom.innerHTML = '<button class="btn-repost" type="button" title="' + escapeHtml(t('repost')) + '"><img src="icon/repost.png" alt="' + escapeHtml(t('repost')) + '" class="icon-btn"></button>' +

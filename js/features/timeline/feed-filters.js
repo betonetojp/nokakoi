@@ -7,7 +7,7 @@ export function buildHomeLoadMoreFiltersForGlobalMerge(state, until) {
   try {
     const followsForMore = (state.feeds['home'] && state.feeds['home'].follows) || [];
     if (!followsForMore.length) return [];
-    return [{ kinds: [1, 6], authors: followsForMore, limit: EVENTS_FETCH_LIMIT, until }];
+    return [{ kinds: [1, 6, 1111], authors: followsForMore, limit: EVENTS_FETCH_LIMIT, until }];
   } catch (e) {
     return [];
   }
@@ -28,23 +28,26 @@ export function getFeedBaseFilters(state, settingsManager, feedId) {
       if (settingsManager && settingsManager.get('showHomeRepost16') === true) optionalHomeFollowKinds.push(16);
 
       return [
-        { kinds: [1, 6, ...optionalHomeFollowKinds], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
         { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
       ];
     } else if (feedId === 'mentions') {
       const pubkey = localStorage.getItem('pubkey');
-      return [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }];
+      return [
+        { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
+      ];
     } else if (feedId === 'me') {
       const pubkey = localStorage.getItem('pubkey');
-      return [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
+      return [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
     } else if (feedId === 'bitchat') {
       return [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT }];
     } else if (feedId === 'global') {
-      return [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT }];
+      return [{ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT }];
     }
   } catch (e) { }
-  return [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT }];
+  return [{ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT }];
 }
 
 /**
@@ -56,8 +59,8 @@ export function buildHomeLoadMoreFilters(state, settingsManager, until) {
     const followsForMore = (state.feeds['home'] && state.feeds['home'].follows) || [];
     if (!followsForMore.length) return [];
     const baseFilters = [
-      { kinds: [1, 6], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
-      { kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+      { kinds: [1, 6, 1111], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
+      { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
       { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
     ];
     const optionalHomeFollowKinds = [];
@@ -72,3 +75,4 @@ export function buildHomeLoadMoreFilters(state, settingsManager, until) {
     return [];
   }
 }
+

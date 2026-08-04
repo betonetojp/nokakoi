@@ -10,9 +10,9 @@ import { formatReaction } from './reaction-renderer.js';
 export function renderReplyContext(state, ev, nip19, settings) {
   const isModal = !!settings && settings.isModal === true;
   const inlineMedia = settings && settings.showTimelineMedia === true;
-  if (ev.kind !== 1 && ev.kind !== 7 && ev.kind !== 6 && ev.kind !== 16) return '';
+  if (ev.kind !== 1 && ev.kind !== 1111 && ev.kind !== 7 && ev.kind !== 6 && ev.kind !== 16) return '';
 
-  const eTags = (ev.tags || []).filter(t => t && t[0] === 'e' && t[1]);
+  const eTags = (ev.tags || []).filter(t => t && (t[0] === 'e' || t[0] === 'E') && t[1]);
   if (eTags.length === 0) return '';
 
   const { eventId: replyToEventId, relayHint: replyToRelayHint } = pickETagWithHint(ev);

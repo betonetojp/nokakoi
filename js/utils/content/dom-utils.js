@@ -358,7 +358,7 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
       }
     }
 
-    if (event && (event.kind === 1 || event.kind === 42 || event.kind === 30023 || (naddrKind && event.content))) {
+    if (event && (event.kind === 1 || event.kind === 1111 || event.kind === 42 || event.kind === 30023 || (naddrKind && event.content))) {
       const quoteHtml = await renderEventQuote(state, event, nip19local, settings);
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = quoteHtml;

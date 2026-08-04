@@ -484,6 +484,10 @@ export async function replyToEvent(state, targetEv, text) {
     let tags = [];
     let replyKind = (kinds && kinds.Text) || 1;
 
+    // 設定管理から NIP-22 常時使用オプションを取得
+    const sm = (typeof window !== 'undefined' && window.settingsManager) ? window.settingsManager : null;
+    const alwaysUseComment = sm && typeof sm.get === 'function' && sm.get('alwaysUseNip22Comment') === true;
+
     if (targetEv.kind === 20000) {
       // kind:20000 omochat の返信は e/p タグを使用しない
       replyKind = 20000;
@@ -514,6 +518,81 @@ export async function replyToEvent(state, targetEv, text) {
           }
         } catch(e) {}
         tags.push(['n', name]);
+      }
+    } else if (alwaysUseComment || targetEv.kind === 1111) {
+      // NIP-22 (kind: 1111) コメント送信
+      replyKind = 1111;
+      try {
+        const { getBestRelayHint } = await import('../../core/relay.js');
+        const { findEventById } = await import('../../core/state.js');
+        const targetRelayHint = getBestRelayHint(effectiveState, targetEv);
+
+        let rootId = null;
+        let rootKind = null;
+        let rootPubkey = null;
+        let rootRelayHint = '';
+
+        if (Array.isArray(targetEv.tags)) {
+          // 1. NIP-22 E タグ
+          const ETag = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'E' && t[1]);
+          if (ETag) {
+            rootId = ETag[1];
+            if (ETag[2]) rootRelayHint = ETag[2];
+            if (ETag[3]) rootPubkey = ETag[3];
+            const KTag = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'K' && t[1]);
+            if (KTag) rootKind = KTag[1];
+          } else {
+            // 2. NIP-10 e タグ (root マーク)
+            const rootETag = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'e' && t[1] && t[3] === 'root');
+            if (rootETag) {
+              rootId = rootETag[1];
+              if (rootETag[2]) rootRelayHint = rootETag[2];
+            } else {
+              const firste = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'e' && t[1]);
+              if (firste && firste[1] !== targetEv.id) {
+                rootId = firste[1];
+                if (firste[2]) rootRelayHint = firste[2];
+              }
+            }
+          }
+        }
+
+        tags = [];
+
+        if (rootId && rootId !== targetEv.id) {
+          // 親がルートとは別
+          const rootEv = findEventById(effectiveState, rootId);
+          if (rootEv) {
+            if (!rootKind) rootKind = String(rootEv.kind);
+            if (!rootPubkey) rootPubkey = rootEv.pubkey;
+            if (!rootRelayHint) rootRelayHint = getBestRelayHint(effectiveState, rootEv);
+          }
+
+          tags.push(['E', rootId, rootRelayHint || targetRelayHint, rootPubkey || '']);
+          if (rootKind) tags.push(['K', String(rootKind)]);
+          if (rootPubkey && rootPubkey !== targetEv.pubkey) tags.push(['P', rootPubkey]);
+
+          tags.push(['e', targetEv.id, targetRelayHint]);
+          tags.push(['k', String(targetEv.kind)]);
+          tags.push(['p', targetEv.pubkey]);
+        } else {
+          // 親自体がルート（トップレベルノート）
+          tags.push(['E', targetEv.id, targetRelayHint, targetEv.pubkey]);
+          tags.push(['K', String(targetEv.kind)]);
+          tags.push(['P', targetEv.pubkey]);
+          tags.push(['e', targetEv.id, targetRelayHint]);
+          tags.push(['k', String(targetEv.kind)]);
+          tags.push(['p', targetEv.pubkey]);
+        }
+      } catch (e) {
+        tags = [
+          ['E', targetEv.id, '', targetEv.pubkey],
+          ['K', String(targetEv.kind)],
+          ['P', targetEv.pubkey],
+          ['e', targetEv.id, ''],
+          ['k', String(targetEv.kind)],
+          ['p', targetEv.pubkey]
+        ];
       }
     } else {
       // 既定は e タグ返信。quote モード時は NIP-18 に従い q タグを使用

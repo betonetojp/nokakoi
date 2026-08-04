@@ -1125,7 +1125,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
       omochatButtons +
       (ev.kind !== 20000 ? '<button class="btn-quote" type="button" data-i18n-title="quote"><img src="icon/note.png" alt="" class="icon-btn" data-i18n-alt="quote"></button>' : '') +
       (ev.kind !== 20000 ? '<button class="btn-repost" type="button" data-i18n-title="repost"><img src="icon/repost.png" alt="" class="icon-btn" data-i18n-alt="repost"></button>' : '') +
-      (ev.kind === 1 || ev.kind === 20000 ? '<button class="btn-reply" type="button" data-i18n-title="reply"><img src="icon/reply.png" alt="" class="icon-btn" data-i18n-alt="reply"></button>' : '') +
+      (ev.kind === 1 || ev.kind === 1111 || ev.kind === 20000 ? '<button class="btn-reply" type="button" data-i18n-title="reply"><img src="icon/reply.png" alt="" class="icon-btn" data-i18n-alt="reply"></button>' : '') +
       '</div>' : '') +
     '</div>';
 

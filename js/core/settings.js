@@ -37,6 +37,8 @@ export class SettingsManager {
         showClientName: (obj && obj.showClientName !== undefined) ? obj.showClientName : true,
         // 投稿/返信/リポスト/リアクション送信時に client tag を付与
         attachClientName: (obj && obj.attachClientName !== undefined) ? obj.attachClientName : true,
+        // すべての返信を NIP-22 (kind:1111) で送信するか（既定 false）
+        alwaysUseNip22Comment: (obj && typeof obj.alwaysUseNip22Comment !== 'undefined') ? obj.alwaysUseNip22Comment : false,
         // 付与する既定の client name
         clientName: (obj && obj.clientName) || 'nokakoi',
         passkeyCredentialId: (obj && obj.passkeyCredentialId) || null,
@@ -121,6 +123,7 @@ export class SettingsManager {
         showTimelineMedia: false,
         showClientName: true,
         attachClientName: true,
+        alwaysUseNip22Comment: false,
         clientName: 'nokakoi',
         passkeyCredentialId: null,
         passkeyEncryptedNsec: null,

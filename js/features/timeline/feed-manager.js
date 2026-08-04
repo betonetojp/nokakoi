@@ -198,7 +198,7 @@ export function trimFeedToMax(feedId, maxCount = EVENTS_MAX) {
  */
 export function isGlobalMergeKind(ev) {
   const k = ev?.kind;
-  return k === 1 || k === 6;
+  return k === 1 || k === 6 || k === 1111;
 }
 
 /**
@@ -309,7 +309,7 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
     if (globalRelays.length > 0) {
       globalRelays.forEach((relay) => {
         if (!relayToFilters.has(relay)) relayToFilters.set(relay, []);
-        relayToFilters.get(relay).push({ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT, until: mergeUntil });
+        relayToFilters.get(relay).push({ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT, until: mergeUntil });
       });
     }
     if (homeFilters.length > 0 && readRelays.length > 0) {
@@ -648,10 +648,10 @@ export function setupGlobalFeed() {
     const activeTabEl = document.querySelector('.tab.active');
     const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
     const isActive = activeTab === 'global';
-    const histFilters = isActive ? [{ kinds: [1, 6], limit: EVENTS_FETCH_LIMIT }] : [];
+    const histFilters = isActive ? [{ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT }] : [];
     const since = Math.floor(Date.now() / 1000);
     const liveFilters = [
-      { kinds: [1, 6], since }
+      { kinds: [1, 6, 1111], since }
     ];
     try {
       if (settingsManager.get('showMusicStatus') !== false) {
@@ -865,15 +865,15 @@ export function setupAuthedFeeds() {
       const isHomeActive = activeTab === 'home';
       const shouldFetchHomeHist = isHomeActive || (mergeHome && activeTab === 'global');
       const homeHist = shouldFetchHomeHist ? [
-        { kinds: [1, 6, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
-        { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
+        { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
       ] : [];
       const sinceLive = Math.floor(Date.now() / 1000);
       const homeLive = [
-        { kinds: [1, 6, ...optionalHomeFollowKinds], authors: follows, since: sinceLive },
-        { kinds: [1, 6, 7], '#p': [pubkey], since: sinceLive },
-        { kinds: [7, 42, 16], authors: [pubkey], since: sinceLive }
+        { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, since: sinceLive },
+        { kinds: [1, 6, 7, 1111], '#p': [pubkey], since: sinceLive },
+        { kinds: [7, 42, 16, 1111], authors: [pubkey], since: sinceLive }
       ];
       try {
         if (settingsManager.get('showMusicStatus') !== false) {
@@ -892,13 +892,13 @@ export function setupAuthedFeeds() {
           const multicastAddToFeed = (fid, ev, keepCount, relay) => {
             addToFeed('home', ev, keepCount, relay);
             if (ev && typeof ev === 'object') {
-              if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7) {
-                const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => t[0] === 'p') : [];
+              if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 1111) {
+                const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => t[0] === 'p' || t[0] === 'P') : [];
                 if (pTags.some(t => t[1] === pubkey)) {
                   addToFeed('mentions', ev, keepCount, relay);
                 }
               }
-              if (ev.pubkey === pubkey && [1, 6, 7, 42, 16, 30315].includes(ev.kind)) {
+              if (ev.pubkey === pubkey && [1, 6, 7, 42, 16, 1111, 30315].includes(ev.kind)) {
                 addToFeed('me', ev, keepCount, relay);
               }
             }
@@ -927,7 +927,10 @@ export function setupAuthedFeeds() {
         if (!state.feeds['mentions']) state.feeds['mentions'] = { list: [], map: new Map() };
         try { window.__mentionsInitialLoading = true; } catch (e) { }
         const isMentionsActive = activeTab === 'mentions';
-        const mentionsHist = isMentionsActive ? [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }] : [];
+        const mentionsHist = isMentionsActive ? [
+          { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+          { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
+        ] : [];
         const mentionsFetcher = setupFeedFetcher({
           state,
           feedId: 'mentions',
@@ -947,7 +950,10 @@ export function setupAuthedFeeds() {
       } catch (e) {
         // 例外時のフォールバック処理
         try {
-          subOnce(state, 'mentions_hist', [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }], (ev2, relay, done) => {
+          subOnce(state, 'mentions_hist', [
+            { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+            { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
+          ], (ev2, relay, done) => {
             if (ev2) addToFeed('mentions', ev2);
             if (done) {
               try { window.__mentionsInitialLoading = false; checkMentionBlink(); } catch (ee) { }
@@ -960,7 +966,7 @@ export function setupAuthedFeeds() {
       try {
         if (!state.feeds['me']) state.feeds['me'] = { list: [], map: new Map() };
         const isMeActive = activeTab === 'me';
-        const meHist = isMeActive ? [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }] : [];
+        const meHist = isMeActive ? [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }] : [];
         const meFetcher = setupFeedFetcher({
           state,
           feedId: 'me',
@@ -977,7 +983,7 @@ export function setupAuthedFeeds() {
       } catch (e) {
         // 例外時のフォールバック処理
         try {
-          subOnce(state, 'me_hist', [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }], (ev3, relay, done) => {
+          subOnce(state, 'me_hist', [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }], (ev3, relay, done) => {
             if (ev3) addToFeed('me', ev3);
             if (done) {
               const list = state.feeds['me'] && state.feeds['me'].list;
@@ -1006,7 +1012,7 @@ export function setupAuthedFeeds() {
               scheduleRender('me');
             }
           }, 3000);
-          subOnce(state, 'me_live', [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], since: Math.floor(Date.now() / 1000) }], ev3 => {
+          subOnce(state, 'me_live', [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], since: Math.floor(Date.now() / 1000) }], ev3 => {
             if (ev3 && typeof ev3 === 'object' && !ev3.__receivedAt) ev3.__receivedAt = Date.now();
             addToFeed('me', ev3);
           });
@@ -1182,15 +1188,15 @@ export function setupSingleFeed(feedId) {
       if (includeHomeRepost16) optionalHomeFollowKinds.push(16);
 
       const homeHist = [
-        { kinds: [1, 6, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
-        { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
+        { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
       ];
       const sinceLive = Math.floor(Date.now() / 1000);
       const homeLive = [
-        { kinds: [1, 6, ...optionalHomeFollowKinds], authors: follows, since: sinceLive },
-        { kinds: [1, 6, 7], '#p': [pubkey], since: sinceLive },
-        { kinds: [7, 42, 16], authors: [pubkey], since: sinceLive }
+        { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, since: sinceLive },
+        { kinds: [1, 6, 7, 1111], '#p': [pubkey], since: sinceLive },
+        { kinds: [7, 42, 16, 1111], authors: [pubkey], since: sinceLive }
       ];
       try {
         if (settingsManager.get('showMusicStatus') !== false) {
@@ -1201,13 +1207,13 @@ export function setupSingleFeed(feedId) {
       const multicastAddToFeed = (fid, ev, keepCount, relay) => {
         addToFeed('home', ev, keepCount, relay);
         if (ev && typeof ev === 'object') {
-          if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7) {
-            const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => t[0] === 'p') : [];
+          if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 1111) {
+            const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => t[0] === 'p' || t[0] === 'P') : [];
             if (pTags.some(t => t[1] === pubkey)) {
               addToFeed('mentions', ev, keepCount, relay);
             }
           }
-          if (ev.pubkey === pubkey && [1, 6, 7, 42, 16, 30315].includes(ev.kind)) {
+          if (ev.pubkey === pubkey && [1, 6, 7, 42, 16, 1111, 30315].includes(ev.kind)) {
             addToFeed('me', ev, keepCount, relay);
           }
         }
@@ -1241,7 +1247,10 @@ export function setupSingleFeed(feedId) {
         }
       }
     } else if (feedId === 'mentions') {
-      const mentionsHist = [{ kinds: [1, 6, 7], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }];
+      const mentionsHist = [
+        { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
+      ];
       const mentionsFetcher = setupFeedFetcher({
         state,
         feedId: 'mentions',
@@ -1256,7 +1265,7 @@ export function setupSingleFeed(feedId) {
       });
       state._mentionsFetcher = mentionsFetcher;
     } else if (feedId === 'me') {
-      const meHist = [{ kinds: [1, 6, 7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
+      const meHist = [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
       const meFetcher = setupFeedFetcher({
         state,
         feedId: 'me',
