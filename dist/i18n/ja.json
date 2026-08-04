@@ -65,7 +65,7 @@
   "tabNotifyDot": "通知ドット",
   "showClientName": "クライアント名を表示",
   "attachClientName": "投稿にクライアント名を付ける",
-  "alwaysUseNip22Comment": "すべての返信を NIP-22 (kind:1111) で送信する",
+  "alwaysUseNip22Comment": "すべての返信を NIP-22 (kind:1111) で送信する (実験中: 未対応クライアントで返信が見えなくなる場合があります)",
   "clientNameLabel": "クライアント名",
   "postLinkTitleLabel": "投稿連携アプリ名",
   "postLinkUrlLabel": "投稿連携URL",

@@ -68,7 +68,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <script type="module" crossorigin src="./assets/index-Ddenl9sM.js"></script>
+  <script type="module" crossorigin src="./assets/index-CUbOCyxy.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-DK3Fl9T5.js">
   <link rel="modulepreload" crossorigin href="./assets/nostr-compat-CDWKioyk.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-xIk5e5Dp.js">
@@ -81,10 +81,10 @@
   <link rel="modulepreload" crossorigin href="./assets/signer-6D2sXShF.js">
   <link rel="modulepreload" crossorigin href="./assets/actions-BSyjIKuE.js">
   <link rel="modulepreload" crossorigin href="./assets/modals-Dz2Lt8oG.js">
-  <link rel="modulepreload" crossorigin href="./assets/url-parser-QGTio20Z.js">
-  <link rel="modulepreload" crossorigin href="./assets/render-helpers-C789f2W6.js">
+  <link rel="modulepreload" crossorigin href="./assets/url-parser-KhKn30vy.js">
+  <link rel="modulepreload" crossorigin href="./assets/render-helpers-B8nn0olm.js">
   <link rel="modulepreload" crossorigin href="./assets/json-modal-BePFzO2L.js">
-  <link rel="modulepreload" crossorigin href="./assets/renderer-SIqnV8dX.js">
+  <link rel="modulepreload" crossorigin href="./assets/renderer-3-Gu-u0l.js">
   <link rel="stylesheet" crossorigin href="./assets/index-DcELHhrN.css">
 </head>
 <body>
@@ -222,6 +222,12 @@
         </div>
         <div class="mt-8">
           <label class="setting-row-clickable">
+            <input type="checkbox" id="alwaysUseNip22CommentCheck">
+            <span data-i18n="alwaysUseNip22Comment">すべての返信を NIP-22 (kind:1111) で送信する (実験中)</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
             <input type="checkbox" id="useDomPurgeCheck">
             <span data-i18n="useDomPurge">DOMパージを有効にする（メモリ節約）</span>
           </label>
@@ -340,12 +346,6 @@
           <label class="setting-row-clickable">
             <input type="checkbox" id="attachClientNameCheck" checked>
             <span data-i18n="attachClientName">投稿にクライアント名を付ける</span>
-          </label>
-        </div>
-        <div class="mt-12">
-          <label class="setting-row-clickable">
-            <input type="checkbox" id="alwaysUseNip22CommentCheck">
-            <span data-i18n="alwaysUseNip22Comment">すべての返信を NIP-22 (kind:1111) で送信する</span>
           </label>
         </div>
         <div class="mt-12">

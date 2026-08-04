@@ -65,7 +65,7 @@
   "tabNotifyDot": "Notification dot",
   "showClientName": "Show client name",
   "attachClientName": "Attach client name to posts",
-  "alwaysUseNip22Comment": "Send all replies as NIP-22 (kind:1111) comments",
+  "alwaysUseNip22Comment": "Send all replies as NIP-22 (kind:1111) comments (Experimental: Replies may not be visible in unsupported clients)",
   "clientNameLabel": "Client name",
   "postLinkTitleLabel": "Post link app",
   "postLinkUrlLabel": "Post link URL",
