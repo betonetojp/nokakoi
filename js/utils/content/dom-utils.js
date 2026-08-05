@@ -202,7 +202,7 @@ export async function updateNostrNoteLinks(container, showEventModal, state, nip
     _replyUpdateDebounceTimer = setTimeout(async () => {
       _replyUpdateDebounceTimer = null;
       try {
-        await updateReplyContexts(container.ownerDocument || document, state, nip19, settings, settingsManager);
+        await updateReplyContexts(container.ownerDocument || document, state, nip19, settings, settingsManager, showEventModal, reactToEvent, replyToEvent, repostEvent);
       } catch (e) { }
     }, 150);
   };
@@ -258,7 +258,7 @@ export async function updateNostrNoteLinks(container, showEventModal, state, nip
     }
   }
 
-  await updateReplyContexts(container, state, nip19, settings, settingsManager);
+  await updateReplyContexts(container, state, nip19, settings, settingsManager, showEventModal, reactToEvent, replyToEvent, repostEvent);
 
   // 初回かつ未解決要素がある場合のみ単一のリトライタイマーを発行（1.5s後に1回だけ、タイマーの乱立・再帰を防止）
   if (depth === 0 && !container.dataset.autoRetryDone) {
@@ -271,7 +271,7 @@ export async function updateNostrNoteLinks(container, showEventModal, state, nip
           const stillUnresolved = (container.matches && container.matches('.reply-to[data-owner-event-id]')) ||
             container.querySelector('.reply-to[data-owner-event-id]');
           if (stillUnresolved) {
-            await updateReplyContexts(container, state, nip19, settings, settingsManager);
+            await updateReplyContexts(container, state, nip19, settings, settingsManager, showEventModal, reactToEvent, replyToEvent, repostEvent);
           }
         } catch (e) { }
       }, 1800);
@@ -279,7 +279,7 @@ export async function updateNostrNoteLinks(container, showEventModal, state, nip
   }
 }
 
-export async function updateReplyContexts(container, state, nip19, settings, settingsManager) {
+export async function updateReplyContexts(container, state, nip19, settings, settingsManager, showEventModal = null, reactToEvent = null, replyToEvent = null, repostEvent = null) {
   if (!container || !state) return;
   let replyContainers = Array.from(container.querySelectorAll('.reply-to[data-owner-event-id]'));
   if (container.matches && container.matches('.reply-to[data-owner-event-id]')) {
@@ -324,6 +324,55 @@ export async function updateReplyContexts(container, state, nip19, settings, set
           try { updateNostrNpubLinks(newReplyEl); } catch (e) { }
           try { processHiddenTagChars(newReplyEl); } catch (e) { }
           try { fitCustomEmoji(newReplyEl, 18); } catch (e) { }
+
+          // 差し替えられた要素にクリックハンドラをバインド
+          try {
+            const authorPkEls = newReplyEl.querySelectorAll('.reply-to-author[data-pubkey]');
+            authorPkEls.forEach(el => {
+              el.style.cursor = 'pointer';
+              el.onclick = function (e) {
+                e.stopPropagation();
+                const pk = el.getAttribute('data-pubkey');
+                if (pk) {
+                  import('../../ui/renderers/render-helpers.js').then(m => m.invokeShowProfileModalProxy(pk));
+                }
+              };
+            });
+
+            const eventRefEls = newReplyEl.querySelectorAll('.reply-to-author[data-event-id], .reply-to-content[data-event-id]');
+            eventRefEls.forEach(el => {
+              el.style.cursor = 'pointer';
+              el.onclick = function (e) {
+                try {
+                  const a = e.target.closest('a');
+                  if (a) return;
+                  const btn = e.target.classList.contains('open-media') ? e.target : e.target.closest('.open-media');
+                  if (btn) return;
+                  const link = e.target.classList.contains('media-link') ? e.target : e.target.closest('.media-link');
+                  if (link) return;
+                } catch (err) { }
+                e.stopPropagation();
+                const refId = el.getAttribute('data-event-id');
+                const refRelayHint = el.getAttribute('data-relay-hint') || '';
+                if (!refId) return;
+                const referencedEvent = findEventById(state, refId);
+                if (referencedEvent && typeof showEventModal === 'function') {
+                  showEventModal(referencedEvent, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+                } else if (typeof showEventModal === 'function') {
+                  import('../../core/relay.js').then(m => {
+                    const hintRelays = refRelayHint ? [refRelayHint].filter(r => /^wss?:\/\//i.test(r)) : [];
+                    const readRelays = m.getReadRelays(state.relays) || [];
+                    const relays = [...new Set([...hintRelays, ...readRelays])];
+                    if (state && state.pool && relays.length > 0) {
+                      state.pool.get(relays, { ids: [refId] }).then(fetched => {
+                        if (fetched) showEventModal(fetched, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+                      });
+                    }
+                  });
+                }
+              };
+            });
+          } catch (e) { }
         }
       } catch (e) { }
     }
