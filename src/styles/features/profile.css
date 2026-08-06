@@ -88,6 +88,11 @@
   color: var(--accent);
   border: 1px solid rgba(124, 147, 255, 0.25);
 }
+.btn-follow-toggle.following.mutual {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.35);
+}
 .btn-follow-toggle.following:hover {
   background: rgba(239, 68, 68, 0.12);
   color: #ef4444;

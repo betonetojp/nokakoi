@@ -411,6 +411,7 @@
   "editor.follow.title": "Edit Follow List",
   "editor.follow.follow": "+ Follow",
   "editor.follow.following": "Following",
+  "editor.follow.mutual": "Mutual",
   "editor.follow.unfollow": "Unfollow",
   "editor.follow.petname_placeholder": "Petname (nickname)",
   "editor.follow.confirm": "Update follow list?",

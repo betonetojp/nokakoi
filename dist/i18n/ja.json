@@ -411,6 +411,7 @@
   "editor.follow.title": "フォローリスト編集",
   "editor.follow.follow": "+ フォロー",
   "editor.follow.following": "フォロー中",
+  "editor.follow.mutual": "相互",
   "editor.follow.unfollow": "解除する",
   "editor.follow.petname_placeholder": "ペットネーム（愛称）",
   "editor.follow.confirm": "フォローリストを更新しますか？",

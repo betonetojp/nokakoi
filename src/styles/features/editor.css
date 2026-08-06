@@ -245,6 +245,12 @@ body.theme-light .editor-confirm-dialog {
   white-space: nowrap;
 }
 
+.editor-list-actions button.secondary.mutual {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
 /* Subtabs inside editor modals */
 .editor-tabs {
   display: flex;

@@ -1036,7 +1036,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
   const isCwExpanded = !!(timelineUiState && timelineUiState.expandedCwEventIds && timelineUiState.expandedCwEventIds.has && timelineUiState.expandedCwEventIds.has(ev.id));
   const content = ev.content || '';
   const pk = ev.pubkey;
-  const muteState = evaluateMuteState(state, pk, content);
+  const muteState = evaluateMuteState(state, pk, content, settings);
   const allowInlineMedia = (settings && settings.showTimelineMedia === true) && !muteState.isMuted;
 
   const replyToHtml = renderReplyContext(state, ev, nip19, { ...(settings || {}), settingsManager, isModal: false, showTimelineMedia: allowInlineMedia });

@@ -111,12 +111,14 @@ export function applyMutedToneToEvent(div) {
   } catch (e) { }
 }
 
-export function evaluateMuteState(state, pk, content) {
+export function evaluateMuteState(state, pk, content, settings = null) {
+  const ignoreMuteApply = !!(settings && (settings.ignoreMuteApply === true || settings.disableMuteApply === true));
+  const rawMuteApply = (localStorage.getItem('mute_apply') || '1') === '1';
   const result = {
     isMuted: false,
     mutedType: null,
     matchedWord: null,
-    muteApply: (localStorage.getItem('mute_apply') || '1') === '1',
+    muteApply: ignoreMuteApply ? false : rawMuteApply,
     muteDisplayMode: localStorage.getItem('mute_display_mode') || 'collapse'
   };
 

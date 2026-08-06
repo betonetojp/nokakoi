@@ -5,10 +5,40 @@
 
 import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../core/replaceable-event.js';
 import { t } from '../../utils/i18n.js';
-import { getNip19 } from '../../core/nostr-compat.js';
+import { getNip19, getSimplePool } from '../../core/nostr-compat.js';
+import { getReadRelays, relayConnect } from '../../core/relay.js';
 import { displayNameWithUsername, loadProfile, updateNameDom } from './profile.js';
 
 const SNAPSHOTS_KEY = 'follow_list_snapshots';
+
+const globalMutualCache = new Map();
+
+/**
+ * 相手が自分をフォローしているか（相互フォローか）非同期チェック
+ */
+export async function checkMutualFollow(state, targetPubkey, myPubkey, cache = null) {
+  if (!targetPubkey || !myPubkey) return false;
+  const activeCache = cache || globalMutualCache;
+  if (activeCache.has(targetPubkey)) {
+    return activeCache.get(targetPubkey);
+  }
+
+  try {
+    const SimplePool = getSimplePool();
+    const relays = getReadRelays(state ? state.relays : null) || [];
+    if (!relays.length) return false;
+
+    if (state && !state.pool) relayConnect(state, SimplePool, () => {});
+    const pool = (state && state.pool) ? state.pool : (typeof SimplePool === 'function' ? new SimplePool() : SimplePool);
+
+    const ev = await pool.get(relays, { kinds: [3], authors: [targetPubkey] });
+    const isMutual = !!(ev && ev.tags && ev.tags.some(t => t[0] === 'p' && t[1] === myPubkey));
+    activeCache.set(targetPubkey, isMutual);
+    return isMutual;
+  } catch (e) {
+    return false;
+  }
+}
 
 /**
  * 保存済みスナップショットを取得
@@ -392,10 +422,20 @@ export function updateFollowButtonState(state, buttonEl, targetPubkey) {
   if (!buttonEl) return;
 
   const isFollowing = state.feeds['home'] && state.feeds['home'].followSet && state.feeds['home'].followSet.has(targetPubkey);
+  const myPubkey = (state && state.pubkey) || localStorage.getItem('pubkey');
 
   if (isFollowing) {
     buttonEl.textContent = t('editor.follow.following') || 'フォロー中';
     buttonEl.className = 'btn-follow-toggle following';
+
+    if (myPubkey) {
+      checkMutualFollow(state, targetPubkey, myPubkey).then(isMutual => {
+        if (isMutual && buttonEl.isConnected && buttonEl.classList.contains('following')) {
+          buttonEl.textContent = t('editor.follow.mutual') || '相互';
+          buttonEl.classList.add('mutual');
+        }
+      }).catch(() => {});
+    }
   } else {
     buttonEl.textContent = t('editor.follow.follow') || '+ フォロー';
     buttonEl.className = 'btn-follow-toggle not-following';
@@ -462,6 +502,7 @@ export async function openFollowEditor(state) {
 
   if (statusEl) statusEl.textContent = '';
 
+  const mutualCache = new Map();
   let activeTab = 'current'; // 'current' | 'saved'
 
   // サブタブおよび領域の初期生成
@@ -673,13 +714,26 @@ export async function openFollowEditor(state) {
       // フォロートグルボタン
       const toggleBtn = document.createElement('button');
       toggleBtn.type = 'button';
-      toggleBtn.className = 'secondary';
-      toggleBtn.textContent = t('editor.follow.following') || 'Following';
+      toggleBtn.className = item.isMutual ? 'secondary mutual' : 'secondary';
+      toggleBtn.textContent = item.isMutual ? (t('editor.follow.mutual') || '相互') : (t('editor.follow.following') || 'Following');
+
+      if (myPubkey && item.pubkey) {
+        checkMutualFollow(state, item.pubkey, myPubkey, mutualCache).then(isMutual => {
+          if (isMutual) {
+            item.isMutual = true;
+            if (item.isFollowing && toggleBtn.isConnected) {
+              toggleBtn.textContent = t('editor.follow.mutual') || '相互';
+              toggleBtn.className = 'secondary mutual';
+            }
+          }
+        }).catch(() => {});
+      }
+
       toggleBtn.onclick = () => {
         item.isFollowing = !item.isFollowing;
         if (item.isFollowing) {
-          toggleBtn.textContent = t('editor.follow.following') || 'Following';
-          toggleBtn.className = 'secondary';
+          toggleBtn.textContent = item.isMutual ? (t('editor.follow.mutual') || '相互') : (t('editor.follow.following') || 'Following');
+          toggleBtn.className = item.isMutual ? 'secondary mutual' : 'secondary';
           row.style.opacity = '1';
         } else {
           toggleBtn.textContent = t('editor.follow.unfollow') || 'Unfollow';
@@ -690,8 +744,8 @@ export async function openFollowEditor(state) {
 
       const actionsDiv = document.createElement('div');
       actionsDiv.className = 'editor-list-actions';
-      actionsDiv.appendChild(petnameWrapper);
       actionsDiv.appendChild(toggleBtn);
+      actionsDiv.appendChild(petnameWrapper);
 
       row.appendChild(profileInfo);
       row.appendChild(actionsDiv);

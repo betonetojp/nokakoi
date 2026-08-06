@@ -46,6 +46,8 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     if (typeof repostEvent !== 'function') repostEvent = async () => { };
   } catch (e) { }
 
+  const profileSettings = { ...(settings || {}), ignoreMuteApply: true };
+
   // モーダル内の固定ラベルに翻訳を適用
   try { if (typeof applyTranslations === 'function') applyTranslations(modal, true); } catch (e) { }
 
@@ -82,7 +84,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   if (metadataDetailsEl) metadataDetailsEl.open = false;
 
   // フォロー状態確認（非同期）
-  if (state && state.pubkey && state.pubkey !== pubkey && followStatusEl) {
+  if (state && state.pubkey && followStatusEl) {
     const targetPubkey = pubkey;
     (async () => {
       try {
@@ -609,7 +611,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
             // 新規分のみ追加
             const startIdx = existingEvents.length;
             for (let i = startIdx; i < toDisplay.length; i++) {
-              const node = renderEvent(state, toDisplay[i], nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent);
+              const node = renderEvent(state, toDisplay[i], nip19, profileSettings, settingsManager, reactToEvent, replyToEvent, repostEvent);
               const currentBottom = eventsContainer.querySelector('.feed-bar-bottom');
               if (currentBottom) eventsContainer.insertBefore(node, currentBottom);
               else eventsContainer.appendChild(node);
@@ -620,14 +622,14 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
             const prevScroll = eventsContainer.scrollTop;
             eventsContainer.innerHTML = '';
             for (let i = 0; i < toDisplay.length; i++) {
-              eventsContainer.appendChild(renderEvent(state, toDisplay[i], nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent));
+              eventsContainer.appendChild(renderEvent(state, toDisplay[i], nip19, profileSettings, settingsManager, reactToEvent, replyToEvent, repostEvent));
             }
             try { eventsContainer.scrollTop = prevScroll; } catch (e) { }
           }
         } else {
           eventsContainer.innerHTML = '';
           for (let i = 0; i < toDisplay.length; i++) {
-            eventsContainer.appendChild(renderEvent(state, toDisplay[i], nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent));
+            eventsContainer.appendChild(renderEvent(state, toDisplay[i], nip19, profileSettings, settingsManager, reactToEvent, replyToEvent, repostEvent));
           }
         }
       } catch (e) {
@@ -636,7 +638,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
         const sorted = getSortedEventsArray();
         const toDisplay = sorted.slice(0, Math.min(displayLimit, EVENTS_MAX));
         for (let i = 0; i < toDisplay.length; i++) {
-          eventsContainer.appendChild(renderEvent(state, toDisplay[i], nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent));
+          eventsContainer.appendChild(renderEvent(state, toDisplay[i], nip19, profileSettings, settingsManager, reactToEvent, replyToEvent, repostEvent));
         }
       }
 
