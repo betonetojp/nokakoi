@@ -4,7 +4,7 @@
 
 import { $, escapeHtml, fmtTime } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
-import { subOnce, getReadRelays, relayConnect } from '../../core/relay.js';
+import { subOnce, getReadRelays, relayConnect, profileIndexerRelay } from '../../core/relay.js';
 import { getSimplePool, getNip19 } from '../../core/nostr-compat.js';
 import { renderEvent } from '../../ui/renderer.js';
 import { showJsonModal } from '../../ui/modals/json-modal.js';
@@ -89,14 +89,17 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     (async () => {
       try {
         const SimplePool = getSimplePool();
-        const relays = getReadRelays(state.relays) || [];
-        if (!relays.length) return;
+        const userRelays = getReadRelays(state.relays) || [];
+        const fetchRelays = [...userRelays];
+        if (profileIndexerRelay && !fetchRelays.includes(profileIndexerRelay)) {
+          fetchRelays.push(profileIndexerRelay);
+        }
+        if (!fetchRelays.length) return;
 
         if (!state.pool) relayConnect(state, SimplePool, () => { });
 
         // 自分のpubkeyが相手のkind:3に含まれているか確認
-        // get()は内部で複数のリレーから最新のイベントを解決してくれるはず
-        const ev = await state.pool.get(relays, { kinds: [3], authors: [targetPubkey] });
+        const ev = await state.pool.get(fetchRelays, { kinds: [3], authors: [targetPubkey] });
 
         if (currentModalPubkey !== targetPubkey) return; // モーダル表示対象が切り替わった
 

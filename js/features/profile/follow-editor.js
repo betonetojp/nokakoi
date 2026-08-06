@@ -6,7 +6,7 @@
 import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../core/replaceable-event.js';
 import { t } from '../../utils/i18n.js';
 import { getNip19, getSimplePool } from '../../core/nostr-compat.js';
-import { getReadRelays, relayConnect } from '../../core/relay.js';
+import { getReadRelays, relayConnect, profileIndexerRelay } from '../../core/relay.js';
 import { displayNameWithUsername, loadProfile, updateNameDom } from './profile.js';
 
 const SNAPSHOTS_KEY = 'follow_list_snapshots';
@@ -25,13 +25,17 @@ export async function checkMutualFollow(state, targetPubkey, myPubkey, cache = n
 
   try {
     const SimplePool = getSimplePool();
-    const relays = getReadRelays(state ? state.relays : null) || [];
-    if (!relays.length) return false;
+    const userRelays = getReadRelays(state ? state.relays : null) || [];
+    const fetchRelays = [...userRelays];
+    if (profileIndexerRelay && !fetchRelays.includes(profileIndexerRelay)) {
+      fetchRelays.push(profileIndexerRelay);
+    }
+    if (!fetchRelays.length) return false;
 
     if (state && !state.pool) relayConnect(state, SimplePool, () => {});
     const pool = (state && state.pool) ? state.pool : (typeof SimplePool === 'function' ? new SimplePool() : SimplePool);
 
-    const ev = await pool.get(relays, { kinds: [3], authors: [targetPubkey] });
+    const ev = await pool.get(fetchRelays, { kinds: [3], authors: [targetPubkey] });
     const isMutual = !!(ev && ev.tags && ev.tags.some(t => t[0] === 'p' && t[1] === myPubkey));
     activeCache.set(targetPubkey, isMutual);
     return isMutual;
