@@ -247,6 +247,12 @@ body.theme-light #eventModalContent::-webkit-scrollbar-thumb {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
+  gap: 8px;
+}
+#eventModalAuthorWrap {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
 }
 .event-modal-footer {
   margin-top: 8px;

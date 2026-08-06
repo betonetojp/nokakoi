@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { escapeHtml, fmtTime, processHiddenTagChars, replaceBadgeEmoji } from '../../utils/utils.js';
+import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { displayNameWithUsername } from '../../features/profile/profile.js';
 import { showJsonModal } from './json-modal.js';
 import { linkifyText, fitCustomEmoji, updateNostrNpubLinks, updateNostrNoteLinks, linkifyNostrUri } from '../../utils/url-parser.js';
@@ -140,7 +141,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
     let avatarHtml = '';
     if (state && event.pubkey) {
       const profile = state.profiles.get(event.pubkey);
-      const avatarUrl = (profile && profile.picture) || '';
+      const avatarUrl = sanitizeUrlCandidate((profile && profile.picture) || '') || '';
       if (avatarUrl) {
         avatarHtml = '<img src="' + escapeHtml(avatarUrl) + '" alt="avatar" class="avatar" loading="lazy" style="width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--border);margin-right:6px;">';
       }
@@ -158,7 +159,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
         names = { main: hash, sub: '' };
       }
     } else {
-      names = event.pubkey && state ? displayNameWithUsername(state, event.pubkey, nip19) : { main: event.pubkey, sub: '' };
+      names = event.pubkey && state ? displayNameWithUsername(state, event.pubkey, nip19, { noTruncate: true }) : { main: event.pubkey, sub: '' };
     }
     let nameHtml = '<span class="name" data-pubkey="' + escapeHtml(event.pubkey || '') + '" style="font-weight:600;font-size:0.95em;cursor:pointer;">' + replaceBadgeEmoji(escapeHtml(names.main)) + '</span>';
     if (names.sub) {

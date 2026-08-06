@@ -1,6 +1,6 @@
 // 共通定数（フィード・モーダルで共通利用）
-export const EVENTS_TIMEOUT = 8000; // ms - リレーごとのクエリに対するセーフティタイムアウト
-export const EVENTS_FETCH_LIMIT =20; // 件数:1回のフェッチあたりの件数
+export const EVENTS_TIMEOUT = 5000; // ms - リレーごとのクエリに対するセーフティタイムアウト
+export const EVENTS_FETCH_LIMIT = 30; // 件数:1回のフェッチあたりの件数
 export let EVENTS_MAX = 500; // 最大保持件数 / 表示件数
 export function setEventsMax(val) {
   if (typeof val === 'number' && !isNaN(val) && val > 0) {
@@ -12,8 +12,8 @@ export function setEventsMax(val) {
 export const RECONNECT_DELAY = 5000; // ms - 再接続の基本待機時間（指数バックオフの初期値）
 export const MAX_RECONNECT_DELAY = 60000; // ms - 再接続の最大待機時間（指数バックオフの上限）
 export const DOWN_PERSIST_MS = 5000; // ms - 切断状態が一定時間続いた場合のみ再接続を予約
-export const KEEPALIVE_INTERVAL = 45000; // ms - WebSocket keepalive 送信間隔（リレーのアイドルタイムアウト防止）
-export const RESUME_RESTART_MS = 60000; // ms - この時間以上バックグラウンドだったら復帰時にフィードを強制再購読
+export const KEEPALIVE_INTERVAL = 30000; // ms - WebSocket keepalive 送信間隔（リレーのアイドルタイムアウト防止）
+export const RESUME_RESTART_MS = 300000; // ms - この時間以上バックグラウンドだったら復帰時にフィードを強制再購読
 export const RELAY_MONITOR_INTERVAL = 8000; // ms - リレー接続状態監視の実行間隔
 
 // 購読スロットリング上限（リレーごと）

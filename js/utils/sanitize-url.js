@@ -10,6 +10,15 @@ export function sanitizeUrlCandidate(u, baseHref) {
     if (!u || typeof u !== 'string') return null;
     const trimmed = u.trim();
     if (!trimmed) return null;
+
+    // 安全な data:image/ (Base64画像) の判定（XSSリスクのある data:text/html 等は排除。改行・空白入りの Base64 も許容）
+    if (/^data:image\/(png|jpeg|jpg|webp|gif|svg\+xml|avif|icon|x-icon|bmp)(;[a-z0-9-]+=[a-z0-9-]+)*;base64,[\sA-Za-z0-9+/=]+$/i.test(trimmed)) {
+      if (trimmed.length <= 2000000) {
+        return trimmed;
+      }
+      return null;
+    }
+
     if (trimmed.length > 2048) return null;
     let urlObj;
     try {
