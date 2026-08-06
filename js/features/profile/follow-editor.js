@@ -60,6 +60,174 @@ function extractPetname(t) {
   return petname;
 }
 
+let dragScrollTimer = null;
+
+function handleDragAutoScroll(e, listEl) {
+  if (!listEl) return;
+  const rect = listEl.getBoundingClientRect();
+  const threshold = 40;
+  const speed = 8;
+
+  const distFromTop = e.clientY - rect.top;
+  const distFromBottom = rect.bottom - e.clientY;
+
+  stopDragAutoScroll();
+
+  if (distFromTop > 0 && distFromTop < threshold) {
+    const scrollStep = () => {
+      listEl.scrollTop -= speed * (1 - distFromTop / threshold);
+      dragScrollTimer = requestAnimationFrame(scrollStep);
+    };
+    dragScrollTimer = requestAnimationFrame(scrollStep);
+  } else if (distFromBottom > 0 && distFromBottom < threshold) {
+    const scrollStep = () => {
+      listEl.scrollTop += speed * (1 - distFromBottom / threshold);
+      dragScrollTimer = requestAnimationFrame(scrollStep);
+    };
+    dragScrollTimer = requestAnimationFrame(scrollStep);
+  }
+}
+
+function stopDragAutoScroll() {
+  if (dragScrollTimer) {
+    cancelAnimationFrame(dragScrollTimer);
+    dragScrollTimer = null;
+  }
+}
+
+function attachDragAndTouchHandlers(row, dragHandle, itemType, index, itemsArray, container, listSelector, onReorder) {
+  row.setAttribute('draggable', 'true');
+  row.setAttribute('data-drag-index', index.toString());
+
+  row.ondragstart = (e) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: itemType, index }));
+    row.classList.add('dragging');
+  };
+
+  row.ondragend = () => {
+    stopDragAutoScroll();
+    row.classList.remove('dragging');
+    container.querySelectorAll('.editor-list-item').forEach(el => {
+      el.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+  };
+
+  row.ondragover = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const listEl = container.querySelector(listSelector);
+    handleDragAutoScroll(e, listEl);
+
+    const rect = row.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    if (e.clientY < midY) {
+      row.classList.add('drag-over-top');
+      row.classList.remove('drag-over-bottom');
+    } else {
+      row.classList.add('drag-over-bottom');
+      row.classList.remove('drag-over-top');
+    }
+  };
+
+  row.ondragleave = () => {
+    stopDragAutoScroll();
+    row.classList.remove('drag-over-top', 'drag-over-bottom');
+  };
+
+  row.ondrop = (e) => {
+    e.preventDefault();
+    stopDragAutoScroll();
+    row.classList.remove('drag-over-top', 'drag-over-bottom');
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if (data && data.type === itemType && typeof data.index === 'number') {
+        const fromIndex = data.index;
+        const rect = row.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        let toIndex = e.clientY < midY ? index : index + 1;
+
+        if (fromIndex !== toIndex) {
+          const [moved] = itemsArray.splice(fromIndex, 1);
+          if (toIndex > fromIndex) toIndex--;
+          itemsArray.splice(toIndex, 0, moved);
+          if (typeof onReorder === 'function') onReorder();
+        }
+      }
+    } catch (err) { }
+  };
+
+  dragHandle.ontouchstart = (e) => {
+    const fromIndex = index;
+    row.classList.add('dragging');
+
+    const onTouchMove = (moveEv) => {
+      if (moveEv.cancelable) moveEv.preventDefault();
+      const moveTouch = moveEv.touches[0];
+      const clientY = moveTouch.clientY;
+      const clientX = moveTouch.clientX;
+
+      const listEl = container.querySelector(listSelector);
+      handleDragAutoScroll({ clientY }, listEl);
+
+      const elementUnder = document.elementFromPoint(clientX, clientY);
+      const targetRow = elementUnder ? elementUnder.closest('.editor-list-item') : null;
+
+      container.querySelectorAll('.editor-list-item').forEach(el => {
+        el.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+
+      if (targetRow && targetRow !== row) {
+        const rect = targetRow.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if (clientY < midY) {
+          targetRow.classList.add('drag-over-top');
+        } else {
+          targetRow.classList.add('drag-over-bottom');
+        }
+      }
+    };
+
+    const onTouchEnd = (endEv) => {
+      stopDragAutoScroll();
+      row.classList.remove('dragging');
+      const endTouch = endEv.changedTouches[0];
+      const clientY = endTouch ? endTouch.clientY : 0;
+      const clientX = endTouch ? endTouch.clientX : 0;
+
+      const elementUnder = document.elementFromPoint(clientX, clientY);
+      const targetRow = elementUnder ? elementUnder.closest('.editor-list-item') : null;
+
+      container.querySelectorAll('.editor-list-item').forEach(el => {
+        el.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+
+      if (targetRow) {
+        const targetIndexStr = targetRow.getAttribute('data-drag-index');
+        if (targetIndexStr !== null) {
+          const toIdx = parseInt(targetIndexStr, 10);
+          const rect = targetRow.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          let finalIdx = clientY < midY ? toIdx : toIdx + 1;
+
+          if (fromIndex !== finalIdx) {
+            const [moved] = itemsArray.splice(fromIndex, 1);
+            if (finalIdx > fromIndex) finalIdx--;
+            itemsArray.splice(finalIdx, 0, moved);
+            if (typeof onReorder === 'function') onReorder();
+          }
+        }
+      }
+
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+    };
+
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd);
+  };
+}
+
 /**
  * tタグからrelayHintを抽出するヘルパー関数
  */
@@ -396,9 +564,20 @@ export async function openFollowEditor(state) {
     // 画面表示用に一時的に反転（最新が上）
     const displayItems = [...items].reverse();
 
-    displayItems.forEach((item) => {
+    displayItems.forEach((item, index) => {
       const row = document.createElement('div');
       row.className = 'editor-list-item';
+      row.setAttribute('data-focus-pubkey', item.pubkey);
+
+      const dragHandle = document.createElement('span');
+      dragHandle.className = 'drag-handle';
+      dragHandle.textContent = '☰';
+      row.appendChild(dragHandle);
+
+      attachDragAndTouchHandlers(row, dragHandle, 'follow', index, displayItems, container, '.editor-list', () => {
+        items = [...displayItems].reverse();
+        renderCurrentFollowsView(container);
+      });
 
       const profileInfo = document.createElement('div');
       profileInfo.className = 'editor-list-info';

@@ -149,6 +149,11 @@ export function setupTabs(settingsManager, preserveActive = false) {
       try { clearReplyTarget(); } catch(e){}
 
       try {
+        const detailsEls = document.querySelectorAll('details');
+        detailsEls.forEach(d => { d.open = false; });
+      } catch (e) { }
+
+      try {
         window.dispatchEvent(new CustomEvent('tab:changed', { detail: { tab: btn.dataset.tab } }));
       } catch (e) { }
     };

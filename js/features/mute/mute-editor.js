@@ -797,7 +797,7 @@ export async function openMuteEditor(state) {
   let privateWordItems = parsed.privateWords.map(w => ({ word: w, isMuted: true }));
 
   let activeMainTab = 'mutes'; // 'mutes' | 'snapshots'
-  let activeTab = 'public'; // 'public' | 'private'
+  let activeTab = parsed.canEditPrivate ? 'private' : 'public'; // 非公開ミュート編集可能なら非公開タブを初期選択
   let selectedEncryptionMode = parsed.encryptionMode || 'nip44';
 
   if (statusEl) statusEl.textContent = '';
@@ -1240,6 +1240,49 @@ export async function openMuteEditor(state) {
         const textEl = document.createElement('span');
         textEl.className = 'editor-list-name';
         textEl.textContent = item.word;
+
+        if (editable) {
+          textEl.style.cursor = 'pointer';
+          textEl.title = t('editor.mute.click_to_edit') || 'クリック/タップで編集';
+          textEl.onclick = (e) => {
+            e.stopPropagation();
+            if (info.querySelector('input.inline-edit-word')) return;
+
+            const editInput = document.createElement('input');
+            editInput.type = 'text';
+            editInput.className = 'inline-edit-word text-sm';
+            editInput.style.width = '100%';
+            editInput.value = item.word;
+
+            let finished = false;
+            const commitChange = () => {
+              if (finished) return;
+              finished = true;
+              const newWord = editInput.value.trim();
+              if (newWord && newWord !== item.word) {
+                item.word = newWord;
+                renderMuteStructure();
+              } else {
+                renderMuteStructure();
+              }
+            };
+
+            editInput.onkeydown = (ev) => {
+              if (ev.key === 'Enter') {
+                commitChange();
+              } else if (ev.key === 'Escape') {
+                finished = true;
+                renderMuteStructure();
+              }
+            };
+            editInput.onblur = commitChange;
+
+            info.innerHTML = '';
+            info.appendChild(editInput);
+            editInput.focus();
+            editInput.select();
+          };
+        }
 
         info.appendChild(textEl);
 
