@@ -6,6 +6,7 @@ import { profileIndexerRelay } from '../../core/relay.js';
 import { truncateName, escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
 
 import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
+import { evaluateMuteState, applyMutedToneToEvent, updateEventMuteDom } from '../../ui/renderers/render-helpers.js';
 
 const PROFILE_CACHE_KEY = 'nostr_profiles_cache';
 const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; //24時間
@@ -383,6 +384,13 @@ export function updateNameDom(state, pubkey, nip19) {
         usernameSpan.textContent = '@' + names.sub;
         el.parentNode.insertBefore(usernameSpan, el.nextSibling);
       }
+    }
+
+    // プロフィールロード完了時のミュート再評価
+    if (eventEl && (localStorage.getItem('mute_apply_kind0') || '0') === '1') {
+      try {
+        updateEventMuteDom(eventEl, state);
+      } catch (e) { }
     }
   });
 }

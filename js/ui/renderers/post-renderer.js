@@ -18,6 +18,7 @@ import {
   pickETagWithHint,
   applyMutedToneToEvent,
   evaluateMuteState,
+  createFoldBar,
   formatReactionForTitle,
   invokeShowProfileModalProxy,
   installReactionDefaultListener
@@ -264,6 +265,7 @@ function buildEventContainer(ev) {
   div.className = 'event';
   div.dataset.eventId = ev.id;
   div.dataset.kind = ev.kind;
+  if (ev.pubkey) div.dataset.pubkey = ev.pubkey;
   if (ev.kind === 42) div.classList.add('event-channel');
   return div;
 }
@@ -442,106 +444,29 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
           if (contentEl) contentEl.classList.add('d-none');
           const actionReact = div.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.add('d-none');
           const actionBottom = div.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.add('d-none');
-          const topRowEl = div.querySelector('.event-top-row');
-          if (topRowEl) topRowEl.classList.add('d-none');
+          const topRowEl = div.querySelector('.event-top-row'); if (topRowEl) topRowEl.classList.add('d-none');
+          const replyToEls = div.querySelectorAll('.reply-to'); replyToEls.forEach(el => el.classList.add('d-none'));
+          const chanEls = div.querySelectorAll('.event-channel-context, .channel-context'); chanEls.forEach(el => el.classList.add('d-none'));
+          const bottomRowEl = div.querySelector('.event-bottom-row'); if (bottomRowEl) bottomRowEl.classList.add('d-none');
 
           const cwBar = div.querySelector('.cw-fold-bar');
           if (cwBar) cwBar.classList.add('d-none');
         } catch (e) { }
 
-        const foldBar = document.createElement('div');
-        foldBar.className = 'muted-fold-bar muted-small';
-
-        const left = document.createElement('div');
-        left.className = 'muted-fold-bar-left';
-
-        try {
-          const topRowEl = div.querySelector('.event-top-row');
-          if (topRowEl) {
-            const cloned = topRowEl.cloneNode(true);
-            const clonedActions = cloned.querySelector('.event-actions-react');
-            if (clonedActions) clonedActions.parentNode && clonedActions.parentNode.removeChild(clonedActions);
-            const clonedBottom = cloned.querySelector('.event-actions-bottom');
-            if (clonedBottom) clonedBottom.parentNode && clonedBottom.parentNode.removeChild(clonedBottom);
-
-            const img = cloned.querySelector('img.avatar');
-            if (img) {
-              img.className = 'avatar muted-avatar';
-            }
-            const nameSpan = cloned.querySelector('.name');
-            if (nameSpan) nameSpan.classList.add('muted-name');
-
-            left.appendChild(cloned);
-
-            const muteLabel = document.createElement('span');
-            muteLabel.className = 'mute-event-label';
-            try {
-              if (mutedType === 'user') {
-                muteLabel.textContent = t('muted.user');
-              } else if (mutedType === 'word') {
-                muteLabel.textContent = t('muted.word');
-              } else {
-                muteLabel.textContent = t('muted.generic');
-              }
-            } catch (e) {
-              if (mutedType === 'user') muteLabel.setAttribute('data-i18n', 'muted.user');
-              else if (mutedType === 'word') muteLabel.setAttribute('data-i18n', 'muted.word');
-              else muteLabel.setAttribute('data-i18n', 'muted.generic');
-            }
-
-            const labelAndBtnWrap = document.createElement('div');
-            labelAndBtnWrap.className = 'mute-label-wrap';
-            labelAndBtnWrap.appendChild(muteLabel);
-            left.appendChild(labelAndBtnWrap);
-          } else {
-            const lbl = mutedType === 'user' ? t('muted.user') : (mutedType === 'word' ? t('muted.word') : t('muted.generic'));
-            left.innerHTML = '<span class="mute-event-label">' + lbl + '</span>';
+        const foldBar = createFoldBar(div, muteState);
+        if (foldBar) {
+          const expandBtn = foldBar.querySelector('.muted-fold-expand-btn');
+          if (expandBtn) {
+            const originalClick = expandBtn.onclick;
+            expandBtn.onclick = function (e) {
+              if (originalClick) originalClick(e);
+              try { if (markMutedExpanded) markMutedExpanded(ev.id, true); } catch (e) { }
+            };
           }
-        } catch (e) {
-          left.textContent = t('muted.generic');
+          const existingFold = div.querySelector('.muted-fold-bar');
+          if (existingFold) existingFold.remove();
+          div.insertBefore(foldBar, div.firstChild);
         }
-
-        const expandBtn = document.createElement('button');
-        expandBtn.type = 'button';
-        expandBtn.className = 'muted-fold-expand-btn';
-        expandBtn.textContent = t('fold.show');
-
-        try {
-          const wrapper = left.querySelector('.mute-label-wrap');
-          if (wrapper) {
-            wrapper.appendChild(expandBtn);
-          }
-        } catch (e) {
-        }
-
-        foldBar.appendChild(left);
-
-        const replyNode = div.querySelector('.reply-to');
-        if (replyNode && replyNode.parentNode) replyNode.parentNode.insertBefore(foldBar, replyNode.nextSibling);
-        else if (contentEl && contentEl.parentNode) contentEl.parentNode.insertBefore(foldBar, contentEl);
-        else div.insertBefore(foldBar, div.firstChild);
-
-        expandBtn.onclick = function (e) {
-          try {
-            const cwTag = (ev.tags || []).find(t => t[0] === 'content-warning');
-            const cwBar = div.querySelector('.cw-fold-bar');
-
-            if (cwTag && cwBar) {
-              cwBar.classList.remove('d-none');
-            } else {
-              if (contentEl) contentEl.classList.remove('d-none');
-            }
-
-            const actionReact = div.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.remove('d-none');
-            const actionBottom = div.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.remove('d-none');
-            const topRowEl2 = div.querySelector('.event-top-row');
-            if (topRowEl2) topRowEl2.classList.remove('d-none');
-            try { if (markMutedExpanded) markMutedExpanded(ev.id, true); } catch (e) { }
-            try { foldBar.parentNode && foldBar.parentNode.removeChild(foldBar); } catch (e) { }
-          } catch (e) {
-            console.warn('[Renderer] ミュートイベントの展開に失敗', e);
-          }
-        };
       } else {
         try {
           const actionReact = div.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.remove('d-none');
@@ -562,12 +487,17 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
 function bindProfileClickHandlers(div, ev, state, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent) {
   const pk = ev.pubkey;
 
-  const nameEl = div.querySelector('.name');
-  if (nameEl) {
-    nameEl.onclick = function () {
-      invokeShowProfileModalProxy(pk);
+  const profileEls = div.querySelectorAll('.name, .avatar, .username');
+  profileEls.forEach(el => {
+    el.style.cursor = 'pointer';
+    el.onclick = function (e) {
+      e.stopPropagation();
+      const targetPk = el.dataset.pubkey || pk;
+      if (targetPk) {
+        invokeShowProfileModalProxy(targetPk);
+      }
     };
-  }
+  });
 
   const geohashEl = div.querySelector('.omochat-geohash');
   if (geohashEl) {
@@ -1036,7 +966,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
   const isCwExpanded = !!(timelineUiState && timelineUiState.expandedCwEventIds && timelineUiState.expandedCwEventIds.has && timelineUiState.expandedCwEventIds.has(ev.id));
   const content = ev.content || '';
   const pk = ev.pubkey;
-  const muteState = evaluateMuteState(state, pk, content, settings);
+  const muteState = evaluateMuteState(state, pk, content, settings, ev);
   const allowInlineMedia = (settings && settings.showTimelineMedia === true) && !muteState.isMuted;
 
   const replyToHtml = renderReplyContext(state, ev, nip19, { ...(settings || {}), settingsManager, isModal: false, showTimelineMedia: allowInlineMedia });
@@ -1136,7 +1066,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
 
   try {
     const replyBlock = div.querySelector('.reply-to');
-    if (replyBlock) {
+    if (replyBlock && !muteState.isMuted) {
       try { updateNostrNpubLinks(replyBlock); } catch (e) { }
       try {
         updateNostrNoteLinks(

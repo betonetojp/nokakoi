@@ -7,6 +7,7 @@ import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../co
 import { getNip04, getNip44, hexToBytes, getNip19 } from '../../core/nostr-compat.js';
 import { t } from '../../utils/i18n.js';
 import { displayNameWithUsername, loadProfile, updateNameDom } from '../profile/profile.js';
+import { refreshEventsMuteState } from '../../ui/renderers/render-helpers.js';
 import { signer } from '../../core/signer.js';
 
 const MUTE_SNAPSHOTS_KEY = 'mute_list_snapshots';
@@ -624,6 +625,7 @@ function syncMuteStateToApp(state, publicUsers, publicWords, privateUsers, priva
   try {
     localStorage.setItem('muteList_expanded', JSON.stringify(expanded));
     window.__nokakoiMuteList = expanded;
+    try { refreshEventsMuteState(state); } catch (e) { }
     try { window.dispatchEvent(new CustomEvent('muteListUpdated')); } catch (e) { }
   } catch (e) { }
 }

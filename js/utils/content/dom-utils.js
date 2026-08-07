@@ -7,6 +7,7 @@ import { getNip19, linkifyText, linkifyNostrUri } from './linkifier.js';
 import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } from './timeline-anchor.js';
 import { resolveQuoteRelays, fetchQuoteEventById, fetchQuoteEventByNaddr, prefetchQuotesForElements, sanitizeRelays } from './quote-resolver.js';
 import { getEffectiveTextLength, getPreviewWithFullLinksAndEmojis } from './text-preview.js';
+import { evaluateMuteState } from '../../ui/renderers/render-helpers.js';
 
 export const NOSTR_QUOTE_RECURSION_MAX_DEPTH = 2;
 
@@ -187,6 +188,17 @@ let _replyUpdateDebounceTimer = null;
 
 export async function updateNostrNoteLinks(container, showEventModal, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager, recursionState = null) {
   if (!container) return;
+
+  const ownerEventEl = container.closest ? container.closest('.event') : (container.querySelector ? container.querySelector('.event') : null);
+  if (ownerEventEl) {
+    const pk = ownerEventEl.dataset.pubkey || ownerEventEl.querySelector('.name[data-pubkey]')?.dataset?.pubkey;
+    const content = ownerEventEl.querySelector('.content')?.textContent || '';
+    if (pk) {
+      const muteState = evaluateMuteState(state, pk, content, settings);
+      if (muteState.isMuted) return;
+    }
+  }
+
   const globalState = window.__nostrState;
   if (!state) state = globalState;
   if (!state || !state.pool) return;
@@ -318,9 +330,17 @@ export async function updateReplyContexts(container, state, nip19, settings, set
         tempDiv.innerHTML = newHtml;
         const newReplyEl = tempDiv.firstElementChild;
         if (newReplyEl && replyEl.parentNode) {
+          const ownerEventEl = replyEl.closest ? replyEl.closest('.event') : null;
+          const isFolded = replyEl.classList.contains('d-none') || (ownerEventEl && (ownerEventEl.classList.contains('muted-event') || !!ownerEventEl.querySelector('.muted-fold-bar')));
+          if (isFolded) {
+            newReplyEl.classList.add('d-none');
+          }
           const anchor = captureTimelineAnchor(container);
           replyEl.parentNode.replaceChild(newReplyEl, replyEl);
           restoreTimelineAnchor(anchor, container);
+          if (ownerEventEl) {
+            try { updateEventMuteDom(ownerEventEl, state, settings); } catch (e) { }
+          }
           try { updateNostrNpubLinks(newReplyEl); } catch (e) { }
           try { processHiddenTagChars(newReplyEl); } catch (e) { }
           try { fitCustomEmoji(newReplyEl, 18); } catch (e) { }

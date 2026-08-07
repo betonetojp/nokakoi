@@ -111,7 +111,152 @@ export function applyMutedToneToEvent(div) {
   } catch (e) { }
 }
 
-export function evaluateMuteState(state, pk, content, settings = null) {
+export function updateEventMuteDom(eventEl, state, settings = null) {
+  try {
+    if (!eventEl) return;
+    let pubkey = eventEl.dataset.pubkey;
+    if (!pubkey) {
+      const nameEl = eventEl.querySelector('.name[data-pubkey]');
+      if (nameEl) pubkey = nameEl.dataset.pubkey;
+    }
+    if (!pubkey) return;
+
+    const eventId = eventEl.dataset.eventId;
+    let ev = null;
+    if (eventId && state) {
+      ev = findEventById(state, eventId);
+    }
+
+    const contentEl = eventEl.querySelector('.content:not(.muted-fold-bar *)');
+    const content = contentEl ? contentEl.textContent || '' : '';
+    const muteState = evaluateMuteState(state, pubkey, content, settings, ev);
+
+    const existingFold = eventEl.querySelector('.muted-fold-bar');
+
+    if (!muteState.isMuted) {
+      if (existingFold) existingFold.remove();
+      eventEl.classList.remove('muted-event', 'muted-event-soft', 'muted-event-dim', 'muted-hidden', 'd-none');
+      delete eventEl.dataset.muteCollapsible;
+
+      if (contentEl) contentEl.classList.remove('d-none');
+      const actionReact = eventEl.querySelector('.event-actions-react:not(.muted-fold-bar *)'); if (actionReact) actionReact.classList.remove('d-none');
+      const actionBottom = eventEl.querySelector('.event-actions-bottom:not(.muted-fold-bar *)'); if (actionBottom) actionBottom.classList.remove('d-none');
+      const topRowEl = eventEl.querySelector('.event-top-row:not(.muted-fold-bar *)'); if (topRowEl) topRowEl.classList.remove('d-none');
+      const replyToEls = eventEl.querySelectorAll('.reply-to:not(.muted-fold-bar *)'); replyToEls.forEach(el => el.classList.remove('d-none'));
+      const chanEls = eventEl.querySelectorAll('.event-channel-context:not(.muted-fold-bar *), .channel-context:not(.muted-fold-bar *)'); chanEls.forEach(el => el.classList.remove('d-none'));
+      const bottomRowEl = eventEl.querySelector('.event-bottom-row:not(.muted-fold-bar *)'); if (bottomRowEl) bottomRowEl.classList.remove('d-none');
+      const cwBar = eventEl.querySelector('.cw-fold-bar:not(.muted-fold-bar *)'); if (cwBar) cwBar.classList.remove('d-none');
+      return;
+    }
+
+    if (muteState.isMuted && !muteState.muteApply) {
+      if (existingFold) existingFold.remove();
+      eventEl.classList.remove('muted-event', 'muted-hidden', 'd-none');
+      eventEl.classList.add('muted-event-soft');
+      applyMutedToneToEvent(eventEl);
+      return;
+    }
+
+    if (muteState.isMuted && muteState.muteApply) {
+      applyMutedToneToEvent(eventEl);
+      if (muteState.muteDisplayMode === 'hide') {
+        if (existingFold) existingFold.remove();
+        eventEl.classList.add('muted-event', 'muted-hidden', 'd-none');
+      } else {
+        eventEl.dataset.muteCollapsible = '1';
+        eventEl.classList.add('muted-event');
+        if (contentEl) contentEl.classList.add('d-none');
+        const actionReact = eventEl.querySelector('.event-actions-react:not(.muted-fold-bar *)'); if (actionReact) actionReact.classList.add('d-none');
+        const actionBottom = eventEl.querySelector('.event-actions-bottom:not(.muted-fold-bar *)'); if (actionBottom) actionBottom.classList.add('d-none');
+        const topRowEl = eventEl.querySelector('.event-top-row:not(.muted-fold-bar *)'); if (topRowEl) topRowEl.classList.add('d-none');
+        const replyToEls = eventEl.querySelectorAll('.reply-to:not(.muted-fold-bar *)'); replyToEls.forEach(el => el.classList.add('d-none'));
+        const chanEls = eventEl.querySelectorAll('.event-channel-context:not(.muted-fold-bar *), .channel-context:not(.muted-fold-bar *)'); chanEls.forEach(el => el.classList.add('d-none'));
+        const bottomRowEl = eventEl.querySelector('.event-bottom-row:not(.muted-fold-bar *)'); if (bottomRowEl) bottomRowEl.classList.add('d-none');
+        const cwBar = eventEl.querySelector('.cw-fold-bar:not(.muted-fold-bar *)'); if (cwBar) cwBar.classList.add('d-none');
+
+        if (!existingFold) {
+          const foldBar = createFoldBar(eventEl, muteState);
+          if (foldBar) {
+            eventEl.insertBefore(foldBar, eventEl.firstChild);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    if (window.__nokakoiDebug) console.warn('[Renderer] updateEventMuteDom に失敗', e);
+  }
+}
+
+export function createFoldBar(eventEl, muteState) {
+  try {
+    const foldBar = document.createElement('div');
+    foldBar.className = 'muted-fold-bar muted-small';
+
+    const left = document.createElement('div');
+    left.className = 'muted-fold-bar-left';
+
+    const muteLabel = document.createElement('span');
+    muteLabel.className = 'mute-event-label';
+    const mutedType = muteState.mutedType;
+    if (mutedType === 'user') muteLabel.textContent = t('muted.user');
+    else if (mutedType === 'word') muteLabel.textContent = t('muted.word');
+    else muteLabel.textContent = t('muted.generic');
+
+    const labelAndBtnWrap = document.createElement('div');
+    labelAndBtnWrap.className = 'mute-label-wrap';
+    labelAndBtnWrap.appendChild(muteLabel);
+    left.appendChild(labelAndBtnWrap);
+
+    const expandBtn = document.createElement('button');
+    expandBtn.type = 'button';
+    expandBtn.className = 'muted-fold-expand-btn';
+    expandBtn.textContent = t('fold.show');
+
+    labelAndBtnWrap.appendChild(expandBtn);
+    foldBar.appendChild(left);
+
+    expandBtn.onclick = function (e) {
+      try {
+        const contentEl = eventEl.querySelector('.content');
+        const cwBar = eventEl.querySelector('.cw-fold-bar');
+
+        if (cwBar) cwBar.classList.remove('d-none');
+        else if (contentEl) contentEl.classList.remove('d-none');
+
+        const actionReact = eventEl.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.remove('d-none');
+        const actionBottom = eventEl.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.remove('d-none');
+        const topRowEl = eventEl.querySelector('.event-top-row'); if (topRowEl) topRowEl.classList.remove('d-none');
+        const replyToEls = eventEl.querySelectorAll('.reply-to'); replyToEls.forEach(el => el.classList.remove('d-none'));
+        const chanEls = eventEl.querySelectorAll('.event-channel-context, .channel-context'); chanEls.forEach(el => el.classList.remove('d-none'));
+        const bottomRowEl = eventEl.querySelector('.event-bottom-row'); if (bottomRowEl) bottomRowEl.classList.remove('d-none');
+        foldBar.remove();
+      } catch (err) { }
+    };
+
+    return foldBar;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function refreshEventsMuteState(state = null, targetPubkey = null) {
+  try {
+    const selector = targetPubkey
+      ? `.event[data-pubkey="${targetPubkey}"], .event .name[data-pubkey="${targetPubkey}"]`
+      : '.event';
+    const nodes = document.querySelectorAll(selector);
+    const updatedEvents = new Set();
+    nodes.forEach(el => {
+      const eventEl = el.classList.contains('event') ? el : el.closest('.event');
+      if (eventEl && !updatedEvents.has(eventEl)) {
+        updatedEvents.add(eventEl);
+        updateEventMuteDom(eventEl, state);
+      }
+    });
+  } catch (e) { }
+}
+
+export function evaluateMuteState(state, pk, content, settings = null, ev = null) {
   const ignoreMuteApply = !!(settings && (settings.ignoreMuteApply === true || settings.disableMuteApply === true));
   const rawMuteApply = (localStorage.getItem('mute_apply') || '1') === '1';
   const result = {
@@ -131,10 +276,20 @@ export function evaluateMuteState(state, pk, content, settings = null) {
     const pubkeysPublic = (muteList.pubkeys && Array.isArray(muteList.pubkeys.public)) ? muteList.pubkeys.public : [];
     const pubkeysPrivate = (muteList.pubkeys && Array.isArray(muteList.pubkeys.private)) ? muteList.pubkeys.private : [];
     const allMutedPubkeys = pubkeysPublic.concat(pubkeysPrivate || []);
-    if (allMutedPubkeys.includes(pk)) {
-      result.isMuted = true;
-      result.mutedType = 'user';
-      return result;
+
+    const targetPubkeys = [pk];
+    // 純粋なリポスト (kind 6 / 16) の場合のみ元投稿者 (pタグ) もミュート判定に含める
+    if (ev && (ev.kind === 6 || ev.kind === 16) && Array.isArray(ev.tags)) {
+      const pTags = ev.tags.filter(t => t && t[0] === 'p' && t[1]).map(t => t[1]);
+      targetPubkeys.push(...pTags);
+    }
+
+    for (const targetPk of targetPubkeys) {
+      if (targetPk && allMutedPubkeys.includes(targetPk)) {
+        result.isMuted = true;
+        result.mutedType = 'user';
+        return result;
+      }
     }
 
     if (muteList.words) {
@@ -147,12 +302,19 @@ export function evaluateMuteState(state, pk, content, settings = null) {
       let profileText = '';
       try {
         if (applyKind0 && state && state.profiles && state.profiles.get) {
-          const prof = state.profiles.get(pk) || {};
-          const nameParts = [];
-          if (prof.display_name) nameParts.push(prof.display_name);
-          if (prof.name && prof.name !== prof.display_name) nameParts.push(prof.name);
-          const namesCombined = nameParts.join(' ');
-          profileText = (namesCombined + ' ' + (prof.about || '')).toLowerCase();
+          const textParts = [];
+          for (const targetPk of targetPubkeys) {
+            if (!targetPk) continue;
+            const prof = state.profiles.get(targetPk) || {};
+            if (prof.display_name) textParts.push(prof.display_name);
+            if (prof.name && prof.name !== prof.display_name) textParts.push(prof.name);
+            if (prof.about) textParts.push(prof.about);
+            if (prof.nip05) textParts.push(prof.nip05);
+            if (prof.lud16) textParts.push(prof.lud16);
+            if (prof.lud06) textParts.push(prof.lud06);
+            if (prof.website) textParts.push(prof.website);
+          }
+          profileText = textParts.join(' ').toLowerCase();
         }
       } catch (e) { profileText = ''; }
 

@@ -4,13 +4,15 @@ import { escapeHtml, truncateName, replaceBadgeEmoji } from '../../utils/utils.j
 import { linkifyText, getEffectiveTextLength, getPreviewWithFullLinksAndEmojis } from '../../utils/url-parser.js';
 import { t } from '../../utils/i18n.js';
 import { MAX_PREVIEW_LINES } from '../../config/constants.js';
-import { pickETagEventId, pickETagWithHint, resolvePreviewMaxLength } from './render-helpers.js';
+import { pickETagEventId, pickETagWithHint, resolvePreviewMaxLength, evaluateMuteState } from './render-helpers.js';
 import { formatReaction } from './reaction-renderer.js';
 
 export function renderReplyContext(state, ev, nip19, settings) {
   const isModal = !!settings && settings.isModal === true;
   const inlineMedia = settings && settings.showTimelineMedia === true;
   if (ev.kind !== 1 && ev.kind !== 1111 && ev.kind !== 7 && ev.kind !== 6 && ev.kind !== 16) return '';
+
+
 
   const eTags = (ev.tags || []).filter(t => t && (t[0] === 'e' || t[0] === 'E') && t[1]);
   if (eTags.length === 0) return '';

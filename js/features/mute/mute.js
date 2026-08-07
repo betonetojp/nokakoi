@@ -2,6 +2,7 @@ import { getNip04, getNip44, hexToBytes } from '../../core/nostr-compat.js';
 import { getReadRelays } from '../../core/relay.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { addAutoCloseCheckbox, waitForEhagakiPublish } from '../../ui/ehagaki-autoclose.js';
+import { refreshEventsMuteState } from '../../ui/renderers/render-helpers.js';
 import { signer } from '../../core/signer.js';
 
 export function restoreMuteListFromStorage(ui = {}) {
@@ -504,12 +505,14 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
     // 初期表示時に localStorage のミュートリストを反映し、件数表示を復元
     try { updateMuteListCountsUI(); } catch (e) { }
 
-    // ミュート状態変更イベント時に件数表示を自動更新
+    // ミュート状態変更イベント時に件数表示とタイムラインミュート表現を自動更新
     try {
-      window.removeEventListener('muteListUpdated', updateMuteListCountsUI);
-      window.addEventListener('muteListUpdated', updateMuteListCountsUI);
-      window.removeEventListener('muteListFetched', updateMuteListCountsUI);
-      window.addEventListener('muteListFetched', updateMuteListCountsUI);
+      const onMuteUpdate = () => {
+        try { updateMuteListCountsUI(); } catch (e) { }
+        try { refreshEventsMuteState(state); } catch (e) { }
+      };
+      window.addEventListener('muteListUpdated', onMuteUpdate);
+      window.addEventListener('muteListFetched', onMuteUpdate);
     } catch (e) { }
 
     // ミュート設定UIを追加（適用ON/OFF + 表示モード）
