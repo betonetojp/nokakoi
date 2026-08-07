@@ -111,7 +111,7 @@ export function applyMutedToneToEvent(div) {
   } catch (e) { }
 }
 
-export function updateEventMuteDom(eventEl, state, settings = null) {
+export function updateEventMuteDom(eventEl, state, settings = null, forceExpanded = null) {
   try {
     if (!eventEl) return;
     let pubkey = eventEl.dataset.pubkey;
@@ -127,7 +127,7 @@ export function updateEventMuteDom(eventEl, state, settings = null) {
       ev = findEventById(state, eventId);
     }
 
-    const contentEl = eventEl.querySelector('.content:not(.muted-fold-bar *)');
+    const contentEl = eventEl.querySelector('.content');
     const content = contentEl ? contentEl.textContent || '' : '';
     const muteState = evaluateMuteState(state, pubkey, content, settings, ev);
 
@@ -139,13 +139,13 @@ export function updateEventMuteDom(eventEl, state, settings = null) {
       delete eventEl.dataset.muteCollapsible;
 
       if (contentEl) contentEl.classList.remove('d-none');
-      const actionReact = eventEl.querySelector('.event-actions-react:not(.muted-fold-bar *)'); if (actionReact) actionReact.classList.remove('d-none');
-      const actionBottom = eventEl.querySelector('.event-actions-bottom:not(.muted-fold-bar *)'); if (actionBottom) actionBottom.classList.remove('d-none');
-      const topRowEl = eventEl.querySelector('.event-top-row:not(.muted-fold-bar *)'); if (topRowEl) topRowEl.classList.remove('d-none');
-      const replyToEls = eventEl.querySelectorAll('.reply-to:not(.muted-fold-bar *)'); replyToEls.forEach(el => el.classList.remove('d-none'));
-      const chanEls = eventEl.querySelectorAll('.event-channel-context:not(.muted-fold-bar *), .channel-context:not(.muted-fold-bar *)'); chanEls.forEach(el => el.classList.remove('d-none'));
-      const bottomRowEl = eventEl.querySelector('.event-bottom-row:not(.muted-fold-bar *)'); if (bottomRowEl) bottomRowEl.classList.remove('d-none');
-      const cwBar = eventEl.querySelector('.cw-fold-bar:not(.muted-fold-bar *)'); if (cwBar) cwBar.classList.remove('d-none');
+      const actionReact = eventEl.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.remove('d-none');
+      const actionBottom = eventEl.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.remove('d-none');
+      const topRowEl = eventEl.querySelector('.event-top-row'); if (topRowEl) topRowEl.classList.remove('d-none');
+      const replyToEls = eventEl.querySelectorAll('.reply-to'); replyToEls.forEach(el => el.classList.remove('d-none'));
+      const chanEls = eventEl.querySelectorAll('.event-channel-context, .channel-context'); chanEls.forEach(el => el.classList.remove('d-none'));
+      const bottomRowEl = eventEl.querySelector('.event-bottom-row'); if (bottomRowEl) bottomRowEl.classList.remove('d-none');
+      const cwBar = eventEl.querySelector('.cw-fold-bar'); if (cwBar) cwBar.classList.remove('d-none');
       return;
     }
 
@@ -162,24 +162,49 @@ export function updateEventMuteDom(eventEl, state, settings = null) {
       if (muteState.muteDisplayMode === 'hide') {
         if (existingFold) existingFold.remove();
         eventEl.classList.add('muted-event', 'muted-hidden', 'd-none');
-      } else {
-        eventEl.dataset.muteCollapsible = '1';
-        eventEl.classList.add('muted-event');
-        if (contentEl) contentEl.classList.add('d-none');
-        const actionReact = eventEl.querySelector('.event-actions-react:not(.muted-fold-bar *)'); if (actionReact) actionReact.classList.add('d-none');
-        const actionBottom = eventEl.querySelector('.event-actions-bottom:not(.muted-fold-bar *)'); if (actionBottom) actionBottom.classList.add('d-none');
-        const topRowEl = eventEl.querySelector('.event-top-row:not(.muted-fold-bar *)'); if (topRowEl) topRowEl.classList.add('d-none');
-        const replyToEls = eventEl.querySelectorAll('.reply-to:not(.muted-fold-bar *)'); replyToEls.forEach(el => el.classList.add('d-none'));
-        const chanEls = eventEl.querySelectorAll('.event-channel-context:not(.muted-fold-bar *), .channel-context:not(.muted-fold-bar *)'); chanEls.forEach(el => el.classList.add('d-none'));
-        const bottomRowEl = eventEl.querySelector('.event-bottom-row:not(.muted-fold-bar *)'); if (bottomRowEl) bottomRowEl.classList.add('d-none');
-        const cwBar = eventEl.querySelector('.cw-fold-bar:not(.muted-fold-bar *)'); if (cwBar) cwBar.classList.add('d-none');
+        return;
+      }
 
-        if (!existingFold) {
-          const foldBar = createFoldBar(eventEl, muteState);
-          if (foldBar) {
-            eventEl.insertBefore(foldBar, eventEl.firstChild);
-          }
+      let isExpanded = false;
+      if (typeof forceExpanded === 'boolean') {
+        isExpanded = forceExpanded;
+      }
+
+      eventEl.dataset.muteCollapsible = '1';
+      eventEl.classList.add('muted-event');
+
+      if (existingFold) existingFold.remove();
+      const foldBar = createFoldBar(eventEl, muteState, isExpanded);
+      if (foldBar) {
+        const btn = foldBar.querySelector('.muted-fold-expand-btn');
+        if (btn) {
+          btn.onclick = function (e) {
+            e.stopPropagation();
+            const nextExpanded = !isExpanded;
+            updateEventMuteDom(eventEl, state, settings, nextExpanded);
+          };
         }
+        eventEl.insertBefore(foldBar, eventEl.firstChild);
+      }
+
+      if (isExpanded) {
+        if (contentEl) contentEl.classList.remove('d-none');
+        const actionReact = eventEl.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.remove('d-none');
+        const actionBottom = eventEl.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.remove('d-none');
+        const topRowEl = eventEl.querySelector('.event-top-row'); if (topRowEl) topRowEl.classList.remove('d-none');
+        const replyToEls = eventEl.querySelectorAll('.reply-to'); replyToEls.forEach(el => el.classList.remove('d-none'));
+        const chanEls = eventEl.querySelectorAll('.event-channel-context, .channel-context'); chanEls.forEach(el => el.classList.remove('d-none'));
+        const bottomRowEl = eventEl.querySelector('.event-bottom-row'); if (bottomRowEl) bottomRowEl.classList.remove('d-none');
+        const cwBar = eventEl.querySelector('.cw-fold-bar'); if (cwBar) cwBar.classList.remove('d-none');
+      } else {
+        if (contentEl) contentEl.classList.add('d-none');
+        const actionReact = eventEl.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.add('d-none');
+        const actionBottom = eventEl.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.add('d-none');
+        const topRowEl = eventEl.querySelector('.event-top-row'); if (topRowEl) topRowEl.classList.add('d-none');
+        const replyToEls = eventEl.querySelectorAll('.reply-to'); replyToEls.forEach(el => el.classList.add('d-none'));
+        const chanEls = eventEl.querySelectorAll('.event-channel-context, .channel-context'); chanEls.forEach(el => el.classList.add('d-none'));
+        const bottomRowEl = eventEl.querySelector('.event-bottom-row'); if (bottomRowEl) bottomRowEl.classList.add('d-none');
+        const cwBar = eventEl.querySelector('.cw-fold-bar'); if (cwBar) cwBar.classList.add('d-none');
       }
     }
   } catch (e) {
@@ -187,7 +212,7 @@ export function updateEventMuteDom(eventEl, state, settings = null) {
   }
 }
 
-export function createFoldBar(eventEl, muteState) {
+export function createFoldBar(eventEl, muteState, isExpanded = false) {
   try {
     const foldBar = document.createElement('div');
     foldBar.className = 'muted-fold-bar muted-small';
@@ -210,28 +235,10 @@ export function createFoldBar(eventEl, muteState) {
     const expandBtn = document.createElement('button');
     expandBtn.type = 'button';
     expandBtn.className = 'muted-fold-expand-btn';
-    expandBtn.textContent = t('fold.show');
+    expandBtn.textContent = isExpanded ? (t('fold.hide') || '折りたたむ') : (t('fold.show') || '表示');
 
     labelAndBtnWrap.appendChild(expandBtn);
     foldBar.appendChild(left);
-
-    expandBtn.onclick = function (e) {
-      try {
-        const contentEl = eventEl.querySelector('.content');
-        const cwBar = eventEl.querySelector('.cw-fold-bar');
-
-        if (cwBar) cwBar.classList.remove('d-none');
-        else if (contentEl) contentEl.classList.remove('d-none');
-
-        const actionReact = eventEl.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.remove('d-none');
-        const actionBottom = eventEl.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.remove('d-none');
-        const topRowEl = eventEl.querySelector('.event-top-row'); if (topRowEl) topRowEl.classList.remove('d-none');
-        const replyToEls = eventEl.querySelectorAll('.reply-to'); replyToEls.forEach(el => el.classList.remove('d-none'));
-        const chanEls = eventEl.querySelectorAll('.event-channel-context, .channel-context'); chanEls.forEach(el => el.classList.remove('d-none'));
-        const bottomRowEl = eventEl.querySelector('.event-bottom-row'); if (bottomRowEl) bottomRowEl.classList.remove('d-none');
-        foldBar.remove();
-      } catch (err) { }
-    };
 
     return foldBar;
   } catch (e) {

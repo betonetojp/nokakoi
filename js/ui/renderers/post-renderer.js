@@ -18,6 +18,7 @@ import {
   pickETagWithHint,
   applyMutedToneToEvent,
   evaluateMuteState,
+  updateEventMuteDom,
   createFoldBar,
   formatReactionForTitle,
   invokeShowProfileModalProxy,
@@ -416,7 +417,7 @@ function setupContentWarning(div, ev, contentEl, isCwExpanded, markCwExpanded) {
   }
 }
 
-function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markMutedExpanded) {
+function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markMutedExpanded, state = null, settings = null) {
   try {
     const isMuted = !!muteState.isMuted;
     const mutedType = muteState.mutedType;
@@ -439,6 +440,23 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
 
       div.dataset.muteCollapsible = '1';
       div.classList.add('muted-event');
+
+      const foldBar = createFoldBar(div, muteState, isMutedExpanded);
+      if (foldBar) {
+        const btn = foldBar.querySelector('.muted-fold-expand-btn');
+        if (btn) {
+          btn.onclick = function (e) {
+            e.stopPropagation();
+            const nextExpanded = !isMutedExpanded;
+            const curState = state || window.__nokakoiState;
+            updateEventMuteDom(div, curState, settings, nextExpanded);
+          };
+        }
+        const existingFold = div.querySelector('.muted-fold-bar');
+        if (existingFold) existingFold.remove();
+        div.insertBefore(foldBar, div.firstChild);
+      }
+
       if (!isMutedExpanded) {
         try {
           if (contentEl) contentEl.classList.add('d-none');
@@ -452,21 +470,6 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
           const cwBar = div.querySelector('.cw-fold-bar');
           if (cwBar) cwBar.classList.add('d-none');
         } catch (e) { }
-
-        const foldBar = createFoldBar(div, muteState);
-        if (foldBar) {
-          const expandBtn = foldBar.querySelector('.muted-fold-expand-btn');
-          if (expandBtn) {
-            const originalClick = expandBtn.onclick;
-            expandBtn.onclick = function (e) {
-              if (originalClick) originalClick(e);
-              try { if (markMutedExpanded) markMutedExpanded(ev.id, true); } catch (e) { }
-            };
-          }
-          const existingFold = div.querySelector('.muted-fold-bar');
-          if (existingFold) existingFold.remove();
-          div.insertBefore(foldBar, div.firstChild);
-        }
       } else {
         try {
           const actionReact = div.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.remove('d-none');
@@ -1091,7 +1094,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
 
   setupContentWarning(div, ev, contentEl, isCwExpanded, markCwExpanded);
 
-  const isHidden = setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markMutedExpanded);
+  const isHidden = setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markMutedExpanded, state, settings);
   if (isHidden) return div;
 
   bindEventListeners(div, ev, state, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent);
