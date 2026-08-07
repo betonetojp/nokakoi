@@ -905,7 +905,7 @@ export function renderFeed(id = 'global', force = false) {
         }
 
         try {
-          fetchMore({
+          const morePromise = fetchMore({
             state: _state,
             feedId: id,
             filters: filtersToUse,
@@ -915,7 +915,24 @@ export function renderFeed(id = 'global', force = false) {
             scheduleRender,
             eventsFetchLimit: EVENTS_FETCH_LIMIT,
             eventsTimeout: Math.max(EVENTS_TIMEOUT, 10000)
-          }).then(finishLoadMore).catch((err) => {
+          });
+          try {
+            if (!feedLoadState[id]) feedLoadState[id] = {};
+            feedLoadState[id].moreController = morePromise && morePromise.controller ? morePromise.controller : null;
+          } catch (e) { }
+          morePromise.then((result) => {
+            try {
+              if (feedLoadState[id] && feedLoadState[id].moreController === (morePromise && morePromise.controller)) {
+                feedLoadState[id].moreController = null;
+              }
+            } catch (e) { }
+            finishLoadMore(result);
+          }).catch((err) => {
+            try {
+              if (feedLoadState[id] && feedLoadState[id].moreController === (morePromise && morePromise.controller)) {
+                feedLoadState[id].moreController = null;
+              }
+            } catch (e) { }
             console.error('[FeedRenderer] fetchMore promise err:', err);
             debugFeed('[FeedRenderer] fetchMore promise err summary', {
               feedId: id,

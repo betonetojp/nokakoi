@@ -18,7 +18,7 @@ export const RELAY_MONITOR_INTERVAL = 8000; // ms - リレー接続状態監視�
 
 // 購読スロットリング上限（リレーごと）
 export const MAX_LIVE_PER_RELAY = 5; // リレーごとの同時Live購読数
-export const MAX_ONESHOT_PER_RELAY = 1; // リレーごとの同時ワンショット購読数
+export const MAX_ONESHOT_PER_RELAY = 2; // リレーごとの同時ワンショット購読数（follows+home_hist 並走を許容。無制限には戻さない）
 export const MAX_TOTAL_SUB_PER_RELAY = 10; // リレーごとの同時合計購読上限（優先・非優先問わず一律10件）
 export const PER_RELAY_ONESHOT_LIMIT = 200; // 件数 - 履歴取得時の1リレーあたりの最大受信数（バッファ偏重防止）
 

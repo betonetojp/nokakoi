@@ -1,5 +1,5 @@
 import { insertEventSorted, findEventById, clearFeed } from '../../core/state.js';
-import { getReadRelays, subOnce, relayConnect, unsubscribeAll } from '../../core/relay.js';
+import { getReadRelays, subOnce, relayConnect, unsubscribeAll, cancelInactiveTabOneshots } from '../../core/relay.js';
 import { EVENTS_MAX, EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT } from '../../config/constants.js';
 import { setupFeedFetcher, updatePerFilterUntil } from '../../features/timeline/feed-fetcher.js';
 import { setupCustomEmojiSubscription, scheduleCustomEmojiSubscription } from '../../features/emoji/custom-emoji-sub.js';
@@ -47,6 +47,20 @@ let _restartFeedsCalled = false;
 
 // 外部から利用するために export する
 export { _feedUiStateById };
+
+/**
+ * 既存 fetcher の hist / live を停止する（差し替え前に呼ぶ。live 増殖防止）
+ */
+function stopFetcherSlot(slotKey) {
+  try {
+    const prev = state && state[slotKey];
+    if (prev) {
+      try { if (typeof prev.stopHist === 'function') prev.stopHist(); } catch (e) { }
+      try { if (typeof prev.stopLive === 'function') prev.stopLive(); } catch (e) { }
+    }
+  } catch (e) { }
+  try { if (state) state[slotKey] = null; } catch (e) { }
+}
 
 /**
  * フィードマネージャーの初期化
@@ -658,6 +672,7 @@ export function setupGlobalFeed() {
         liveFilters.push({ kinds: [30315], '#d': ['music'], since });
       }
     } catch (e) { }
+    stopFetcherSlot('_globalFetcher');
     const fetcher = setupFeedFetcher({
       state,
       feedId: 'global',
@@ -758,6 +773,7 @@ export function setupBitchatFeed() {
     };
     try { state._bitchatFeedAdder = feedAdder; } catch (e) { }
 
+    stopFetcherSlot('_bitchatFetcher');
     const fetcher = setupFeedFetcher({
       state,
       feedId: 'bitchat',
@@ -914,6 +930,7 @@ export function setupAuthedFeeds() {
             }
           };
 
+          stopFetcherSlot('_homeFetcher');
           const fetcher = setupFeedFetcher({
             state,
             feedId: 'home',
@@ -945,6 +962,7 @@ export function setupAuthedFeeds() {
           { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
           { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
         ] : [];
+        stopFetcherSlot('_mentionsFetcher');
         const mentionsFetcher = setupFeedFetcher({
           state,
           feedId: 'mentions',
@@ -981,6 +999,7 @@ export function setupAuthedFeeds() {
         if (!state.feeds['me']) state.feeds['me'] = { list: [], map: new Map() };
         const isMeActive = activeTab === 'me';
         const meHist = isMeActive ? [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }] : [];
+        stopFetcherSlot('_meFetcher');
         const meFetcher = setupFeedFetcher({
           state,
           feedId: 'me',
@@ -1109,8 +1128,11 @@ export function restartFeeds(fullReset = false) {
       scheduleCustomEmojiSubscription(2000);
     }
     setupGlobalFeed();
+    // bitchat hist が home/global の oneshot 枠を奪わないよう起動を遅延
     if (shouldConnectBitchatOnBoot()) {
-      setupBitchatFeed();
+      setTimeout(() => {
+        try { setupBitchatFeed(); } catch (e) { console.warn('[FeedManager] 遅延 bitchat セットアップ失敗:', e); }
+      }, 1500);
     }
     window.__nokakoiFeedsReady = false;
     setTimeout(() => { window.__nokakoiFeedsReady = true; }, 5000);
@@ -1238,6 +1260,7 @@ export function setupSingleFeed(feedId) {
       };
 
       const relaysForHist = getReadRelays(state.relays) || [];
+      stopFetcherSlot('_homeFetcher');
       const fetcher = setupFeedFetcher({
         state,
         feedId: 'home',
@@ -1269,6 +1292,7 @@ export function setupSingleFeed(feedId) {
         { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
         { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
       ];
+      stopFetcherSlot('_mentionsFetcher');
       const mentionsFetcher = setupFeedFetcher({
         state,
         feedId: 'mentions',
@@ -1284,6 +1308,7 @@ export function setupSingleFeed(feedId) {
       state._mentionsFetcher = mentionsFetcher;
     } else if (feedId === 'me') {
       const meHist = [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
+      stopFetcherSlot('_meFetcher');
       const meFetcher = setupFeedFetcher({
         state,
         feedId: 'me',
@@ -1308,6 +1333,7 @@ export function handleTabChange(oldTab, newTab) {
   if (!state) return;
 
   // 1. 切り替え元 (oldTab) のクリア処理および非アクティブタブの進行中 ONESHOT REQ (過去ログ取得) のキャンセル
+  // live は維持（裏タブ通知用）。hist / more のみ止める。
   ['home', 'global', 'mentions', 'me'].forEach(tabId => {
     if (tabId !== newTab) {
       // globalMergeHome 設定で global タブ表示中に home の過去ログ取得が必要な場合は除く
@@ -1319,29 +1345,39 @@ export function handleTabChange(oldTab, newTab) {
       if (fetcher && typeof fetcher.stopHist === 'function') {
         try { fetcher.stopHist(); } catch (e) { }
       }
+      try {
+        const st = feedLoadState[tabId];
+        if (st && st.moreController && typeof st.moreController.abort === 'function') {
+          st.moreController.abort();
+        }
+        if (st) {
+          st.moreController = null;
+          st.loadingMore = false;
+        }
+      } catch (e) { }
     }
   });
 
+  try { cancelInactiveTabOneshots(newTab); } catch (e) { }
   // bitchat 以外の非アクティブ化したタブについて、メモリを完全クリアせず、EVENTS_FETCH_LIMIT 件にトリムして保持する
   if (oldTab && oldTab !== newTab && oldTab !== 'bitchat') {
-    console.log(`[FeedManager] 保持件数上限に合わせて切り替え元タブ (${oldTab}) のフィードを整頓中...`);
-    
     // フィードデータを EVENTS_FETCH_LIMIT 件にトリムしてメモリに保持
     trimFeedToMax(oldTab, EVENTS_FETCH_LIMIT);
-    
+
     // DOMはメモリ節約のためクリアする
     const el = document.getElementById('feed-' + oldTab);
     if (el) {
       el.innerHTML = '';
       // 注意: ドット点灯のために el.dataset.topEventId は削除しない
     }
+    console.log(`[FeedManager] 切り替え元タブ (${oldTab}) のフィードを整頓しました`);
   }
 
   // 2. 切り替え先 (newTab) の処理
   if (newTab && newTab !== 'bitchat') {
     // どんなタブ（mentions, me, global 等）に切り替える時でも、万が一 _homeFetcher (home_live) が死んでいれば即座に自動復旧する
     if (localStorage.getItem('pubkey') && !state._homeFetcher) {
-      console.log('[FeedManager] タブ切り替え時に _homeFetcher (home_live) が存在しません。ホームフィードを自動復旧中...');
+      console.log('[FeedManager] タブ切り替え時に _homeFetcher (home_live) が存在しません。ホームフィードを自動復旧します');
       try { setupSingleFeed('home'); } catch (e) { console.warn('[FeedManager] ホームフィードの自動復旧に失敗しました:', e); }
     }
 
@@ -1351,25 +1387,25 @@ export function handleTabChange(oldTab, newTab) {
 
     // すでに fetcher が存在し、live 購読等が動いており、且つ過去ログもロード済みの場合は再ロードをスキップ
     if (f && isHistLoaded) {
-      console.log(`[FeedManager] 切り替え先タブ (${newTab}) のフィードは既にセットアップ・履歴ロード済みです。メモリから再描画中...`);
       markFeedPreferFullRender(newTab);
       scheduleRender(newTab);
+      console.log(`[FeedManager] 切り替え先タブ (${newTab}) をメモリから再描画しました`);
     } else {
-      console.log(`[FeedManager] 切り替え先タブ (${newTab}) のフィードをソフトリロード中...`);
-      
+      console.log(`[FeedManager] 切り替え先タブ (${newTab}) のソフトリロードを開始します`);
+
       // フィードデータをクリア
       clearFeed(state, newTab);
       if (feedLoadState[newTab]) {
         feedLoadState[newTab].histLoaded = false;
       }
-      
+
       // DOMとtopEventIdをクリア
       const el = document.getElementById('feed-' + newTab);
       if (el) {
         el.innerHTML = '';
         delete el.dataset.topEventId;
       }
-      
+
       // 新規にセットアップ（履歴＆ライブ取得開始）
       setupSingleFeed(newTab);
     }

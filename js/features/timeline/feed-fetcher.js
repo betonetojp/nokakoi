@@ -140,17 +140,14 @@ export function setupFeedFetcher(opts) {
   const usedRelays = Array.isArray(relays) && relays.length ? relays.slice() : getReadRelays(state.relays);
   const perRelayUnsubs = new Set();
   const histBuffer = new Map();
-  // この fetcher の購読を宣言的に停止できるよう AbortController を使用
+  // hist 購読のみを宣言的に停止できるよう AbortController を使用（live は維持）
   const controller = new AbortController();
   const onAbort = () => {
     try {
-      // 購読をクリーンアップ
       for (const u of Array.from(perRelayUnsubs)) {
         try { if (typeof u === 'function') u(); } catch (e) { }
       }
       perRelayUnsubs.clear();
-      // live 購読を停止
-      try { if (typeof liveUnsub === 'function') liveUnsub(); } catch (e) { }
     } catch (e) { }
   };
   try { controller.signal.addEventListener('abort', onAbort); } catch (e) { }

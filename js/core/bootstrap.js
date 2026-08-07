@@ -403,7 +403,9 @@ export async function initApp() {
       setupGlobalFeed();
       try {
         if (shouldConnectBitchatOnBoot()) {
-          setupBitchatFeed();
+          setTimeout(() => {
+            try { setupBitchatFeed(); } catch (e) { }
+          }, 1500);
         }
       } catch (e) { }
     }

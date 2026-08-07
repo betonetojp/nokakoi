@@ -15,6 +15,111 @@ export const relayActiveCounts = {
 
 export const subscribeQueue = [];
 
+const FEED_TAB_IDS = ['home', 'global', 'mentions', 'me'];
+
+function relayKey(url) {
+  return (typeof url === 'string') ? url.trim().replace(/\/+$/, '') : url;
+}
+
+function getNostrState() {
+  try {
+    return (typeof window !== 'undefined' && window.__nostrState) ? window.__nostrState : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function getActiveTabId() {
+  try {
+    const activeTabEl = document.querySelector('.tab.active');
+    return (activeTabEl && activeTabEl.dataset) ? activeTabEl.dataset.tab : 'home';
+  } catch (e) {
+    return 'home';
+  }
+}
+
+function isLiveOrProtectedKey(key) {
+  if (!key || typeof key !== 'string') return false;
+  if (key === 'follows') return true;
+  if (key.includes('live')) return true;
+  if (key.includes('profile')) return true;
+  return false;
+}
+
+function keyBelongsToInactiveFeedTab(key, activeTab) {
+  if (!key || typeof key !== 'string' || isLiveOrProtectedKey(key)) return false;
+  let preserveHomeOnGlobal = false;
+  try {
+    if (activeTab === 'global' && typeof window !== 'undefined' && window.__nostrState) {
+      // settings は feed-manager 側と同じ localStorage appSettings を参照
+      const raw = localStorage.getItem('appSettings');
+      if (raw) {
+        const s = JSON.parse(raw);
+        preserveHomeOnGlobal = !!(s && s.globalMergeHome === true);
+      }
+    }
+  } catch (e) { }
+  for (const tabId of FEED_TAB_IDS) {
+    if (tabId === activeTab) continue;
+    if (preserveHomeOnGlobal && tabId === 'home') continue;
+    if (key === tabId || key.startsWith(tabId + '_')) return true;
+  }
+  if (activeTab !== 'global' && (key.startsWith('merged_global') || key.includes('merged_global_'))) return true;
+  return false;
+}
+
+/**
+ * 条件に合う oneshot（キュー待ち・実行中）をキャンセル。live は対象外。
+ * @returns {number} キャンセル/クローズした件数
+ */
+export function cancelOneshotByPredicate(predicate) {
+  let count = 0;
+  try {
+    if (typeof predicate !== 'function') return 0;
+
+    for (let i = subscribeQueue.length - 1; i >= 0; i--) {
+      const req = subscribeQueue[i];
+      if (!req || req.cancelled) continue;
+      const type = req.type || inferReqType(req.filters, req.key);
+      if (type !== 'oneshot') continue;
+      if (!predicate(req.key, req)) continue;
+      req.cancelled = true;
+      subscribeQueue.splice(i, 1);
+      count++;
+      try { if (typeof req.reject === 'function') req.reject(new Error('cancelled')); } catch (e) { }
+    }
+
+    const state = getNostrState();
+    if (state && state.subs) {
+      for (const [sid, sub] of Array.from(state.subs.entries())) {
+        try {
+          if (!sub || sub.__type !== 'oneshot') continue;
+          if (!predicate(sub.__key, sub)) continue;
+          try { if (typeof sub.close === 'function') sub.close(); } catch (e) { }
+          try { state.subs.delete(sid); } catch (e) { }
+          count++;
+        } catch (e) { }
+      }
+    }
+  } catch (e) {
+    console.warn('[Relay] cancelOneshotByPredicate 失敗:', e);
+  }
+  return count;
+}
+
+/**
+ * 非アクティブタブの hist/more oneshot を閉じる（live は維持）
+ */
+export function cancelInactiveTabOneshots(activeTab) {
+  const tab = activeTab || getActiveTabId();
+  const n = cancelOneshotByPredicate((key) => keyBelongsToInactiveFeedTab(key, tab));
+  if (n > 0) {
+    debugRelay('[Relay] 非アクティブタブの oneshot をキャンセル:', n, 'activeTab=', tab);
+    try { processSubscribeQueue(); } catch (e) { }
+  }
+  return n;
+}
+
 export function canonicalize(val) {
   if (val === null || typeof val === 'undefined') return null;
   if (typeof val === 'number' || typeof val === 'boolean' || typeof val === 'string') return val;
@@ -46,7 +151,7 @@ export function canonicalize(val) {
 export function incrementActiveCounts(relays, type) {
   const map = relayActiveCounts[type] || relayActiveCounts.oneshot;
   for (const r of relays) {
-    const key = (typeof r === 'string') ? r.trim().replace(/\/+$/, '') : r;
+    const key = relayKey(r);
     const v = map.get(key) || 0;
     map.set(key, v + 1);
   }
@@ -55,7 +160,7 @@ export function incrementActiveCounts(relays, type) {
 export function decrementActiveCounts(relays, type) {
   const map = relayActiveCounts[type] || relayActiveCounts.oneshot;
   for (const r of relays) {
-    const key = (typeof r === 'string') ? r.trim().replace(/\/+$/, '') : r;
+    const key = relayKey(r);
     const v = map.get(key) || 0;
     const nv = Math.max(0, v - 1);
     map.set(key, nv);
@@ -80,22 +185,16 @@ export function hasOpenSocketForRelays(pool, relays) {
 }
 
 export function canStartForAll(relays, type, priority = false) {
-  if (priority) {
-    for (const r of relays) {
-      const vLive = relayActiveCounts.live.get(r) || 0;
-      const vOne = relayActiveCounts.oneshot.get(r) || 0;
-      if ((vLive + vOne) >= MAX_TOTAL_SUB_PER_RELAY) return false;
-    }
-    return true;
-  }
-
+  // priority はキュー順序のみに使い、同時実行上限は bypass しない
+  void priority;
   const map = relayActiveCounts[type] || relayActiveCounts.oneshot;
   const limit = (type === 'live') ? MAX_LIVE_PER_RELAY : MAX_ONESHOT_PER_RELAY;
   const totalLimit = typeof MAX_TOTAL_SUB_PER_RELAY === 'number' ? MAX_TOTAL_SUB_PER_RELAY : 5;
   for (const r of relays) {
-    const vLive = relayActiveCounts.live.get(r) || 0;
-    const vOne = relayActiveCounts.oneshot.get(r) || 0;
-    const current = map.get(r) || 0;
+    const key = relayKey(r);
+    const vLive = relayActiveCounts.live.get(key) || 0;
+    const vOne = relayActiveCounts.oneshot.get(key) || 0;
+    const current = map.get(key) || 0;
     if (current >= limit) return false;
     if ((vLive + vOne) >= totalLimit) return false;
   }
@@ -133,8 +232,12 @@ export function reevaluateQueuePriorities() {
 
 try {
   if (typeof window !== 'undefined') {
-    window.addEventListener('tab:changed', () => {
-      try { reevaluateQueuePriorities(); } catch (e) { }
+    window.addEventListener('tab:changed', (e) => {
+      try {
+        const tab = (e && e.detail && e.detail.tab) ? e.detail.tab : getActiveTabId();
+        cancelInactiveTabOneshots(tab);
+      } catch (err) { }
+      try { reevaluateQueuePriorities(); } catch (err) { }
     });
   }
 } catch (e) { }
@@ -148,16 +251,17 @@ export function processSubscribeQueue() {
       i--;
       continue;
     }
-    const type = req.type || inferReqType(req.filters);
+    const type = req.type || inferReqType(req.filters, req.key);
+    req.type = type;
     const priority = !!req.priority;
+    try {
+      req.targetRelays = Array.from(new Set((req.targetRelays || []).map(normalizeUrl).filter(Boolean)));
+    } catch (e) { }
     if (canStartForAll(req.targetRelays, type, priority)) {
       subscribeQueue.splice(i, 1);
       i--;
       try {
         incrementActiveCounts(req.targetRelays, type);
-        try {
-          req.targetRelays = Array.from(new Set((req.targetRelays || []).map(normalizeUrl).filter(Boolean)));
-        } catch (e) { }
         const pool = req.pool || (typeof window !== 'undefined' && window.__nostrState && window.__nostrState.pool) || null;
         if (!pool) {
           decrementActiveCounts(req.targetRelays, type);
@@ -231,6 +335,8 @@ export function processSubscribeQueue() {
         try {
           sub.__targetRelays = req.targetRelays ? (Array.isArray(req.targetRelays) ? req.targetRelays.slice() : [req.targetRelays]) : [];
           sub.__pool = pool;
+          sub.__type = type;
+          sub.__key = req.key || null;
         } catch (e) { }
         let oneshotTimer = null;
         if (type === 'oneshot') {
@@ -272,7 +378,19 @@ export function processSubscribeQueue() {
   }
 }
 
-export function inferReqType(filters) {
+export function inferReqType(filters, key = null) {
+  try {
+    if (key && typeof key === 'string') {
+      // hist / more は since 付きでも oneshot（EOSE で閉じる）
+      if (/_hist(?:_|$)/.test(key) || /_more(?:_|$)/.test(key) || key.includes('merged_global_more')) {
+        return 'oneshot';
+      }
+      // live キーは常に live
+      if (/_live(?:_|$)/.test(key) || /(^|_)live$/.test(key)) {
+        return 'live';
+      }
+    }
+  } catch (e) { }
   try {
     if (!filters) return 'oneshot';
     for (const f of filters) {
@@ -382,7 +500,22 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
     };
 
     debugRelay('[Relay] 購読開始:', targetRelays.length, 'relays, key=', key);
-    queuedReq = { targetRelays: targetRelays, filters: filters, dispatcher: dispatcher, pool: state.pool, cancelled: false, key: key };
+    const inferredType = inferReqType(filters, key);
+    // 同名 live の孤児購読が残っている場合は差し替え前に閉じる
+    if (inferredType === 'live' && key) {
+      try {
+        for (const [sid, existing] of Array.from(state.subs.entries())) {
+          try {
+            if (!existing || existing.__type !== 'live') continue;
+            if (existing.__key !== key) continue;
+            try { if (typeof existing.close === 'function') existing.close(); } catch (e) { }
+            try { state.subs.delete(sid); } catch (e) { }
+            debugRelay('[Relay] 既存 live を差し替えのためクローズ:', key);
+          } catch (e) { }
+        }
+      } catch (e) { }
+    }
+    queuedReq = { targetRelays: targetRelays, filters: filters, dispatcher: dispatcher, pool: state.pool, cancelled: false, key: key, type: inferredType };
     const startPromise = new Promise((resolve, reject) => {
       queuedReq.resolve = resolve;
       queuedReq.reject = reject;

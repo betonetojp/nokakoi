@@ -12,6 +12,7 @@ export {
   reportPoolDuplicates,
   cleanupPoolDuplicates,
   reevaluateQueuePriorities,
+  cancelInactiveTabOneshots,
   getReadRelays,
   getWriteRelays,
   getAllRelayUrls,
