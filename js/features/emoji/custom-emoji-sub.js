@@ -97,10 +97,36 @@ export function ingestDirectEmojiTagsFromListEvent(ev) {
   return emojiTags.length;
 }
 
+let emojiSubDebounceTimer = null;
+
+/**
+ * カスタム絵文字のリアルタイム購読を遅延・デバウンス実行する
+ */
+export function scheduleCustomEmojiSubscription(delayMs = 2000) {
+  try {
+    if (emojiSubDebounceTimer) {
+      clearTimeout(emojiSubDebounceTimer);
+      emojiSubDebounceTimer = null;
+    }
+  } catch (e) { }
+
+  emojiSubDebounceTimer = setTimeout(() => {
+    emojiSubDebounceTimer = null;
+    setupCustomEmojiSubscription();
+  }, delayMs);
+}
+
 /**
  * カスタム絵文字のリアルタイム購読をセットアップする
  */
 export function setupCustomEmojiSubscription() {
+  try {
+    if (emojiSubDebounceTimer) {
+      clearTimeout(emojiSubDebounceTimer);
+      emojiSubDebounceTimer = null;
+    }
+  } catch (e) { }
+
   try {
     if (!state || !state.pool) return;
     const relays = getReadRelays(state.relays);
@@ -129,6 +155,21 @@ export function setupCustomEmojiSubscription() {
 
     const latestListByAuthor = new Map();
     let listOoseDone = false;
+
+    const closeListSub = () => {
+      try {
+        if (listSub && typeof listSub.close === 'function') listSub.close();
+      } catch (e) { }
+      try { state.subs.delete('custom-emoji-list'); } catch (e) { }
+    };
+
+    const listTimer = setTimeout(() => {
+      if (!listOoseDone) {
+        listOoseDone = true;
+        closeListSub();
+      }
+    }, 5000);
+
     const listSub = state.pool.subscribeMany(relays, [{ kinds: [10030], authors, limit: 1000 }], {
       onevent: (ev) => {
         try {
@@ -142,6 +183,8 @@ export function setupCustomEmojiSubscription() {
       oneose: () => {
         if (listOoseDone) return;
         listOoseDone = true;
+        clearTimeout(listTimer);
+        closeListSub();
         try {
           const referenced = new Set();
           const refAuthors = new Set();
@@ -181,6 +224,21 @@ export function setupCustomEmojiSubscription() {
           // 参照されている kind:30030 （絵文字セット）を取得する
           const filters = [{ kinds: [30030], authors: Array.from(refAuthors), '#d': Array.from(refDs), limit: 1000 }];
           let subOoseDone = false;
+
+          const closeSub = () => {
+            try {
+              if (sub && typeof sub.close === 'function') sub.close();
+            } catch (e) { }
+            try { state.subs.delete('custom-emoji'); } catch (e) { }
+          };
+
+          const subTimer = setTimeout(() => {
+            if (!subOoseDone) {
+              subOoseDone = true;
+              closeSub();
+            }
+          }, 5000);
+
           const sub = state.pool.subscribeMany(relays, filters, {
             onevent: (ev) => {
               try {
@@ -206,6 +264,8 @@ export function setupCustomEmojiSubscription() {
             oneose: () => {
               if (subOoseDone) return;
               subOoseDone = true;
+              clearTimeout(subTimer);
+              closeSub();
               console.debug('[Custom Emoji] kind:10030 -> kind:30030 初期ロード完了');
             }
           });

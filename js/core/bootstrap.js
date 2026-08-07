@@ -44,7 +44,7 @@ import {
 } from '../features/timeline/feed-manager.js';
 
 import { consumeShareText } from '../features/post/share-text.js';
-import { setupCustomEmojiSubscription, initCustomEmojiSub } from '../features/emoji/custom-emoji-sub.js';
+import { setupCustomEmojiSubscription, scheduleCustomEmojiSubscription, initCustomEmojiSub } from '../features/emoji/custom-emoji-sub.js';
 import { setupDelegatedFeedHandlers } from '../ui/feed-delegator.js';
 import { setupReloadHandler } from '../ui/reload-handler.js';
 import { showOmochatSettingsModal, showReactionModal } from '../ui/modals/modals.js';
@@ -250,6 +250,7 @@ export async function initApp() {
     window.showProfileModalProxy = showProfileModalProxy;
     window.invokeShowProfileModalProxy = showProfileModalProxy;
     window.setupCustomEmojiSubscription = setupCustomEmojiSubscription;
+    window.scheduleCustomEmojiSubscription = scheduleCustomEmojiSubscription;
   }
 
   initializeProfileCache(state);

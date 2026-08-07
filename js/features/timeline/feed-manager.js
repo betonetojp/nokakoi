@@ -2,7 +2,7 @@ import { insertEventSorted, findEventById, clearFeed } from '../../core/state.js
 import { getReadRelays, subOnce, relayConnect, unsubscribeAll } from '../../core/relay.js';
 import { EVENTS_MAX, EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT } from '../../config/constants.js';
 import { setupFeedFetcher, updatePerFilterUntil } from '../../features/timeline/feed-fetcher.js';
-import { setupCustomEmojiSubscription } from '../../features/emoji/custom-emoji-sub.js';
+import { setupCustomEmojiSubscription, scheduleCustomEmojiSubscription } from '../../features/emoji/custom-emoji-sub.js';
 import { renderFeed, scheduleRender, userKind7Memory, feedLoadState, ensureEventRestored } from '../../features/timeline/feed-renderer.js';
 import { pickChannelRootId, prefetchChannelMetadata } from '../../features/channel/channel.js';
 import { updateUserStatusDom, updateNameDom, loadProfile } from '../../features/profile/profile.js';
@@ -625,7 +625,7 @@ export function setupGlobalFeed() {
   const relays = resolveGlobalRelays(settingsManager, state.relays);
   const mergeHome = settingsManager.get('globalMergeHome') === true;
 
-  if (mergeHome && !state._homeFetcher && localStorage.getItem('pubkey')) {
+  if (mergeHome && !state._homeFetcher && !state._homeFetcherPending && localStorage.getItem('pubkey')) {
     console.log('[FeedManager] globalMergeHome が有効ですがホームフィードがセットアップされていません。ホームフィードをセットアップ中...');
     try { setupSingleFeed('home'); } catch (e) { console.warn('[FeedManager] マージ用ホームフィードの自動セットアップに失敗しました:', e); }
   }
@@ -783,8 +783,12 @@ export function setupBitchatFeed() {
  */
 export function setupAuthedFeeds() {
   const pubkey = localStorage.getItem('pubkey');
+  state._homeFetcherPending = true;
   subOnce(state, 'follows', [{ kinds: [3], authors: [pubkey], limit: 1 }], function (ev) {
-    if (!ev) return;
+    if (!ev) {
+      state._homeFetcherPending = false;
+      return;
+    }
     const tags = ev.tags || [];
     const follows = [];
     try {
@@ -817,10 +821,16 @@ export function setupAuthedFeeds() {
       state.feeds['home'].followSet = new Set(follows);
     }
 
-    // NIP-30 購読のリセット (グローバル関数 setupCustomEmojiSubscription を呼び出す)
+    // NIP-30 購読のリセット (2秒遅延で1回のみ実行)
     try {
-      if (typeof window !== 'undefined' && typeof window.setupCustomEmojiSubscription === 'function') {
-        window.setupCustomEmojiSubscription();
+      if (typeof window !== 'undefined') {
+        if (typeof window.scheduleCustomEmojiSubscription === 'function') {
+          window.scheduleCustomEmojiSubscription(2000);
+        } else if (typeof window.setupCustomEmojiSubscription === 'function') {
+          window.setupCustomEmojiSubscription();
+        }
+      } else {
+        scheduleCustomEmojiSubscription(2000);
       }
     } catch (e) { }
 
@@ -916,8 +926,12 @@ export function setupAuthedFeeds() {
             eventsTimeout: EVENTS_TIMEOUT,
             ...feedFetcherHistHooks()
           });
-          try { state._homeFetcher = fetcher; } catch (e) { }
+          try {
+            state._homeFetcher = fetcher;
+            state._homeFetcherPending = false;
+          } catch (e) { }
         } catch (e) {
+          try { state._homeFetcherPending = false; } catch (err) { }
           console.warn('[Main] createHomeFetcher に失敗したため元の挙動へフォールバック', e);
         }
       })(0);
@@ -1088,12 +1102,16 @@ export function restartFeeds(fullReset = false) {
   }
 
   function startFeeds() {
-    setupCustomEmojiSubscription();
+    const isAuthed = !!localStorage.getItem('pubkey');
+    if (isAuthed) {
+      setupAuthedFeeds();
+    } else {
+      scheduleCustomEmojiSubscription(2000);
+    }
     setupGlobalFeed();
     if (shouldConnectBitchatOnBoot()) {
       setupBitchatFeed();
     }
-    if (localStorage.getItem('pubkey')) setupAuthedFeeds();
     window.__nokakoiFeedsReady = false;
     setTimeout(() => { window.__nokakoiFeedsReady = true; }, 5000);
   }
@@ -1289,7 +1307,21 @@ export function setupSingleFeed(feedId) {
 export function handleTabChange(oldTab, newTab) {
   if (!state) return;
 
-  // 1. 切り替え元 (oldTab) のクリア処理
+  // 1. 切り替え元 (oldTab) のクリア処理および非アクティブタブの進行中 ONESHOT REQ (過去ログ取得) のキャンセル
+  ['home', 'global', 'mentions', 'me'].forEach(tabId => {
+    if (tabId !== newTab) {
+      // globalMergeHome 設定で global タブ表示中に home の過去ログ取得が必要な場合は除く
+      if (tabId === 'home' && newTab === 'global' && settingsManager.get('globalMergeHome') === true) {
+        return;
+      }
+      const fetcherKey = `_${tabId}Fetcher`;
+      const fetcher = state[fetcherKey];
+      if (fetcher && typeof fetcher.stopHist === 'function') {
+        try { fetcher.stopHist(); } catch (e) { }
+      }
+    }
+  });
+
   // bitchat 以外の非アクティブ化したタブについて、メモリを完全クリアせず、EVENTS_FETCH_LIMIT 件にトリムして保持する
   if (oldTab && oldTab !== newTab && oldTab !== 'bitchat') {
     console.log(`[FeedManager] 保持件数上限に合わせて切り替え元タブ (${oldTab}) のフィードを整頓中...`);
