@@ -2,7 +2,7 @@ import { getNip04, getNip44, hexToBytes } from '../../core/nostr-compat.js';
 import { getReadRelays } from '../../core/relay.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { addAutoCloseCheckbox, waitForEhagakiPublish } from '../../ui/ehagaki-autoclose.js';
-import { refreshEventsMuteState } from '../../ui/renderers/render-helpers.js';
+import { refreshEventsMuteState, invalidateMuteConfigCache } from '../../ui/renderers/render-helpers.js';
 import { signer } from '../../core/signer.js';
 
 export function restoreMuteListFromStorage(ui = {}) {
@@ -18,6 +18,7 @@ export function restoreMuteListFromStorage(ui = {}) {
     if (!stored) return null;
     const expanded = JSON.parse(stored);
     window.__nokakoiMuteList = expanded;
+    invalidateMuteConfigCache();
     const pubP = expanded && expanded.pubkeys && Array.isArray(expanded.pubkeys.public) ? expanded.pubkeys.public.length : 0;
     const pubPr = expanded && expanded.pubkeys && Array.isArray(expanded.pubkeys.private) ? expanded.pubkeys.private.length : 0;
     const wdP = expanded && expanded.words && Array.isArray(expanded.words.public) ? expanded.words.public.length : 0;
@@ -563,21 +564,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         const modeFieldset = document.createElement('div');
         modeFieldset.className = 'd-block';
 
-        const modeCollapseLabel = document.createElement('label');
-        modeCollapseLabel.className = 'd-block mt-4 settings-indent';
-        const modeCollapse = document.createElement('input');
-        modeCollapse.type = 'radio';
-        modeCollapse.name = 'muteDisplayMode';
-        modeCollapse.value = 'collapse';
-        modeCollapse.id = 'muteModeCollapse';
-
-        const storedMode = localStorage.getItem('mute_display_mode') || 'collapse';
-        modeCollapse.checked = storedMode === 'collapse';
-        const modeCollapseText = document.createElement('span');
-        modeCollapseText.setAttribute('data-i18n', 'mute.mode.collapse');
-        modeCollapseLabel.appendChild(modeCollapse);
-        modeCollapseLabel.appendChild(modeCollapseText);
-
+        // 1. ミュート対象を表示しない (hide)
         const modeHideLabel = document.createElement('label');
         modeHideLabel.className = 'd-block mt-4 settings-indent';
         const modeHide = document.createElement('input');
@@ -585,16 +572,94 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         modeHide.name = 'muteDisplayMode';
         modeHide.value = 'hide';
         modeHide.id = 'muteModeHide';
+        const storedMode = localStorage.getItem('mute_display_mode') || 'collapse';
         modeHide.checked = storedMode === 'hide';
         const modeHideText = document.createElement('span');
         modeHideText.setAttribute('data-i18n', 'mute.mode.hide');
         modeHideLabel.appendChild(modeHide);
         modeHideLabel.appendChild(modeHideText);
 
-        modeFieldset.appendChild(modeCollapseLabel);
-        modeFieldset.appendChild(modeHideLabel);
+        // 2. ミュート対象を折りたたんで表示 (collapse)
+        const modeCollapseLabel = document.createElement('label');
+        modeCollapseLabel.className = 'd-block mt-4 settings-indent';
+        const modeCollapse = document.createElement('input');
+        modeCollapse.type = 'radio';
+        modeCollapse.name = 'muteDisplayMode';
+        modeCollapse.value = 'collapse';
+        modeCollapse.id = 'muteModeCollapse';
+        modeCollapse.checked = storedMode === 'collapse';
+        const modeCollapseText = document.createElement('span');
+        modeCollapseText.setAttribute('data-i18n', 'mute.mode.collapse');
+        modeCollapseLabel.appendChild(modeCollapse);
+        modeCollapseLabel.appendChild(modeCollapseText);
 
+        modeFieldset.appendChild(modeHideLabel);
+        modeFieldset.appendChild(modeCollapseLabel);
+
+        // kind:0 イベントへミュート語を適用するオプションを追加（親設定のすぐ下）
+        const kind0Wrap = document.createElement('div');
+        kind0Wrap.className = 'mt-4 settings-indent flex-row';
+
+        const kind0Label = document.createElement('label');
+        kind0Label.className = 'setting-row-clickable';
+
+        const kind0Checkbox = document.createElement('input');
+        kind0Checkbox.type = 'checkbox';
+        kind0Checkbox.id = 'muteApplyKind0Checkbox';
+        kind0Checkbox.checked = (localStorage.getItem('mute_apply_kind0') || '0') === '1';
+
+        const kind0Text = document.createElement('span');
+        kind0Text.setAttribute('data-i18n', 'mute.apply_kind0');
+
+        kind0Label.appendChild(kind0Checkbox);
+        kind0Label.appendChild(kind0Text);
+        kind0Wrap.appendChild(kind0Label);
+
+        const refreshAllMuteSettings = function (msgKey = 'settings.saved') {
+          invalidateMuteConfigCache();
+          try {
+            if (typeof refreshEventsMuteState === 'function') {
+              refreshEventsMuteState();
+            }
+            if (typeof restartFeeds === 'function') {
+              restartFeeds(true);
+            } else if (renderFeed) {
+              ['home', 'global', 'mentions', 'me'].forEach(id => { try { renderFeed(id); } catch (e) { } });
+            }
+            showSavedStatus(t(msgKey));
+          } catch (e) { console.warn('[Mute] フィード再描画に失敗', e); }
+        };
+
+        // kind:0 適用チェックボックスのイベント配線
+        kind0Checkbox.addEventListener('change', function () {
+          try {
+            localStorage.setItem('mute_apply_kind0', kind0Checkbox.checked ? '1' : '0');
+            refreshAllMuteSettings();
+          } catch (e) { console.warn('[Mute] kind0 保存に失敗', e); }
+        });
+
+        // 公開ミュートを完全に非表示にするオプション（折りたたんで表示の配下にインデント）
+        const hidePublicWrap = document.createElement('div');
+        hidePublicWrap.className = 'mt-4 ml-16 settings-indent flex-row';
+
+        const hidePublicLabel = document.createElement('label');
+        hidePublicLabel.className = 'setting-row-clickable';
+
+        const hidePublicCheckbox = document.createElement('input');
+        hidePublicCheckbox.type = 'checkbox';
+        hidePublicCheckbox.id = 'muteHidePublicCheckbox';
+        hidePublicCheckbox.checked = (localStorage.getItem('mute_hide_public') || '0') === '1';
+
+        const hidePublicText = document.createElement('span');
+        hidePublicText.setAttribute('data-i18n', 'mute.hide_public');
+
+        hidePublicLabel.appendChild(hidePublicCheckbox);
+        hidePublicLabel.appendChild(hidePublicText);
+        hidePublicWrap.appendChild(hidePublicLabel);
+
+        modeWrap.appendChild(kind0Wrap);
         modeWrap.appendChild(modeFieldset);
+        modeWrap.appendChild(hidePublicWrap);
 
         container.appendChild(applyRow);
         container.appendChild(modeWrap);
@@ -613,55 +678,45 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
           btn.parentNode && btn.parentNode.insertBefore(container, btn.nextSibling);
         }
 
-        // kind:0 イベントへミュート語を適用するオプションを追加（既定OFF）
-        const kind0Wrap = document.createElement('div');
-        kind0Wrap.className = 'mt-8 settings-indent flex-row';
-
-        const kind0Label = document.createElement('label');
-        kind0Label.className = 'setting-row-clickable';
-
-        const kind0Checkbox = document.createElement('input');
-        kind0Checkbox.type = 'checkbox';
-        kind0Checkbox.id = 'muteApplyKind0Checkbox';
-        kind0Checkbox.checked = (localStorage.getItem('mute_apply_kind0') || '0') === '1';
-
-        const kind0Text = document.createElement('span');
-        kind0Text.setAttribute('data-i18n', 'mute.apply_kind0');
-
-        kind0Label.appendChild(kind0Checkbox);
-        kind0Label.appendChild(kind0Text);
-        kind0Wrap.appendChild(kind0Label);
-        modeWrap.appendChild(kind0Wrap);
-
-        // kind:0 適用チェックボックスのイベント配線
-        kind0Checkbox.addEventListener('change', function () {
+        hidePublicCheckbox.addEventListener('change', function () {
           try {
-            localStorage.setItem('mute_apply_kind0', kind0Checkbox.checked ? '1' : '0');
-            try {
-              if (renderFeed) {
-                ['home', 'global', 'mentions', 'me'].forEach(id => { try { renderFeed(id); } catch (e) { } });
-              }
-              showSavedStatus(t('settings.saved'));
-            } catch (e) { }
-          } catch (e) { console.warn('[Mute] kind0 保存に失敗', e); }
+            localStorage.setItem('mute_hide_public', hidePublicCheckbox.checked ? '1' : '0');
+            refreshAllMuteSettings();
+          } catch (e) { console.warn('[Mute] hide_public 保存に失敗', e); }
         });
 
         const saveMode = function (v) {
           try {
             localStorage.setItem('mute_display_mode', v || 'collapse');
-            try {
-              if (renderFeed) {
-                ['home', 'global', 'mentions', 'me'].forEach(id => {
-                  try { renderFeed(id); } catch (e) { }
-                });
-              }
-              showSavedStatus(t('mute.mode.saved'));
-            } catch (e) { console.warn('[Mute] モード描画に失敗', e); }
+            refreshAllMuteSettings('mute.mode.saved');
           } catch (e) { console.warn('[Mute] モード保存に失敗', e); }
         };
 
-        modeCollapse.addEventListener('change', function () { if (modeCollapse.checked) saveMode('collapse'); });
-        modeHide.addEventListener('change', function () { if (modeHide.checked) saveMode('hide'); });
+        const updateHidePublicState = function () {
+          try {
+            if (hidePublicCheckbox) {
+              const isCollapse = modeCollapse.checked;
+              hidePublicCheckbox.disabled = !isCollapse;
+              hidePublicLabel.style.opacity = isCollapse ? '1' : '0.5';
+              hidePublicLabel.style.pointerEvents = isCollapse ? 'auto' : 'none';
+            }
+          } catch (e) { }
+        };
+
+        updateHidePublicState();
+
+        modeCollapse.addEventListener('change', function () {
+          if (modeCollapse.checked) {
+            saveMode('collapse');
+            updateHidePublicState();
+          }
+        });
+        modeHide.addEventListener('change', function () {
+          if (modeHide.checked) {
+            saveMode('hide');
+            updateHidePublicState();
+          }
+        });
 
         // apply チェック変更時に子設定表示を切り替え
         applyCheckbox.addEventListener('change', function () {
@@ -673,14 +728,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
             } catch (e) { }
 
             try { modeWrap.classList.toggle('d-none', !applyCheckbox.checked); } catch (e) { }
-            try {
-              if (typeof restartFeeds === 'function') {
-                restartFeeds(true);
-              } else if (renderFeed) {
-                ['home', 'global', 'mentions', 'me'].forEach(id => { try { renderFeed(id); } catch (e) { } });
-              }
-              showSavedStatus(t('settings.saved'));
-            } catch (e) { console.warn('[Mute] 適用時の描画に失敗', e); }
+            refreshAllMuteSettings();
           } catch (e) { console.warn('[Mute] 適用設定の保存に失敗', e); }
         });
 

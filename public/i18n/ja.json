@@ -10,6 +10,7 @@
   "muted.user": "ユーザーをミュートしています",
   "muted.word": "単語をミュートしています",
   "muted.generic": "ミュートしています",
+  "mute.hide_public": "公開ミュートを完全に非表示にする",
   "fold.show": "表示",
   "fold.hide": "折りたたむ",
   "now": "now",

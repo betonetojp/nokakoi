@@ -10,6 +10,7 @@
   "muted.user": "User muted",
   "muted.word": "Word muted",
   "muted.generic": "Muted",
+  "mute.hide_public": "Completely hide public mutes",
   "fold.show": "Show",
   "fold.hide": "Collapse",
   "now": "now",

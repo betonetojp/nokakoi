@@ -263,27 +263,82 @@ export function refreshEventsMuteState(state = null, targetPubkey = null) {
   } catch (e) { }
 }
 
+let _cachedMuteConfig = null;
+const _profileTextCache = new Map();
+
+function getCachedProfileText(state, pubkey) {
+  if (!pubkey || !state || !state.profiles || !state.profiles.get) return '';
+  const prof = state.profiles.get(pubkey);
+  if (!prof) return '';
+
+  if (_profileTextCache.has(pubkey)) {
+    const entry = _profileTextCache.get(pubkey);
+    if (entry.prof === prof) return entry.text;
+  }
+
+  const textParts = [];
+  if (prof.display_name) textParts.push(prof.display_name);
+  if (prof.name && prof.name !== prof.display_name) textParts.push(prof.name);
+  if (prof.about) textParts.push(prof.about);
+  if (prof.nip05) textParts.push(prof.nip05);
+  if (prof.lud16) textParts.push(prof.lud16);
+  if (prof.lud06) textParts.push(prof.lud06);
+  if (prof.website) textParts.push(prof.website);
+
+  const text = textParts.join(' ').toLowerCase();
+  _profileTextCache.set(pubkey, { prof, text });
+  return text;
+}
+
+export function invalidateMuteConfigCache() {
+  _cachedMuteConfig = null;
+  _profileTextCache.clear();
+}
+
+function getMuteConfig() {
+  if (!_cachedMuteConfig) {
+    let rawMuteList = window.__nokakoiMuteList;
+    if (!rawMuteList) {
+      try {
+        const raw = localStorage.getItem('muteList_expanded');
+        if (raw) rawMuteList = JSON.parse(raw);
+      } catch (e) { }
+    }
+
+    const pubkeysPublicSet = new Set((rawMuteList && rawMuteList.pubkeys && Array.isArray(rawMuteList.pubkeys.public)) ? rawMuteList.pubkeys.public : []);
+    const pubkeysPrivateSet = new Set((rawMuteList && rawMuteList.pubkeys && Array.isArray(rawMuteList.pubkeys.private)) ? rawMuteList.pubkeys.private : []);
+    const wordsPublic = (rawMuteList && rawMuteList.words && Array.isArray(rawMuteList.words.public)) ? rawMuteList.words.public.map(w => String(w).toLowerCase()) : [];
+    const wordsPrivate = (rawMuteList && rawMuteList.words && Array.isArray(rawMuteList.words.private)) ? rawMuteList.words.private.map(w => String(w).toLowerCase()) : [];
+
+    _cachedMuteConfig = {
+      rawMuteApply: (localStorage.getItem('mute_apply') || '1') === '1',
+      muteDisplayMode: localStorage.getItem('mute_display_mode') || 'collapse',
+      hidePublic: (localStorage.getItem('mute_hide_public') || '0') === '1',
+      applyKind0: (localStorage.getItem('mute_apply_kind0') || '0') === '1',
+      pubkeysPublicSet,
+      pubkeysPrivateSet,
+      wordsPublic,
+      wordsPrivate,
+      hasMuteData: pubkeysPublicSet.size > 0 || pubkeysPrivateSet.size > 0 || wordsPublic.length > 0 || wordsPrivate.length > 0
+    };
+  }
+  return _cachedMuteConfig;
+}
+
 export function evaluateMuteState(state, pk, content, settings = null, ev = null) {
+  const cfg = getMuteConfig();
   const ignoreMuteApply = !!(settings && (settings.ignoreMuteApply === true || settings.disableMuteApply === true));
-  const rawMuteApply = (localStorage.getItem('mute_apply') || '1') === '1';
   const result = {
     isMuted: false,
     mutedType: null,
     matchedWord: null,
-    muteApply: ignoreMuteApply ? false : rawMuteApply,
-    muteDisplayMode: localStorage.getItem('mute_display_mode') || 'collapse'
+    muteApply: ignoreMuteApply ? false : cfg.rawMuteApply,
+    muteDisplayMode: cfg.muteDisplayMode
   };
 
+  if (!cfg.hasMuteData) return result;
+
   try {
-    const muteList = (window.__nokakoiMuteList)
-      ? window.__nokakoiMuteList
-      : (localStorage.getItem('muteList_expanded') ? JSON.parse(localStorage.getItem('muteList_expanded')) : null);
-    if (!muteList) return result;
-
-    const pubkeysPublic = (muteList.pubkeys && Array.isArray(muteList.pubkeys.public)) ? muteList.pubkeys.public : [];
-    const pubkeysPrivate = (muteList.pubkeys && Array.isArray(muteList.pubkeys.private)) ? muteList.pubkeys.private : [];
-    const allMutedPubkeys = pubkeysPublic.concat(pubkeysPrivate || []);
-
     const targetPubkeys = [pk];
     // 純粋なリポスト (kind 6 / 16) の場合のみ元投稿者 (pタグ) もミュート判定に含める
     if (ev && (ev.kind === 6 || ev.kind === 16) && Array.isArray(ev.tags)) {
@@ -292,51 +347,54 @@ export function evaluateMuteState(state, pk, content, settings = null, ev = null
     }
 
     for (const targetPk of targetPubkeys) {
-      if (targetPk && allMutedPubkeys.includes(targetPk)) {
+      if (!targetPk) continue;
+      const isPublic = cfg.pubkeysPublicSet.has(targetPk);
+      const isPrivate = cfg.pubkeysPrivateSet.has(targetPk);
+      if (isPublic || isPrivate) {
         result.isMuted = true;
         result.mutedType = 'user';
+        if (cfg.hidePublic && isPublic && result.muteDisplayMode === 'collapse') {
+          result.muteDisplayMode = 'hide';
+        }
         return result;
       }
     }
 
-    if (muteList.words) {
-      const wordsPublic = (muteList.words.public && Array.isArray(muteList.words.public)) ? muteList.words.public : [];
-      const wordsPrivate = (muteList.words.private && Array.isArray(muteList.words.private)) ? muteList.words.private : [];
-      const allWords = wordsPublic.concat(wordsPrivate || []);
-      const txt = (content || '').toLowerCase();
-
-      const applyKind0 = (localStorage.getItem('mute_apply_kind0') || '0') === '1';
+    if (cfg.wordsPublic.length > 0 || cfg.wordsPrivate.length > 0) {
       let profileText = '';
-      try {
-        if (applyKind0 && state && state.profiles && state.profiles.get) {
-          const textParts = [];
-          for (const targetPk of targetPubkeys) {
-            if (!targetPk) continue;
-            const prof = state.profiles.get(targetPk) || {};
-            if (prof.display_name) textParts.push(prof.display_name);
-            if (prof.name && prof.name !== prof.display_name) textParts.push(prof.name);
-            if (prof.about) textParts.push(prof.about);
-            if (prof.nip05) textParts.push(prof.nip05);
-            if (prof.lud16) textParts.push(prof.lud16);
-            if (prof.lud06) textParts.push(prof.lud06);
-            if (prof.website) textParts.push(prof.website);
-          }
-          profileText = textParts.join(' ').toLowerCase();
-        }
-      } catch (e) { profileText = ''; }
-
-      const combinedText = (txt + ' ' + profileText).toLowerCase();
-      for (const w of allWords) {
-        if (!w) continue;
+      if (cfg.applyKind0 && state) {
         try {
-          const lw = String(w).toLowerCase();
-          if (combinedText.indexOf(lw) !== -1) {
-            result.isMuted = true;
-            result.mutedType = 'word';
-            result.matchedWord = w;
-            break;
+          const parts = [];
+          for (const targetPk of targetPubkeys) {
+            const txt = getCachedProfileText(state, targetPk);
+            if (txt) parts.push(txt);
           }
+          profileText = parts.join(' ');
         } catch (e) { }
+      }
+
+      const combinedText = ((content || '') + ' ' + profileText).toLowerCase();
+      for (const lw of cfg.wordsPublic) {
+        if (!lw) continue;
+        if (combinedText.indexOf(lw) !== -1) {
+          result.isMuted = true;
+          result.mutedType = 'word';
+          result.matchedWord = lw;
+          if (cfg.hidePublic && result.muteDisplayMode === 'collapse') {
+            result.muteDisplayMode = 'hide';
+          }
+          return result;
+        }
+      }
+
+      for (const lw of cfg.wordsPrivate) {
+        if (!lw) continue;
+        if (combinedText.indexOf(lw) !== -1) {
+          result.isMuted = true;
+          result.mutedType = 'word';
+          result.matchedWord = lw;
+          return result;
+        }
       }
     }
   } catch (e) {
