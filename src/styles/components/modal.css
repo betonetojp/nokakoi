@@ -241,6 +241,14 @@ body.theme-light #eventModalContent::-webkit-scrollbar-thumb {
   align-items: center;
   margin-bottom: 12px;
 }
+.media-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
 .event-modal-actions-row {
   display: flex;
