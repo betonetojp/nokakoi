@@ -206,6 +206,16 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
 
         await bunkerClient.connectWithBunkerUri(bunkerUri);
 
+        // サイナーが保持する実際のユーザー公開鍵 (NIP-46 get_public_key) を問い合わせて確定させる
+        try {
+          const userPubkey = await bunkerClient.getPublicKey();
+          if (userPubkey && /^[0-9a-f]{64}$/i.test(userPubkey)) {
+            bunkerClient.remotePubkey = userPubkey.toLowerCase();
+          }
+        } catch (e) {
+          console.warn('[NIP-46] get_public_key 取得スキップ:', e);
+        }
+
         client = bunkerClient;
         state.nip46.client = bunkerClient;
         state.nip46.remotePubkey = bunkerClient.remotePubkey;
@@ -272,8 +282,18 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
       }
 
       if (result.connected) {
+        // サイナーが保持する実際のユーザー公開鍵 (NIP-46 get_public_key) を問い合わせて確定させる
+        try {
+          const userPubkey = await client.getPublicKey();
+          if (userPubkey && /^[0-9a-f]{64}$/i.test(userPubkey)) {
+            client.remotePubkey = userPubkey.toLowerCase();
+          }
+        } catch (e) {
+          console.warn('[NIP-46] get_public_key 取得スキップ:', e);
+        }
+
         state.nip46.client = client;
-        state.nip46.remotePubkey = result.remotePubkey;
+        state.nip46.remotePubkey = client.remotePubkey;
         state.nip46.connected = true;
         state.signer = 'nip46';
         try { client.setupResumeHandler(); } catch (e) { }
