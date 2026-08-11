@@ -73,8 +73,22 @@
   margin-top: 12px;
 }
 #userInfo {
-  display: inline;
+  display: inline-block;
   margin-left: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 6px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  user-select: none;
+  font-size: 0.9em;
+}
+
+#userInfo:hover,
+#userInfo:focus-visible {
+  color: var(--accent, #4a90e2);
+  background-color: var(--panel-hover, rgba(128, 128, 128, 0.12));
+  text-decoration: underline;
+  outline: none;
 }
 #relayStatus {
   margin-top: 6px;

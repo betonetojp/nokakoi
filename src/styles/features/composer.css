@@ -38,6 +38,19 @@
   margin-left: 6px;
   vertical-align: middle;
   word-break: break-all;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 6px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  user-select: none;
+}
+
+.composer-account-info:hover,
+.composer-account-info:focus-visible {
+  color: var(--accent, #4a90e2);
+  background-color: var(--panel-hover, rgba(128, 128, 128, 0.12));
+  text-decoration: underline;
+  outline: none;
 }
 
 .reply-context-content {

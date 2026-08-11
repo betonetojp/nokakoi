@@ -292,7 +292,7 @@ export function updateHeaderName(state, nip19) {
       displayText += ' @' + names.sub;
     }
     if (nameEl) nameEl.textContent = displayText;
-    if (composerAccEl) composerAccEl.textContent = `(${displayText})`;
+    if (composerAccEl) composerAccEl.textContent = displayText;
   } catch (e) { }
 }
 

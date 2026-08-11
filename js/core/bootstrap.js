@@ -595,41 +595,44 @@ export async function initApp() {
       };
     }
 
-    // ログインユーザー名タップでアカウント管理モーダルを開く
-    const userInfoEl = document.getElementById('userInfo');
-    if (userInfoEl) {
-      const handleOpenEditor = () => {
-        if (!state.pubkey && !localStorage.getItem('pubkey')) return;
-        import('../ui/modals/account-modal.js').then(mod => {
-          if (mod && typeof mod.openAccountModal === 'function') {
-            mod.openAccountModal(state, settings, settingsManager, {
-              restartFeeds,
-              enableComposerScroll,
-              onLogout: () => {
-                if (cleanupScrollBehavior) {
-                  cleanupScrollBehavior();
-                  cleanupScrollBehavior = null;
-                }
-                stopMonitoringRelays(state);
-                if (authGuardInterval) {
-                  clearInterval(authGuardInterval);
-                  authGuardInterval = null;
-                }
+    // ログインユーザー名タップでアカウント管理モーダルを開く（ヘッダー & 投稿窓）
+    const handleOpenAccountModal = () => {
+      if (!state.pubkey && !localStorage.getItem('pubkey')) return;
+      import('../ui/modals/account-modal.js').then(mod => {
+        if (mod && typeof mod.openAccountModal === 'function') {
+          mod.openAccountModal(state, settings, settingsManager, {
+            restartFeeds,
+            enableComposerScroll,
+            onLogout: () => {
+              if (cleanupScrollBehavior) {
+                cleanupScrollBehavior();
+                cleanupScrollBehavior = null;
               }
-            });
-          }
-        }).catch(err => {
-          console.warn('[Bootstrap] アカウント管理モーダルの読み込み失敗:', err);
-        });
-      };
-      userInfoEl.onclick = handleOpenEditor;
-      userInfoEl.onkeydown = (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleOpenEditor();
+              stopMonitoringRelays(state);
+              if (authGuardInterval) {
+                clearInterval(authGuardInterval);
+                authGuardInterval = null;
+              }
+            }
+          });
         }
-      };
-    }
+      }).catch(err => {
+        console.warn('[Bootstrap] アカウント管理モーダルの読み込み失敗:', err);
+      });
+    };
+
+    ['userInfo', 'composerAccountInfo'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.onclick = handleOpenAccountModal;
+        el.onkeydown = (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleOpenAccountModal();
+          }
+        };
+      }
+    });
 
     // フォローリスト編集ボタン (設定パネル & クイック設定モーダル)
     ['openFollowEditModalBtn', 'openFollowEditModalQuickBtn'].forEach(id => {
