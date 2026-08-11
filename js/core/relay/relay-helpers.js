@@ -67,7 +67,12 @@ export function loadRelays() {
 export function saveRelays(list) {
   try {
     if (!Array.isArray(list)) {
-      localStorage.setItem('relays', JSON.stringify(list));
+      const raw = JSON.stringify(list);
+      localStorage.setItem('relays', raw);
+      const currentPk = localStorage.getItem('pubkey');
+      if (currentPk) {
+        localStorage.setItem(`relays.${currentPk.toLowerCase()}`, raw);
+      }
       return;
     }
     const normalized = list.map(normalizeRelay).filter(r => isValidRelayUrl(r.url));
@@ -76,7 +81,13 @@ export function saveRelays(list) {
       if (!map.has(r.url)) map.set(r.url, r);
     }
     const unique = Array.from(map.values());
-    localStorage.setItem('relays', JSON.stringify(unique));
+    const raw = JSON.stringify(unique);
+    localStorage.setItem('relays', raw);
+
+    const currentPk = localStorage.getItem('pubkey');
+    if (currentPk) {
+      localStorage.setItem(`relays.${currentPk.toLowerCase()}`, raw);
+    }
   } catch (e) {
     console.warn('[Relay] リレー保存失敗:', e);
   }
@@ -107,18 +118,30 @@ export function loadRelaysForAccount(pubkey) {
     saveRelays(defaultRelays);
     return defaultRelays;
   }
+  const targetId = pubkey.toLowerCase();
   try {
-    const raw = localStorage.getItem(`relays.${pubkey.toLowerCase()}`);
+    const raw = localStorage.getItem(`relays.${targetId}`);
     if (raw) {
       const list = JSON.parse(raw);
       if (Array.isArray(list) && list.length) {
-        saveRelays(list);
+        localStorage.setItem('relays', JSON.stringify(list));
         return loadRelays();
       }
     }
-    // 個別設定がない場合はデフォルトリレーに初期化
+    // 個別設定が未作成の場合: 単一キーに有効なリレー設定があればそれをアカウント用に自動昇格・コピー保存
+    const existingRaw = localStorage.getItem('relays');
+    if (existingRaw) {
+      try {
+        const existingList = JSON.parse(existingRaw);
+        if (Array.isArray(existingList) && existingList.length) {
+          localStorage.setItem(`relays.${targetId}`, existingRaw);
+          return loadRelays();
+        }
+      } catch (e) {}
+    }
+
     saveRelays(defaultRelays);
-    localStorage.setItem(`relays.${pubkey.toLowerCase()}`, JSON.stringify(defaultRelays));
+    localStorage.setItem(`relays.${targetId}`, JSON.stringify(defaultRelays));
     return defaultRelays;
   } catch (e) {
     console.warn('[Relay] アカウント別リレー読み込み失敗:', e);

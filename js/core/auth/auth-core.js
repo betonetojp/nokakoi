@@ -197,6 +197,7 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
     }
 
     state.relays = loadRelaysForAccount(state.pubkey);
+    saveRelaysForAccount(state.pubkey);
     loadMuteListForAccount(state.pubkey);
 
     // アカウント全体のUI描画を同期・再更新
