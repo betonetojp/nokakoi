@@ -109,6 +109,12 @@ export function showNsecLoginModal(state, settings, settingsManager, loginFn) {
 
       signer.setKey(skHex);
       state.signer = 'nsec';
+      const targetPubkey = signer.getPublicKey().toLowerCase();
+
+      // settingsManagerを対象アカウントへ切り替えてから設定を保存
+      if (settingsManager && typeof settingsManager.loadForAccount === 'function') {
+        settingsManager.loadForAccount(targetPubkey);
+      }
 
       if (saveCheck && saveCheck.checked) {
         if (!radioPasskey.checked && !radioPassword.checked) {
@@ -127,16 +133,14 @@ export function showNsecLoginModal(state, settings, settingsManager, loginFn) {
               settingsManager.set('passkeyEncryptedNsec', encrypted);
               settingsManager.set('passkeyDeviceInfo', passkeyData.deviceInfo);
               settingsManager.set('preferredSigner', 'nsec-passkey');
-              settings.passkeyCredentialId = passkeyData.credentialId;
-              settings.passkeyEncryptedNsec = encrypted;
-              settings.passkeyDeviceInfo = passkeyData.deviceInfo;
-              settings.preferredSigner = 'nsec-passkey';
+              settingsManager.saveForAccount(targetPubkey);
               if (statusEl) statusEl.textContent = t('auth.passkey_registered', { device: passkeyData.deviceInfo, id: passkeyData.deviceId });
               await new Promise(resolve => setTimeout(resolve, 500));
             }
           } catch (e) {
             console.error('[Auth] パスキー登録失敗:', e);
             if (statusEl) statusEl.textContent = t('auth.passkey_register_failed', { msg: (e && e.message) });
+            return;
           }
         } else if (radioPassword && radioPassword.checked) {
           const password = passwordInput ? passwordInput.value : '';
@@ -148,9 +152,11 @@ export function showNsecLoginModal(state, settings, settingsManager, loginFn) {
           const encrypted = await encryptNsec(skHex, password);
           settingsManager.set('encryptedNsec', encrypted);
           settingsManager.set('preferredSigner', 'nsec');
-          settings.encryptedNsec = encrypted;
-          settings.preferredSigner = 'nsec';
+          settingsManager.saveForAccount(targetPubkey);
         }
+      } else {
+        settingsManager.set('preferredSigner', null);
+        settingsManager.saveForAccount(targetPubkey);
       }
 
       hideModal('#nsecModal');
@@ -181,31 +187,69 @@ export function showPasswordModal(onConfirm, onCancel) {
   const input = $('#decryptPassword');
   const confirmBtn = $('#passwordConfirm');
   const cancelBtn = $('#passwordCancel');
+  const form = $('#decryptForm');
   const statusEl = $('#passwordStatus');
 
-  if (!modal || !input || !confirmBtn || !cancelBtn) return;
+  if (!modal || !input || !confirmBtn || !cancelBtn) {
+    if (onCancel) onCancel();
+    return;
+  }
 
   input.value = '';
   if (statusEl) statusEl.textContent = '';
 
-  confirmBtn.onclick = () => {
-    const password = input.value;
+  let handled = false;
+
+  const cleanup = () => {
     hideModal('#passwordModal');
+    if (form) form.onsubmit = null;
+    confirmBtn.onclick = null;
+    cancelBtn.onclick = null;
+    input.onkeydown = null;
+  };
+
+  const handleSuccess = () => {
+    if (handled) return;
+    handled = true;
+    const password = input.value;
+    cleanup();
     if (onConfirm) onConfirm(password);
   };
 
-  cancelBtn.onclick = () => {
-    hideModal('#passwordModal');
+  const handleCancel = () => {
+    if (handled) return;
+    handled = true;
+    cleanup();
     if (onCancel) onCancel();
   };
+
+  confirmBtn.onclick = (e) => {
+    e.preventDefault();
+    handleSuccess();
+  };
+
+  cancelBtn.onclick = (e) => {
+    e.preventDefault();
+    handleCancel();
+  };
+
+  if (form) {
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      handleSuccess();
+      return false;
+    };
+  }
 
   input.onkeydown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      confirmBtn.click();
+      handleSuccess();
     }
   };
 
   showModal('#passwordModal');
-  input.focus();
+  setTimeout(() => {
+    try { input.focus(); } catch (e) {}
+  }, 50);
 }

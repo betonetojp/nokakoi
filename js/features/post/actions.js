@@ -501,7 +501,7 @@ export async function replyToEvent(state, targetEv, text) {
 
       if (!tags.some(t => t[0] === 'g')) {
         let geohash = 'xn';
-        try { const s = JSON.parse(localStorage.getItem('appSettings')); if(s && s.omochatGeohash) geohash = s.omochatGeohash; } catch(e){}
+        try { const s = getActiveAppSettings(); if(s && s.omochatGeohash) geohash = s.omochatGeohash; } catch(e){}
         tags.push(['g', geohash]);
       }
 
@@ -644,7 +644,7 @@ export async function replyToEvent(state, targetEv, text) {
     let writeRelays;
     if (replyKind === 20000) {
       try {
-        const s = JSON.parse(localStorage.getItem('appSettings') || '{}');
+        const s = getActiveAppSettings();
         const isAuto = s && s.omochatAutoRelays !== false;
         if (isAuto && Array.isArray(s.omochatComputedRelays) && s.omochatComputedRelays.length > 0) {
           writeRelays = s.omochatComputedRelays.slice();

@@ -310,11 +310,20 @@ function getMuteConfig() {
     const wordsPublic = (rawMuteList && rawMuteList.words && Array.isArray(rawMuteList.words.public)) ? rawMuteList.words.public.map(w => String(w).toLowerCase()) : [];
     const wordsPrivate = (rawMuteList && rawMuteList.words && Array.isArray(rawMuteList.words.private)) ? rawMuteList.words.private.map(w => String(w).toLowerCase()) : [];
 
+    const getMuteSettingLocal = (key, defVal) => {
+      const pk = localStorage.getItem('pubkey');
+      const fullKey = pk ? `${key}.${pk.toLowerCase()}` : key;
+      const val = localStorage.getItem(fullKey);
+      if (val !== null) return val;
+      const fallback = localStorage.getItem(key);
+      return fallback !== null ? fallback : defVal;
+    };
+
     _cachedMuteConfig = {
-      rawMuteApply: (localStorage.getItem('mute_apply') || '1') === '1',
-      muteDisplayMode: localStorage.getItem('mute_display_mode') || 'collapse',
-      hidePublic: (localStorage.getItem('mute_hide_public') || '0') === '1',
-      applyKind0: (localStorage.getItem('mute_apply_kind0') || '0') === '1',
+      rawMuteApply: (getMuteSettingLocal('mute_apply', '1')) === '1',
+      muteDisplayMode: getMuteSettingLocal('mute_display_mode', 'collapse'),
+      hidePublic: (getMuteSettingLocal('mute_hide_public', '0')) === '1',
+      applyKind0: (getMuteSettingLocal('mute_apply_kind0', '0')) === '1',
       pubkeysPublicSet,
       pubkeysPrivateSet,
       wordsPublic,

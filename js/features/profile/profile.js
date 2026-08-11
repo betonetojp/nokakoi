@@ -242,6 +242,16 @@ export async function loadProfile(state, pubkey) {
           saveProfileToCache(pubkey, meta);
           // DOM更新
           updateNameDom(state, pubkey, getNip19());
+          const activePk = (state && state.pubkey) || localStorage.getItem('pubkey');
+          if (activePk && activePk.toLowerCase() === pubkey.toLowerCase()) {
+            try {
+              import('../../core/auth/auth-core.js').then(m => {
+                if (m && typeof m.updateHeaderName === 'function') {
+                  m.updateHeaderName(state, getNip19());
+                }
+              });
+            } catch (e) { }
+          }
           return profile;
         } catch (e) {
           state.profiles.set(pubkey, {
@@ -386,8 +396,9 @@ export function updateNameDom(state, pubkey, nip19) {
       }
     }
 
-    // プロフィールロード完了時のミュート再評価
-    if (eventEl && (localStorage.getItem('mute_apply_kind0') || '0') === '1') {
+    const pk = localStorage.getItem('pubkey');
+    const kind0Val = pk ? (localStorage.getItem(`mute_apply_kind0.${pk.toLowerCase()}`) || localStorage.getItem('mute_apply_kind0') || '0') : (localStorage.getItem('mute_apply_kind0') || '0');
+    if (eventEl && kind0Val === '1') {
       try {
         updateEventMuteDom(eventEl, state);
       } catch (e) { }

@@ -66,7 +66,8 @@ export async function fetchLatestEvent(state, kind, pubkey, options = {}) {
 export function backupEvent(kind, event) {
   try {
     if (!event) return;
-    const key = `backup_kind${kind}`;
+    const pubkey = localStorage.getItem('pubkey');
+    const key = pubkey ? `backup_kind${kind}.${pubkey.toLowerCase()}` : `backup_kind${kind}`;
     const data = {
       event,
       timestamp: Date.now()
@@ -82,7 +83,8 @@ export function backupEvent(kind, event) {
  */
 export function restoreBackup(kind) {
   try {
-    const key = `backup_kind${kind}`;
+    const pubkey = localStorage.getItem('pubkey');
+    const key = pubkey ? `backup_kind${kind}.${pubkey.toLowerCase()}` : `backup_kind${kind}`;
     const dataStr = localStorage.getItem(key);
     if (!dataStr) return null;
     
@@ -156,6 +158,54 @@ export async function restoreAndPublishBackup(kind) {
     return res;
   } catch (e) {
     console.error(`[ReplaceableEvent] Error restoring backup kind:${kind}:`, e);
+    return { ok: false, error: e.message || e };
+  }
+}
+
+/**
+ * デフォルトまたは現在の設定リレーから NIP-65 (kind:10002) リレーリストイベントを生成して発行
+ * @param {Object} state - アプリ状態
+ */
+export async function publishDefaultNip65RelayList(state) {
+  try {
+    if (!state || !state.pubkey) return { ok: false, error: 'No active pubkey' };
+
+    const relays = state.relays || [];
+    const tags = [];
+    if (Array.isArray(relays) && relays.length > 0) {
+      relays.forEach(r => {
+        if (typeof r === 'string') {
+          tags.push(['r', r]);
+        } else if (r && r.url) {
+          const modeTag = ['r', r.url];
+          if (r.read && !r.write) modeTag.push('read');
+          else if (!r.read && r.write) modeTag.push('write');
+          tags.push(modeTag);
+        }
+      });
+    } else {
+      tags.push(['r', 'wss://nos.lol']);
+      tags.push(['r', 'wss://relay-jp.nostr.wirednet.jp']);
+      tags.push(['r', 'wss://yabu.me']);
+    }
+
+    const draft = {
+      kind: 10002,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: tags,
+      content: '',
+      pubkey: state.pubkey
+    };
+
+    console.log('[NIP-65] 新規アカウントの kind:10002 リレーリストを発行中...', draft);
+    const res = await publishReplaceableEvent(state, draft);
+    if (res && res.ok) {
+      console.log('[NIP-65] kind:10002 リレーリストの発行に成功しました！');
+      backupEvent(10002, res.event || draft);
+    }
+    return res;
+  } catch (e) {
+    console.error('[NIP-65] kind:10002 発行例外:', e);
     return { ok: false, error: e.message || e };
   }
 }

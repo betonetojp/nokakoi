@@ -9,12 +9,25 @@ import { isWebAuthnSupported, authenticateWithPasskey, decryptNsecWithPasskey } 
 import { Nip46Client, DEFAULT_NIP46_RELAYS } from '../nip46.js';
 import { showPasswordModal } from './nsec-auth.js';
 import { getNip46LocalSecretKey, clearNip46LocalSecretKey } from './nip46-session.js';
+import { addAccount, migrateFromSingleAccount } from '../account-manager.js';
+import { defaultJaRelayUrl, defaultIntlRelayUrl, saveRelaysForAccount, loadRelaysForAccount, getDefaultGlobalRelayByLang } from '../relay.js';
+import { detectBrowserLang } from '../../utils/i18n.js';
+import { updateGlobalButtonLabel } from '../../features/relay/global-relay.js';
+import { saveMuteListForAccount, loadMuteListForAccount, clearMuteListState } from '../../features/mute/mute.js';
 
 let isPasskeyAuthPending = false;
 
 export async function login(state, settings, settingsManager, restartFeeds, setupComposerScroll) {
   const getPublicKey = getPublicKeyFn();
   const nip19 = getNip19();
+
+  // 前のアカウントのメモリ・フォローリスト・DOM描画の完全クリア
+  try {
+    const { clearFullState } = await import('../state.js');
+    if (typeof clearFullState === 'function') {
+      clearFullState(state);
+    }
+  } catch (e) {}
 
   if (state.signer === 'auto' || state.signer === 'nip07') {
     let attempts = 0;
@@ -24,22 +37,36 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
     }
   }
 
-  const order = resolveLoginOrder(state);
   let selected = null;
-
-  for (let i = 0; i < order.length; i++) {
-    const m = order[i];
-    if (m === 'nip07' && window.nostr) {
-      selected = 'nip07';
-      break;
+  if (state.signer === 'nip07' && window.nostr) {
+    selected = 'nip07';
+    try { signer.clearKey(); } catch (e) {}
+    if (state.nip46) {
+      try { if (state.nip46.client) state.nip46.client.disconnect(); } catch (e) {}
+      state.nip46.connected = false;
     }
-    if (m === 'nsec' && signer.hasKey()) {
-      selected = 'nsec';
-      break;
-    }
-    if (m === 'nip46' && state.nip46 && state.nip46.connected) {
-      selected = 'nip46';
-      break;
+  } else if (signer.hasKey()) {
+    selected = 'nsec';
+  } else if (state.nip46 && state.nip46.connected) {
+    selected = 'nip46';
+  } else if (window.nostr && (state.signer === 'nip07' || state.signer === 'auto')) {
+    selected = 'nip07';
+  } else {
+    const order = resolveLoginOrder(state);
+    for (let i = 0; i < order.length; i++) {
+      const m = order[i];
+      if (m === 'nsec' && signer.hasKey()) {
+        selected = 'nsec';
+        break;
+      }
+      if (m === 'nip46' && state.nip46 && state.nip46.connected) {
+        selected = 'nip46';
+        break;
+      }
+      if (m === 'nip07' && window.nostr) {
+        selected = 'nip07';
+        break;
+      }
     }
   }
 
@@ -48,22 +75,7 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
     return;
   }
 
-  if (signer.hasKey()) {
-    state.signer = 'nsec';
-  } else if (state.nip46 && state.nip46.connected) {
-    state.signer = 'nip46';
-  } else {
-    state.signer = selected;
-  }
-
-  try {
-    let lastLoginMethod = state.signer;
-    if (settings && settings.preferredSigner === 'nsec-passkey') {
-      lastLoginMethod = 'nsec-passkey';
-    }
-    localStorage.setItem('lastLoginMethod', lastLoginMethod);
-    localStorage.removeItem('skipAutoLogin');
-  } catch (e) { }
+  state.signer = selected;
 
   try {
     let pubkey;
@@ -75,32 +87,149 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
       pubkey = state.nip46.client.remotePubkey;
     }
 
-    if (!pubkey) {
-      alert(t('auth.pubkey_failed'));
-      return;
+    const oldPubkey = localStorage.getItem('pubkey');
+    const newPubkey = pubkey.toLowerCase();
+
+    // 以前ログインしていた別アカウントが存在する場合、前アカウントのデータを保存してメモリを完全クリア
+    if (oldPubkey && oldPubkey.toLowerCase() !== newPubkey) {
+      if (settingsManager && typeof settingsManager.saveForAccount === 'function') {
+        settingsManager.saveForAccount(oldPubkey.toLowerCase());
+      }
+      try {
+        const { clearFullState } = await import('../state.js');
+        if (typeof clearFullState === 'function') {
+          clearFullState(state);
+        }
+      } catch (e) {}
     }
 
-    state.pubkey = pubkey.toLowerCase();
+    state.pubkey = newPubkey;
 
     try {
       localStorage.setItem('pubkey', state.pubkey);
+      localStorage.removeItem('skipAutoLogin');
     } catch (e) { }
+
+    // ログイン対象アカウントの設定を読み込み
+    if (settingsManager && typeof settingsManager.loadForAccount === 'function') {
+      settingsManager.loadForAccount(state.pubkey);
+    }
+
+    // 実際のログイン方式を判別
+    let actualLoginMethod = selected;
+    if (selected === 'nsec') {
+      const pref = settingsManager ? settingsManager.get('preferredSigner') : null;
+      const passkeyId = settingsManager ? settingsManager.get('passkeyCredentialId') : null;
+      if (pref === 'nsec-passkey' && passkeyId) {
+        actualLoginMethod = 'nsec-passkey';
+      } else if (pref === 'nsec') {
+        actualLoginMethod = 'nsec';
+      }
+    } else if (selected === 'nip07') {
+      actualLoginMethod = 'nip07';
+    } else if (selected === 'nip46') {
+      actualLoginMethod = 'nip46';
+    }
+
+    try {
+      localStorage.setItem('lastLoginMethod', actualLoginMethod);
+    } catch (e) { }
+
+    if (settingsManager) {
+      settingsManager.set('preferredSigner', actualLoginMethod);
+      if (typeof settingsManager.saveForAccount === 'function') {
+        settingsManager.saveForAccount(state.pubkey);
+      }
+      try {
+        updateGlobalButtonLabel(settingsManager);
+      } catch (e) { }
+    }
+
+    // NIP-46 ローカルキーのアカウント別保存
+    const activeNip46Key = getNip46LocalSecretKey();
+    if (activeNip46Key) {
+      try {
+        localStorage.setItem(`nokakoi.nip46.localSecretKey.${state.pubkey}`, activeNip46Key);
+      } catch (e) {}
+    }
+
+    // アカウントマネージャーに登録
+    const accResult = addAccount({
+      id: state.pubkey,
+      loginMethod: actualLoginMethod
+    });
+
+    if (accResult && accResult.isMethodChanged) {
+      // 古いログイン方式の残存設定をクリーンアップ
+      if (settingsManager) {
+        if (actualLoginMethod !== 'nip46') {
+          settingsManager.set('nip46RemotePubkey', null);
+          settingsManager.set('nip46Secret', null);
+        }
+        if (actualLoginMethod !== 'nsec') {
+          settingsManager.set('encryptedNsec', null);
+        }
+        if (actualLoginMethod !== 'nsec-passkey') {
+          settingsManager.set('passkeyCredentialId', null);
+          settingsManager.set('passkeyEncryptedNsec', null);
+        }
+        if (typeof settingsManager.saveForAccount === 'function') {
+          settingsManager.saveForAccount(state.pubkey);
+        }
+      }
+      const methodNames = {
+        'nip07': t('account.method.nip07') || 'NIP-07拡張機能',
+        'nsec': t('account.method.password') || 'パスワード認証',
+        'nsec-passkey': t('account.method.passkey') || 'パスキー認証',
+        'nip46': t('account.method.nip46') || 'NIP-46 リモートサイナー'
+      };
+      const newMethodLabel = methodNames[actualLoginMethod] || actualLoginMethod;
+      setTimeout(() => {
+        alert(t('account.method_updated', { method: newMethodLabel }) || `このアカウントのログイン方法を「${newMethodLabel}」に更新し、アクティブアカウントに切り替えました。`);
+      }, 200);
+    }
+
+    state.relays = loadRelaysForAccount(state.pubkey);
+    loadMuteListForAccount(state.pubkey);
+
+    // アカウント全体のUI描画を同期・再更新
+    syncAccountUI(state, settingsManager);
 
     updateHeaderName(state, nip19);
 
-    const loginBtn = $('#loginBtn');
-    const nsecLoginBtn = $('#nsecLoginBtn');
-    const nip46LoginBtn = $('#nip46LoginBtn');
-    const logoutBtn = $('#logoutBtn');
+    const openLoginModalBtn = $('#openLoginModalBtn');
     const composer = $('#composer');
-    const loginLabel = $('#loginLabel');
 
-    if (loginBtn) loginBtn.hidden = true;
-    if (nsecLoginBtn) nsecLoginBtn.hidden = true;
-    if (nip46LoginBtn) nip46LoginBtn.hidden = true;
-    if (logoutBtn) logoutBtn.hidden = false;
+    if (openLoginModalBtn) openLoginModalBtn.hidden = true;
     if (composer) composer.hidden = false;
-    if (loginLabel) loginLabel.hidden = true;
+
+    // タブの表示更新（未ログイン時制限の解除）
+    if (typeof window.updateTabVisibility === 'function') {
+      window.updateTabVisibility(true);
+    }
+
+    // 秘密鍵作成直後の場合、kind:10002 (NIP-65 Relay List) を自動発行し、kind:0 編集画面を開く
+    if (window.__nokakoiOpenProfileEditorAfterLogin) {
+      delete window.__nokakoiOpenProfileEditorAfterLogin;
+      setTimeout(async () => {
+        try {
+          const { publishDefaultNip65RelayList } = await import('../replaceable-event.js');
+          if (typeof publishDefaultNip65RelayList === 'function') {
+            await publishDefaultNip65RelayList(state);
+          }
+        } catch (e) {
+          console.warn('[Auth] NIP-65 kind:10002 自動発行例外:', e);
+        }
+
+        import('../../features/profile/profile-editor.js').then(mod => {
+          if (mod && typeof mod.openProfileEditor === 'function') {
+            mod.openProfileEditor(state);
+          }
+        }).catch(err => {
+          console.warn('[Auth] プロフィール編集自動起動失敗:', err);
+        });
+      }, 500);
+    }
 
     if (restartFeeds) {
       try {
@@ -118,19 +247,8 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
     try {
       setTimeout(() => {
         try {
-          const loginBtn2 = document.getElementById('loginBtn');
-          const nsecLoginBtn2 = document.getElementById('nsecLoginBtn');
-          const nip46LoginBtn2 = document.getElementById('nip46LoginBtn');
-          const logoutBtn2 = document.getElementById('logoutBtn');
           const composer2 = document.getElementById('composer');
-          const loginLabel2 = document.getElementById('loginLabel');
-          if (loginBtn2) loginBtn2.hidden = true;
-          if (nsecLoginBtn2) nsecLoginBtn2.hidden = true;
-          if (nip46LoginBtn2) nip46LoginBtn2.hidden = true;
-          if (logoutBtn2) logoutBtn2.hidden = false;
           if (composer2) composer2.hidden = false;
-          if (loginLabel2) loginLabel2.hidden = true;
-
           try {
             updateHeaderName(state, nip19);
           } catch (e) {
@@ -168,6 +286,15 @@ export function updateHeaderName(state, nip19) {
 }
 
 export function logout(state, settings, settingsManager, restartFeeds) {
+  const currentPk = state.pubkey || localStorage.getItem('pubkey');
+  if (currentPk) {
+    if (settingsManager && typeof settingsManager.saveForAccount === 'function') {
+      settingsManager.saveForAccount(currentPk);
+    }
+    saveRelaysForAccount(currentPk);
+    saveMuteListForAccount(currentPk);
+  }
+
   try {
     localStorage.setItem('skipAutoLogin', '1');
     localStorage.removeItem('pubkey');
@@ -198,24 +325,48 @@ export function logout(state, settings, settingsManager, restartFeeds) {
     clearNip46LocalSecretKey();
   } catch (e) { }
 
+  try {
+    if (settingsManager && typeof settingsManager.loadForAccount === 'function') {
+      settingsManager.loadForAccount(null);
+    }
+    state.relays = loadRelaysForAccount(null);
+
+    settingsManager.set('globalRelay', getDefaultGlobalRelayByLang());
+    settingsManager.set('globalMergeHome', false);
+    try {
+      updateGlobalButtonLabel(settingsManager);
+    } catch (e) { }
+    clearNip46LocalSecretKey();
+  } catch (e) { }
+
+  // メモリ状態およびDOM・通知点滅等の完全クリア
+  try {
+    import('../state.js').then(m => {
+      if (m && typeof m.clearFullState === 'function') {
+        m.clearFullState(state);
+      }
+    });
+  } catch (e) { }
+
+  clearMuteListState();
+
   const nameEl = $('#userInfo');
   if (nameEl) {
     nameEl.textContent = '';
   }
 
-  const loginBtn = $('#loginBtn');
-  const nsecLoginBtn = $('#nsecLoginBtn');
-  const nip46LoginBtn = $('#nip46LoginBtn');
-  const logoutBtn = $('#logoutBtn');
+  const openLoginModalBtn = $('#openLoginModalBtn');
   const composer = $('#composer');
-  const loginLabel = $('#loginLabel');
 
-  if (loginBtn) loginBtn.hidden = false;
-  if (nsecLoginBtn) nsecLoginBtn.hidden = false;
-  if (nip46LoginBtn) nip46LoginBtn.hidden = false;
-  if (logoutBtn) logoutBtn.hidden = true;
+  if (openLoginModalBtn) openLoginModalBtn.hidden = false;
   if (composer) composer.hidden = true;
-  if (loginLabel) loginLabel.hidden = false;
+
+  // タブの表示更新（未ログイン時制限）
+  if (typeof window.updateTabVisibility === 'function') {
+    window.updateTabVisibility(false);
+  }
+
+  syncAccountUI(state, settingsManager);
 
   if (restartFeeds) {
     try {
@@ -227,15 +378,25 @@ export function logout(state, settings, settingsManager, restartFeeds) {
 }
 
 export async function autoLogin(state, settings, settingsManager, loginFn) {
-  try {
-    if (settingsManager && typeof settingsManager.load === 'function') {
-      const reloaded = settingsManager.load();
-      if (reloaded) settings = reloaded;
-    } else if (settingsManager && settingsManager.settings) {
-      settings = settingsManager.settings;
+  // 自動マイグレーション
+  migrateFromSingleAccount();
+
+  const activeId = localStorage.getItem('pubkey');
+  if (activeId && settingsManager && typeof settingsManager.loadForAccount === 'function') {
+    settingsManager.loadForAccount(activeId);
+    state.relays = loadRelaysForAccount(activeId);
+    if (settingsManager.settings) settings = settingsManager.settings;
+  } else {
+    try {
+      if (settingsManager && typeof settingsManager.load === 'function') {
+        const reloaded = settingsManager.load();
+        if (reloaded) settings = reloaded;
+      } else if (settingsManager && settingsManager.settings) {
+        settings = settingsManager.settings;
+      }
+    } catch (e) {
+      console.warn('[Auth] 設定の再読み込みに失敗', e);
     }
-  } catch (e) {
-    console.warn('[Auth] 設定の再読み込みに失敗', e);
   }
 
   if (localStorage.getItem('skipAutoLogin')) {
@@ -376,4 +537,55 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
 
   isPasskeyAuthPending = false;
   try { window.__nokakoiAuthPending = false; } catch (e) { }
+}
+
+export function syncAccountUI(state, settingsManager) {
+  if (!state) return;
+
+  // 1. リレー設定画面のDOM再描画
+  try {
+    const container = document.getElementById('relayList');
+    if (container && typeof container.__renderRelayList === 'function') {
+      container.__renderRelayList();
+    }
+  } catch (e) {}
+
+  // 2. グローバルタブのラベル更新
+  try {
+    updateGlobalButtonLabel(settingsManager);
+  } catch (e) {}
+
+  // 3. ミュート数のカウント表示およびイベント描画の更新
+  try {
+    import('../../features/mute/mute.js').then(m => {
+      if (m && typeof m.updateMuteListCountsUI === 'function') {
+        m.updateMuteListCountsUI();
+      }
+    });
+    import('../../ui/renderers/render-helpers.js').then(h => {
+      if (h && typeof h.refreshEventsMuteState === 'function') {
+        h.refreshEventsMuteState();
+      }
+    });
+  } catch (e) {}
+
+  // 4. 全表示設定チェックボックスとbodyクラスの再同期
+  try {
+    import('../../ui/setup/display-settings.js').then(ds => {
+      if (ds && typeof ds.refreshAllDisplaySettingsUI === 'function') {
+        ds.refreshAllDisplaySettingsUI(settingsManager);
+      }
+    });
+  } catch (e) {}
+
+  // 5. メインフィードのソフトリロード
+  try {
+    if (typeof window !== 'undefined') {
+      if (typeof window.softReload === 'function') {
+        window.softReload();
+      } else {
+        window.dispatchEvent(new CustomEvent('softReloadRequest'));
+      }
+    }
+  } catch (e) {}
 }

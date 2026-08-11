@@ -19,7 +19,7 @@ function _restoreComposerFromSettings(container) {
  * リレーリストUIを描画
  * ---- 修正: innerHTML を直接使わず DOM API で要素を構築（XSS 対策）
  */
-function renderRelayList(relays) {
+export function renderRelayList(relays) {
   const container = $('#relayList');
   if (!container) return;
 
@@ -118,6 +118,10 @@ export function setupRelaySettingsUI(state, relayConnect, getSimplePool, restart
   const addBtn = $('#addRelay');
   const saveBtn = $('#saveRelays');
   const resetBtn = $('#resetRelays');
+
+  if (container) {
+    container.__renderRelayList = () => renderRelayList(state.relays);
+  }
 
   // 初期描画
   renderRelayList(state.relays);

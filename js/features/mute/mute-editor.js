@@ -10,11 +10,16 @@ import { displayNameWithUsername, loadProfile, updateNameDom } from '../profile/
 import { refreshEventsMuteState } from '../../ui/renderers/render-helpers.js';
 import { signer } from '../../core/signer.js';
 
-const MUTE_SNAPSHOTS_KEY = 'mute_list_snapshots';
+const MUTE_SNAPSHOTS_KEY_BASE = 'mute_list_snapshots';
+
+function getMuteSnapshotsKey() {
+  const pk = localStorage.getItem('pubkey');
+  return pk ? `${MUTE_SNAPSHOTS_KEY_BASE}.${pk.toLowerCase()}` : MUTE_SNAPSHOTS_KEY_BASE;
+}
 
 function loadMuteSnapshots() {
   try {
-    const raw = localStorage.getItem(MUTE_SNAPSHOTS_KEY);
+    const raw = localStorage.getItem(getMuteSnapshotsKey());
     return raw ? JSON.parse(raw) : [];
   } catch (e) {
     return [];
@@ -23,9 +28,10 @@ function loadMuteSnapshots() {
 
 function saveMuteSnapshots(list) {
   try {
-    localStorage.setItem(MUTE_SNAPSHOTS_KEY, JSON.stringify(list));
+    localStorage.setItem(getMuteSnapshotsKey(), JSON.stringify(list));
   } catch (e) { }
 }
+
 
 function formatDateStr(ts) {
   const d = new Date(ts || Date.now());

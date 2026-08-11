@@ -5,6 +5,78 @@ import { addAutoCloseCheckbox, waitForEhagakiPublish } from '../../ui/ehagaki-au
 import { refreshEventsMuteState, invalidateMuteConfigCache } from '../../ui/renderers/render-helpers.js';
 import { signer } from '../../core/signer.js';
 
+function getMuteSettingKey(key) {
+  const pk = localStorage.getItem('pubkey');
+  return pk ? `${key}.${pk.toLowerCase()}` : key;
+}
+
+export function getMuteSetting(key, defaultValue = '') {
+  try {
+    const val = localStorage.getItem(getMuteSettingKey(key));
+    if (val !== null) return val;
+    const fallback = localStorage.getItem(key);
+    return fallback !== null ? fallback : defaultValue;
+  } catch (e) {
+    return defaultValue;
+  }
+}
+
+export function setMuteSetting(key, value) {
+  try {
+    localStorage.setItem(getMuteSettingKey(key), String(value));
+  } catch (e) {}
+}
+
+export function clearMuteListState() {
+  try {
+    localStorage.removeItem('muteList_expanded');
+    localStorage.removeItem('muteList_raw_kind10000');
+  } catch (e) {}
+  window.__nokakoiMuteList = null;
+  invalidateMuteConfigCache();
+  try {
+    const pubPubEl = document.getElementById('mutePubPublicCount');
+    const pubPrivEl = document.getElementById('mutePubPrivateCount');
+    const wordPubEl = document.getElementById('muteWordPublicCount');
+    const wordPrivEl = document.getElementById('muteWordPrivateCount');
+    if (pubPubEl) pubPubEl.textContent = '0';
+    if (pubPrivEl) pubPrivEl.textContent = '0';
+    if (wordPubEl) wordPubEl.textContent = '0';
+    if (wordPrivEl) wordPrivEl.textContent = '0';
+  } catch (e) {}
+}
+
+export function saveMuteListForAccount(pubkey) {
+  if (!pubkey) return;
+  try {
+    const raw10000 = localStorage.getItem('muteList_raw_kind10000');
+    const expanded = localStorage.getItem('muteList_expanded');
+    if (raw10000) localStorage.setItem(`muteList_raw_kind10000.${pubkey.toLowerCase()}`, raw10000);
+    if (expanded) localStorage.setItem(`muteList_expanded.${pubkey.toLowerCase()}`, expanded);
+  } catch (e) {}
+}
+
+export function loadMuteListForAccount(pubkey) {
+  if (!pubkey) {
+    clearMuteListState();
+    return null;
+  }
+  const targetId = pubkey.toLowerCase();
+  try {
+    const raw10000 = localStorage.getItem(`muteList_raw_kind10000.${targetId}`);
+    const expanded = localStorage.getItem(`muteList_expanded.${targetId}`);
+    if (expanded) {
+      localStorage.setItem('muteList_expanded', expanded);
+      if (raw10000) localStorage.setItem('muteList_raw_kind10000', raw10000);
+      else localStorage.removeItem('muteList_raw_kind10000');
+      return restoreMuteListFromStorage();
+    }
+  } catch (e) {}
+
+  clearMuteListState();
+  return null;
+}
+
 export function restoreMuteListFromStorage(ui = {}) {
   const status = ui.status || null;
   const countsWrap = ui.countsWrap || null;
@@ -15,7 +87,11 @@ export function restoreMuteListFromStorage(ui = {}) {
 
   try {
     const stored = localStorage.getItem('muteList_expanded');
-    if (!stored) return null;
+    if (!stored) {
+      window.__nokakoiMuteList = null;
+      invalidateMuteConfigCache();
+      return null;
+    }
     const expanded = JSON.parse(stored);
     window.__nokakoiMuteList = expanded;
     invalidateMuteConfigCache();
@@ -32,17 +108,44 @@ export function restoreMuteListFromStorage(ui = {}) {
     return expanded;
   } catch (e) {
     console.warn('[mute] 保存済み muteList_expanded の解析に失敗', e);
+    window.__nokakoiMuteList = null;
+    invalidateMuteConfigCache();
     return null;
   }
 }
 
 export function updateMuteListCountsUI() {
+  const pubkey = localStorage.getItem('pubkey');
+  if (pubkey) {
+    loadMuteListForAccount(pubkey);
+  } else {
+    clearMuteListState();
+  }
   const status = document.getElementById('fetchMuteListStatus');
   const countsWrap = document.getElementById('muteCounts');
   const pubPubEl = document.getElementById('mutePubPublicCount');
   const pubPrivEl = document.getElementById('mutePubPrivateCount');
   const wordPubEl = document.getElementById('muteWordPublicCount');
   const wordPrivEl = document.getElementById('muteWordPrivateCount');
+
+  // アカウント切替に伴い設定DOM（チェックボックス等）が存在していれば最新状態に同期
+  try {
+    const applyCheckbox = document.getElementById('applyMuteCheckbox');
+    if (applyCheckbox) applyCheckbox.checked = (getMuteSetting('mute_apply', '1')) === '1';
+
+    const modeHide = document.getElementById('muteModeHide');
+    const modeCollapse = document.getElementById('muteModeCollapse');
+    const storedMode = getMuteSetting('mute_display_mode', 'collapse');
+    if (modeHide) modeHide.checked = storedMode === 'hide';
+    if (modeCollapse) modeCollapse.checked = storedMode === 'collapse';
+
+    const kind0Checkbox = document.getElementById('muteApplyKind0Checkbox');
+    if (kind0Checkbox) kind0Checkbox.checked = (getMuteSetting('mute_apply_kind0', '0')) === '1';
+
+    const hidePublicCheckbox = document.getElementById('muteHidePublicCheckbox');
+    if (hidePublicCheckbox) hidePublicCheckbox.checked = (getMuteSetting('mute_hide_public', '0')) === '1';
+  } catch (e) {}
+
   return restoreMuteListFromStorage({ status, countsWrap, pubPubEl, pubPrivEl, wordPubEl, wordPrivEl });
 }
 
@@ -94,6 +197,9 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
     });
 
     if (!results.length) {
+      clearMuteListState();
+      if (pubkey) saveMuteListForAccount(pubkey);
+      updateMuteListCountsUI();
       if (status) status.textContent = t('mute.kind10000.notfound');
       return { ok: false, reason: 'not_found' };
     }
@@ -262,6 +368,9 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
     try {
       localStorage.setItem('muteList_raw_kind10000', JSON.stringify(results));
       localStorage.setItem('muteList_expanded', JSON.stringify(expanded));
+      if (state && state.pubkey) {
+        saveMuteListForAccount(state.pubkey);
+      }
       try { if (status) status.textContent = t('mute.fetch.done'); } catch (ee) { }
       if (window.__nokakoiDebug && detectedFormats.size) {
         const arr = Array.from(detectedFormats).sort();
@@ -531,7 +640,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         const applyCheckbox = document.createElement('input');
         applyCheckbox.type = 'checkbox';
         applyCheckbox.id = 'applyMuteCheckbox';
-        applyCheckbox.checked = (localStorage.getItem('mute_apply') || '1') === '1';
+        applyCheckbox.checked = (getMuteSetting('mute_apply', '1')) === '1';
 
         const applyText = document.createElement('span');
         applyText.setAttribute('data-i18n', 'mute.apply');
@@ -572,7 +681,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         modeHide.name = 'muteDisplayMode';
         modeHide.value = 'hide';
         modeHide.id = 'muteModeHide';
-        const storedMode = localStorage.getItem('mute_display_mode') || 'collapse';
+        const storedMode = getMuteSetting('mute_display_mode', 'collapse');
         modeHide.checked = storedMode === 'hide';
         const modeHideText = document.createElement('span');
         modeHideText.setAttribute('data-i18n', 'mute.mode.hide');
@@ -606,7 +715,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         const kind0Checkbox = document.createElement('input');
         kind0Checkbox.type = 'checkbox';
         kind0Checkbox.id = 'muteApplyKind0Checkbox';
-        kind0Checkbox.checked = (localStorage.getItem('mute_apply_kind0') || '0') === '1';
+        kind0Checkbox.checked = (getMuteSetting('mute_apply_kind0', '0')) === '1';
 
         const kind0Text = document.createElement('span');
         kind0Text.setAttribute('data-i18n', 'mute.apply_kind0');
@@ -633,7 +742,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         // kind:0 適用チェックボックスのイベント配線
         kind0Checkbox.addEventListener('change', function () {
           try {
-            localStorage.setItem('mute_apply_kind0', kind0Checkbox.checked ? '1' : '0');
+            setMuteSetting('mute_apply_kind0', kind0Checkbox.checked ? '1' : '0');
             refreshAllMuteSettings();
           } catch (e) { console.warn('[Mute] kind0 保存に失敗', e); }
         });
@@ -648,7 +757,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         const hidePublicCheckbox = document.createElement('input');
         hidePublicCheckbox.type = 'checkbox';
         hidePublicCheckbox.id = 'muteHidePublicCheckbox';
-        hidePublicCheckbox.checked = (localStorage.getItem('mute_hide_public') || '0') === '1';
+        hidePublicCheckbox.checked = (getMuteSetting('mute_hide_public', '0')) === '1';
 
         const hidePublicText = document.createElement('span');
         hidePublicText.setAttribute('data-i18n', 'mute.hide_public');
@@ -680,14 +789,14 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
 
         hidePublicCheckbox.addEventListener('change', function () {
           try {
-            localStorage.setItem('mute_hide_public', hidePublicCheckbox.checked ? '1' : '0');
+            setMuteSetting('mute_hide_public', hidePublicCheckbox.checked ? '1' : '0');
             refreshAllMuteSettings();
           } catch (e) { console.warn('[Mute] hide_public 保存に失敗', e); }
         });
 
         const saveMode = function (v) {
           try {
-            localStorage.setItem('mute_display_mode', v || 'collapse');
+            setMuteSetting('mute_display_mode', v || 'collapse');
             refreshAllMuteSettings('mute.mode.saved');
           } catch (e) { console.warn('[Mute] モード保存に失敗', e); }
         };

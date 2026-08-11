@@ -4,7 +4,7 @@ import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, EVENTLINK_DEFAULT_TITLE, 
 import { ensureNotificationPermission } from '../../utils/notification.js';
 import { teardownDomPurge } from '../../features/timeline/feed-renderer.js';
 import { applyTheme, applyColorTheme, applyBgBrightness, getBrightnessForCurrentTheme, getCurrentThemeMode } from './theme-manager.js';
-import { setMentionBlink } from './mention-blink.js';
+import { setMentionBlink, checkMentionBlink } from './mention-blink.js';
 import { renderTabSettingsUI, setupTabs } from './tab-manager.js';
 import { bringModalToFront } from './modal-helper.js';
 import { clearGeoRelayCache } from '../../features/relay/geo-relay-directory.js';
@@ -58,6 +58,8 @@ export function setShowReceivedDeltaEnabled(settingsManager, enabled) {
 
 export function setMuteApplyEnabled(settingsManager, enabled, restartFeeds) {
   try {
+    const pk = localStorage.getItem('pubkey');
+    if (pk) localStorage.setItem(`mute_apply.${pk.toLowerCase()}`, enabled ? '1' : '0');
     localStorage.setItem('mute_apply', enabled ? '1' : '0');
   } catch (e) { }
   syncDisplayCheckbox('applyMuteCheckbox', enabled);
@@ -94,7 +96,9 @@ export function showHomeDisplayQuickModal() {
   mediaCheck.checked = settingsManager.settings.showTimelineMedia === true;
   reactionsCheck.checked = settingsManager.settings.showHomeReactions === true;
   if (deltaCheck) deltaCheck.checked = settingsManager.settings.showReceivedDelta !== false;
-  muteCheck.checked = (localStorage.getItem('mute_apply') || '1') === '1';
+  const pk = localStorage.getItem('pubkey');
+  const muteApplyVal = pk ? (localStorage.getItem(`mute_apply.${pk.toLowerCase()}`) || localStorage.getItem('mute_apply') || '1') : (localStorage.getItem('mute_apply') || '1');
+  muteCheck.checked = muteApplyVal === '1';
 
   compactCheck.onchange = function () {
     setSimpleDisplayModeEnabled(settingsManager, compactCheck.checked);
@@ -560,5 +564,103 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
       if (v > 5000) v = 5000;
       settingsManager.set('maxEvents', v);
     };
+  }
+}
+
+export function refreshAllDisplaySettingsUI(settingsManager) {
+  if (!settingsManager || !settingsManager.settings) return;
+  const s = settingsManager.settings;
+
+  const syncVal = (id, val) => {
+    try {
+      const el = document.getElementById(id);
+      if (el && val !== undefined && val !== null) el.value = String(val);
+    } catch (e) {}
+  };
+
+  try {
+    // 1. 簡易表示モードと body クラス
+    const compact = s.simpleDisplayMode === true;
+    applySimpleDisplayMode(compact);
+    syncDisplayCheckbox('simpleDisplayModeCheck', compact);
+    syncDisplayCheckbox('homeDisplayQuickCompactCheck', compact);
+
+    // 2. タイムラインメディア
+    const media = s.showTimelineMedia === true;
+    syncDisplayCheckbox('showTimelineMediaCheck', media);
+    syncDisplayCheckbox('homeDisplayQuickMediaCheck', media);
+
+    // 3. ホームリアクション
+    const reactions = s.showHomeReactions === true;
+    syncDisplayCheckbox('showHomeReactionsCheck', reactions);
+    syncDisplayCheckbox('homeDisplayQuickReactionsCheck', reactions);
+
+    // 4. 受領差分
+    const delta = s.showReceivedDelta !== false;
+    syncDisplayCheckbox('showReceivedDeltaCheck', delta);
+    syncDisplayCheckbox('homeDisplayQuickDeltaCheck', delta);
+
+    // 5. 各種トグルチェックボックス
+    syncDisplayCheckbox('showAvatarsCheck', s.showAvatars !== false);
+    syncDisplayCheckbox('showCustomEmojiCheck', s.showCustomEmoji !== false);
+    syncDisplayCheckbox('showHomeOmochatCheck', s.showHomeOmochat === true);
+    syncDisplayCheckbox('showMusicStatusCheck', s.showMusicStatus !== false);
+    syncDisplayCheckbox('showClientNameCheck', s.showClientName !== false);
+    syncDisplayCheckbox('attachClientNameCheck', s.attachClientName !== false);
+    syncDisplayCheckbox('useDomPurgeCheck', s.useDomPurge === true);
+    syncDisplayCheckbox('showProfileReactionsCheck', s.showProfileReactions === true);
+    syncDisplayCheckbox('showProfileBannerCheck', s.showProfileBanner !== false);
+    syncDisplayCheckbox('disableBlinkCheck', s.disableBlink === true);
+    syncDisplayCheckbox('alwaysUseNip22CommentCheck', s.alwaysUseNip22Comment === true);
+    syncDisplayCheckbox('fetchFollowEmojiCheck', s.fetchFollowEmoji === true);
+    syncDisplayCheckbox('postLinkOpenInNewTabCheck', s.postLinkOpenInNewTab === true);
+
+    // 6. ドロップダウン・テキスト入力項目
+    syncVal('themeSelect', s.theme || 'system');
+    syncVal('colorThemeSelect', s.colorTheme || 'gray');
+    syncVal('mentionNotificationSelect', s.mentionNotificationMode || 'off');
+    syncVal('maxEventsSelect', s.maxEvents || 500);
+    syncVal('previewMaxLengthSelect', s.previewMaxLength || MAX_PREVIEW_LENGTH);
+    syncVal('reactionDefaultInput', s.reactionDefault || '+');
+    syncVal('clientNameInput', s.clientName || 'nokakoi');
+    syncVal('postLinkUrlInput', s.postLinkUrl || POSTLINK_DEFAULT_URL);
+    syncVal('postLinkTitleInput', s.postLinkTitle || POSTLINK_DEFAULT_TITLE);
+    syncVal('eventLinkUrlInput', s.eventLinkUrl || EVENTLINK_DEFAULT_URL);
+    syncVal('eventLinkTitleInput', s.eventLinkTitle || EVENTLINK_DEFAULT_TITLE);
+
+    // 7. テーマ・カラー・明るさの反映
+    try {
+      const mode = s.theme || 'system';
+      const initialMode = mode === 'system'
+        ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : mode;
+      applyTheme(initialMode);
+      applyColorTheme(s.colorTheme || 'gray');
+      applyBgBrightness(getBrightnessForCurrentTheme(settingsManager));
+    } catch (e) {}
+
+    // 8. タブ配置の再描画とメンション点滅制御
+    try {
+      setupTabs(settingsManager, true);
+    } catch (e) {}
+    try {
+      if (typeof setEventsMax === 'function') setEventsMax(s.maxEvents || 500);
+    } catch (e) {}
+    try {
+      if (s.disableBlink) {
+        setMentionBlink(false);
+      } else {
+        if (typeof checkMentionBlink === 'function') checkMentionBlink();
+      }
+    } catch (e) {}
+    try {
+      const tabSettingsContainer = document.getElementById('tabSettingsList');
+      if (tabSettingsContainer && typeof renderTabSettingsUI === 'function') {
+        renderTabSettingsUI(settingsManager, tabSettingsContainer);
+      }
+    } catch (e) {}
+
+  } catch (e) {
+    console.warn('[Settings] refreshAllDisplaySettingsUI エラー:', e);
   }
 }

@@ -2,6 +2,7 @@ import { $ } from '../../utils/utils.js';
 import { t } from '../../utils/i18n.js';
 import { Nip46Client, DEFAULT_NIP46_RELAYS, generateQRCodeSVG } from '../nip46.js';
 import { setNip46LocalSecretKey } from './nip46-session.js';
+import { getActiveSwitchSessionId } from '../account-manager.js';
 
 function showModal(modalId) {
   const modal = $(modalId);
@@ -212,12 +213,23 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         state.signer = 'nip46';
         try { bunkerClient.setupResumeHandler(); } catch (e) { }
 
+        const targetPk = bunkerClient.remotePubkey.toLowerCase();
+        if (settingsManager && typeof settingsManager.loadForAccount === 'function') {
+          settingsManager.loadForAccount(targetPk);
+        }
+
         settingsManager.set('nip46RemotePubkey', bunkerClient.remotePubkey);
         settingsManager.set('nip46Secret', bunkerClient.secret);
         settingsManager.set('nip46Relays', bunkerClient.relays);
         settingsManager.set('preferredSigner', 'nip46');
+        if (typeof settingsManager.saveForAccount === 'function') {
+          settingsManager.saveForAccount(targetPk);
+        }
         setNip46LocalSecretKey(bunkerClient.localSecretKey);
-        try { localStorage.setItem('lastLoginMethod', 'nip46'); } catch (e) { }
+        try {
+          localStorage.setItem(`nokakoi.nip46.localSecretKey.${targetPk}`, bunkerClient.localSecretKey);
+          localStorage.setItem('lastLoginMethod', 'nip46');
+        } catch (e) { }
 
         hideModal('#nip46Modal');
         await loginFn();
@@ -249,7 +261,15 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
   (async () => {
     try {
       if (statusEl) statusEl.textContent = t('nip46.waiting_for_connection');
+      const startSessionId = getActiveSwitchSessionId();
       const result = await client.waitForConnection();
+
+      // 接続待ち中に他アカウントへの切替や操作が行われた場合は遅延接続を安全にキャンセル
+      if (startSessionId !== getActiveSwitchSessionId()) {
+        console.warn('[NIP-46] 他操作が実行されたため遅延レスポンスを破棄しました');
+        try { client.disconnect(); } catch (e) {}
+        return;
+      }
 
       if (result.connected) {
         state.nip46.client = client;
@@ -258,12 +278,23 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         state.signer = 'nip46';
         try { client.setupResumeHandler(); } catch (e) { }
 
+        const targetPk = result.remotePubkey.toLowerCase();
+        if (settingsManager && typeof settingsManager.loadForAccount === 'function') {
+          settingsManager.loadForAccount(targetPk);
+        }
+
         settingsManager.set('nip46RemotePubkey', client.remotePubkey);
         settingsManager.set('nip46Secret', client.secret);
         settingsManager.set('nip46Relays', nip46Relays);
         settingsManager.set('preferredSigner', 'nip46');
+        if (typeof settingsManager.saveForAccount === 'function') {
+          settingsManager.saveForAccount(targetPk);
+        }
         setNip46LocalSecretKey(client.localSecretKey);
-        try { localStorage.setItem('lastLoginMethod', 'nip46'); } catch (e) { }
+        try {
+          localStorage.setItem(`nokakoi.nip46.localSecretKey.${targetPk}`, client.localSecretKey);
+          localStorage.setItem('lastLoginMethod', 'nip46');
+        } catch (e) { }
 
         hideModal('#nip46Modal');
         await loginFn();

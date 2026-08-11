@@ -141,7 +141,7 @@ export async function openProfileEditor(state) {
           });
 
           // d. 確認ダイアログの表示
-          const confirmed = await showConfirmDialog(modal);
+          const confirmed = await showConfirmDialog(modal, !latestEvent);
           if (!confirmed) {
             if (statusEl) statusEl.textContent = '';
             return;
@@ -230,7 +230,7 @@ function closeProfileEditor() {
  * @param {HTMLElement} parentElement - オーバーレイを追加する親要素（モーダル）
  * @returns {Promise<boolean>} ユーザーが確認した場合は true、キャンセルの場合は false
  */
-function showConfirmDialog(parentElement) {
+function showConfirmDialog(parentElement, isNewProfile = false) {
   return new Promise((resolve) => {
     // オーバーレイ要素の作成
     const overlay = document.createElement('div');
@@ -243,7 +243,16 @@ function showConfirmDialog(parentElement) {
     // メッセージの作成
     const msg = document.createElement('div');
     msg.className = 'editor-confirm-msg';
-    msg.innerHTML = `<strong>${t('editor.profile.confirm') || 'Confirm'}</strong><br><br>${t('editor.profile.confirm_detail') || 'Are you sure you want to update your profile?'}`;
+
+    const titleText = isNewProfile 
+      ? (t('editor.profile.confirm_new_title') || 'プロフィールを公開しますか？')
+      : (t('editor.profile.confirm') || 'プロフィールを更新しますか？');
+
+    const detailText = isNewProfile
+      ? (t('editor.profile.confirm_new_detail') || 'この新しいアカウントにプロフィール情報(kind:0)を発行・保存します。')
+      : (t('editor.profile.confirm_detail') || 'この操作は既存のプロフィール情報を更新・上書きします。');
+
+    msg.innerHTML = `<strong>${titleText}</strong><br><br>${detailText}`;
 
     // ボタンコンテナ
     const btnContainer = document.createElement('div');

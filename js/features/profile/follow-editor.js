@@ -9,7 +9,12 @@ import { getNip19, getSimplePool } from '../../core/nostr-compat.js';
 import { getReadRelays, relayConnect, profileIndexerRelay } from '../../core/relay.js';
 import { displayNameWithUsername, loadProfile, updateNameDom } from './profile.js';
 
-const SNAPSHOTS_KEY = 'follow_list_snapshots';
+const SNAPSHOTS_KEY_BASE = 'follow_list_snapshots';
+
+function getSnapshotsKey() {
+  const pk = localStorage.getItem('pubkey');
+  return pk ? `${SNAPSHOTS_KEY_BASE}.${pk.toLowerCase()}` : SNAPSHOTS_KEY_BASE;
+}
 
 const globalMutualCache = new Map();
 
@@ -49,7 +54,7 @@ export async function checkMutualFollow(state, targetPubkey, myPubkey, cache = n
  */
 function loadSnapshots() {
   try {
-    const raw = localStorage.getItem(SNAPSHOTS_KEY);
+    const raw = localStorage.getItem(getSnapshotsKey());
     return raw ? JSON.parse(raw) : [];
   } catch (e) {
     return [];
@@ -61,9 +66,10 @@ function loadSnapshots() {
  */
 function saveSnapshots(list) {
   try {
-    localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(list));
+    localStorage.setItem(getSnapshotsKey(), JSON.stringify(list));
   } catch (e) { }
 }
+
 
 /**
  * 現在の日時文字列（YYYY/MM/DD HH:mm）を生成

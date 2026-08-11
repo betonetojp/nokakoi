@@ -11,3 +11,12 @@ export const defaultRelays = [
 ];
 
 export const profileIndexerRelay = 'wss://directory.yabu.me';
+
+/**
+ * 言語に応じたデフォルトのグローバル選択リレーリストを返す（一元化関数）
+ */
+export function getDefaultGlobalRelayByLang() {
+  const lang = (typeof localStorage !== 'undefined' && localStorage.getItem('lang')) ||
+               (typeof navigator !== 'undefined' && navigator.language && navigator.language.startsWith('ja') ? 'ja' : 'en');
+  return lang === 'ja' ? [defaultJaRelayUrl] : [defaultIntlRelayUrl];
+}

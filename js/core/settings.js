@@ -1,5 +1,6 @@
 import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, EVENTLINK_DEFAULT_TITLE, EVENTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH, setEventsMax } from '../config/constants.js';
 import { DEFAULT_NIP46_RELAYS } from './nip46.js';
+import { getDefaultGlobalRelayByLang } from './relay.js';
 
 /**
  * アプリ設定・ユーザーリアクション管理
@@ -15,161 +16,77 @@ export class SettingsManager {
   }
 
   /**
+   * デフォルト設定オブジェクトを返す
+   */
+  getDefaultSettings() {
+    return {
+      reactionDefault: '+',
+      preferredSigner: null,
+      encryptedNsec: null,
+      globalRelay: getDefaultGlobalRelayByLang(),
+      globalMergeHome: false,
+      simpleDisplayMode: true,
+      showAvatars: true,
+      showTimelineMedia: false,
+      showClientName: true,
+      attachClientName: true,
+      alwaysUseNip22Comment: false,
+      clientName: 'nokakoi',
+      passkeyCredentialId: null,
+      passkeyEncryptedNsec: null,
+      passkeyDeviceInfo: null,
+      theme: 'system',
+      colorTheme: 'gray',
+      bgBrightness: 100,
+      bgBrightness_light: 100,
+      bgBrightness_dark: 100,
+      postLinkUrl: POSTLINK_DEFAULT_URL,
+      postLinkTitle: POSTLINK_DEFAULT_TITLE,
+      postLinkOpenInNewTab: false,
+      eventLinkUrl: EVENTLINK_DEFAULT_URL,
+      eventLinkTitle: EVENTLINK_DEFAULT_TITLE,
+      showHomeOmochat: true,
+      showHomeReactions: false,
+      showHomeChannel: false,
+      showHomeRepost16: false,
+      disableBlink: false,
+      mentionNotificationMode: 'off',
+      fetchFollowEmoji: false,
+      showReceivedDelta: true,
+      showProfileReactions: false,
+      showProfileChannel: false,
+      showProfileRepost16: false,
+      showProfileBanner: false,
+      showMusicStatus: true,
+      showOmochat: true,
+      tabs_v2: null,
+      omochatGeohash: 'xn',
+      omochatSubordinate: true,
+      omochatGeohashHistory: [],
+      omochatAutoRelays: true,
+      omochatAutoRelayAlgo: 'merged',
+      omochatMergeParent: true,
+      omochatComputedRelays: [],
+      nip46Relays: DEFAULT_NIP46_RELAYS.slice(),
+      previewMaxLength: MAX_PREVIEW_LENGTH,
+      useDomPurge: false,
+      maxEvents: 500,
+      nip46RemotePubkey: null,
+      nip46Secret: null
+    };
+  }
+
+  /**
    * localStorageから設定を読み込む
    */
   load() {
+    const defaults = this.getDefaultSettings();
     try {
       const raw = localStorage.getItem('appSettings');
       const obj = raw ? JSON.parse(raw) : {};
-      return {
-        reactionDefault: (obj && obj.reactionDefault) || '+',
-        preferredSigner: (obj && obj.preferredSigner) || null,
-        encryptedNsec: (obj && obj.encryptedNsec) || null,
-        globalRelay: (obj && obj.globalRelay) || null,
-        // グローバルタブにホームタイムラインをマージするか
-        globalMergeHome: (obj && typeof obj.globalMergeHome !== 'undefined') ? obj.globalMergeHome : false,
-        // フィード投稿をコンパクト表示（選択時のみメタ情報・アクションを表示）
-        simpleDisplayMode: (obj && typeof obj.simpleDisplayMode !== 'undefined') ? obj.simpleDisplayMode : true,
-        showAvatars: (obj && obj.showAvatars !== undefined) ? obj.showAvatars : true,
-        // タイムラインで inline media（images/videos）を既定で表示
-        showTimelineMedia: (obj && obj.showTimelineMedia !== undefined) ? obj.showTimelineMedia : false,
-        // kind ボタン横に client name バッジを表示
-        showClientName: (obj && obj.showClientName !== undefined) ? obj.showClientName : true,
-        // 投稿/返信/リポスト/リアクション送信時に client tag を付与
-        attachClientName: (obj && obj.attachClientName !== undefined) ? obj.attachClientName : true,
-        // すべての返信を NIP-22 (kind:1111) で送信するか（既定 false）
-        alwaysUseNip22Comment: (obj && typeof obj.alwaysUseNip22Comment !== 'undefined') ? obj.alwaysUseNip22Comment : false,
-        // 付与する既定の client name
-        clientName: (obj && obj.clientName) || 'nokakoi',
-        passkeyCredentialId: (obj && obj.passkeyCredentialId) || null,
-        passkeyEncryptedNsec: (obj && obj.passkeyEncryptedNsec) || null,
-        passkeyDeviceInfo: (obj && obj.passkeyDeviceInfo) || null,
-        // 既定は 'system'（OS の配色に自動追従）
-        theme: (obj && obj.theme) || 'system',
-        colorTheme: (obj && obj.colorTheme) || 'gray',
-        bgBrightness: (obj && typeof obj.bgBrightness !== 'undefined') ? obj.bgBrightness : 100,
-        bgBrightness_light: (obj && typeof obj.bgBrightness_light !== 'undefined') ? obj.bgBrightness_light : 100,
-        bgBrightness_dark: (obj && typeof obj.bgBrightness_dark !== 'undefined') ? obj.bgBrightness_dark : 100,
-                // post link 設定: 保存済み値を優先し、未保存なら妥当な既定値を使用
-        postLinkUrl: (obj && typeof obj.postLinkUrl !== 'undefined') ? obj.postLinkUrl : POSTLINK_DEFAULT_URL,
-        postLinkTitle: (obj && typeof obj.postLinkTitle !== 'undefined') ? obj.postLinkTitle : POSTLINK_DEFAULT_TITLE,
-        // post-link を新規タブで開くか（boolean、既定 false）
-        postLinkOpenInNewTab: (obj && typeof obj.postLinkOpenInNewTab !== 'undefined') ? obj.postLinkOpenInNewTab : false,
-        // event link 設定
-        eventLinkUrl: (obj && typeof obj.eventLinkUrl !== 'undefined') ? obj.eventLinkUrl : EVENTLINK_DEFAULT_URL,
-        eventLinkTitle: (obj && typeof obj.eventLinkTitle !== 'undefined') ? obj.eventLinkTitle : EVENTLINK_DEFAULT_TITLE,
-        // followee の kind:20000（omochat）を home feed に表示するか
-        showHomeOmochat: (obj && typeof obj.showHomeOmochat !== 'undefined') ? obj.showHomeOmochat : true,
-        // followee の kind:7 reactions を home feed に表示するか
-        showHomeReactions: (obj && typeof obj.showHomeReactions !== 'undefined') ? obj.showHomeReactions : false,
-        // followee の kind:42 channel posts を home feed に表示するか
-        showHomeChannel: (obj && typeof obj.showHomeChannel !== 'undefined') ? obj.showHomeChannel : false,
-        // followee の kind:16 generic reposts を home feed に表示するか
-        showHomeRepost16: (obj && typeof obj.showHomeRepost16 !== 'undefined') ? obj.showHomeRepost16 : false,
-        // 点滅通知を無効化（mention タブ点滅 + Top ボタン点滅）
-        disableBlink: (obj && typeof obj.disableBlink !== 'undefined') ? obj.disableBlink : false,
-        // メンションの OS 通知: 'off' | 'background'（非表示時のみ）
-        mentionNotificationMode: (obj && obj.mentionNotificationMode === 'background') ? 'background' : 'off',
-        // フォロイーの kind:10030 が参照する絵文字セット(kind:30030)も取得する
-        fetchFollowEmoji: (obj && typeof obj.fetchFollowEmoji !== 'undefined') ? obj.fetchFollowEmoji : false,
-        // live受信時の端末時計との差分を表示するか
-        showReceivedDelta: (obj && typeof obj.showReceivedDelta !== 'undefined') ? obj.showReceivedDelta : true,
-        // profile modal feed で kind:7 を取得するか
-        showProfileReactions: (obj && typeof obj.showProfileReactions !== 'undefined') ? obj.showProfileReactions : false,
-        // profile modal feed で kind:42 を取得するか
-        showProfileChannel: (obj && typeof obj.showProfileChannel !== 'undefined') ? obj.showProfileChannel : false,
-        // profile modal feed で kind:16 を取得するか
-        showProfileRepost16: (obj && typeof obj.showProfileRepost16 !== 'undefined') ? obj.showProfileRepost16 : false,
-        // profile modal で banner 画像を表示するか
-        showProfileBanner: (obj && typeof obj.showProfileBanner !== 'undefined') ? obj.showProfileBanner : false,
-        // music status（Now Playing）をインライン表示
-        showMusicStatus: (obj && typeof obj.showMusicStatus !== 'undefined') ? obj.showMusicStatus : true,
-        // omochat タブを表示
-        showOmochat: (obj && typeof obj.showOmochat !== 'undefined') ? obj.showOmochat : true,
-        // Tabs 設定（並び順と表示/非表示に対応した v2）
-        tabs_v2: (obj && obj.tabs_v2) ? obj.tabs_v2 : null,
-        // Omochat geohash
-        omochatGeohash: (obj && obj.omochatGeohash) || 'xn',
-        // Omochat subordinate オプション
-        omochatSubordinate: (obj && typeof obj.omochatSubordinate !== 'undefined') ? obj.omochatSubordinate : true,
-        // Omochat geohash 履歴
-        omochatGeohashHistory: (obj && Array.isArray(obj.omochatGeohashHistory)) ? obj.omochatGeohashHistory : [],
-        // Omochat relays
-        omochatRelays: (obj && Array.isArray(obj.omochatRelays)) ? obj.omochatRelays : null,
-        omochatAutoRelays: (obj && typeof obj.omochatAutoRelays !== 'undefined') ? obj.omochatAutoRelays : true,
-        omochatAutoRelayAlgo: (obj && obj.omochatAutoRelayAlgo) || 'merged',
-        omochatMergeParent: (obj && typeof obj.omochatMergeParent !== 'undefined') ? obj.omochatMergeParent : true,
-        omochatComputedRelays: (obj && Array.isArray(obj.omochatComputedRelays)) ? obj.omochatComputedRelays : [],
-        // NIP-46 Nostr Connect 設定
-        nip46Relays: (obj && Array.isArray(obj.nip46Relays)) ? obj.nip46Relays : DEFAULT_NIP46_RELAYS.slice(),
-        // プレビュー最大文字数
-        previewMaxLength: (obj && typeof obj.previewMaxLength !== 'undefined') ? obj.previewMaxLength : MAX_PREVIEW_LENGTH,
-        // 最大保持件数
-        useDomPurge: (obj && typeof obj.useDomPurge !== 'undefined') ? obj.useDomPurge : false,
-        maxEvents: (obj && typeof obj.maxEvents !== 'undefined') ? obj.maxEvents : 500,
-        // NIP-46 ローカル通信鍵は専用キーへ（appSettings には残さない）
-        nip46RemotePubkey: (obj && obj.nip46RemotePubkey) || null,
-        nip46Secret: (obj && obj.nip46Secret) || null
-      };
+      return { ...defaults, ...(obj || {}) };
     } catch {
-      return {
-        reactionDefault: '+',
-        preferredSigner: null,
-        encryptedNsec: null,
-        globalRelay: null,
-        globalMergeHome: false,
-        simpleDisplayMode: true,
-        showAvatars: true,
-        showTimelineMedia: false,
-        showClientName: true,
-        attachClientName: true,
-        alwaysUseNip22Comment: false,
-        clientName: 'nokakoi',
-        passkeyCredentialId: null,
-        passkeyEncryptedNsec: null,
-        passkeyDeviceInfo: null,
-        theme: 'system',
-        colorTheme: 'gray',
-        bgBrightness: 100,
-        bgBrightness_light: 100,
-        bgBrightness_dark: 100,
-        postLinkUrl: POSTLINK_DEFAULT_URL,
-        postLinkTitle: POSTLINK_DEFAULT_TITLE,
-        postLinkOpenInNewTab: false,
-        eventLinkUrl: EVENTLINK_DEFAULT_URL,
-        eventLinkTitle: EVENTLINK_DEFAULT_TITLE,
-        showHomeOmochat: true,
-        showHomeReactions: false,
-        showHomeChannel: false,
-        showHomeRepost16: false,
-        disableBlink: false,
-        mentionNotificationMode: 'off',
-        fetchFollowEmoji: false,
-        showProfileReactions: false,
-        showProfileChannel: false,
-        showProfileRepost16: false,
-        showProfileBanner: false,
-        showMusicStatus: true,
-        showOmochat: true,
-        tabs_v2: null,
-        // Omochat geohash
-        omochatGeohash: 'xn',
-        // Omochat subordinate オプション
-        omochatSubordinate: true,
-        // Omochat geohash 履歴
-        omochatGeohashHistory: [],
-        omochatAutoRelays: true,
-        omochatAutoRelayAlgo: 'merged',
-        omochatMergeParent: true,
-        omochatComputedRelays: [],
-        // NIP-46 既定値
-        nip46Relays: DEFAULT_NIP46_RELAYS.slice(),
-        previewMaxLength: MAX_PREVIEW_LENGTH,
-        useDomPurge: false,
-        maxEvents: 500,
-        nip46RemotePubkey: null,
-        nip46Secret: null
-      };
+      return defaults;
     }
   }
 
@@ -188,20 +105,77 @@ export class SettingsManager {
   }
 
   /**
+   * 現在の設定をアカウント別キーに退避
+   */
+  saveForAccount(pubkey) {
+    if (!pubkey) return;
+    const pk = pubkey.toLowerCase();
+    // メモリ上のアクティブpubkeyと異なるアカウントへの保存要求はデータ破壊を防ぐためブロック（アクティブ時のみ同期保存）
+    if (this.activePubkey && this.activePubkey !== pk) {
+      console.warn(`[Settings] 別アカウント (${pk}) への設定誤上書きをブロックしました (現在のActive: ${this.activePubkey})`);
+      return;
+    }
+    try {
+      const toSave = { ...(this.settings || {}) };
+      delete toSave.nip46LocalSecretKey;
+      localStorage.setItem(`appSettings.${pk}`, JSON.stringify(toSave));
+      this.save();
+    } catch (e) {
+      console.warn('[Settings] アカウント別設定保存失敗:', e);
+    }
+  }
+
+  /**
+   * アカウント別キーから設定を復元し、appSettingsにも反映
+   */
+  loadForAccount(pubkey) {
+    const defaults = this.getDefaultSettings();
+    if (!pubkey) {
+      this.activePubkey = null;
+      this.settings = defaults;
+      this.save();
+      return;
+    }
+    const pk = pubkey.toLowerCase();
+    this.activePubkey = pk;
+    try {
+      const raw = localStorage.getItem(`appSettings.${pk}`);
+      if (raw) {
+        const obj = JSON.parse(raw);
+        this.settings = { ...defaults, ...obj };
+      } else {
+        // 新規アカウント（個別保存が存在しない場合）：
+        // 前のアカウントの情報が残らないよう、100%デフォルト初期値で構成
+        this.settings = { ...defaults };
+      }
+      this.save();
+      localStorage.setItem(`appSettings.${pk}`, JSON.stringify(this.settings));
+    } catch (e) {
+      console.warn('[Settings] アカウント別設定読み込み失敗:', e);
+      this.settings = defaults;
+    }
+  }
+
+  /**
+   * アカウント別の設定を削除
+   */
+  removeForAccount(pubkey) {
+    if (!pubkey) return;
+    try {
+      localStorage.removeItem(`appSettings.${pubkey.toLowerCase()}`);
+    } catch (e) {
+      console.warn('[Settings] アカウント別設定削除失敗:', e);
+    }
+  }
+
+  /**
    * 旧版で appSettings に混在していた NIP-46 ローカル鍵を専用キーへ移行して除去
    */
   _purgeLegacyNip46LocalSecretKey() {
     try {
-      const raw = localStorage.getItem('appSettings');
-      if (!raw) return;
-      const obj = JSON.parse(raw);
-      if (obj && Object.prototype.hasOwnProperty.call(obj, 'nip46LocalSecretKey')) {
-        const legacy = obj.nip46LocalSecretKey;
-        if (legacy && typeof legacy === 'string' && !localStorage.getItem('nokakoi.nip46.localSecretKey')) {
-          localStorage.setItem('nokakoi.nip46.localSecretKey', legacy);
-        }
-        delete obj.nip46LocalSecretKey;
-        localStorage.setItem('appSettings', JSON.stringify(obj));
+      if (this.settings && Object.prototype.hasOwnProperty.call(this.settings, 'nip46LocalSecretKey')) {
+        delete this.settings.nip46LocalSecretKey;
+        this.save();
       }
     } catch (e) { }
   }
@@ -210,6 +184,7 @@ export class SettingsManager {
    * 設定値を取得
    */
   get(key) {
+    if (!this.settings) return null;
     return this.settings[key];
   }
 
@@ -245,6 +220,11 @@ export class SettingsManager {
   set(key, value) {
     this.settings[key] = value;
     this.save();
+    const activePk = (typeof window !== 'undefined' && window.__nostrState && window.__nostrState.pubkey) ||
+                     (typeof localStorage !== 'undefined' ? localStorage.getItem('pubkey') : null);
+    if (activePk) {
+      this.saveForAccount(activePk);
+    }
     if (key === 'maxEvents') {
       try { setEventsMax(value); } catch (e) {}
     }
@@ -253,9 +233,11 @@ export class SettingsManager {
   /**
    * イベントごとのユーザーリアクション取得
    */
-  getUserReaction(eventId) {
+  getUserReaction(eventId, pubkey) {
     try {
-      const reactions = JSON.parse(localStorage.getItem('userReactions') || '{}');
+      const activePk = pubkey || localStorage.getItem('pubkey');
+      const key = activePk ? `userReactions.${activePk.toLowerCase()}` : 'userReactions';
+      const reactions = JSON.parse(localStorage.getItem(key) || '{}');
       return reactions[eventId] || null;
     } catch {
       return null;
@@ -266,18 +248,19 @@ export class SettingsManager {
    * イベントごとのユーザーリアクション保存
    * localStorage肥大化防止のため最新1000件のみ保持
    */
-  saveUserReaction(eventId, reaction) {
+  saveUserReaction(eventId, reaction, pubkey) {
     try {
-      const reactions = JSON.parse(localStorage.getItem('userReactions') || '{}');
+      const activePk = pubkey || localStorage.getItem('pubkey');
+      const key = activePk ? `userReactions.${activePk.toLowerCase()}` : 'userReactions';
+      const reactions = JSON.parse(localStorage.getItem(key) || '{}');
       reactions[eventId] = reaction;
 
       const entries = Object.entries(reactions);
+      let toSave = reactions;
       if (entries.length > 1000) {
-        const keep = Object.fromEntries(entries.slice(-1000));
-        localStorage.setItem('userReactions', JSON.stringify(keep));
-      } else {
-        localStorage.setItem('userReactions', JSON.stringify(reactions));
+        toSave = Object.fromEntries(entries.slice(-1000));
       }
+      localStorage.setItem(key, JSON.stringify(toSave));
     } catch (e) {
       console.warn('[Settings] リアクション保存失敗:', e);
     }

@@ -3,7 +3,7 @@ import { logInitInfo, getNip19, getSimplePool, getNostrTools } from './nostr-com
 import { VERSION } from '../config/version.js';
 import { $, $$, showToast } from '../utils/utils.js';
 import { SettingsManager } from './settings.js';
-import { relayConnect, stopMonitoringRelays, loadRelays, defaultIntlRelayUrl, defaultJaRelayUrl } from './relay.js';
+import { relayConnect, stopMonitoringRelays, loadRelays, defaultIntlRelayUrl, defaultJaRelayUrl, getDefaultGlobalRelayByLang } from './relay.js';
 import { createState, clearFeed, findEventById } from './state.js';
 import { initializeProfileCache } from '../features/profile/profile.js';
 import { reactToEvent, repostEvent } from '../features/post/actions.js';
@@ -262,9 +262,7 @@ export async function initApp() {
       try { localStorage.setItem('lang', detected); } catch (e) { }
     }
     if (!settingsManager.hasRaw('globalRelay')) {
-      const lang = storedLang || detectBrowserLang();
-      if (lang === 'ja') settingsManager.set('globalRelay', [defaultJaRelayUrl]);
-      else settingsManager.set('globalRelay', [defaultIntlRelayUrl]);
+      settingsManager.set('globalRelay', getDefaultGlobalRelayByLang());
     }
   } catch (e) { }
 
@@ -397,8 +395,33 @@ export async function initApp() {
     });
   }
 
+  // 未ログイン時のタブ制限処理
+  function updateTabVisibility(isLoggedIn) {
+    try {
+      const tabs = document.querySelectorAll('.tabs .tab');
+      tabs.forEach(tab => {
+        const tabName = tab.dataset ? tab.dataset.tab : null;
+        if (tabName === 'global') {
+          tab.style.display = '';
+        } else {
+          tab.style.display = isLoggedIn ? '' : 'none';
+        }
+      });
+      if (!isLoggedIn) {
+        const tabs = document.querySelectorAll('.tabs .tab');
+        tabs.forEach(t => t.classList.toggle('active', t.dataset && t.dataset.tab === 'global'));
+        const feeds = document.querySelectorAll('.feed');
+        feeds.forEach(f => f.classList.toggle('active', f.id === 'feed-global'));
+      }
+    } catch (e) { }
+  }
+  if (typeof window !== 'undefined') {
+    window.updateTabVisibility = updateTabVisibility;
+  }
+
   try {
     const pubkey = localStorage.getItem('pubkey');
+    updateTabVisibility(!!pubkey);
     if (!pubkey) {
       setupGlobalFeed();
       try {
@@ -465,9 +488,12 @@ export async function initApp() {
   );
 
   try {
-    if (!localStorage.getItem('mentions_last_viewed_at')) {
-      localStorage.setItem('mentions_last_viewed_at', String(Math.floor(Date.now() / 1000)));
-      localStorage.setItem('mentions_last_viewed_id', '');
+    const pk = localStorage.getItem('pubkey');
+    const keyAt = pk ? `mentions_last_viewed_at.${pk.toLowerCase()}` : 'mentions_last_viewed_at';
+    const keyId = pk ? `mentions_last_viewed_id.${pk.toLowerCase()}` : 'mentions_last_viewed_id';
+    if (!localStorage.getItem(keyAt)) {
+      localStorage.setItem(keyAt, String(Math.floor(Date.now() / 1000)));
+      localStorage.setItem(keyId, '');
     }
   } catch (e) { }
 
@@ -569,17 +595,31 @@ export async function initApp() {
       };
     }
 
-    // ログインユーザー名タップでプロフィール編集モーダルを開く
+    // ログインユーザー名タップでアカウント管理モーダルを開く
     const userInfoEl = document.getElementById('userInfo');
     if (userInfoEl) {
       const handleOpenEditor = () => {
         if (!state.pubkey && !localStorage.getItem('pubkey')) return;
-        import('../features/profile/profile-editor.js').then(mod => {
-          if (mod && typeof mod.openProfileEditor === 'function') {
-            mod.openProfileEditor(state);
+        import('../ui/modals/account-modal.js').then(mod => {
+          if (mod && typeof mod.openAccountModal === 'function') {
+            mod.openAccountModal(state, settings, settingsManager, {
+              restartFeeds,
+              enableComposerScroll,
+              onLogout: () => {
+                if (cleanupScrollBehavior) {
+                  cleanupScrollBehavior();
+                  cleanupScrollBehavior = null;
+                }
+                stopMonitoringRelays(state);
+                if (authGuardInterval) {
+                  clearInterval(authGuardInterval);
+                  authGuardInterval = null;
+                }
+              }
+            });
           }
         }).catch(err => {
-          console.warn('[Bootstrap] プロフィール編集モーダルの読み込み失敗:', err);
+          console.warn('[Bootstrap] アカウント管理モーダルの読み込み失敗:', err);
         });
       };
       userInfoEl.onclick = handleOpenEditor;

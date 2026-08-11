@@ -85,9 +85,14 @@ function updateReactionPreview(modal, input) {
   preview.appendChild(line);
 }
 
+function getRecentReactionsKey() {
+  const pk = localStorage.getItem('pubkey');
+  return pk ? `${RECENT_REACTIONS_KEY}.${pk.toLowerCase()}` : RECENT_REACTIONS_KEY;
+}
+
 function loadRecentReactions() {
   try {
-    const raw = localStorage.getItem(RECENT_REACTIONS_KEY);
+    const raw = localStorage.getItem(getRecentReactionsKey());
     const arr = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(arr)) return [];
     const out = [];
@@ -104,7 +109,7 @@ function loadRecentReactions() {
 
 function saveRecentReactions(list) {
   try {
-    localStorage.setItem(RECENT_REACTIONS_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+    localStorage.setItem(getRecentReactionsKey(), JSON.stringify(Array.isArray(list) ? list : []));
   } catch (e) { }
 }
 
@@ -686,29 +691,34 @@ export function showOmochatSettingsModal(settingsManager) {
     });
   }
 
-  // 履歴ボタン挙動（重複登録防止のため一度だけセット）
-  if (historyBtn && historyPopup && !historyBtn._historyListenerSet) {
-    historyBtn._historyListenerSet = true;
+  // 履歴ボタン挙動
+  if (historyBtn && historyPopup) {
     historyBtn.onclick = (e) => {
+      e.stopPropagation();
+      const isVisible = historyPopup.style.display === 'block' || !historyPopup.classList.contains('d-none');
+      if (isVisible && historyPopup.style.display !== 'none') {
+        historyPopup.style.display = 'none';
+        historyPopup.classList.add('d-none');
+        return;
+      }
       renderHistoryPopup();
-      // スマホ等狭い画面では中央に表示、PCは従来通り
       const isMobile = window.innerWidth <= 480;
       historyPopup.classList.remove('d-none');
+      historyPopup.style.display = 'block';
       if (isMobile) {
         historyPopup.className = 'geohash-history-popup history-popup--mobile';
       } else {
         historyPopup.className = 'geohash-history-popup';
-        const rect = historyBtn.getBoundingClientRect();
-        historyPopup.style.left = rect.left + window.scrollX + 'px';
-        historyPopup.style.top = (rect.bottom + window.scrollY + 2) + 'px';
-        historyPopup.style.minWidth = rect.width + 120 + 'px';
+        historyPopup.style.left = '';
+        historyPopup.style.top = '';
+        historyPopup.style.minWidth = '';
       }
     };
-    // 外クリックで閉じる（1回だけセット）
     if (!historyPopup._outsideListenerSet) {
       historyPopup._outsideListenerSet = true;
       document.addEventListener('mousedown', function hidePopup(ev) {
-        if (!historyPopup.classList.contains('d-none') && !historyPopup.contains(ev.target) && ev.target !== historyBtn) {
+        if (!historyPopup.contains(ev.target) && !historyBtn.contains(ev.target)) {
+          historyPopup.style.display = 'none';
           historyPopup.classList.add('d-none');
         }
       });

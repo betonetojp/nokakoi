@@ -109,12 +109,11 @@
       <span class="brand-text" data-i18n="brand">nokakoi</span>
     </div>
     <nav class="actions">
-      <span id="loginLabel" class="muted" data-i18n="login.select">ログイン選択</span>
-      <button id="nsecLoginBtn" class="secondary" type="button" data-i18n="login.nsec">nsec</button>
-      <button id="nip46LoginBtn" class="secondary" type="button" data-i18n="login.nip46">NIP-46</button>
-      <button id="loginBtn" class="secondary" type="button" data-i18n="login.nip07">NIP-07</button>
+      <button id="openLoginModalBtn" class="secondary" type="button" data-i18n="login.button">ログイン</button>
+      <button id="nsecLoginBtn" class="secondary" type="button" hidden data-i18n="login.nsec">nsec</button>
+      <button id="nip46LoginBtn" class="secondary" type="button" hidden data-i18n="login.nip46">NIP-46</button>
+      <button id="loginBtn" class="secondary" type="button" hidden data-i18n="login.nip07">NIP-07</button>
       <span id="userInfo" class="muted" role="button" tabindex="0"></span>
-      <button id="logoutBtn" class="secondary" hidden type="button" data-i18n="logout">ログアウト</button>
     </nav>
   </header>
 
@@ -501,11 +500,13 @@
         <p class="muted text-sm mb-12" data-i18n="omochat.modal.hint">購読するgeohashを設定できます。</p>
 
         <label for="omochatGeohashInput" class="d-block mb-4 font-bold" data-i18n="omochat.geohash.label">geohash (#g)</label>
-        <div class="flex-row gap-6 mb-12">
-          <input type="text" id="omochatGeohashInput" name="omochatGeohashInput" placeholder="xn, ..." data-i18n-placeholder="omochat.geohash.placeholder" class="flex-1">
-          <button id="omochatGeohashHistoryBtn" type="button" class="secondary text-base" data-i18n="omochat.geohash_history.btn" title="履歴">履歴</button>
+        <div class="omochat-geohash-input-container" style="position: relative; margin-bottom: 12px;">
+          <div class="flex-row gap-6">
+            <input type="text" id="omochatGeohashInput" name="omochatGeohashInput" placeholder="xn, ..." data-i18n-placeholder="omochat.geohash.placeholder" class="flex-1">
+            <button id="omochatGeohashHistoryBtn" type="button" class="secondary text-base" data-i18n="omochat.geohash_history.btn" title="履歴">履歴</button>
+          </div>
+          <div id="omochatGeohashHistoryPopup" class="geohash-history-popup"></div>
         </div>
-        <div id="omochatGeohashHistoryPopup" class="geohash-history-popup"></div>
 
         <!-- 下位geohash表示オプション -->
         <label class="omochat-option-label">
@@ -603,7 +604,7 @@
       <div id="autoLoginOptions">
         <label class="auto-login-radio">
           <input type="radio" name="autoLoginMethod" id="radioPasskey" value="passkey">
-          <span class="text-sm" data-i18n="nsec.passkey_option">パスキー（指紋認証/PIN）で保護（推奨）</span>
+          <span class="text-sm" data-i18n="auth.passkey_option">パスキー（指紋認証/PIN）で保護（推奨）</span>
         </label>
         <p id="passkeyInfo" class="muted passkey-info">
           <span data-i18n="nsec.passkey_info_line1">パスワード不要で、指紋認証やPINで自動ログインできます。</span><br>
@@ -611,12 +612,12 @@
         </p>
         <label class="auto-login-radio">
           <input type="radio" name="autoLoginMethod" id="radioPassword" value="password">
-          <span class="text-sm" data-i18n="nsec.password_option">暗号化パスワード方式</span>
+          <span class="text-sm" data-i18n="auth.password_option">暗号化パスワード方式</span>
         </label>
       </div>
       <div id="passwordSection">
         <label for="nsecPassword" class="modal-field-label" data-i18n="nsec.passwordLabel">暗号化パスワード</label>
-        <input type="password" id="nsecPassword" autocomplete="new-password" data-i18n="nsec.password_placeholder" placeholder="パスワード">
+        <input type="password" id="nsecPassword" autocomplete="new-password" data-i18n="auth.password_placeholder" placeholder="パスワード">
         <p class="muted password-section-desc">
           <span data-i18n="nsec.password_section_desc_line1">パスワード方式では、入力したパスワードで秘密鍵を暗号化して保存します。</span><br>
           <span data-i18n="nsec.password_section_desc_line2">次回以降はこのパスワードを入力することで自動ログインできます。</span><br>
@@ -935,6 +936,28 @@
         </div>
         <div class="event-actions-bottom" id="eventModalActionsBottom"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- ログイン方法選択モーダル -->
+  <div id="loginMethodModal" class="modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-body modal-body--sm panel">
+      <div class="modal-header-row">
+        <h2 class="modal-title" data-i18n="login.modal.title">ログイン方法を選択</h2>
+        <button id="loginMethodModalClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div id="loginMethodModalContent" class="login-method-list"></div>
+    </div>
+  </div>
+
+  <!-- アカウント管理モーダル -->
+  <div id="accountModal" class="modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-body modal-body--md panel">
+      <div class="modal-header-row">
+        <h2 class="modal-title" data-i18n="account.modal.title">アカウント管理</h2>
+        <button id="accountModalClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div id="accountModalContent" class="account-modal-content"></div>
     </div>
   </div>
 

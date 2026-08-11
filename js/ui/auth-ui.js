@@ -12,6 +12,21 @@ export function setupAuthUI(state, settings, settingsManager, {
   enableComposerScroll,
   onLogout
 }) {
+  const openLoginBtn = $('#openLoginModalBtn');
+  if (openLoginBtn) {
+    openLoginBtn.onclick = () => {
+      import('./modals/login-modal.js').then(mod => {
+        if (mod && typeof mod.openLoginModal === 'function') {
+          mod.openLoginModal(
+            state,
+            settings,
+            settingsManager,
+            () => login(state, settings, settingsManager, restartFeeds, enableComposerScroll)
+          );
+        }
+      });
+    };
+  }
   const nsecBtn = $('#nsecLoginBtn');
   if (nsecBtn) {
     nsecBtn.onclick = async () => {
@@ -100,16 +115,6 @@ export function setupAuthUI(state, settings, settingsManager, {
       if (btn) btn.disabled = false;
       settingsManager.set('preferredSigner', 'nip07');
       login(state, settings, settingsManager, restartFeeds, enableComposerScroll);
-    };
-  }
-
-  const logoutBtn = $('#logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.onclick = () => {
-      if (typeof onLogout === 'function') {
-        try { onLogout(); } catch (e) { }
-      }
-      logout(state, settings, settingsManager, restartFeeds);
     };
   }
 }

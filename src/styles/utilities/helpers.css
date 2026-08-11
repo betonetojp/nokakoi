@@ -209,11 +209,14 @@ body.theme-light .json-pre {
 .geohash-history-popup {
   display: none;
   position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
   z-index: 99999;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 180px;
   max-width: 320px;
   max-height: 220px;

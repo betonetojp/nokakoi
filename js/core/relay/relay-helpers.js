@@ -82,6 +82,51 @@ export function saveRelays(list) {
   }
 }
 
+/**
+ * 現在のリレー設定をアカウント別キーに退避
+ */
+export function saveRelaysForAccount(pubkey) {
+  if (!pubkey) return;
+  try {
+    const raw = localStorage.getItem('relays');
+    if (raw) {
+      localStorage.setItem(`relays.${pubkey.toLowerCase()}`, raw);
+    } else {
+      localStorage.setItem(`relays.${pubkey.toLowerCase()}`, JSON.stringify(defaultRelays));
+    }
+  } catch (e) {
+    console.warn('[Relay] アカウント別リレー保存失敗:', e);
+  }
+}
+
+/**
+ * アカウント別キーからリレー設定を復元
+ */
+export function loadRelaysForAccount(pubkey) {
+  if (!pubkey) {
+    saveRelays(defaultRelays);
+    return defaultRelays;
+  }
+  try {
+    const raw = localStorage.getItem(`relays.${pubkey.toLowerCase()}`);
+    if (raw) {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list) && list.length) {
+        saveRelays(list);
+        return loadRelays();
+      }
+    }
+    // 個別設定がない場合はデフォルトリレーに初期化
+    saveRelays(defaultRelays);
+    localStorage.setItem(`relays.${pubkey.toLowerCase()}`, JSON.stringify(defaultRelays));
+    return defaultRelays;
+  } catch (e) {
+    console.warn('[Relay] アカウント別リレー読み込み失敗:', e);
+    saveRelays(defaultRelays);
+    return defaultRelays;
+  }
+}
+
 export function reportRelayStatus(state) {
   try {
     if (!state.pool) return [];

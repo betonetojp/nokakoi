@@ -127,3 +127,49 @@ export function clearFeed(state, feedId) {
     delete feed.perFilterUntil;
   }
 }
+
+/**
+ * 全アプリケーション状態（フィード・キャッシュ・通知状態・DOM表示）を完全にリセット
+ */
+export function clearFullState(state) {
+  if (!state) return;
+
+  // 1. 各フィードキャッシュのクリア
+  if (state.feeds) {
+    Object.keys(state.feeds).forEach(feedId => {
+      clearFeed(state, feedId);
+      const feed = state.feeds[feedId];
+      if (feed) {
+        if (feed.follows) feed.follows = [];
+        if (feed.followSet) feed.followSet.clear();
+      }
+    });
+  }
+
+  // 2. 各種キャッシュのクリア
+  if (state.profiles) state.profiles.clear();
+  if (state.userStatuses) state.userStatuses.clear();
+  if (state.followPetnames) state.followPetnames.clear();
+  if (state.customEmojis) state.customEmojis.clear();
+  if (state.eventCache) state.eventCache.clear();
+
+  // 3. DOM上のフィード要素の初期化
+  try {
+    const feedIds = ['feed-home', 'feed-global', 'feed-mentions', 'feed-me', 'feed-omochat'];
+    feedIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+    document.querySelectorAll('.feed-container').forEach(el => {
+      el.innerHTML = '';
+    });
+  } catch (e) { }
+
+  // 4. 通知バッジ・点滅の完全消去
+  try {
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.classList.remove('blink', 'blink-active', 'has-new-dot');
+    });
+  } catch (e) { }
+}
+
