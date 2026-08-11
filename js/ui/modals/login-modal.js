@@ -158,7 +158,7 @@ function renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess) {
         <span style="font-size:0.9em; font-weight:bold;">${t('keygen.confirm_backup')}</span>
       </label>
 
-      <div id="keygenSaveSection" style="margin-top:12px; padding:10px; background:rgba(0,0,0,0.15); border-radius:6px;" class="d-none">
+      <div id="keygenSaveSection" style="margin-top:12px; padding:10px; background:var(--bg-secondary, var(--panel-hover, rgba(128,128,128,0.08))); border:1px solid var(--border, rgba(128,128,128,0.2)); border-radius:6px;" class="d-none">
         <label class="nsec-save-label">
           <input type="checkbox" id="keygenSaveCheck" checked>
           <span style="font-size:0.9em; font-weight:bold;">${t('keygen.save_option')}</span>
@@ -169,16 +169,25 @@ function renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess) {
 
         <div id="keygenAutoLoginOptions" style="margin-top:8px; margin-left:24px;">
           <div class="radio-option" style="margin-bottom:6px;">
-            <input type="radio" name="keygenSaveMethod" id="radioKeygenPasskey" value="passkey">
+            <input type="radio" name="keygenSaveMethod" id="radioKeygenPasskey" value="passkey" checked>
             <label for="radioKeygenPasskey">${t('auth.passkey_option')}</label>
           </div>
+          <p id="keygenPasskeyInfo" class="muted passkey-info" style="font-size:0.8em; margin:4px 0 8px 24px;">
+            <span>${t('nsec.passkey_info_line1')}</span><br>
+            <span>${t('nsec.passkey_info_line2')}</span>
+          </p>
           <div class="radio-option" style="margin-bottom:6px;">
-            <input type="radio" name="keygenSaveMethod" id="radioKeygenPassword" value="password" checked>
+            <input type="radio" name="keygenSaveMethod" id="radioKeygenPassword" value="password">
             <label for="radioKeygenPassword">${t('auth.password_option')}</label>
           </div>
 
-          <div id="keygenPasswordSection" style="margin-top:8px;">
+          <div id="keygenPasswordSection" style="margin-top:8px;" class="d-none">
             <input type="password" id="keygenPassword" placeholder="${t('auth.password_placeholder')}" style="width:100%; padding:6px; box-sizing:border-box;">
+            <p class="muted password-section-desc" style="font-size:0.8em; margin:6px 0 8px 0;">
+              <span>${t('nsec.password_section_desc_line1')}</span><br>
+              <span>${t('nsec.password_section_desc_line2')}</span><br>
+              <span>${t('nsec.password_section_desc_line3')}</span>
+            </p>
           </div>
         </div>
       </div>
@@ -220,6 +229,7 @@ function renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess) {
   const autoLoginOptions = $('#keygenAutoLoginOptions');
   const radioPasskey = $('#radioKeygenPasskey');
   const radioPassword = $('#radioKeygenPassword');
+  const passkeyInfo = $('#keygenPasskeyInfo');
   const passwordSection = $('#keygenPasswordSection');
   const passwordInput = $('#keygenPassword');
   const statusEl = $('#keygenStatus');
@@ -230,6 +240,7 @@ function renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess) {
     if (!available && radioPasskey) {
       radioPasskey.disabled = true;
       if (radioPassword) radioPassword.checked = true;
+      updateKeygenSaveSections();
     }
   });
 
@@ -240,16 +251,22 @@ function renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess) {
       if (unsavedWarning) unsavedWarning.classList.add('d-none');
       if (autoLoginOptions) autoLoginOptions.classList.remove('d-none');
 
-      if (radioPassword && radioPassword.checked) {
-        if (passwordSection) passwordSection.classList.remove('d-none');
-      } else {
+      if (radioPasskey && radioPasskey.checked) {
+        if (passkeyInfo) passkeyInfo.classList.remove('d-none');
         if (passwordSection) passwordSection.classList.add('d-none');
+      } else {
+        if (passkeyInfo) passkeyInfo.classList.add('d-none');
+        if (passwordSection) passwordSection.classList.remove('d-none');
       }
     } else {
       if (unsavedWarning) unsavedWarning.classList.remove('d-none');
       if (autoLoginOptions) autoLoginOptions.classList.add('d-none');
     }
   }
+
+  if (saveCheck) saveCheck.onchange = updateKeygenSaveSections;
+  if (radioPasskey) radioPasskey.onchange = updateKeygenSaveSections;
+  if (radioPassword) radioPassword.onchange = updateKeygenSaveSections;
 
   if (backupCheck && loginBtn && saveSection) {
     backupCheck.onchange = () => {

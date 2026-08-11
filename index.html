@@ -394,7 +394,10 @@
         </div>
         <div id="replyContextContent" class="reply-context-content"></div>
       </div>
-      <h2 id="composerTitle" data-i18n="composer.title">投稿</h2>
+      <div class="composer-header-row">
+        <h2 id="composerTitle" data-i18n="composer.title">投稿</h2>
+        <span id="composerAccountInfo" class="composer-account-info"></span>
+      </div>
       <textarea id="noteInput" name="noteInput" rows="4" data-i18n="composer.placeholder" data-i18n-aria-label="composer.placeholder" aria-label="投稿内容" placeholder="どんな感じ？"></textarea>
       <div class="row composer-row">
         <button id="publishBtn" type="button" data-i18n="publish">投稿する</button>
@@ -598,7 +601,7 @@
       <label for="nsecInput" class="modal-field-label" data-i18n="nsec.input.label">nsec または16進秘密鍵</label>
       <input type="password" id="nsecInput" autocomplete="new-password" data-i18n="nsec.input.placeholder" placeholder="nsec1... または hex" class="w-full mb-12">
       <label class="nsec-save-label">
-        <input type="checkbox" id="saveNsecCheck">
+        <input type="checkbox" id="saveNsecCheck" checked>
         <span class="text-sm" data-i18n="nsec.saveHint">次回から自動ログイン（暗号化して保存）</span>
       </label>
       <div id="autoLoginOptions">

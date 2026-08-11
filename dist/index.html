@@ -68,7 +68,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <script type="module" crossorigin src="./assets/index-BxxabDUI.js"></script>
+  <script type="module" crossorigin src="./assets/index-aoiOSj42.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-DK3Fl9T5.js">
   <link rel="modulepreload" crossorigin href="./assets/nostr-compat-DN4SB2qK.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-xIk5e5Dp.js">
@@ -78,18 +78,18 @@
   <link rel="modulepreload" crossorigin href="./assets/nip46-BS55jo2O.js">
   <link rel="modulepreload" crossorigin href="./assets/relay-DfgZXtyW.js">
   <link rel="modulepreload" crossorigin href="./assets/preload-helper-B7qeedMF.js">
-  <link rel="modulepreload" crossorigin href="./assets/profile-BErbo-X_.js">
+  <link rel="modulepreload" crossorigin href="./assets/profile-CaIWg-6s.js">
   <link rel="modulepreload" crossorigin href="./assets/webauthn-D6WFtIEh.js">
   <link rel="modulepreload" crossorigin href="./assets/signer-BNBrFOs9.js">
   <link rel="modulepreload" crossorigin href="./assets/actions-BHWoh1uu.js">
   <link rel="modulepreload" crossorigin href="./assets/modals-J4W020-i.js">
   <link rel="modulepreload" crossorigin href="./assets/ehagaki-autoclose-BhGLYlFS.js">
-  <link rel="modulepreload" crossorigin href="./assets/mute-u7VmWwu3.js">
-  <link rel="modulepreload" crossorigin href="./assets/account-manager-YF9c5k9a.js">
-  <link rel="modulepreload" crossorigin href="./assets/url-parser-wxx2hQDe.js">
+  <link rel="modulepreload" crossorigin href="./assets/mute-Qap8GKro.js">
+  <link rel="modulepreload" crossorigin href="./assets/account-manager-_xI9Nmj2.js">
+  <link rel="modulepreload" crossorigin href="./assets/url-parser-BcuU7-Yp.js">
   <link rel="modulepreload" crossorigin href="./assets/json-modal-LIonpaWM.js">
-  <link rel="modulepreload" crossorigin href="./assets/renderer-CTGXdvHW.js">
-  <link rel="stylesheet" crossorigin href="./assets/index-BMXKbAA6.css">
+  <link rel="modulepreload" crossorigin href="./assets/renderer-DkDBLpB3.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-BXrzPZBy.css">
 </head>
 <body>
   <script>
@@ -415,7 +415,10 @@
         </div>
         <div id="replyContextContent" class="reply-context-content"></div>
       </div>
-      <h2 id="composerTitle" data-i18n="composer.title">投稿</h2>
+      <div class="composer-header-row">
+        <h2 id="composerTitle" data-i18n="composer.title">投稿</h2>
+        <span id="composerAccountInfo" class="composer-account-info"></span>
+      </div>
       <textarea id="noteInput" name="noteInput" rows="4" data-i18n="composer.placeholder" data-i18n-aria-label="composer.placeholder" aria-label="投稿内容" placeholder="どんな感じ？"></textarea>
       <div class="row composer-row">
         <button id="publishBtn" type="button" data-i18n="publish">投稿する</button>
@@ -619,7 +622,7 @@
       <label for="nsecInput" class="modal-field-label" data-i18n="nsec.input.label">nsec または16進秘密鍵</label>
       <input type="password" id="nsecInput" autocomplete="new-password" data-i18n="nsec.input.placeholder" placeholder="nsec1... または hex" class="w-full mb-12">
       <label class="nsec-save-label">
-        <input type="checkbox" id="saveNsecCheck">
+        <input type="checkbox" id="saveNsecCheck" checked>
         <span class="text-sm" data-i18n="nsec.saveHint">次回から自動ログイン（暗号化して保存）</span>
       </label>
       <div id="autoLoginOptions">

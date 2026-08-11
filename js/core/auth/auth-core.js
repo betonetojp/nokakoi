@@ -269,11 +269,13 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
 
 export function updateHeaderName(state, nip19) {
   try {
-    const pk = state.pubkey;
+    const pk = (state && state.pubkey) || localStorage.getItem('pubkey');
     const nameEl = $('#userInfo');
-    if (!nameEl) return;
+    const composerAccEl = $('#composerAccountInfo');
+
     if (!pk) {
-      nameEl.textContent = '';
+      if (nameEl) nameEl.textContent = '';
+      if (composerAccEl) composerAccEl.textContent = '';
       return;
     }
     const names = displayNameWithUsername(state, pk, nip19, { usePetname: false });
@@ -281,7 +283,8 @@ export function updateHeaderName(state, nip19) {
     if (names.sub) {
       displayText += ' @' + names.sub;
     }
-    nameEl.textContent = displayText;
+    if (nameEl) nameEl.textContent = displayText;
+    if (composerAccEl) composerAccEl.textContent = `(${displayText})`;
   } catch (e) { }
 }
 

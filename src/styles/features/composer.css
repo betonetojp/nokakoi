@@ -19,8 +19,26 @@
 #composer.composer-floating h2, #composer.floating h2 { margin: 0 0 6px; font-size: 1rem; }
 #composer.composer-floating textarea, #composer.floating textarea { min-height: 80px; max-height: 40vh; resize: vertical; }
 #composer.composer-floating .row, #composer.floating .row { justify-content: space-between; }
+.composer-header-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.composer-header-row h2 {
+  margin: 0 !important;
+}
 
 .composer-spacer-btn { margin-left: auto; }
+
+.composer-account-info {
+  font-size: 0.85rem;
+  font-weight: normal;
+  color: var(--muted, #888);
+  margin-left: 6px;
+  vertical-align: middle;
+  word-break: break-all;
+}
 
 .reply-context-content {
   font-size: 0.85rem;

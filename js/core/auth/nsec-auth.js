@@ -38,12 +38,12 @@ export function showNsecLoginModal(state, settings, settingsManager, loginFn) {
 
   input.value = '';
   if (passwordInput) passwordInput.value = '';
-  if (saveCheck) saveCheck.checked = false;
-  if (radioPasskey) radioPasskey.checked = false;
+  if (saveCheck) saveCheck.checked = true;
+  if (radioPasskey) radioPasskey.checked = true;
   if (radioPassword) radioPassword.checked = false;
   if (passwordSection) passwordSection.classList.add('d-none');
   if (passkeySection) passkeySection.classList.add('d-none');
-  if (autoLoginOptions) autoLoginOptions.classList.add('d-none');
+  if (autoLoginOptions) autoLoginOptions.classList.remove('d-none');
   if (passkeyInfo) passkeyInfo.classList.add('d-none');
   if (statusEl) statusEl.textContent = '';
 

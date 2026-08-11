@@ -69,11 +69,12 @@
 .login-method-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 12px 14px;
   border-radius: 8px;
-  border: 1px solid var(--border, #333);
-  background: var(--bg-secondary, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border, rgba(128, 128, 128, 0.2));
+  background: var(--bg-secondary, var(--panel-hover, rgba(128, 128, 128, 0.08)));
+  color: var(--text);
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
   text-align: left;
@@ -81,7 +82,7 @@
 }
 
 .login-method-card:hover {
-  background: var(--bg-hover, rgba(255, 255, 255, 0.1));
+  background: var(--bg-hover, var(--panel-base, rgba(128, 128, 128, 0.15)));
   border-color: var(--accent, #4a90e2);
   transform: translateY(-1px);
 }
@@ -103,12 +104,12 @@
 .login-method-title {
   font-weight: bold;
   font-size: 1.05em;
-  color: var(--text-primary, #fff);
+  color: var(--text, inherit);
 }
 
 .login-method-desc {
   font-size: 0.85em;
-  color: var(--muted, #aaa);
+  color: var(--muted, #777);
 }
 
 /* アカウント管理モーダル */
@@ -148,9 +149,27 @@
   background: var(--bg-secondary, rgba(255, 255, 255, 0.03));
 }
 
-.account-list-item.account-active {
+.account-list-item.active {
   border-color: var(--accent, #4a90e2);
-  background: rgba(74, 144, 226, 0.08);
+  background: var(--bg-hover, rgba(74, 144, 226, 0.08));
+}
+
+/* ライトテーマ時のカード・モーダル背景の最適化 */
+body[data-theme="light"] .login-method-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+body[data-theme="light"] .login-method-card:hover {
+  background: #f8fafc;
+  border-color: var(--accent, #4a90e2);
+}
+
+body[data-theme="light"] #keygenSaveSection,
+body[data-theme="light"] #autoLoginOptions {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
 }
 
 .account-user-info {
