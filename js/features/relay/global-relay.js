@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { t, applyTranslations } from '../../utils/i18n.js';
-import { loadRelays } from '../../core/relay.js';
+import { loadRelays, loadRelaysForAccount } from '../../core/relay.js';
 
 function countReadRelays(relays) {
   return (relays || []).filter(r => {
@@ -234,9 +234,12 @@ export function showGlobalRelaySelector(state, settingsManager, onSelect) {
 /**
  * グローバルボタンのラベルをリレー/ホーム設定で更新
  */
-export function updateGlobalButtonLabel(settingsManager) {
+export function updateGlobalButtonLabel(settingsManager, targetPubkey) {
   const btn = document.querySelector('.tab[data-tab="global"]');
   if (!btn || !settingsManager) return;
+
+  const pubkey = targetPubkey || localStorage.getItem('pubkey');
+  const accountRelays = loadRelaysForAccount(pubkey);
 
   const mergeHome = settingsManager.get('globalMergeHome') === true;
   const relay = settingsManager.get('globalRelay');
@@ -260,7 +263,7 @@ export function updateGlobalButtonLabel(settingsManager) {
         return;
       }
       if (!relay) {
-        setPlainLabel(formatHomePlusLabel(countReadRelays(loadRelays())));
+        setPlainLabel(formatHomePlusLabel(countReadRelays(accountRelays)));
         return;
       }
       if (Array.isArray(relay)) {
@@ -275,7 +278,7 @@ export function updateGlobalButtonLabel(settingsManager) {
 
     // ホームマージ OFF: リレーラベル
     if (!relay || (Array.isArray(relay) && relay.length === 0)) {
-      setPlainLabel(formatRelayCountLabel(countReadRelays(loadRelays())));
+      setPlainLabel(formatRelayCountLabel(countReadRelays(accountRelays)));
       return;
     }
 

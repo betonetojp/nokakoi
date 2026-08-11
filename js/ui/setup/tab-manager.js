@@ -109,6 +109,8 @@ export function setupTabs(settingsManager, preserveActive = false) {
       if (cfg.id === 'bitchat') {
         const gh = settingsManager.get('omochatGeohash') || 'xn';
         btn.textContent = '📍' + gh;
+      } else if (cfg.id === 'global') {
+        btn.textContent = t(cfg.labelKey);
       } else {
         btn.setAttribute('data-i18n', cfg.labelKey);
         btn.textContent = t(cfg.labelKey);
@@ -245,10 +247,73 @@ export function setupTabs(settingsManager, preserveActive = false) {
       });
     }
 
+    if (cfg.id === 'global') {
+      let longPressTimer = null;
+      let startX, startY;
+      let hasMoved = false;
+      let longPressTriggered = false;
+
+      const triggerGlobalSelector = () => {
+        import('../../features/relay/global-relay.js').then(m => {
+          if (m && typeof m.showGlobalRelaySelector === 'function') {
+            const currentState = (typeof window !== 'undefined' && window.__nostrState) ? window.__nostrState : null;
+            m.showGlobalRelaySelector(currentState, settingsManager);
+          }
+        });
+      };
+
+      btn.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        triggerGlobalSelector();
+        return false;
+      });
+
+      btn.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        hasMoved = false;
+        longPressTriggered = false;
+
+        longPressTimer = setTimeout(() => {
+          longPressTriggered = true;
+          triggerGlobalSelector();
+        }, 600);
+      }, { passive: true });
+
+      btn.addEventListener('touchmove', (e) => {
+        if (hasMoved) return;
+        const touch = e.touches[0];
+        if (Math.abs(touch.clientX - startX) > 10 || Math.abs(touch.clientY - startY) > 10) {
+          hasMoved = true;
+          if (longPressTimer) clearTimeout(longPressTimer);
+        }
+      }, { passive: true });
+
+      btn.addEventListener('touchend', (e) => {
+        if (longPressTimer) clearTimeout(longPressTimer);
+        if (longPressTriggered) {
+          e.preventDefault();
+        }
+      });
+
+      btn.addEventListener('touchcancel', () => {
+        if (longPressTimer) clearTimeout(longPressTimer);
+      });
+    }
+
     tabsContainer.appendChild(btn);
   });
 
   try { if (typeof applyTranslations === 'function') applyTranslations(tabsContainer); } catch(e){}
+
+  try {
+    import('../../features/relay/global-relay.js').then(m => {
+      if (m && typeof m.updateGlobalButtonLabel === 'function') {
+        m.updateGlobalButtonLabel(settingsManager);
+      }
+    });
+  } catch (e) {}
 
   const allBtns = tabsContainer.querySelectorAll('.tab');
   if (allBtns.length > 0) {
