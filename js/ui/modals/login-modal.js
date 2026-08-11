@@ -1,5 +1,5 @@
 import { $ } from '../../utils/utils.js';
-import { t } from '../../utils/i18n.js';
+import { t, applyTranslations } from '../../utils/i18n.js';
 import { nsecLoginPrompt } from '../../core/auth/nsec-auth.js';
 import { showNip46LoginModal } from '../../core/auth/nip46-auth.js';
 import { generateKeyPair } from '../../core/keygen.js';
@@ -16,6 +16,10 @@ export function openLoginModal(state, settings, settingsManager, onLoginSuccess)
   const closeBtn = $('#loginMethodModalClose');
 
   if (!modal || !content) return;
+
+  try {
+    applyTranslations(modal);
+  } catch (e) {}
 
   renderMethodSelection(state, settings, settingsManager, onLoginSuccess);
 
