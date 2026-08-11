@@ -38,29 +38,36 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
   }
 
   let selected = null;
-  if (state.signer === 'nip07' && window.nostr) {
+  if (state.signer === 'nip46' && state.nip46 && state.nip46.connected) {
+    selected = 'nip46';
+    try { signer.clearKey(); } catch (e) {}
+  } else if (state.signer === 'nip07' && window.nostr) {
     selected = 'nip07';
     try { signer.clearKey(); } catch (e) {}
     if (state.nip46) {
       try { if (state.nip46.client) state.nip46.client.disconnect(); } catch (e) {}
       state.nip46.connected = false;
     }
-  } else if (signer.hasKey()) {
+  } else if (state.signer === 'nsec' && signer.hasKey()) {
     selected = 'nsec';
   } else if (state.nip46 && state.nip46.connected) {
     selected = 'nip46';
+    try { signer.clearKey(); } catch (e) {}
+  } else if (signer.hasKey()) {
+    selected = 'nsec';
   } else if (window.nostr && (state.signer === 'nip07' || state.signer === 'auto')) {
     selected = 'nip07';
   } else {
     const order = resolveLoginOrder(state);
     for (let i = 0; i < order.length; i++) {
       const m = order[i];
-      if (m === 'nsec' && signer.hasKey()) {
-        selected = 'nsec';
-        break;
-      }
       if (m === 'nip46' && state.nip46 && state.nip46.connected) {
         selected = 'nip46';
+        try { signer.clearKey(); } catch (e) {}
+        break;
+      }
+      if (m === 'nsec' && signer.hasKey()) {
+        selected = 'nsec';
         break;
       }
       if (m === 'nip07' && window.nostr) {

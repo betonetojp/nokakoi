@@ -3,6 +3,7 @@ import { t } from '../../utils/i18n.js';
 import { Nip46Client, DEFAULT_NIP46_RELAYS, generateQRCodeSVG } from '../nip46.js';
 import { setNip46LocalSecretKey } from './nip46-session.js';
 import { getActiveSwitchSessionId } from '../account-manager.js';
+import { signer } from '../signer.js';
 
 function showModal(modalId) {
   const modal = $(modalId);
@@ -241,6 +242,7 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
           localStorage.setItem('lastLoginMethod', 'nip46');
         } catch (e) { }
 
+        try { signer.clearKey(); } catch (e) {}
         hideModal('#nip46Modal');
         await loginFn();
       } catch (e) {
@@ -316,6 +318,7 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
           localStorage.setItem('lastLoginMethod', 'nip46');
         } catch (e) { }
 
+        try { signer.clearKey(); } catch (e) {}
         hideModal('#nip46Modal');
         await loginFn();
       }
