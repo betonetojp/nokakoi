@@ -70,6 +70,15 @@ export function loadMuteListForAccount(pubkey) {
       if (raw10000) localStorage.setItem('muteList_raw_kind10000', raw10000);
       else localStorage.removeItem('muteList_raw_kind10000');
       return restoreMuteListFromStorage();
+    } else {
+      // アカウント用キーが未作成だが、グローバルに存在する場合は救済・アカウント用に自動コピー保存
+      const globalExpanded = localStorage.getItem('muteList_expanded');
+      const globalRaw = localStorage.getItem('muteList_raw_kind10000');
+      if (globalExpanded) {
+        localStorage.setItem(`muteList_expanded.${targetId}`, globalExpanded);
+        if (globalRaw) localStorage.setItem(`muteList_raw_kind10000.${targetId}`, globalRaw);
+        return restoreMuteListFromStorage();
+      }
     }
   } catch (e) {}
 
@@ -533,7 +542,10 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
             }
 
           if (any) {
-              try { localStorage.setItem('muteList_expanded', JSON.stringify(expanded)); } catch (e) { }
+              try {
+                localStorage.setItem('muteList_expanded', JSON.stringify(expanded));
+                if (pubkey) saveMuteListForAccount(pubkey);
+              } catch (e) { }
               const pubP2 = expanded.pubkeys.public ? expanded.pubkeys.public.length : 0;
               const pubPr2 = expanded.pubkeys.private ? expanded.pubkeys.private.length : 0;
               const wdP2 = expanded.words && expanded.words.public ? expanded.words.public.length : 0;
