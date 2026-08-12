@@ -68,7 +68,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <script type="module" crossorigin src="./assets/index-X0m6amPj.js"></script>
+  <script type="module" crossorigin src="./assets/index-DEZSCEIa.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-DK3Fl9T5.js">
   <link rel="modulepreload" crossorigin href="./assets/nostr-compat-DN4SB2qK.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-B2jP82uX.js">
@@ -78,18 +78,18 @@
   <link rel="modulepreload" crossorigin href="./assets/nip46-BvHH3cMZ.js">
   <link rel="modulepreload" crossorigin href="./assets/relay-DYsKoiT_.js">
   <link rel="modulepreload" crossorigin href="./assets/preload-helper-B7qeedMF.js">
-  <link rel="modulepreload" crossorigin href="./assets/profile-DwK5b070.js">
+  <link rel="modulepreload" crossorigin href="./assets/profile-DJ0K27jU.js">
   <link rel="modulepreload" crossorigin href="./assets/webauthn-CDFLoINz.js">
   <link rel="modulepreload" crossorigin href="./assets/signer-BNBrFOs9.js">
   <link rel="modulepreload" crossorigin href="./assets/actions-CDfTRtTS.js">
-  <link rel="modulepreload" crossorigin href="./assets/modals-Dt5FoFiI.js">
+  <link rel="modulepreload" crossorigin href="./assets/modals-C05IqKZb.js">
   <link rel="modulepreload" crossorigin href="./assets/ehagaki-autoclose-cldR5AyP.js">
-  <link rel="modulepreload" crossorigin href="./assets/mute-BZEiuON1.js">
+  <link rel="modulepreload" crossorigin href="./assets/mute-C-Uy9xR3.js">
   <link rel="modulepreload" crossorigin href="./assets/global-relay-UwV59PLm.js">
-  <link rel="modulepreload" crossorigin href="./assets/account-manager-DNTm3S3J.js">
-  <link rel="modulepreload" crossorigin href="./assets/url-parser-DraczaG2.js">
+  <link rel="modulepreload" crossorigin href="./assets/account-manager-O9cXtdgC.js">
+  <link rel="modulepreload" crossorigin href="./assets/url-parser-BNOShEqK.js">
   <link rel="modulepreload" crossorigin href="./assets/json-modal-D2Ds_d4S.js">
-  <link rel="modulepreload" crossorigin href="./assets/renderer-DhmBAuVq.js">
+  <link rel="modulepreload" crossorigin href="./assets/renderer-Df8QpQtO.js">
   <link rel="stylesheet" crossorigin href="./assets/index-Bd4GWyhQ.css">
 </head>
 <body>
@@ -144,14 +144,28 @@
       <details id="relayPanel">
         <summary data-i18n="relays.title">リレー設定</summary>
         <p class="muted" data-i18n="relays.summary">リレーごとにread（読み込み）/write（書き込み）を設定できます。</p>
-        <div id="relayList"></div>
-        <div class="row">
-          <button id="addRelay" class="secondary" type="button" data-i18n="relays.add">リレーを追加</button>
-          <button id="importRelayKind10002" class="secondary" type="button" data-i18n="relays.importKind10002">kind:10002から読み込む</button>
-          <button id="saveRelays" type="button" data-i18n="relays.saveAndReconnect">保存して再接続</button>
-          <button id="resetRelays" class="secondary" type="button" data-i18n="relays.reset">初期値に戻す</button>
+        <div class="editor-tabs" style="margin-bottom: 12px;">
+          <button type="button" class="editor-tab active" id="tabRelayCurrent" data-i18n="editor.snapshot.tab_current">編集</button>
+          <button type="button" class="editor-tab" id="tabRelaySaved" data-i18n="editor.snapshot.tab_saved">バックアップ一覧</button>
         </div>
-        <div class="row">
+        <div id="relayCurrentSection">
+          <div class="row align-center space-between mb-12" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <span id="relayCountBadge" class="muted text-sm"></span>
+            <button id="saveRelaySnapshotBtn" class="secondary text-sm" type="button" data-i18n="editor.snapshot.save_btn">現在の状態をバックアップ保存</button>
+          </div>
+          <div id="relayList"></div>
+          <div class="row" style="flex-wrap: wrap; gap: 8px;">
+            <button id="addRelay" class="secondary" type="button" data-i18n="relays.add">リレーを追加</button>
+            <button id="importRelayKind10002" class="secondary" type="button" data-i18n="relays.importKind10002">kind:10002から読み込む</button>
+            <button id="publishKind10002Btn" type="button" data-i18n="relay.publish_kind10002">kind:10002を上書き発行</button>
+            <button id="saveRelays" type="button" data-i18n="relays.saveAndReconnect">ローカルに保存して再接続</button>
+            <button id="resetRelays" class="secondary" type="button" data-i18n="relays.reset">初期値に戻す</button>
+          </div>
+        </div>
+        <div id="relaySavedSection" hidden>
+          <div id="relaySnapshotsContainer" style="padding: 8px 0;"></div>
+        </div>
+        <div class="row" style="margin-top: 8px;">
           <button id="openGlobalRelayModalBtn" class="secondary" type="button" data-i18n="globalRelay.title">グローバルリレー設定</button>
         </div>
         <div id="relayStatus" class="muted"></div>

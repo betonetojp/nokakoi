@@ -11,6 +11,7 @@ import { openLoginModal } from './login-modal.js';
 import { openProfileEditor } from '../../features/profile/profile-editor.js';
 import { getNip19 } from '../../core/nostr-compat.js';
 import { displayNameWithUsername, loadProfile } from '../../features/profile/profile.js';
+import { showConfirmModal } from './modals.js';
 
 /**
  * アカウント管理モーダルを開く
@@ -199,15 +200,19 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
       const deleteBtn = item.querySelector('.delete-acc-btn');
       if (deleteBtn) {
         deleteBtn.onclick = () => {
-          if (confirm(t('account.modal.delete_confirm'))) {
-            removeAccount(acc.id);
-            if (isCurrent) {
-              closeModal();
-              logout(state, settings, settingsManager, authCallbacks ? authCallbacks.restartFeeds : null);
-            } else {
-              renderAccountModal(state, settings, settingsManager, authCallbacks);
+          showConfirmModal(
+            t('account.modal.delete_title') || t('editor.snapshot.delete') || '削除',
+            t('account.modal.delete_confirm') || 'このアカウントを削除しますか？',
+            () => {
+              removeAccount(acc.id);
+              if (isCurrent) {
+                closeModal();
+                logout(state, settings, settingsManager, authCallbacks ? authCallbacks.restartFeeds : null);
+              } else {
+                renderAccountModal(state, settings, settingsManager, authCallbacks);
+              }
             }
-          }
+          );
         };
       }
 

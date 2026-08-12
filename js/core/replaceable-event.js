@@ -162,6 +162,28 @@ export async function restoreAndPublishBackup(kind) {
   }
 }
 
+function normalizeNip65RelayUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  let url = rawUrl.trim();
+  if (!url.startsWith('wss://') && !url.startsWith('ws://')) return '';
+  try {
+    const parsed = new URL(url);
+    let pathname = parsed.pathname.replace(/\/+/g, '/');
+    if (!pathname || pathname === '') {
+      pathname = '/';
+    } else if (!pathname.endsWith('/')) {
+      pathname = pathname + '/';
+    }
+    parsed.pathname = pathname;
+    return parsed.toString();
+  } catch (e) {
+    if (!url.endsWith('/')) {
+      url += '/';
+    }
+    return url;
+  }
+}
+
 /**
  * デフォルトまたは現在の設定リレーから NIP-65 (kind:10002) リレーリストイベントを生成して発行
  * @param {Object} state - アプリ状態
@@ -174,19 +196,28 @@ export async function publishDefaultNip65RelayList(state) {
     const tags = [];
     if (Array.isArray(relays) && relays.length > 0) {
       relays.forEach(r => {
+        let rawUrl = '';
+        let read = true;
+        let write = true;
         if (typeof r === 'string') {
-          tags.push(['r', r]);
+          rawUrl = r;
         } else if (r && r.url) {
-          const modeTag = ['r', r.url];
-          if (r.read && !r.write) modeTag.push('read');
-          else if (!r.read && r.write) modeTag.push('write');
+          rawUrl = r.url;
+          read = !!r.read;
+          write = !!r.write;
+        }
+        const normUrl = normalizeNip65RelayUrl(rawUrl);
+        if (normUrl) {
+          const modeTag = ['r', normUrl];
+          if (read && !write) modeTag.push('read');
+          else if (!read && write) modeTag.push('write');
           tags.push(modeTag);
         }
       });
     } else {
-      tags.push(['r', 'wss://nos.lol']);
-      tags.push(['r', 'wss://relay-jp.nostr.wirednet.jp']);
-      tags.push(['r', 'wss://yabu.me']);
+      tags.push(['r', 'wss://nos.lol/']);
+      tags.push(['r', 'wss://relay-jp.nostr.wirednet.jp/']);
+      tags.push(['r', 'wss://yabu.me/']);
     }
 
     const draft = {

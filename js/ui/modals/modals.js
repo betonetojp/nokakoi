@@ -589,6 +589,47 @@ export function showConfirmModal(title, message, onYes, onNo) {
 }
 
 /**
+ * 単体通知・警告用モーダルを表示
+ */
+export function showAlertModal(title, message, onOk) {
+  const modal = $('#confirmModal');
+  const titleEl = $('#confirmTitle');
+  const messageEl = $('#confirmMessage');
+  const yesBtn = $('#confirmYes');
+  const noBtn = $('#confirmNo');
+
+  if (!modal || !titleEl || !messageEl || !yesBtn) {
+    alert(message || title);
+    if (typeof onOk === 'function') onOk();
+    return;
+  }
+
+  titleEl.textContent = title || t('confirm.title') || 'お知らせ';
+  messageEl.textContent = message;
+  if (noBtn) noBtn.hidden = true;
+
+  try {
+    if (typeof window !== 'undefined' && typeof window.bringModalToFront === 'function') {
+      window.bringModalToFront(modal);
+    } else {
+      modal.style.zIndex = '9999';
+    }
+  } catch (e) {}
+
+  modal.hidden = false;
+  yesBtn.focus();
+
+  const handleOk = () => {
+    modal.hidden = true;
+    if (noBtn) noBtn.hidden = false;
+    yesBtn.removeEventListener('click', handleOk);
+    if (typeof onOk === 'function') onOk();
+  };
+
+  yesBtn.onclick = handleOk;
+}
+
+/**
  * omochat設定モーダルを表示
  */
 export function showOmochatSettingsModal(settingsManager) {

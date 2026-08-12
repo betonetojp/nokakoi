@@ -3,10 +3,13 @@
 // ============================================================================
 
 import { $, setStatus } from '../../utils/utils.js';
-import { defaultRelays, saveRelays, getReadRelays } from '../../core/relay.js';
+import { defaultRelays, saveRelays, getReadRelays, saveRelaysForAccount, loadRelaysForAccount, relayConnect } from '../../core/relay.js';
+import { getSimplePool } from '../../core/nostr-compat.js';
 import { showConfirmModal } from '../../ui/modals/modals.js';
 import { t } from '../../utils/i18n.js';
 import { hideComposerForOverlay, restoreComposerFromOverlay } from '../post/composer-scroll.js';
+import { createRelaySnapshot, renderRelaySnapshotsUI } from './relay-snapshots.js';
+import { publishDefaultNip65RelayList } from '../../core/replaceable-event.js';
 
 function _hideComposerForSettings() {
   hideComposerForOverlay();
@@ -22,6 +25,11 @@ function _restoreComposerFromSettings(container) {
 export function renderRelayList(relays) {
   const container = $('#relayList');
   if (!container) return;
+
+  const countBadge = document.getElementById('relayCountBadge');
+  if (countBadge) {
+    countBadge.textContent = t('editor.relay_snapshot.count', { n: relays.length }) || `${relays.length} Relays`;
+  }
 
   container.innerHTML = '';
 
@@ -188,6 +196,96 @@ export function setupRelaySettingsUI(state, relayConnect, getSimplePool, restart
 
       restartFeeds(true);
       renderRelayList(state.relays);
+    };
+  }
+
+  // NIP-65 (kind:10002) リレーリストの上書き発行ボタン
+  const publishKind10002Btn = document.getElementById('publishKind10002Btn');
+  if (publishKind10002Btn) {
+    publishKind10002Btn.onclick = () => {
+      const pubkey = localStorage.getItem('pubkey');
+      if (!pubkey) {
+        alert(t('editor.common.no_login') || 'ログインが必要です');
+        return;
+      }
+      showConfirmModal(
+        t('relay.publish_kind10002') || 'kind:10002を上書き発行',
+        t('relay.publish_kind10002_confirm') || '現在の Nokakoi のリレーリストを kind:10002 としてネットワークへ上書き発行しますか？',
+        async () => {
+          const statusEl = $('#relayStatus');
+          try {
+            setStatus(statusEl, t('editor.common.publishing') || '発行中...');
+
+            // 画面上の最新編集状態を取得して state.relays に即座に適用＆ローカル保存
+            const currentList = getRelayListFromUI();
+            if (currentList && currentList.length > 0) {
+              state.relays = currentList;
+              saveRelaysForAccount(pubkey);
+              try { saveRelays(state.relays); } catch (e) { }
+            }
+
+            await publishDefaultNip65RelayList(state);
+            setStatus(statusEl, t('relay.publish_kind10002_success') || 'NIP-65 リレーリストを上書き発行しました！');
+          } catch (e) {
+            console.error('[RelaySettings] NIP-65 上書きパブリッシュ失敗:', e);
+            setStatus(statusEl, t('editor.common.failed', { msg: e.message || e }));
+          }
+        }
+      );
+    };
+  }
+
+  // リレータブ切り替え初期化
+  const tabRelayCurrent = document.getElementById('tabRelayCurrent');
+  const tabRelaySaved = document.getElementById('tabRelaySaved');
+  const relayCurrentSection = document.getElementById('relayCurrentSection');
+  const relaySavedSection = document.getElementById('relaySavedSection');
+  const snapContainer = document.getElementById('relaySnapshotsContainer');
+  let showTab = null;
+
+  if (tabRelayCurrent && tabRelaySaved && relayCurrentSection && relaySavedSection) {
+    showTab = (tab) => {
+      if (tab === 'current') {
+        tabRelayCurrent.classList.add('active');
+        tabRelaySaved.classList.remove('active');
+        relayCurrentSection.hidden = false;
+        relaySavedSection.hidden = true;
+      } else {
+        tabRelaySaved.classList.add('active');
+        tabRelayCurrent.classList.remove('active');
+        relayCurrentSection.hidden = true;
+        relaySavedSection.hidden = false;
+        
+        const pubkey = localStorage.getItem('pubkey');
+        if (snapContainer) {
+          renderRelaySnapshotsUI(snapContainer, pubkey, (restoredRelays) => {
+            state.relays = restoredRelays;
+            saveRelays(state.relays);
+            renderRelayList(state.relays);
+            setStatus($('#relayStatus'), t('editor.snapshot.loaded_msg') || '編集画面に読み込みました。内容確認後、保存で反映・発行できます。');
+            showTab('current');
+          });
+        }
+      }
+    };
+
+    tabRelayCurrent.onclick = () => showTab('current');
+    tabRelaySaved.onclick = () => showTab('saved');
+  }
+
+  // 手動バックアップ保存ボタン
+  const saveRelaySnapshotBtn = document.getElementById('saveRelaySnapshotBtn');
+  if (saveRelaySnapshotBtn) {
+    saveRelaySnapshotBtn.onclick = () => {
+      const pubkey = localStorage.getItem('pubkey');
+      if (!pubkey) {
+        alert(t('editor.common.no_login') || 'ログインが必要です');
+        return;
+      }
+      const currentList = getRelayListFromUI();
+      createRelaySnapshot(pubkey, currentList.length ? currentList : state.relays);
+      setStatus($('#relayStatus'), t('editor.snapshot.saved_msg') || 'バックアップを保存しました');
+      if (showTab) showTab('saved');
     };
   }
 
@@ -451,4 +549,83 @@ export function setupRelaySettingsUI(state, relayConnect, getSimplePool, restart
       }
     };
   }
+}
+
+/**
+ * 既存アカウント初追加時のみ kind:10002 を裏で自動取得・適用
+ */
+export async function fetchAndApplyKind10002ForAccount(pubkey, state, restartFeeds, settingsManager) {
+  if (!pubkey) return false;
+  const targetId = pubkey.toLowerCase();
+  // すでにアカウント別キーがローカルに存在する場合は手動管理を優先しスキップ
+  if (localStorage.getItem(`relays.${targetId}`)) {
+    return false;
+  }
+  try {
+    const SimplePool = getSimplePool();
+    const poolInstance = (state && state.pool) ? state.pool : (SimplePool ? new SimplePool() : null);
+    if (!poolInstance) return false;
+
+    const relaysForQuery = getReadRelays(state ? state.relays : defaultRelays);
+    const filter = { kinds: [10002], authors: [targetId], limit: 5 };
+    const results = [];
+
+    await new Promise((resolve) => {
+      try {
+        const sub = poolInstance.subscribeMany(relaysForQuery, [filter], {
+          onevent: (ev) => { if (ev) results.push(ev); },
+          oneose: () => resolve()
+        });
+        setTimeout(() => { try { sub.close(); } catch (e) {}; resolve(); }, 3500);
+      } catch (e) { resolve(); }
+    });
+
+    if (!results.length) return false;
+
+    results.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+    const ev = results[0];
+    if (!ev || !Array.isArray(ev.tags)) return false;
+
+    const newRelays = [];
+    ev.tags.forEach(tag => {
+      if (tag[0] === 'r' && tag[1]) {
+        const url = tag[1].trim();
+        if ((url.startsWith('wss://') || url.startsWith('ws://'))) {
+          const marker = tag[2] ? tag[2].toLowerCase() : '';
+          const read = marker === '' || marker === 'read';
+          const write = marker === '' || marker === 'write';
+          newRelays.push({ url, read, write });
+        }
+      }
+    });
+
+    if (newRelays.length > 0) {
+      if (state) state.relays = newRelays;
+      saveRelaysForAccount(targetId);
+      saveRelays(newRelays);
+
+      // kind:10002 に含まれるすべての Read (読み込み) リレーをグローバルリレー (globalRelay) に自動一括設定
+      const readRelayUrls = newRelays.filter(r => r.read).map(r => r.url);
+      if (readRelayUrls.length > 0 && settingsManager && typeof settingsManager.set === 'function') {
+        settingsManager.set('globalRelay', readRelayUrls);
+        if (typeof settingsManager.saveForAccount === 'function') {
+          settingsManager.saveForAccount(targetId);
+        }
+        try {
+          import('../../features/relay/global-relay.js').then(m => {
+            if (m && typeof m.updateGlobalButtonLabel === 'function') {
+              m.updateGlobalButtonLabel(settingsManager);
+            }
+          });
+        } catch (e) {}
+      }
+
+      if (typeof restartFeeds === 'function') restartFeeds(true);
+      console.log(`[NIP-65] 既存アカウント (${targetId.substring(0, 8)}...) の kind:10002 を初回自動取得し、Readリレー (${readRelayUrls.length}件) をグローバルリレーに設定しました:`, newRelays);
+      return true;
+    }
+  } catch (e) {
+    console.warn('[NIP-65] アカウント追加時の kind:10002 自動取得スキップ:', e);
+  }
+  return false;
 }

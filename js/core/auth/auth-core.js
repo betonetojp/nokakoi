@@ -192,13 +192,29 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
       };
       const newMethodLabel = methodNames[actualLoginMethod] || actualLoginMethod;
       setTimeout(() => {
-        alert(t('account.method_updated', { method: newMethodLabel }) || `このアカウントのログイン方法を「${newMethodLabel}」に更新し、アクティブアカウントに切り替えました。`);
+        import('../../ui/modals/modals.js').then(modModal => {
+          if (modModal && typeof modModal.showAlertModal === 'function') {
+            modModal.showAlertModal(t('confirm.title') || 'お知らせ', t('account.method_updated', { method: newMethodLabel }) || `このアカウントのログイン方法を「${newMethodLabel}」に更新し、アクティブアカウントに切り替えました。`);
+          }
+        });
       }, 200);
     }
 
+    const isNewAccount = !localStorage.getItem(`relays.${state.pubkey}`);
     state.relays = loadRelaysForAccount(state.pubkey);
     saveRelaysForAccount(state.pubkey);
     loadMuteListForAccount(state.pubkey);
+
+    // 既存アカウント初追加時のみ kind:10002 (NIP-65) を一回だけ自動取得して同期
+    if (isNewAccount && !window.__nokakoiOpenProfileEditorAfterLogin) {
+      setTimeout(() => {
+        import('../../features/relay/relay-settings.js').then(mod => {
+          if (mod && typeof mod.fetchAndApplyKind10002ForAccount === 'function') {
+            mod.fetchAndApplyKind10002ForAccount(state.pubkey, state, restartFeeds, settingsManager);
+          }
+        }).catch(e => console.warn('[Auth] NIP-65 初回自動取得呼び出しエラー:', e));
+      }, 800);
+    }
 
     // アカウント全体のUI描画を同期・再更新
     syncAccountUI(state, settingsManager);

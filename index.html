@@ -122,14 +122,28 @@
       <details id="relayPanel">
         <summary data-i18n="relays.title">リレー設定</summary>
         <p class="muted" data-i18n="relays.summary">リレーごとにread（読み込み）/write（書き込み）を設定できます。</p>
-        <div id="relayList"></div>
-        <div class="row">
-          <button id="addRelay" class="secondary" type="button" data-i18n="relays.add">リレーを追加</button>
-          <button id="importRelayKind10002" class="secondary" type="button" data-i18n="relays.importKind10002">kind:10002から読み込む</button>
-          <button id="saveRelays" type="button" data-i18n="relays.saveAndReconnect">保存して再接続</button>
-          <button id="resetRelays" class="secondary" type="button" data-i18n="relays.reset">初期値に戻す</button>
+        <div class="editor-tabs" style="margin-bottom: 12px;">
+          <button type="button" class="editor-tab active" id="tabRelayCurrent" data-i18n="editor.snapshot.tab_current">編集</button>
+          <button type="button" class="editor-tab" id="tabRelaySaved" data-i18n="editor.snapshot.tab_saved">バックアップ一覧</button>
         </div>
-        <div class="row">
+        <div id="relayCurrentSection">
+          <div class="row align-center space-between mb-12" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <span id="relayCountBadge" class="muted text-sm"></span>
+            <button id="saveRelaySnapshotBtn" class="secondary text-sm" type="button" data-i18n="editor.snapshot.save_btn">現在の状態をバックアップ保存</button>
+          </div>
+          <div id="relayList"></div>
+          <div class="row" style="flex-wrap: wrap; gap: 8px;">
+            <button id="addRelay" class="secondary" type="button" data-i18n="relays.add">リレーを追加</button>
+            <button id="importRelayKind10002" class="secondary" type="button" data-i18n="relays.importKind10002">kind:10002から読み込む</button>
+            <button id="publishKind10002Btn" type="button" data-i18n="relay.publish_kind10002">kind:10002を上書き発行</button>
+            <button id="saveRelays" type="button" data-i18n="relays.saveAndReconnect">ローカルに保存して再接続</button>
+            <button id="resetRelays" class="secondary" type="button" data-i18n="relays.reset">初期値に戻す</button>
+          </div>
+        </div>
+        <div id="relaySavedSection" hidden>
+          <div id="relaySnapshotsContainer" style="padding: 8px 0;"></div>
+        </div>
+        <div class="row" style="margin-top: 8px;">
           <button id="openGlobalRelayModalBtn" class="secondary" type="button" data-i18n="globalRelay.title">グローバルリレー設定</button>
         </div>
         <div id="relayStatus" class="muted"></div>

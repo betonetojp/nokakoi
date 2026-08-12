@@ -6,6 +6,7 @@
 import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../core/replaceable-event.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { getNip19 } from '../../core/nostr-compat.js';
+import { showConfirmModal } from '../../ui/modals/modals.js';
 
 // 編集対象フィールド定義
 const PROFILE_FIELDS = [
@@ -83,38 +84,119 @@ export async function openProfileEditor(state) {
       statusEl.textContent = '';
     }
 
-    // 7. 編集フォームを動的に構築して #profileEditContent に追加
-    if (contentEl) {
-      const form = document.createElement('div');
-      form.className = 'editor-form';
+    let activeTab = 'current'; // 'current' | 'saved'
 
-      PROFILE_FIELDS.forEach(field => {
-        const fieldDiv = document.createElement('div');
-        fieldDiv.className = 'editor-field';
+    function renderProfileEditorStructure() {
+      if (!contentEl) return;
+      contentEl.innerHTML = `
+        <div class="editor-tabs" style="margin-bottom: 12px;">
+          <button type="button" class="editor-tab ${activeTab === 'current' ? 'active' : ''}" id="tabProfCurrent">
+            ${t('editor.snapshot.tab_current') || '編集'}
+          </button>
+          <button type="button" class="editor-tab ${activeTab === 'saved' ? 'active' : ''}" id="tabProfSaved">
+            ${t('editor.snapshot.tab_saved') || 'バックアップ一覧'}
+          </button>
+        </div>
+        <div id="profCurrentSection" ${activeTab === 'current' ? '' : 'hidden'}></div>
+        <div id="profSavedSection" ${activeTab === 'saved' ? '' : 'hidden'}>
+          <div id="profileSnapshotsContainer" style="padding: 8px 0;"></div>
+        </div>
+      `;
 
-        const label = document.createElement('label');
-        label.textContent = t(field.i18n) || field.key;
-        fieldDiv.appendChild(label);
+      const currentSec = contentEl.querySelector('#profCurrentSection');
+      const savedSec = contentEl.querySelector('#profSavedSection');
+      const snapContainer = contentEl.querySelector('#profileSnapshotsContainer');
 
-        let input;
-        if (field.type === 'textarea') {
-          input = document.createElement('textarea');
-          input.rows = 4;
-        } else {
-          input = document.createElement('input');
-          input.type = field.type;
-        }
-        input.className = 'editor-input';
-        input.dataset.key = field.key;
-        // 既存の値をセット（未定義の場合は空文字）
-        input.value = baseObject[field.key] || '';
-        
-        fieldDiv.appendChild(input);
-        form.appendChild(fieldDiv);
-      });
+      if (currentSec && activeTab === 'current') {
+        const topBar = document.createElement('div');
+        topBar.className = 'row align-center space-between mb-12';
+        topBar.style.display = 'flex';
+        topBar.style.alignItems = 'center';
+        topBar.style.justifyContent = 'space-between';
+        topBar.style.marginBottom = '12px';
 
-      contentEl.appendChild(form);
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'muted text-sm';
+        labelSpan.textContent = t('editor.profile.title') || 'プロフィール設定';
+        topBar.appendChild(labelSpan);
+
+        const saveSnapBtn = document.createElement('button');
+        saveSnapBtn.type = 'button';
+        saveSnapBtn.className = 'secondary text-sm';
+        saveSnapBtn.textContent = t('editor.snapshot.save_btn') || '現在の状態をバックアップ保存';
+        saveSnapBtn.onclick = () => {
+          const inputs = currentSec.querySelectorAll('.editor-input');
+          const currentObj = {};
+          inputs.forEach(inp => {
+            if (inp.dataset.key && inp.value.trim()) {
+              currentObj[inp.dataset.key] = inp.value.trim();
+            }
+          });
+          createProfileSnapshot(pubkey, currentObj);
+          if (statusEl) statusEl.textContent = t('editor.snapshot.saved_msg') || 'バックアップを保存しました';
+          activeTab = 'saved';
+          renderProfileEditorStructure();
+        };
+        topBar.appendChild(saveSnapBtn);
+
+        currentSec.appendChild(topBar);
+
+        const form = document.createElement('div');
+        form.className = 'editor-form';
+
+        PROFILE_FIELDS.forEach(field => {
+          const fieldDiv = document.createElement('div');
+          fieldDiv.className = 'editor-field';
+
+          const label = document.createElement('label');
+          label.textContent = t(field.i18n) || field.key;
+          fieldDiv.appendChild(label);
+
+          let input;
+          if (field.type === 'textarea') {
+            input = document.createElement('textarea');
+            input.rows = 4;
+          } else {
+            input = document.createElement('input');
+            input.type = field.type;
+          }
+          input.className = 'editor-input';
+          input.dataset.key = field.key;
+          input.value = baseObject[field.key] || '';
+          
+          fieldDiv.appendChild(input);
+          form.appendChild(fieldDiv);
+        });
+
+        currentSec.appendChild(form);
+      } else if (savedSec && activeTab === 'saved' && snapContainer) {
+        renderProfileSnapshotsUI(snapContainer, pubkey, (restoredData) => {
+          if (!restoredData) return;
+          baseObject = { ...baseObject, ...restoredData };
+          activeTab = 'current';
+          renderProfileEditorStructure();
+          if (statusEl) statusEl.textContent = t('editor.snapshot.loaded_msg') || '編集画面に読み込みました。内容確認後、保存で反映・発行できます。';
+        });
+      }
+
+      const tabCurrent = contentEl.querySelector('#tabProfCurrent');
+      const tabSaved = contentEl.querySelector('#tabProfSaved');
+
+      if (tabCurrent) {
+        tabCurrent.onclick = () => {
+          activeTab = 'current';
+          renderProfileEditorStructure();
+        };
+      }
+      if (tabSaved) {
+        tabSaved.onclick = () => {
+          activeTab = 'saved';
+          renderProfileEditorStructure();
+        };
+      }
     }
+
+    renderProfileEditorStructure();
 
     // 8. 保存ボタン (#profileEditSaveBtn) の処理
     if (newSaveBtn) {
@@ -291,4 +373,143 @@ function showConfirmDialog(parentElement, isNewProfile = false) {
     
     parentElement.appendChild(overlay);
   });
+}
+
+const PROFILE_SNAPSHOTS_KEY_BASE = 'profile_snapshots';
+
+export function getProfileSnapshotsStorageKey(pubkey) {
+  const pk = pubkey || (typeof localStorage !== 'undefined' ? localStorage.getItem('pubkey') : null);
+  if (!pk) return PROFILE_SNAPSHOTS_KEY_BASE;
+  return `${PROFILE_SNAPSHOTS_KEY_BASE}.${pk.toLowerCase()}`;
+}
+
+export function loadProfileSnapshots(pubkey) {
+  try {
+    const key = getProfileSnapshotsStorageKey(pubkey);
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function saveProfileSnapshots(pubkey, snapshots) {
+  try {
+    const key = getProfileSnapshotsStorageKey(pubkey);
+    localStorage.setItem(key, JSON.stringify(snapshots || []));
+  } catch (e) {}
+}
+
+export function createProfileSnapshot(pubkey, profileData, name = null) {
+  if (!pubkey) pubkey = typeof localStorage !== 'undefined' ? localStorage.getItem('pubkey') : null;
+  if (!pubkey || !profileData || typeof profileData !== 'object') return null;
+
+  const snapshots = loadProfileSnapshots(pubkey);
+  const now = Date.now();
+  const dateStr = new Date(now).toLocaleString();
+  const displayName = profileData.display_name || profileData.name || '名称未設定';
+  const snapshotName = name || `${displayName} (${dateStr})`;
+
+  const newSnap = {
+    id: `snap_prof_${now}_${Math.random().toString(36).substring(2, 7)}`,
+    name: snapshotName,
+    timestamp: now,
+    data: JSON.parse(JSON.stringify(profileData))
+  };
+
+  snapshots.unshift(newSnap);
+  if (snapshots.length > 30) snapshots.length = 30;
+  saveProfileSnapshots(pubkey, snapshots);
+  return newSnap;
+}
+
+export function renderProfileSnapshotsUI(container, pubkey, onApply) {
+  if (!container) return;
+  const targetPk = pubkey || (typeof localStorage !== 'undefined' ? localStorage.getItem('pubkey') : null);
+  const snapshots = loadProfileSnapshots(targetPk);
+
+  container.innerHTML = '';
+
+  if (snapshots.length === 0) {
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'muted p-16 text-center text-sm';
+    emptyDiv.textContent = t('editor.snapshot.empty') || '保存されたリストはありません。';
+    container.appendChild(emptyDiv);
+    return;
+  }
+
+  const listContainer = document.createElement('div');
+  listContainer.className = 'snapshot-list-container gap-8 column';
+
+  snapshots.forEach((snap, idx) => {
+    const card = document.createElement('div');
+    card.className = 'snapshot-card panel p-12 mb-8 border rounded';
+
+    const pData = snap.data || {};
+    const dName = pData.display_name || pData.name || '名称未設定';
+    const pictureUrl = pData.picture || '';
+    const dateText = new Date(snap.timestamp).toLocaleString();
+
+    card.innerHTML = `
+      <div class="snapshot-header row align-center space-between gap-8 mb-4">
+        <div class="row align-center gap-8" style="flex:1;">
+          ${pictureUrl ? `<img src="${pictureUrl}" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">` : '<span style="font-size:1.2rem;">👤</span>'}
+          <input type="text" class="snapshot-title-input font-bold" value="${snap.name || dName}" placeholder="${t('editor.snapshot.name_placeholder') || 'リスト名'}" style="flex:1; border:1px solid transparent; background:transparent; color:inherit;">
+        </div>
+      </div>
+      <div class="text-xs muted mb-8">${dateText}</div>
+      <div class="snapshot-actions row gap-8">
+        <button type="button" class="small restore-snap-btn">${t('editor.snapshot.restore') || '編集画面に読み込む'}</button>
+        <button type="button" class="small secondary delete-snap-btn">${t('editor.snapshot.delete') || '削除'}</button>
+      </div>
+    `;
+
+    const titleInput = card.querySelector('.snapshot-title-input');
+    if (titleInput) {
+      titleInput.onfocus = () => { titleInput.style.borderColor = 'var(--border)'; titleInput.style.background = 'var(--panel)'; };
+      titleInput.onblur = () => {
+        titleInput.style.borderColor = 'transparent';
+        titleInput.style.background = 'transparent';
+        snap.name = titleInput.value.trim() || `${dName} (${dateText})`;
+        snapshots[idx] = snap;
+        saveProfileSnapshots(targetPk, snapshots);
+      };
+    }
+
+    const restoreBtn = card.querySelector('.restore-snap-btn');
+    if (restoreBtn) {
+      restoreBtn.onclick = () => {
+        showConfirmModal(
+          t('editor.snapshot.restore') || '編集画面に読み込む',
+          t('editor.snapshot.confirm_restore') || 'この保存データを編集画面に読み込みますか？',
+          () => {
+            if (typeof onApply === 'function') {
+              onApply(snap.data);
+            }
+          }
+        );
+      };
+    }
+
+    const deleteBtn = card.querySelector('.delete-snap-btn');
+    if (deleteBtn) {
+      deleteBtn.onclick = () => {
+        showConfirmModal(
+          t('editor.snapshot.delete') || '削除',
+          t('editor.snapshot.confirm_delete') || 'このバックアップを削除しますか？',
+          () => {
+            snapshots.splice(idx, 1);
+            saveProfileSnapshots(targetPk, snapshots);
+            renderProfileSnapshotsUI(container, targetPk, onApply);
+          }
+        );
+      };
+    }
+
+    listContainer.appendChild(card);
+  });
+
+  container.appendChild(listContainer);
 }

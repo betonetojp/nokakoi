@@ -8,6 +8,7 @@ import { t } from '../utils/i18n.js';
 import { saveRelaysForAccount, loadRelaysForAccount } from './relay.js';
 import { saveMuteListForAccount, loadMuteListForAccount } from '../features/mute/mute.js';
 import { updateGlobalButtonLabel } from '../features/relay/global-relay.js';
+import { showAlertModal } from '../ui/modals/modals.js';
 
 const ACCOUNTS_STORAGE_KEY = 'nokakoi-accounts';
 
@@ -325,7 +326,7 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
       showPasswordModal(
         async (password) => {
           if (!password) {
-            alert(t('auth.password_required'));
+            showAlertModal(t('confirm.title') || 'お知らせ', t('auth.password_required'));
             resolve(false);
             return;
           }
@@ -340,15 +341,15 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
               } else {
                 console.warn(`[AccountManager] 復号Pubkey (${actualPubkey}) が対象 (${targetId}) と一致しません`);
                 signer.clearKey();
-                alert(t('auth.password_incorrect'));
+                showAlertModal(t('confirm.title') || 'お知らせ', t('auth.password_incorrect'));
                 resolve(false);
               }
             } else {
-              alert(t('auth.password_incorrect'));
+              showAlertModal(t('confirm.title') || 'お知らせ', t('auth.password_incorrect'));
               resolve(false);
             }
           } catch (e) {
-            alert(t('auth.decrypt_failed', { msg: (e && e.message) }));
+            showAlertModal(t('confirm.title') || 'エラー', t('auth.decrypt_failed', { msg: (e && e.message) }));
             resolve(false);
           }
         },
@@ -395,7 +396,7 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
     }
 
     if (!window.nostr) {
-      alert(t('auth.nip07_required') || 'NIP-07 拡張機能が見つかりません。');
+      showAlertModal(t('auth.nip07_required') || 'NIP-07 拡張機能が見つかりません。');
       authSuccess = false;
     } else {
       try {
@@ -407,7 +408,10 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
         } else {
           const shortExt = extPubkey ? (extPubkey.substring(0, 8) + '...') : '不明';
           const shortTarget = targetId ? (targetId.substring(0, 8) + '...') : '不明';
-          alert(t('account.modal.nip07_mismatch') || `ブラウザ拡張機能側のアカウント (${shortExt}) が、選択したアカウント (${shortTarget}) と一致しません。拡張機能側でアカウントを切り替えてからお試しください。`);
+          showAlertModal(
+            t('confirm.title') || 'アカウント不一致',
+            t('account.modal.nip07_mismatch') || `ブラウザ拡張機能側のアカウント (${shortExt}) が、選択したアカウント (${shortTarget}) と一致しません。拡張機能側でアカウントを切り替えてからお試しください。`
+          );
           authSuccess = false;
         }
       } catch (e) {
@@ -427,7 +431,7 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
   // 認証が成功しなかった場合（キャンセルまたはエラー時）
   if (!authSuccess) {
     if (!settings.encryptedNsec && !settings.passkeyEncryptedNsec && method !== 'nip07' && method !== 'nip46') {
-      alert(t('account.modal.unsaved_prompt'));
+      showAlertModal(t('confirm.title') || 'お知らせ', t('account.modal.unsaved_prompt'));
     }
     // ロールバック: 元の秘密鍵・状態・設定・ヘッダー表示名を100%完全復元
     await performRollback();
