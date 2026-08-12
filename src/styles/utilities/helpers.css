@@ -83,6 +83,9 @@
   transition: background-color 0.15s ease, color 0.15s ease;
   user-select: none;
   font-size: 0.9em;
+  max-width: 180px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .account-avatar {
@@ -91,6 +94,13 @@
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+}
+
+.account-name-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 #userInfo:hover,

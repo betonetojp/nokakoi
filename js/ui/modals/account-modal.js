@@ -3,13 +3,14 @@
  * アカウント管理モーダル
  */
 
-import { $ } from '../../utils/utils.js';
+import { $, escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { getAccountList, switchAccount, removeAccount } from '../../core/account-manager.js';
 import { logout } from '../../core/auth/auth-core.js';
 import { openLoginModal } from './login-modal.js';
 import { openProfileEditor } from '../../features/profile/profile-editor.js';
 import { getNip19 } from '../../core/nostr-compat.js';
+import { displayNameWithUsername, loadProfile } from '../../features/profile/profile.js';
 
 /**
  * アカウント管理モーダルを開く
@@ -118,16 +119,8 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
       const item = document.createElement('div');
       item.className = `account-list-item ${isCurrent ? 'account-active' : ''}`;
 
-      let formattedName = acc.displayName || acc.id;
-      if (nip19 && nip19.npubEncode) {
-        try {
-          const npub = nip19.npubEncode(acc.id);
-          formattedName = npub.substring(0, 10) + '...' + npub.substring(npub.length - 6);
-        } catch (e) {}
-      }
-
-      // プロファイルキャッシュ（メモリ or localStorage）から名前を取得試行
-      let prof = state.profiles ? state.profiles.get(acc.id) : null;
+      // プロファイルキャッシュ（メモリ or localStorage）から名前・画像を取得試行
+      let prof = state && state.profiles ? state.profiles.get(acc.id) : null;
       if (!prof) {
         try {
           const rawCache = localStorage.getItem('nostr_profiles_cache');
@@ -137,9 +130,32 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
           }
         } catch (e) {}
       }
-      if (prof && (prof.display_name || prof.name)) {
-        formattedName = prof.display_name || prof.name;
+      if (!prof && state) {
+        try { loadProfile(state, acc.id); } catch (e) {}
       }
+
+      let formattedName = acc.displayName || acc.id;
+      if (nip19 && nip19.npubEncode) {
+        try {
+          const npub = nip19.npubEncode(acc.id);
+          formattedName = npub.substring(0, 10) + '...' + npub.substring(npub.length - 6);
+        } catch (e) {}
+      }
+
+      if (state) {
+        try {
+          const names = displayNameWithUsername(state, acc.id, nip19, { usePetname: true });
+          if (names && names.main) {
+            formattedName = names.main;
+          }
+        } catch (e) {}
+      }
+
+      const nameHtml = replaceBadgeEmoji(escapeHtml(formattedName));
+      const pictureUrl = (prof && prof.picture) ? String(prof.picture).trim() : '';
+      const avatarHtml = pictureUrl
+        ? `<img src="${escapeHtml(pictureUrl)}" alt="avatar" class="account-user-avatar" loading="lazy" onerror="this.style.display='none'">`
+        : '';
 
       const methodMap = {
         'nip07': t('account.method.nip07'),
@@ -150,12 +166,15 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
       const methodLabel = methodMap[acc.loginMethod] || t('account.method.unsaved');
 
       item.innerHTML = `
-        <div class="account-user-info">
-          <div class="account-user-name">
-            ${isCurrent ? '✓ ' : ''}${formattedName}
-          </div>
-          <div class="account-user-meta">
-            ${methodLabel} ${isCurrent ? `(${t('account.modal.active')})` : ''}
+        <div class="account-item-main">
+          ${avatarHtml}
+          <div class="account-user-info">
+            <div class="account-user-name">
+              ${isCurrent ? '✓ ' : ''}${nameHtml}
+            </div>
+            <div class="account-user-meta">
+              ${methodLabel} ${isCurrent ? `(${t('account.modal.active')})` : ''}
+            </div>
           </div>
         </div>
         <div class="account-actions">

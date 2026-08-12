@@ -172,11 +172,29 @@ body[data-theme="light"] #autoLoginOptions {
   border-color: rgba(0, 0, 0, 0.12) !important;
 }
 
+.account-item-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.account-user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 .account-user-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
   overflow: hidden;
+  min-width: 0;
 }
 
 .account-user-name {
@@ -184,6 +202,7 @@ body[data-theme="light"] #autoLoginOptions {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .account-user-meta {

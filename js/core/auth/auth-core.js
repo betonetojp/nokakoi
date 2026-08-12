@@ -1,4 +1,4 @@
-import { $ } from '../../utils/utils.js';
+import { $, escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
 import { bytesToHex, decryptNsec } from '../crypto.js';
 import { getNip19, getPublicKey as getPublicKeyFn } from '../nostr-compat.js';
 import { signer } from '../signer.js';
@@ -290,11 +290,9 @@ export function updateHeaderName(state, nip19) {
     const settingsManager = window.settingsManager;
     const showAvatars = settingsManager ? settingsManager.get('showAvatars') !== false : true;
 
-    const names = displayNameWithUsername(state, pk, nip19, { usePetname: false });
-    let displayText = names.main;
-    if (names.sub) {
-      displayText += ' @' + names.sub;
-    }
+    const names = displayNameWithUsername(state, pk, nip19, { usePetname: true });
+    const displayText = names ? names.main : pk;
+    const nameHtml = replaceBadgeEmoji(escapeHtml(displayText));
 
     let pictureUrl = null;
     if (showAvatars && state && state.profiles) {
@@ -319,7 +317,7 @@ export function updateHeaderName(state, nip19) {
 
       const textSpan = document.createElement('span');
       textSpan.className = 'account-name-text';
-      textSpan.textContent = displayText;
+      textSpan.innerHTML = nameHtml;
       container.appendChild(textSpan);
     };
 
