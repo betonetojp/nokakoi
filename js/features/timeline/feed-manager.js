@@ -1271,7 +1271,14 @@ export function setupSingleFeed(feedId) {
         scheduleRender,
         eventsFetchLimit: EVENTS_FETCH_LIMIT,
         eventsTimeout: EVENTS_TIMEOUT,
-        ...feedFetcherHistHooks()
+        ...feedFetcherHistHooks(),
+        onHistFinalize: () => {
+          try {
+            if (settingsManager.get('globalMergeHome') === true) {
+              finalizeMergedGlobalFeed(true);
+            }
+          } catch (e) { }
+        }
       });
       state._homeFetcher = fetcher;
 
