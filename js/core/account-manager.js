@@ -217,6 +217,42 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
   const prevSk = signer.hasKey() ? signer.getKey() : null;
   const prevSigner = state.signer;
   const prevPubkey = state.pubkey || currentPubkey;
+  const prevNip46 = state.nip46 ? {
+    client: state.nip46.client,
+    remotePubkey: state.nip46.remotePubkey,
+    connected: state.nip46.connected
+  } : null;
+
+  // ロールバック共通処理
+  const performRollback = async () => {
+    if (prevSk) {
+      signer.setKey(prevSk);
+    }
+    state.signer = prevSigner;
+    state.pubkey = prevPubkey;
+    if (prevNip46) {
+      state.nip46.client = prevNip46.client;
+      state.nip46.remotePubkey = prevNip46.remotePubkey;
+      state.nip46.connected = prevNip46.connected;
+    }
+    if (prevPubkey) {
+      try {
+        localStorage.setItem('pubkey', prevPubkey);
+      } catch (e) {}
+      if (settingsManager && typeof settingsManager.loadForAccount === 'function') {
+        settingsManager.loadForAccount(prevPubkey.toLowerCase());
+      }
+      state.relays = loadRelaysForAccount(prevPubkey.toLowerCase());
+      loadMuteListForAccount(prevPubkey.toLowerCase());
+    }
+    try {
+      const { updateHeaderName } = await import('./auth/auth-core.js');
+      const { getNip19 } = await import('./nostr-compat.js');
+      if (typeof updateHeaderName === 'function') {
+        updateHeaderName(state, getNip19());
+      }
+    } catch (e) {}
+  };
 
   // 1. 現在のアカウントの設定・リレー・ミュートリストを保存
   if (currentPubkey) {
@@ -384,6 +420,7 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
   // 切り替えセッションの競合判定（認証待ち中に他アカウントへの切り替えが行われた場合は安全に破棄・無効化）
   if (sessionId !== activeSwitchSessionId) {
     console.warn(`[AccountManager] 切替セッション ${sessionId} は他操作により競合キャンセルされました`);
+    await performRollback();
     return;
   }
 
@@ -393,28 +430,7 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
       alert(t('account.modal.unsaved_prompt'));
     }
     // ロールバック: 元の秘密鍵・状態・設定・ヘッダー表示名を100%完全復元
-    if (prevSk) {
-      signer.setKey(prevSk);
-    }
-    state.signer = prevSigner;
-    state.pubkey = prevPubkey;
-    if (prevPubkey) {
-      try {
-        localStorage.setItem('pubkey', prevPubkey);
-      } catch (e) {}
-      if (settingsManager && typeof settingsManager.loadForAccount === 'function') {
-        settingsManager.loadForAccount(prevPubkey.toLowerCase());
-      }
-      state.relays = loadRelaysForAccount(prevPubkey.toLowerCase());
-      loadMuteListForAccount(prevPubkey.toLowerCase());
-    }
-    try {
-      const { updateHeaderName } = await import('./auth/auth-core.js');
-      const { getNip19 } = await import('./nostr-compat.js');
-      if (typeof updateHeaderName === 'function') {
-        updateHeaderName(state, getNip19());
-      }
-    } catch (e) {}
+    await performRollback();
     return;
   }
 

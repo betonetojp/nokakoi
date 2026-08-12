@@ -7,6 +7,7 @@ import { getDefaultGlobalRelayByLang } from './relay.js';
  */
 export class SettingsManager {
   constructor() {
+    this.activePubkey = (typeof localStorage !== 'undefined' ? localStorage.getItem('pubkey') : null)?.toLowerCase() || null;
     this.settings = this.load();
     // 過去に appSettings へ混在していた NIP-46 鍵を専用キーへ移行して除去
     this._purgeLegacyNip46LocalSecretKey();

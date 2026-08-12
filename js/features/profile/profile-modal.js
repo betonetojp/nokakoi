@@ -554,10 +554,11 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   }
 
   // モーダル表示
+  cleanupProfileModalUnsubs();
   modal.hidden = false;
   // モーダルクローズ時に強制解除できるよう active unsubscribe を保持
-  let activeUnsubs = [];
-  let activeUnsubMore = [];
+  let activeUnsubs = modalUnsubs;
+  let activeUnsubMore = modalUnsubs;
 
   // 最前面に持ってくる
   try {
@@ -913,6 +914,19 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   }
 }
 
+let modalUnsubs = [];
+
+export function cleanupProfileModalUnsubs() {
+  if (Array.isArray(modalUnsubs)) {
+    modalUnsubs.forEach(unsub => {
+      try {
+        if (typeof unsub === 'function') unsub();
+      } catch (e) { }
+    });
+  }
+  modalUnsubs = [];
+}
+
 /**
  * プロフィールモーダルの閉じるボタンセットアップ
  */
@@ -922,6 +936,7 @@ export function setupProfileModalClose() {
 
   if (closeBtn && modal) {
     closeBtn.onclick = function () {
+      cleanupProfileModalUnsubs();
       // モーダル再表示時の画像残留を防ぐためクリア
       try {
         const pic = document.getElementById('profilePicture');

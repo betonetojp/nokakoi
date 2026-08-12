@@ -80,7 +80,11 @@ export function t(key, params) {
   let s = (DICTS[lang] && DICTS[lang][key]) ? DICTS[lang][key] : (DICTS['en'][key] || key);
   if (params && typeof params === 'object') {
     for (const k of Object.keys(params)) {
-      s = s.replace('{' + k + '}', String(params[k]));
+      if (typeof s.replaceAll === 'function') {
+        s = s.replaceAll('{' + k + '}', String(params[k]));
+      } else {
+        s = s.split('{' + k + '}').join(String(params[k]));
+      }
     }
   }
   return s;

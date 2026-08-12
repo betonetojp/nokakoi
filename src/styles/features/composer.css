@@ -32,6 +32,9 @@
 .composer-spacer-btn { margin-left: auto; }
 
 .composer-account-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.85rem;
   font-weight: normal;
   color: var(--muted, #888);

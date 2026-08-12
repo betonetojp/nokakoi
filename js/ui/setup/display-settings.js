@@ -331,6 +331,14 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
 
   showAvatarsCheck.onchange = function () {
     settingsManager.set('showAvatars', showAvatarsCheck.checked);
+    try {
+      import('../../core/auth/auth-core.js').then(m => {
+        if (m && typeof m.updateHeaderName === 'function') {
+          const state = (typeof window !== 'undefined' && window.__nostrState) || null;
+          m.updateHeaderName(state);
+        }
+      });
+    } catch (e) { }
     try { restartFeeds(true); } catch (e) { }
   };
 

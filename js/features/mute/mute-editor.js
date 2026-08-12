@@ -284,7 +284,8 @@ function attachDragAndTouchHandlers(row, dragHandle, itemType, index, itemsArray
             const [moved] = itemsArray.splice(fromIndex, 1);
             if (finalIdx > fromIndex) finalIdx--;
             itemsArray.splice(finalIdx, 0, moved);
-            const renderFn = row.closest('#muteEditContent').__renderMuteStructure;
+            const container = row.closest('#muteEditContent');
+            const renderFn = container ? container.__renderMuteStructure : null;
             if (typeof renderFn === 'function') renderFn();
           }
         }

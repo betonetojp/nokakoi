@@ -282,17 +282,49 @@ export function updateHeaderName(state, nip19) {
     const composerAccEl = $('#composerAccountInfo');
 
     if (!pk) {
-      if (nameEl) nameEl.textContent = '';
-      if (composerAccEl) composerAccEl.textContent = '';
+      if (nameEl) nameEl.innerHTML = '';
+      if (composerAccEl) composerAccEl.innerHTML = '';
       return;
     }
+
+    const settingsManager = window.settingsManager;
+    const showAvatars = settingsManager ? settingsManager.get('showAvatars') !== false : true;
+
     const names = displayNameWithUsername(state, pk, nip19, { usePetname: false });
     let displayText = names.main;
     if (names.sub) {
       displayText += ' @' + names.sub;
     }
-    if (nameEl) nameEl.textContent = displayText;
-    if (composerAccEl) composerAccEl.textContent = displayText;
+
+    let pictureUrl = null;
+    if (showAvatars && state && state.profiles) {
+      const prof = state.profiles.get(pk.toLowerCase());
+      if (prof && prof.picture) {
+        pictureUrl = prof.picture;
+      }
+    }
+
+    const renderAccountLabel = (container) => {
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (pictureUrl && showAvatars) {
+        const img = document.createElement('img');
+        img.src = pictureUrl;
+        img.className = 'account-avatar';
+        img.alt = '';
+        img.onerror = () => { img.style.display = 'none'; };
+        container.appendChild(img);
+      }
+
+      const textSpan = document.createElement('span');
+      textSpan.className = 'account-name-text';
+      textSpan.textContent = displayText;
+      container.appendChild(textSpan);
+    };
+
+    renderAccountLabel(nameEl);
+    renderAccountLabel(composerAccEl);
   } catch (e) { }
 }
 

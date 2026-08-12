@@ -376,9 +376,12 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
 
     try {
       localStorage.setItem('muteList_raw_kind10000', JSON.stringify(results));
-      localStorage.setItem('muteList_expanded', JSON.stringify(expanded));
-      if (state && state.pubkey) {
-        saveMuteListForAccount(state.pubkey);
+      // 暗号化イベントが存在し非同期復号が控えている場合は、未復号のままexpandedを保存して上書きすることを防止
+      if (!hasEncryptedEvents) {
+        localStorage.setItem('muteList_expanded', JSON.stringify(expanded));
+        if (state && state.pubkey) {
+          saveMuteListForAccount(state.pubkey);
+        }
       }
       try { if (status) status.textContent = t('mute.fetch.done'); } catch (ee) { }
       if (window.__nokakoiDebug && detectedFormats.size) {
@@ -629,12 +632,16 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
 
     // ミュート状態変更イベント時に件数表示とタイムラインミュート表現を自動更新
     try {
-      const onMuteUpdate = () => {
+      if (window._onMuteUpdateListener) {
+        window.removeEventListener('muteListUpdated', window._onMuteUpdateListener);
+        window.removeEventListener('muteListFetched', window._onMuteUpdateListener);
+      }
+      window._onMuteUpdateListener = () => {
         try { updateMuteListCountsUI(); } catch (e) { }
         try { refreshEventsMuteState(state); } catch (e) { }
       };
-      window.addEventListener('muteListUpdated', onMuteUpdate);
-      window.addEventListener('muteListFetched', onMuteUpdate);
+      window.addEventListener('muteListUpdated', window._onMuteUpdateListener);
+      window.addEventListener('muteListFetched', window._onMuteUpdateListener);
     } catch (e) { }
 
     // ミュート設定UIを追加（適用ON/OFF + 表示モード）

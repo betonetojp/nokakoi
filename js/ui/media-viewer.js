@@ -93,6 +93,14 @@ export function showMediaViewer(url, type = 'auto') {
 
   const resetModal = () => {
     modal.hidden = true;
+    try {
+      const mediaEls = container.querySelectorAll('video, audio');
+      mediaEls.forEach(el => {
+        try { el.pause(); } catch (e) { }
+        try { el.removeAttribute('src'); } catch (e) { }
+        try { el.load(); } catch (e) { }
+      });
+    } catch (e) { }
     container.innerHTML = '';
     if (metaInfo) metaInfo.textContent = '';
   };

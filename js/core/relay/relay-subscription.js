@@ -347,19 +347,35 @@ export function processSubscribeQueue() {
           } catch (e) { }
         }
 
-        sub.close = async function () {
+        sub.closed = false;
+        const subKey = sub.__key || subId;
+
+        sub.close = function () {
+          if (sub.closed) return;
+          sub.closed = true;
           try {
-            let shouldClose = true;
-            try {
-              shouldClose = hasOpenSocketForRelays(pool, req.targetRelays);
-            } catch (e) { }
+            const appState = req.state || (typeof window !== 'undefined' && window.__nostrState) || null;
+            if (subKey && appState && appState.subs && appState.subs.get(subKey) === sub) {
+              appState.subs.delete(subKey);
+            }
+          } catch (e) { }
+          if (oneshotTimer) {
+            clearTimeout(oneshotTimer);
+            oneshotTimer = null;
+          }
+
+          let shouldClose = true;
+          try {
+            shouldClose = hasOpenSocketForRelays(pool, req.targetRelays);
+          } catch (e) { }
+
+          try {
             if (shouldClose) {
-              try { await origClose(); } catch (e) { }
+              origClose().catch(() => {});
             } else {
-              try { debugRelay('[Relay] OPEN socket なしのため sub.close の送信をスキップ'); } catch (e) { }
+              debugRelay('[Relay] OPEN socket なしのため sub.close の送信をスキップ');
             }
           } finally {
-            try { if (oneshotTimer) { clearTimeout(oneshotTimer); oneshotTimer = null; } } catch (e) { }
             try { decrementActiveCounts(req.targetRelays, type); } catch (e) { }
             try { processSubscribeQueue(); } catch (e) { }
           }
@@ -436,7 +452,7 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
       try {
         const existingSub = state.subs.get(existingSid);
         let canReuse = false;
-        if (existingSub) {
+        if (existingSub && !existingSub.closed) {
           try {
             if (existingSub.__pool && state.pool && existingSub.__pool === state.pool) {
               const oldTargets = Array.isArray(existingSub.__targetRelays) ? existingSub.__targetRelays.map(normalizeUrl).filter(Boolean) : [];
