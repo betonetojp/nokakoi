@@ -307,7 +307,15 @@ export function setupFeedFetcher(opts) {
 
   return {
     stopHist: () => { try { controller.abort(); } catch (e) { } },
-    stopLive: () => { try { if (typeof liveUnsub === 'function') liveUnsub(); } catch (e) { } },
+    stopLive: () => {
+      try {
+        if (typeof liveUnsub === 'function') {
+          const fn = liveUnsub;
+          liveUnsub = null;
+          fn();
+        }
+      } catch (e) { }
+    },
     controller
   };
 }

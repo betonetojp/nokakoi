@@ -167,6 +167,34 @@ export function decrementActiveCounts(relays, type) {
   }
 }
 
+/**
+ * 実際の state.subs に基づいて relayActiveCounts の不整合・漏れを補正
+ */
+export function sanitizeRelayActiveCounts() {
+  try {
+    const state = getNostrState();
+    if (!state || !state.subs) return;
+    const liveCounts = new Map();
+    const oneshotCounts = new Map();
+
+    for (const sub of state.subs.values()) {
+      if (!sub || sub.closed) continue;
+      const type = sub.__type || 'oneshot';
+      const relays = sub.__targetRelays || [];
+      const map = (type === 'live') ? liveCounts : oneshotCounts;
+      for (const r of relays) {
+        const key = relayKey(r);
+        map.set(key, (map.get(key) || 0) + 1);
+      }
+    }
+
+    relayActiveCounts.live = liveCounts;
+    relayActiveCounts.oneshot = oneshotCounts;
+  } catch (e) {
+    console.warn('[Relay] sanitizeRelayActiveCounts に失敗:', e);
+  }
+}
+
 export function hasOpenSocketForRelays(pool, relays) {
   try {
     if (!pool || !Array.isArray(relays) || relays.length === 0) return false;
@@ -190,14 +218,32 @@ export function canStartForAll(relays, type, priority = false) {
   const map = relayActiveCounts[type] || relayActiveCounts.oneshot;
   const limit = (type === 'live') ? MAX_LIVE_PER_RELAY : MAX_ONESHOT_PER_RELAY;
   const totalLimit = typeof MAX_TOTAL_SUB_PER_RELAY === 'number' ? MAX_TOTAL_SUB_PER_RELAY : 5;
+  
+  let blocked = false;
   for (const r of relays) {
     const key = relayKey(r);
     const vLive = relayActiveCounts.live.get(key) || 0;
     const vOne = relayActiveCounts.oneshot.get(key) || 0;
     const current = map.get(key) || 0;
-    if (current >= limit) return false;
-    if ((vLive + vOne) >= totalLimit) return false;
+    if (current >= limit || (vLive + vOne) >= totalLimit) {
+      blocked = true;
+      break;
+    }
   }
+
+  // もし上限に達してブロックされた場合は、カウント不整合の可能性を考慮して再計算して再確認
+  if (blocked) {
+    sanitizeRelayActiveCounts();
+    for (const r of relays) {
+      const key = relayKey(r);
+      const vLive = relayActiveCounts.live.get(key) || 0;
+      const vOne = relayActiveCounts.oneshot.get(key) || 0;
+      const current = map.get(key) || 0;
+      if (current >= limit) return false;
+      if ((vLive + vOne) >= totalLimit) return false;
+    }
+  }
+
   return true;
 }
 
@@ -348,10 +394,11 @@ export function processSubscribeQueue() {
         }
 
         sub.closed = false;
+        sub.__decremented = false;
         const subKey = sub.__key || subId;
 
         sub.close = function () {
-          if (sub.closed) return;
+          if (sub.closed && sub.__decremented) return;
           sub.closed = true;
           try {
             const appState = req.state || (typeof window !== 'undefined' && window.__nostrState) || null;
@@ -376,7 +423,10 @@ export function processSubscribeQueue() {
               debugRelay('[Relay] OPEN socket なしのため sub.close の送信をスキップ');
             }
           } finally {
-            try { decrementActiveCounts(req.targetRelays, type); } catch (e) { }
+            if (!sub.__decremented) {
+              sub.__decremented = true;
+              try { decrementActiveCounts(req.targetRelays, type); } catch (e) { }
+            }
             try { processSubscribeQueue(); } catch (e) { }
           }
         };
@@ -440,6 +490,8 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
   }
   const logicalPrefix = key + '|' + filterKey + ':';
 
+  const inferredType = inferReqType(filters, key);
+
   try {
     let existingSid = null;
     for (const sid of state.subs.keys()) {
@@ -464,6 +516,16 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
               }
             }
           } catch (e) { }
+
+          // Live 購読の場合は対象リレーに OPEN な WebSocket が存在しないなら再利用せず新規作成する
+          if (canReuse && inferredType === 'live') {
+            const hasSocket = hasOpenSocketForRelays(state.pool, targetRelays);
+            if (!hasSocket) {
+              canReuse = false;
+              debugRelay('[Relay] Live 購読再利用をキャンセル (OPEN socket なし):', existingSid);
+              try { if (typeof existingSub.close === 'function') existingSub.close(); } catch (e) { }
+            }
+          }
         }
 
         if (canReuse) {

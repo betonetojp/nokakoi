@@ -1,6 +1,7 @@
 import { RECONNECT_DELAY, MAX_RECONNECT_DELAY, DOWN_PERSIST_MS, KEEPALIVE_INTERVAL, RESUME_RESTART_MS, RELAY_MONITOR_INTERVAL } from '../../config/constants.js';
 import { getRelayFromPool } from './relay-connection.js';
 import { getAllRelayUrls } from './relay-helpers.js';
+import { sanitizeRelayActiveCounts, processSubscribeQueue } from './relay-subscription.js';
 
 /**
  * リレー接続状態
@@ -35,6 +36,10 @@ export function updateRelayState(url, connected) {
       state.lastSeenDown = null;
     } else {
       if (!state.lastSeenDown) state.lastSeenDown = Date.now();
+      try {
+        sanitizeRelayActiveCounts();
+        processSubscribeQueue();
+      } catch (e) { }
     }
     relayStates.set(url, state);
   } catch (e) {
