@@ -211,7 +211,7 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         try {
           const userPubkey = await bunkerClient.getPublicKey();
           if (userPubkey && /^[0-9a-f]{64}$/i.test(userPubkey)) {
-            bunkerClient.remotePubkey = userPubkey.toLowerCase();
+            bunkerClient.userPubkey = userPubkey.toLowerCase();
           }
         } catch (e) {
           console.warn('[NIP-46] get_public_key 取得スキップ:', e);
@@ -224,19 +224,22 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         state.signer = 'nip46';
         try { bunkerClient.setupResumeHandler(); } catch (e) { }
 
-        const targetPk = bunkerClient.remotePubkey.toLowerCase();
+        const targetPk = (bunkerClient.userPubkey || bunkerClient.remotePubkey).toLowerCase();
         if (settingsManager && typeof settingsManager.loadForAccount === 'function') {
           settingsManager.loadForAccount(targetPk);
         }
 
         settingsManager.set('nip46RemotePubkey', bunkerClient.remotePubkey);
+        if (bunkerClient.userPubkey) {
+          settingsManager.set('nip46UserPubkey', bunkerClient.userPubkey);
+        }
         settingsManager.set('nip46Secret', bunkerClient.secret);
         settingsManager.set('nip46Relays', bunkerClient.relays);
         settingsManager.set('preferredSigner', 'nip46');
         if (typeof settingsManager.saveForAccount === 'function') {
           settingsManager.saveForAccount(targetPk);
         }
-        setNip46LocalSecretKey(bunkerClient.localSecretKey);
+        setNip46LocalSecretKey(bunkerClient.localSecretKey, targetPk);
         try {
           localStorage.setItem(`nokakoi.nip46.localSecretKey.${targetPk}`, bunkerClient.localSecretKey);
           localStorage.setItem('lastLoginMethod', 'nip46');
@@ -288,7 +291,7 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         try {
           const userPubkey = await client.getPublicKey();
           if (userPubkey && /^[0-9a-f]{64}$/i.test(userPubkey)) {
-            client.remotePubkey = userPubkey.toLowerCase();
+            client.userPubkey = userPubkey.toLowerCase();
           }
         } catch (e) {
           console.warn('[NIP-46] get_public_key 取得スキップ:', e);
@@ -300,19 +303,22 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         state.signer = 'nip46';
         try { client.setupResumeHandler(); } catch (e) { }
 
-        const targetPk = result.remotePubkey.toLowerCase();
+        const targetPk = (client.userPubkey || result.remotePubkey).toLowerCase();
         if (settingsManager && typeof settingsManager.loadForAccount === 'function') {
           settingsManager.loadForAccount(targetPk);
         }
 
         settingsManager.set('nip46RemotePubkey', client.remotePubkey);
+        if (client.userPubkey) {
+          settingsManager.set('nip46UserPubkey', client.userPubkey);
+        }
         settingsManager.set('nip46Secret', client.secret);
         settingsManager.set('nip46Relays', nip46Relays);
         settingsManager.set('preferredSigner', 'nip46');
         if (typeof settingsManager.saveForAccount === 'function') {
           settingsManager.saveForAccount(targetPk);
         }
-        setNip46LocalSecretKey(client.localSecretKey);
+        setNip46LocalSecretKey(client.localSecretKey, targetPk);
         try {
           localStorage.setItem(`nokakoi.nip46.localSecretKey.${targetPk}`, client.localSecretKey);
           localStorage.setItem('lastLoginMethod', 'nip46');

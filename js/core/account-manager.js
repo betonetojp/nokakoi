@@ -3,7 +3,7 @@ import { decryptNsec } from './crypto.js';
 import { showPasswordModal, nsecLoginPrompt } from './auth/nsec-auth.js';
 import { authenticateWithPasskey, decryptNsecWithPasskey } from './webauthn.js';
 import { Nip46Client, DEFAULT_NIP46_RELAYS } from './nip46.js';
-import { getNip46LocalSecretKey } from './auth/nip46-session.js';
+import { getNip46LocalSecretKey, setNip46LocalSecretKey } from './auth/nip46-session.js';
 import { t } from '../utils/i18n.js';
 import { saveRelaysForAccount, loadRelaysForAccount } from './relay.js';
 import { saveMuteListForAccount, loadMuteListForAccount } from '../features/mute/mute.js';
@@ -356,11 +356,10 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
       );
     });
   } else if (method === 'nip46' && settings && settings.nip46RemotePubkey) {
-    const nip46Key = localStorage.getItem(`nokakoi.nip46.localSecretKey.${targetId}`) || getNip46LocalSecretKey();
+    const nip46Key = getNip46LocalSecretKey(targetId);
     if (nip46Key) {
       try {
-        localStorage.setItem('nokakoi.nip46.localSecretKey', nip46Key);
-        localStorage.setItem(`nokakoi.nip46.localSecretKey.${targetId}`, nip46Key);
+        setNip46LocalSecretKey(nip46Key, targetId);
         const client = new Nip46Client({
           relays: settings.nip46Relays || DEFAULT_NIP46_RELAYS,
           onStatusChange: () => { }
@@ -368,6 +367,7 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
         await client.restoreConnection({
           localSecretKey: nip46Key,
           remotePubkey: settings.nip46RemotePubkey,
+          userPubkey: settings.nip46UserPubkey || null,
           relays: settings.nip46Relays,
           secret: settings.nip46Secret
         });

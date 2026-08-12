@@ -9,10 +9,16 @@ const LEGACY_SESSION_KEY = 'nip46LocalSecretKey';
 
 /**
  * NIP-46 ローカル秘密鍵を取得
+ * @param {string} [pubkey]
  * @returns {string|null}
  */
-export function getNip46LocalSecretKey() {
+export function getNip46LocalSecretKey(pubkey = null) {
   try {
+    if (pubkey && typeof pubkey === 'string') {
+      const accountKey = localStorage.getItem(`${STORAGE_KEY}.${pubkey.toLowerCase()}`);
+      if (accountKey) return accountKey;
+    }
+
     const fromLocal = localStorage.getItem(STORAGE_KEY);
     if (fromLocal) return fromLocal;
 
@@ -30,13 +36,20 @@ export function getNip46LocalSecretKey() {
 /**
  * NIP-46 ローカル秘密鍵を保存（リロード・再起動後の自動再接続用）
  * @param {string} keyHex
+ * @param {string} [pubkey]
  */
-export function setNip46LocalSecretKey(keyHex) {
+export function setNip46LocalSecretKey(keyHex, pubkey = null) {
   try {
     if (keyHex) {
       localStorage.setItem(STORAGE_KEY, keyHex);
+      if (pubkey && typeof pubkey === 'string') {
+        localStorage.setItem(`${STORAGE_KEY}.${pubkey.toLowerCase()}`, keyHex);
+      }
     } else {
       localStorage.removeItem(STORAGE_KEY);
+      if (pubkey && typeof pubkey === 'string') {
+        localStorage.removeItem(`${STORAGE_KEY}.${pubkey.toLowerCase()}`);
+      }
     }
     try { sessionStorage.removeItem(LEGACY_SESSION_KEY); } catch (e) { }
   } catch (e) {
@@ -46,8 +59,14 @@ export function setNip46LocalSecretKey(keyHex) {
 
 /**
  * NIP-46 ローカル秘密鍵を消去
+ * @param {string} [pubkey]
  */
-export function clearNip46LocalSecretKey() {
-  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { }
+export function clearNip46LocalSecretKey(pubkey = null) {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    if (pubkey && typeof pubkey === 'string') {
+      localStorage.removeItem(`${STORAGE_KEY}.${pubkey.toLowerCase()}`);
+    }
+  } catch (e) { }
   try { sessionStorage.removeItem(LEGACY_SESSION_KEY); } catch (e) { }
 }

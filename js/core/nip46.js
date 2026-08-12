@@ -62,6 +62,7 @@ export class Nip46Client {
     this.localSecretKey = null;
     this.localPubkey = null;
     this.remotePubkey = null;
+    this.userPubkey = null;
     this.secret = null;
     this.relays = options.relays || DEFAULT_NIP46_RELAYS.slice();
     this.pool = null;
@@ -1050,6 +1051,9 @@ export class Nip46Client {
     }
 
     const result = await this._sendRequest(NIP46_METHODS.GET_PUBLIC_KEY, []);
+    if (typeof result === 'string' && /^[0-9a-f]{64}$/i.test(result)) {
+      this.userPubkey = result.toLowerCase();
+    }
     return result;
   }
 
@@ -1062,8 +1066,13 @@ export class Nip46Client {
       throw new Error(t('nip46.not_connected'));
     }
 
+    const eventDraft = { ...draft };
+    if (!eventDraft.pubkey) {
+      eventDraft.pubkey = this.userPubkey || this.remotePubkey;
+    }
+
     // draftをJSON文字列として送信
-    const eventJson = JSON.stringify(draft);
+    const eventJson = JSON.stringify(eventDraft);
     const result = await this._sendRequest(NIP46_METHODS.SIGN_EVENT, [eventJson]);
 
     // 結果はJSON文字列なのでパース
@@ -1117,6 +1126,7 @@ export class Nip46Client {
     return {
       localSecretKey: this.localSecretKey,
       remotePubkey: this.remotePubkey,
+      userPubkey: this.userPubkey,
       relays: this.relays,
       secret: this.secret,
       connected: this.connected
@@ -1133,6 +1143,9 @@ export class Nip46Client {
 
     this.initLocalKey(info.localSecretKey);
     this.remotePubkey = info.remotePubkey;
+    if (info.userPubkey) {
+      this.userPubkey = info.userPubkey;
+    }
     this.relays = info.relays || DEFAULT_NIP46_RELAYS.slice();
     this.secret = info.secret || null;
 

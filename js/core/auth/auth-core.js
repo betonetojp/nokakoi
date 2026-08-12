@@ -91,7 +91,7 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
     } else if (selected === 'nsec') {
       pubkey = signer.getPublicKey();
     } else if (selected === 'nip46') {
-      pubkey = state.nip46.client.remotePubkey;
+      pubkey = (state.nip46.client && state.nip46.client.userPubkey) || state.nip46.remotePubkey;
     }
 
     const oldPubkey = localStorage.getItem('pubkey');
@@ -494,7 +494,8 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
       try { window.__nokakoiAuthPending = false; } catch (e) { }
     }
 
-    const nip46LocalSecretKey = getNip46LocalSecretKey();
+    const targetPubkey = settings.nip46UserPubkey || settings.nip46RemotePubkey;
+    const nip46LocalSecretKey = getNip46LocalSecretKey(targetPubkey);
     if (!state.pubkey && settings.preferredSigner === 'nip46' && settings.nip46RemotePubkey && nip46LocalSecretKey) {
       try {
         const client = new Nip46Client({
@@ -505,6 +506,7 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
         await client.restoreConnection({
           localSecretKey: nip46LocalSecretKey,
           remotePubkey: settings.nip46RemotePubkey,
+          userPubkey: settings.nip46UserPubkey || null,
           relays: settings.nip46Relays,
           secret: settings.nip46Secret
         });
