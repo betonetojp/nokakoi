@@ -123,7 +123,7 @@ export async function openProfileEditor(state) {
         const saveSnapBtn = document.createElement('button');
         saveSnapBtn.type = 'button';
         saveSnapBtn.className = 'secondary text-sm';
-        saveSnapBtn.textContent = t('editor.snapshot.save_btn') || '現在の状態をバックアップ保存';
+        saveSnapBtn.textContent = t('editor.snapshot.save_btn') || '現在の状態をバックアップ';
         saveSnapBtn.onclick = () => {
           const inputs = currentSec.querySelectorAll('.editor-input');
           const currentObj = {};

@@ -426,7 +426,7 @@
   "editor.follow.empty": "フォロー中のユーザーはいません。",
   "editor.snapshot.tab_current": "編集",
   "editor.snapshot.tab_saved": "バックアップ一覧",
-  "editor.snapshot.save_btn": "現在の状態をバックアップ保存",
+  "editor.snapshot.save_btn": "現在の状態をバックアップ",
   "editor.snapshot.count": "{n} 件",
   "editor.snapshot.restore": "編集画面に読み込む",
   "editor.snapshot.delete": "削除",
