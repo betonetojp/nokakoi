@@ -413,6 +413,20 @@ export async function toggleFollowUser(state, targetPubkey, buttonEl) {
       }
 
       updateFollowButtonState(state, buttonEl, targetPubkey);
+      try { updateAllFollowButtonStates(state, targetPubkey); } catch (e) { }
+
+      try {
+        window.dispatchEvent(new CustomEvent('followListUpdated', { detail: { pubkey: targetPubkey, isFollowing: !isCurrentlyFollowing } }));
+      } catch (e) { }
+
+      try {
+        if (typeof window.softReload === 'function') {
+          window.softReload();
+        } else {
+          window.dispatchEvent(new CustomEvent('softReloadRequest'));
+        }
+      } catch (e) { }
+
       return true;
     }
 
@@ -431,7 +445,13 @@ export async function toggleFollowUser(state, targetPubkey, buttonEl) {
 export function updateFollowButtonState(state, buttonEl, targetPubkey) {
   if (!buttonEl) return;
 
-  const isFollowing = state.feeds['home'] && state.feeds['home'].followSet && state.feeds['home'].followSet.has(targetPubkey);
+  if (targetPubkey) {
+    buttonEl.dataset.pubkey = targetPubkey;
+  }
+  const pk = targetPubkey || buttonEl.dataset.pubkey;
+  if (!pk) return;
+
+  const isFollowing = state && state.feeds && state.feeds['home'] && state.feeds['home'].followSet && state.feeds['home'].followSet.has(pk);
   const myPubkey = (state && state.pubkey) || localStorage.getItem('pubkey');
 
   if (isFollowing) {
@@ -439,7 +459,7 @@ export function updateFollowButtonState(state, buttonEl, targetPubkey) {
     buttonEl.className = 'btn-follow-toggle following';
 
     if (myPubkey) {
-      checkMutualFollow(state, targetPubkey, myPubkey).then(isMutual => {
+      checkMutualFollow(state, pk, myPubkey).then(isMutual => {
         if (isMutual && buttonEl.isConnected && buttonEl.classList.contains('following')) {
           buttonEl.textContent = t('editor.follow.mutual') || '相互';
           buttonEl.classList.add('mutual');
@@ -450,6 +470,34 @@ export function updateFollowButtonState(state, buttonEl, targetPubkey) {
     buttonEl.textContent = t('editor.follow.follow') || '+ フォロー';
     buttonEl.className = 'btn-follow-toggle not-following';
   }
+}
+
+/**
+ * アプリ全体のすべてのフォローボタンの表示を更新・同期
+ */
+export function updateAllFollowButtonStates(state = null, targetPubkey = null) {
+  try {
+    const selector = targetPubkey
+      ? `.btn-follow-toggle[data-pubkey="${targetPubkey}"]`
+      : '.btn-follow-toggle';
+    const btns = document.querySelectorAll(selector);
+    btns.forEach(btn => {
+      const pk = targetPubkey || btn.dataset.pubkey;
+      if (pk) updateFollowButtonState(state, btn, pk);
+    });
+  } catch (e) { }
+}
+
+if (typeof window !== 'undefined' && !window.__nokakoiFollowButtonListenerInstalled) {
+  try {
+    window.addEventListener('followListUpdated', () => {
+      try {
+        const appState = typeof window !== 'undefined' && window.__nostrState ? window.__nostrState : null;
+        updateAllFollowButtonStates(appState, null);
+      } catch (e) { }
+    });
+    window.__nokakoiFollowButtonListenerInstalled = true;
+  } catch (e) { }
 }
 
 /**
@@ -926,6 +974,18 @@ export async function openFollowEditor(state) {
             updateNameDom(state, item.pubkey, nip19);
           }
         }
+
+        try {
+          window.dispatchEvent(new CustomEvent('followListUpdated'));
+        } catch (e) { }
+
+        try {
+          if (typeof window.softReload === 'function') {
+            window.softReload();
+          } else {
+            window.dispatchEvent(new CustomEvent('softReloadRequest'));
+          }
+        } catch (e) { }
 
         setTimeout(() => {
           modal.hidden = true;

@@ -7,7 +7,7 @@ import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../co
 import { getNip04, getNip44, hexToBytes, getNip19 } from '../../core/nostr-compat.js';
 import { t } from '../../utils/i18n.js';
 import { displayNameWithUsername, loadProfile, updateNameDom } from '../profile/profile.js';
-import { refreshEventsMuteState } from '../../ui/renderers/render-helpers.js';
+import { refreshEventsMuteState, invalidateMuteConfigCache } from '../../ui/renderers/render-helpers.js';
 import { signer } from '../../core/signer.js';
 
 const MUTE_SNAPSHOTS_KEY_BASE = 'mute_list_snapshots';
@@ -630,10 +630,24 @@ function syncMuteStateToApp(state, publicUsers, publicWords, privateUsers, priva
   };
 
   try {
-    localStorage.setItem('muteList_expanded', JSON.stringify(expanded));
+    const myPubkey = (state && state.pubkey) || localStorage.getItem('pubkey');
+    const str = JSON.stringify(expanded);
+    localStorage.setItem('muteList_expanded', str);
+    if (myPubkey) {
+      localStorage.setItem(`muteList_expanded.${myPubkey.toLowerCase()}`, str);
+    }
     window.__nokakoiMuteList = expanded;
+    try { invalidateMuteConfigCache(); } catch (e) { }
     try { refreshEventsMuteState(state); } catch (e) { }
+    try { updateAllMuteButtonStates(state); } catch (e) { }
     try { window.dispatchEvent(new CustomEvent('muteListUpdated')); } catch (e) { }
+    try {
+      if (typeof window.softReload === 'function') {
+        window.softReload();
+      } else {
+        window.dispatchEvent(new CustomEvent('softReloadRequest'));
+      }
+    } catch (e) { }
   } catch (e) { }
 }
 
@@ -642,11 +656,31 @@ function syncMuteStateToApp(state, publicUsers, publicWords, privateUsers, priva
  */
 export function isUserMuted(state, targetPubkey) {
   try {
-    const stored = window.__nokakoiMuteList || JSON.parse(localStorage.getItem('muteList_expanded') || '{}');
+    if (!targetPubkey) return false;
+    let hexPk = String(targetPubkey).trim();
+    if (hexPk.startsWith('npub')) {
+      try {
+        const nip19 = getNip19();
+        if (nip19 && typeof nip19.decode === 'function') {
+          const decoded = nip19.decode(hexPk);
+          if (decoded && decoded.data) hexPk = decoded.data;
+        }
+      } catch (e) { }
+    }
+    hexPk = String(hexPk).toLowerCase();
+
+    let stored = window.__nokakoiMuteList;
+    if (!stored) {
+      try {
+        const raw = localStorage.getItem('muteList_expanded');
+        if (raw) stored = JSON.parse(raw);
+      } catch (e) { }
+    }
+
     if (!stored || !stored.pubkeys) return false;
-    const pubP = Array.isArray(stored.pubkeys.public) ? stored.pubkeys.public : [];
-    const pubPr = Array.isArray(stored.pubkeys.private) ? stored.pubkeys.private : [];
-    return pubP.includes(targetPubkey) || pubPr.includes(targetPubkey);
+    const pubP = (Array.isArray(stored.pubkeys.public) ? stored.pubkeys.public : []).map(p => String(p).toLowerCase());
+    const pubPr = (Array.isArray(stored.pubkeys.private) ? stored.pubkeys.private : []).map(p => String(p).toLowerCase());
+    return pubP.includes(hexPk) || pubPr.includes(hexPk);
   } catch (e) {
     return false;
   }
@@ -663,7 +697,20 @@ export async function toggleMuteUser(state, targetPubkey, buttonEl) {
       return false;
     }
 
-    const currentlyMuted = isUserMuted(state, targetPubkey);
+    let cleanTargetPk = String(targetPubkey || '').trim();
+    if (cleanTargetPk.startsWith('npub')) {
+      try {
+        const nip19 = getNip19();
+        if (nip19 && typeof nip19.decode === 'function') {
+          const decoded = nip19.decode(cleanTargetPk);
+          if (decoded && decoded.data) cleanTargetPk = decoded.data;
+        }
+      } catch (e) { }
+    }
+    cleanTargetPk = cleanTargetPk.toLowerCase();
+    if (!cleanTargetPk) return false;
+
+    const currentlyMuted = isUserMuted(state, cleanTargetPk);
 
     // 確認ダイアログ
     const parentEl = document.getElementById('profileModal') || document.body;
@@ -679,20 +726,20 @@ export async function toggleMuteUser(state, targetPubkey, buttonEl) {
     const latestEvent = await fetchLatestEvent(state, 10000, myPubkey);
     const parsed = await parseMuteEvent(latestEvent, state);
 
-    let pubUsers = new Set(parsed.publicUsers);
-    let privUsers = new Set(parsed.privateUsers);
+    let pubUsers = new Set(parsed.publicUsers.map(u => String(u).toLowerCase()));
+    let privUsers = new Set(parsed.privateUsers.map(u => String(u).toLowerCase()));
     let newContent = parsed.content;
 
     if (currentlyMuted) {
       // 解除
-      pubUsers.delete(targetPubkey);
-      privUsers.delete(targetPubkey);
+      pubUsers.delete(cleanTargetPk);
+      privUsers.delete(cleanTargetPk);
     } else {
       // ミュート追加（暗号化可能なら非公開、不可なら公開へ）
       if (parsed.canEditPrivate) {
-        privUsers.add(targetPubkey);
+        privUsers.add(cleanTargetPk);
       } else {
-        pubUsers.add(targetPubkey);
+        pubUsers.add(cleanTargetPk);
       }
     }
 
@@ -703,8 +750,8 @@ export async function toggleMuteUser(state, targetPubkey, buttonEl) {
       } catch (e) {
         console.warn('[MuteEditor] 暗号化失敗、公開リストにフォールバック:', e);
         if (!currentlyMuted) {
-          privUsers.delete(targetPubkey);
-          pubUsers.add(targetPubkey);
+          privUsers.delete(cleanTargetPk);
+          pubUsers.add(cleanTargetPk);
         }
       }
     }
@@ -729,7 +776,7 @@ export async function toggleMuteUser(state, targetPubkey, buttonEl) {
     const res = await publishReplaceableEvent(state, draft);
     if (res && res.ok) {
       syncMuteStateToApp(state, pubUsers, parsed.publicWords, privUsers, parsed.privateWords);
-      updateMuteButtonState(state, buttonEl, targetPubkey);
+      updateMuteButtonState(state, buttonEl, cleanTargetPk);
       return true;
     }
 
@@ -748,7 +795,13 @@ export async function toggleMuteUser(state, targetPubkey, buttonEl) {
 export function updateMuteButtonState(state, buttonEl, targetPubkey) {
   if (!buttonEl) return;
 
-  const muted = isUserMuted(state, targetPubkey);
+  if (targetPubkey) {
+    buttonEl.dataset.pubkey = targetPubkey;
+  }
+  const pk = targetPubkey || buttonEl.dataset.pubkey;
+  if (!pk) return;
+
+  const muted = isUserMuted(state, pk);
 
   if (muted) {
     buttonEl.textContent = t('editor.mute.muting') || 'ミュート中';
@@ -757,6 +810,31 @@ export function updateMuteButtonState(state, buttonEl, targetPubkey) {
     buttonEl.textContent = t('editor.mute.mute') || '🔇 ミュート';
     buttonEl.className = 'btn-mute-toggle not-muted';
   }
+}
+
+/**
+ * アプリ全体のすべてのミュートボタンの表示を更新・同期
+ */
+export function updateAllMuteButtonStates(state = null, targetPubkey = null) {
+  try {
+    const selector = targetPubkey
+      ? `.btn-mute-toggle[data-pubkey="${targetPubkey}"]`
+      : '.btn-mute-toggle';
+    const btns = document.querySelectorAll(selector);
+    btns.forEach(btn => {
+      const pk = targetPubkey || btn.dataset.pubkey;
+      if (pk) updateMuteButtonState(state, btn, pk);
+    });
+  } catch (e) { }
+}
+
+if (typeof window !== 'undefined' && !window.__nokakoiMuteButtonListenerInstalled) {
+  try {
+    window.addEventListener('muteListUpdated', () => {
+      try { updateAllMuteButtonStates(null); } catch (e) { }
+    });
+    window.__nokakoiMuteButtonListenerInstalled = true;
+  } catch (e) { }
 }
 
 /**

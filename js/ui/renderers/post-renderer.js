@@ -961,6 +961,9 @@ function bindEventListeners(div, ev, state, nip19, settings, settingsManager, re
 
 export function renderEvent(state, ev, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent, feedId = null) {
   const div = buildEventContainer(ev);
+  if (settings && (settings.ignoreMuteApply === true || settings.disableMuteApply === true)) {
+    div.dataset.ignoreMuteApply = 'true';
+  }
 
   const timelineUiState = settings && settings.__timelineUiState ? settings.__timelineUiState : null;
   const markMutedExpanded = settings && typeof settings.__timelineMarkMutedExpanded === 'function' ? settings.__timelineMarkMutedExpanded : null;

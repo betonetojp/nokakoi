@@ -114,6 +114,14 @@ export function applyMutedToneToEvent(div) {
 export function updateEventMuteDom(eventEl, state, settings = null, forceExpanded = null) {
   try {
     if (!eventEl) return;
+
+    let effectiveSettings = settings;
+    if (!effectiveSettings || (typeof effectiveSettings.ignoreMuteApply === 'undefined' && typeof effectiveSettings.disableMuteApply === 'undefined')) {
+      if (eventEl && eventEl.closest && (eventEl.closest('#profileModal') || eventEl.closest('[data-ignore-mute-apply="true"]'))) {
+        effectiveSettings = { ...(settings || {}), ignoreMuteApply: true };
+      }
+    }
+
     let pubkey = eventEl.dataset.pubkey;
     if (!pubkey) {
       const nameEl = eventEl.querySelector('.name[data-pubkey]');
@@ -129,7 +137,7 @@ export function updateEventMuteDom(eventEl, state, settings = null, forceExpande
 
     const contentEl = eventEl.querySelector('.content');
     const content = contentEl ? contentEl.textContent || '' : '';
-    const muteState = evaluateMuteState(state, pubkey, content, settings, ev);
+    const muteState = evaluateMuteState(state, pubkey, content, effectiveSettings, ev);
 
     const existingFold = eventEl.querySelector('.muted-fold-bar');
 
@@ -248,6 +256,7 @@ export function createFoldBar(eventEl, muteState, isExpanded = false) {
 
 export function refreshEventsMuteState(state = null, targetPubkey = null) {
   try {
+    invalidateMuteConfigCache();
     const selector = targetPubkey
       ? `.event[data-pubkey="${targetPubkey}"], .event .name[data-pubkey="${targetPubkey}"]`
       : '.event';
