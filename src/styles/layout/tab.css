@@ -1,7 +1,4 @@
 .tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
   position: sticky;
   top: 0;
   background: var(--bg);
@@ -11,8 +8,27 @@
   border-bottom: 1px solid var(--border);
   transition: background 0.3s, border-color 0.3s;
 }
+.tabs-scroller {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  cursor: grab;
+}
+.tabs-scroller::-webkit-scrollbar {
+  display: none;
+}
+.tabs-scroller.is-dragging {
+  cursor: grabbing;
+}
 .tab {
   position: relative;
+  flex: 0 0 auto;
   background: transparent;
   color: var(--muted);
   border: none;
@@ -22,8 +38,7 @@
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  white-space: normal;
-  word-break: break-word;
+  white-space: nowrap;
 }
 .tab:hover {
   color: var(--text);

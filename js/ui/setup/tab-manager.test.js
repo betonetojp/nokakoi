@@ -118,6 +118,14 @@ describe('channel tab activation', () => {
     expect(document.querySelector('.feed.active')?.id).toBe('feed-channels');
   });
 
+  it('renders tab buttons into a horizontal scroller', () => {
+    setupTabs(settingsManagerFor(['home', 'channels']));
+    const scroller = document.querySelector('.tabs > .tabs-scroller');
+    expect(scroller).toBeTruthy();
+    expect(scroller.querySelectorAll('.tab').length).toBe(2);
+    expect(document.querySelector('.tabs > .tab')).toBeNull();
+  });
+
   it('marks only the account-switch initial activation to skip feed lifecycle', () => {
     document.body.innerHTML = `
       <div class="tabs"></div>

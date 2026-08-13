@@ -11,6 +11,11 @@ import {
   resumeChannelSubscriptions,
   syncChannelComposerState
 } from '../../features/channel/channel-ui.js';
+import {
+  ensureTabBarScroller,
+  scheduleActiveTabAlign,
+  setupTabBarScroll
+} from '../tab-bar-scroll.js';
 
 export const DEFAULT_TABS = [
   { id: 'home', labelKey: 'tabs.home', canToggle: true, defaultVisible: true },
@@ -190,6 +195,7 @@ export function activateTab(tabOrId, settingsManager, options = {}) {
       }));
     } catch (e) { }
   }
+  scheduleActiveTabAlign(tabsContainer);
   return true;
 }
 
@@ -211,7 +217,9 @@ export function setupTabs(settingsManager, preserveActive = false, options = {})
     else if (tabsConfig.length > 0) tabsConfig[0].visible = true;
   }
 
-  tabsContainer.innerHTML = '';
+  const tabsScroller = ensureTabBarScroller(tabsContainer);
+  tabsScroller.innerHTML = '';
+  setupTabBarScroll(tabsScroller);
   const visibleTabs = tabsConfig.filter(t => t.visible !== false);
   visibleTabs.forEach(cfg => {
     const btn = document.createElement('button');
@@ -257,8 +265,7 @@ export function setupTabs(settingsManager, preserveActive = false, options = {})
           longPressTriggered = true;
           showOmochatSettingsModal(settingsManager);
         }, 800);
-        e.preventDefault();
-      }, { passive: false });
+      }, { passive: true });
       btn.addEventListener('touchmove', (e) => {
         if (hasMoved) return;
         const touch = e.touches[0];
@@ -301,8 +308,7 @@ export function setupTabs(settingsManager, preserveActive = false, options = {})
           longPressTriggered = true;
           showHomeDisplayQuickModal();
         }, 600);
-        e.preventDefault();
-      }, { passive: false });
+      }, { passive: true });
       btn.addEventListener('touchmove', (e) => {
         if (hasMoved) return;
         const touch = e.touches[0];
@@ -378,7 +384,7 @@ export function setupTabs(settingsManager, preserveActive = false, options = {})
       });
     }
 
-    tabsContainer.appendChild(btn);
+    tabsScroller.appendChild(btn);
   });
 
   try { if (typeof applyTranslations === 'function') applyTranslations(tabsContainer); } catch(e){}
@@ -387,6 +393,7 @@ export function setupTabs(settingsManager, preserveActive = false, options = {})
     import('../../features/relay/global-relay.js').then(m => {
       if (m && typeof m.updateGlobalButtonLabel === 'function') {
         m.updateGlobalButtonLabel(settingsManager);
+        scheduleActiveTabAlign(tabsContainer);
       }
     });
   } catch (e) {}
