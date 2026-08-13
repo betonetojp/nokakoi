@@ -22,9 +22,10 @@
 
 .channel-sidebar {
   width: 100%;
-  border: 1px solid var(--border-color, #e1e4e8);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--bg-secondary, #f6f8fa);
+  background: var(--panel);
+  color: var(--text);
 }
 
 .channel-sidebar-header {
@@ -32,7 +33,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border-color, #e1e4e8);
+  border-bottom: 1px solid var(--border);
 }
 
 .channel-sidebar-actions {
@@ -44,13 +45,14 @@
 .channel-sidebar-header h3 {
   margin: 0;
   font-size: 1.05rem;
+  color: var(--text);
 }
 
 .channel-join-box {
   padding: 8px 12px;
   display: flex;
   gap: 6px;
-  border-bottom: 1px solid var(--border-color, #e1e4e8);
+  border-bottom: 1px solid var(--border);
 }
 
 .channel-join-box-nested {
@@ -60,13 +62,13 @@
 
 .channel-id-advanced {
   padding: 4px 12px 8px;
-  border-bottom: 1px solid var(--border-color, #e1e4e8);
+  border-bottom: 1px solid var(--border);
   font-size: 0.82rem;
 }
 
 .channel-id-advanced summary {
   cursor: pointer;
-  color: var(--muted, #666);
+  color: var(--muted);
   user-select: none;
 }
 
@@ -80,8 +82,8 @@
 .channel-search-results {
   max-height: 220px;
   overflow-y: auto;
-  border-bottom: 1px solid var(--border-color, #e1e4e8);
-  background: var(--bg-primary, #fff);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
 }
 
 .channel-search-result-item {
@@ -89,7 +91,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border-color, #eee);
+  border-bottom: 1px solid var(--border);
 }
 
 .channel-search-result-item:last-child {
@@ -107,10 +109,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text);
 }
 
 .channel-list-status {
   padding: 6px 12px;
+  color: var(--muted);
 }
 
 .channel-list {
@@ -139,7 +143,8 @@
   justify-content: space-between;
   gap: 8px;
   font-size: 0.9rem;
-  color: var(--text-color, #24292e);
+  color: var(--text);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .channel-item-name {
@@ -165,17 +170,17 @@
 
 .channel-list-remove:hover {
   opacity: 1;
-  color: var(--text-danger, #ff4d4f);
+  color: #ff4d4f;
 }
 
 .channel-list-item:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--panel-hover);
 }
 
 .channel-list-item.active {
-  background: var(--accent-bg, #e0f2fe);
+  background: var(--accent-muted);
   font-weight: bold;
-  color: var(--accent-color, #0284c7);
+  color: var(--accent);
 }
 
 .d-none {
@@ -188,9 +193,10 @@
 
 .channel-main-view {
   width: 100%;
-  border: 1px solid var(--border-color, #e1e4e8);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--bg-primary, #ffffff);
+  background: var(--panel);
+  color: var(--text);
 }
 
 .channel-empty-state {
@@ -205,11 +211,11 @@
 
 .channel-chat-header {
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border-color, #e1e4e8);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--bg-primary, #ffffff);
+  background: var(--panel);
 }
 
 .channel-back-btn {
@@ -253,9 +259,10 @@
   font-size: 0.78rem;
   line-height: 1.4;
   word-break: break-all;
-  border: 1px solid var(--border-color, #e1e4e8);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--bg-secondary, #f6f8fa);
+  background: var(--bg);
+  color: var(--text);
   -webkit-user-select: text;
   user-select: text;
   cursor: text;
@@ -266,17 +273,18 @@
   padding: 8px 10px;
   font-size: 0.82rem;
   border-radius: 6px;
-  border: 1px solid var(--border-color, #e1e4e8);
-  background: var(--bg-secondary, #f6f8fa);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
 }
 
 .channel-item-badge--local {
   font-size: 0.68rem;
   padding: 1px 6px;
   border-radius: 999px;
-  border: 1px solid var(--border-color, #d0d7de);
-  color: var(--muted, #666);
-  background: var(--bg-secondary, #f6f8fa);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--bg);
   white-space: nowrap;
 }
 
@@ -286,6 +294,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text);
 }
 
 .micro-btn {
@@ -301,6 +310,7 @@
   white-space: pre-wrap;
   max-height: 3.2em;
   overflow-y: auto;
+  color: var(--muted);
 }
 
 .channel-relays-list {
@@ -311,7 +321,9 @@
 }
 
 .channel-relay-badge {
-  background: var(--bg-tertiary, #eaeaea);
+  background: var(--accent-muted);
+  color: var(--accent);
+  border: 1px solid var(--border-accent);
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 0.7rem;
