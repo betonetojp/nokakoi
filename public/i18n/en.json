@@ -171,6 +171,7 @@
   "channel.info.local_only": "Local only",
   "channel.info.local_notice": "Not in kind:10005 yet (joined on this device only)",
   "channel.local_only": "Local only",
+  "channel.tab_notify_dot_disabled": "Notification dots are not available for the Channels tab",
   "channel.publish_failed_local": "Relay sync failed; applied locally only",
   "tabs.bitchat": "omochat",
   "reply.cancelTitle": "Cancel",

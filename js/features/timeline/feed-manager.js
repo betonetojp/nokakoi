@@ -1098,6 +1098,13 @@ export function restartFeeds(fullReset = false) {
   try { unsubscribeAll(state); } catch (e) { }
 
   if (fullReset) {
+    try {
+      import('../channel/channel-ui.js').then((m) => {
+        if (m && typeof m.resetChannelViewForAccount === 'function') {
+          m.resetChannelViewForAccount(state);
+        }
+      }).catch(() => {});
+    } catch (_e) { }
     ['home', 'global', 'mentions', 'me'].forEach(id => {
       try {
         clearFeed(state, id);

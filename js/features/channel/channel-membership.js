@@ -5,6 +5,32 @@
 const CUSTOM_JOINED_KEY = 'custom_joined_channels';
 const EXCLUSIONS_KEY = 'channel_10005_exclusions_v1';
 
+function currentPubkey() {
+  try {
+    const pk = typeof localStorage !== 'undefined' ? localStorage.getItem('pubkey') : null;
+    return pk ? String(pk).toLowerCase() : '';
+  } catch (_e) {
+    return '';
+  }
+}
+
+function scopedKey(base) {
+  const pk = currentPubkey();
+  return pk ? `${base}.${pk}` : base;
+}
+
+function migrateUnscopedIfNeeded(base) {
+  const pk = currentPubkey();
+  if (!pk) return;
+  const scoped = `${base}.${pk}`;
+  try {
+    if (localStorage.getItem(scoped) != null) return;
+    const legacy = localStorage.getItem(base);
+    if (legacy == null) return;
+    localStorage.setItem(scoped, legacy);
+  } catch (_e) { }
+}
+
 function normalizeRootId(rootId) {
   if (!rootId || typeof rootId !== 'string') return null;
   const id = rootId.trim().toLowerCase();
@@ -48,7 +74,8 @@ function writeIdList(key, ids) {
 }
 
 export function getCustomJoinedChannels() {
-  return readIdList(CUSTOM_JOINED_KEY);
+  migrateUnscopedIfNeeded(CUSTOM_JOINED_KEY);
+  return readIdList(scopedKey(CUSTOM_JOINED_KEY));
 }
 
 export function addCustomJoinedChannel(rootId) {
@@ -56,17 +83,18 @@ export function addCustomJoinedChannel(rootId) {
   if (!id) return getCustomJoinedChannels();
   const list = getCustomJoinedChannels();
   if (!list.includes(id)) list.push(id);
-  return writeIdList(CUSTOM_JOINED_KEY, list);
+  return writeIdList(scopedKey(CUSTOM_JOINED_KEY), list);
 }
 
 export function removeCustomJoinedChannel(rootId) {
   const id = normalizeRootId(rootId);
   if (!id) return getCustomJoinedChannels();
-  return writeIdList(CUSTOM_JOINED_KEY, getCustomJoinedChannels().filter(x => x !== id));
+  return writeIdList(scopedKey(CUSTOM_JOINED_KEY), getCustomJoinedChannels().filter(x => x !== id));
 }
 
 export function getExcludedPublicChatIds() {
-  return readIdList(EXCLUSIONS_KEY);
+  migrateUnscopedIfNeeded(EXCLUSIONS_KEY);
+  return readIdList(scopedKey(EXCLUSIONS_KEY));
 }
 
 export function addExcludedPublicChatId(rootId) {
@@ -74,13 +102,13 @@ export function addExcludedPublicChatId(rootId) {
   if (!id) return getExcludedPublicChatIds();
   const list = getExcludedPublicChatIds();
   if (!list.includes(id)) list.push(id);
-  return writeIdList(EXCLUSIONS_KEY, list);
+  return writeIdList(scopedKey(EXCLUSIONS_KEY), list);
 }
 
 export function removeExcludedPublicChatId(rootId) {
   const id = normalizeRootId(rootId);
   if (!id) return getExcludedPublicChatIds();
-  return writeIdList(EXCLUSIONS_KEY, getExcludedPublicChatIds().filter(x => x !== id));
+  return writeIdList(scopedKey(EXCLUSIONS_KEY), getExcludedPublicChatIds().filter(x => x !== id));
 }
 
 /**
@@ -96,14 +124,14 @@ export function pruneExcludedPublicChatIds(currentPublicRootIds, options = {}) {
   }
   const alive = new Set(ids.map(normalizeRootId).filter(Boolean));
   const next = getExcludedPublicChatIds().filter(id => alive.has(id));
-  return writeIdList(EXCLUSIONS_KEY, next);
+  return writeIdList(scopedKey(EXCLUSIONS_KEY), next);
 }
 
 /**
  * kind:10005 書き込み成功時に呼ぶ（正本へ同期したので除外は不要）
  */
 export function clearExcludedPublicChatIds() {
-  return writeIdList(EXCLUSIONS_KEY, []);
+  return writeIdList(scopedKey(EXCLUSIONS_KEY), []);
 }
 
 /**

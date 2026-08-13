@@ -463,6 +463,12 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
   } catch (e) {
     console.warn('[AccountManager] clearFullState 呼び出しエラー:', e);
   }
+  try {
+    const { resetChannelViewForAccount } = await import('../features/channel/channel-ui.js');
+    if (typeof resetChannelViewForAccount === 'function') {
+      resetChannelViewForAccount(state);
+    }
+  } catch (e) { }
 
   // 6. 再ログイン・UI同期
   state.pubkey = targetId;

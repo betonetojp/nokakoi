@@ -7,9 +7,9 @@ import { showHomeDisplayQuickModal } from './display-settings.js';
 export const DEFAULT_TABS = [
   { id: 'home', labelKey: 'tabs.home', canToggle: true, defaultVisible: true },
   { id: 'global', labelKey: 'tabs.global', canToggle: true, defaultVisible: true },
-  { id: 'channels', labelKey: 'tabs.channels', fallbackLabel: 'チャンネル', canToggle: true, defaultVisible: false },
   { id: 'me', labelKey: 'tabs.me', canToggle: true, defaultVisible: true },
   { id: 'mentions', labelKey: 'tabs.mentions', canToggle: true, defaultVisible: true },
+  { id: 'channels', labelKey: 'tabs.channels', fallbackLabel: 'チャンネル', canToggle: true, defaultVisible: true, notifyDot: false },
   { id: 'bitchat', labelKey: 'tabs.bitchat', fallbackLabel: 'omochat', canToggle: true, defaultVisible: true }
 ];
 
@@ -41,7 +41,7 @@ export function loadTabSettings(settingsManager) {
     if (raw && Array.isArray(raw)) {
       if (!raw.some(t => t.id === 'channels')) {
         const bitIndex = raw.findIndex(t => t.id === 'bitchat');
-        const newChan = { id: 'channels', labelKey: 'tabs.channels', fallbackLabel: 'チャンネル', canToggle: true, defaultVisible: false, visible: false, notifyDot: true };
+        const newChan = { id: 'channels', labelKey: 'tabs.channels', fallbackLabel: 'チャンネル', canToggle: true, defaultVisible: true, visible: true, notifyDot: false };
         if (bitIndex >= 0) raw.splice(bitIndex, 0, newChan);
         else raw.push(newChan);
       }
@@ -478,11 +478,20 @@ export function renderTabSettingsUI(settingsManager, container) {
     dotLabel.className = 'dot-label';
     const dotChk = document.createElement('input');
     dotChk.type = 'checkbox';
-    dotChk.checked = tab.notifyDot !== false;
-    dotChk.onchange = () => {
-      tab.notifyDot = dotChk.checked;
-      saveTabSettings(settingsManager, currentTabs);
-    };
+    const channelsNoDot = tab.id === 'channels';
+    if (channelsNoDot) {
+      tab.notifyDot = false;
+      dotChk.checked = false;
+      dotChk.disabled = true;
+      dotLabel.classList.add('is-disabled');
+      dotLabel.title = t('channel.tab_notify_dot_disabled') || 'チャンネルタブでは通知ドットは使えません';
+    } else {
+      dotChk.checked = tab.notifyDot !== false;
+      dotChk.onchange = () => {
+        tab.notifyDot = dotChk.checked;
+        saveTabSettings(settingsManager, currentTabs);
+      };
+    }
     const dotText = document.createElement('span');
     dotText.setAttribute('data-i18n', 'tabNotifyDot');
     dotText.textContent = t('tabNotifyDot');

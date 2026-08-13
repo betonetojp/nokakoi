@@ -169,6 +169,7 @@
   "channel.info.local_only": "端末のみ",
   "channel.info.local_notice": "kind:10005 に未反映（この端末のみの参加です）",
   "channel.local_only": "端末のみ",
+  "channel.tab_notify_dot_disabled": "チャンネルタブでは通知ドットは使えません",
   "channel.publish_failed_local": "リレーへの同期に失敗したため、端末内のみ反映しました",
   "tabs.bitchat": "omochat",
   "reply.cancelTitle": "キャンセル",

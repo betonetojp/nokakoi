@@ -15,6 +15,24 @@ import { showConfirmModal } from '../../ui/modals/modals.js';
 import { t } from '../../utils/i18n.js';
 
 const CHANNEL_LIST_CACHE_KEY = 'nokakoi_public_chats_cache_v1';
+const LAST_ACTIVE_CHANNEL_KEY = 'last_active_channel_root_id';
+
+function scopedUiKey(base) {
+  const pk = getPubkey();
+  return pk ? `${base}.${String(pk).toLowerCase()}` : base;
+}
+
+function migrateUnscopedUiKey(base) {
+  const pk = getPubkey();
+  if (!pk) return;
+  const scoped = `${base}.${String(pk).toLowerCase()}`;
+  try {
+    if (localStorage.getItem(scoped) != null) return;
+    const legacy = localStorage.getItem(base);
+    if (legacy == null) return;
+    localStorage.setItem(scoped, legacy);
+  } catch (_e) { }
+}
 
 let _activeRootId = null;
 let _activeChannelContext = null;
@@ -308,14 +326,15 @@ async function syncMembershipToPublicChats(rootId, join) {
 
 function getCachedChannelEntries() {
   try {
-    const raw = localStorage.getItem(CHANNEL_LIST_CACHE_KEY);
+    migrateUnscopedUiKey(CHANNEL_LIST_CACHE_KEY);
+    const raw = localStorage.getItem(scopedUiKey(CHANNEL_LIST_CACHE_KEY));
     return raw ? JSON.parse(raw) : null;
   } catch (_e) { return null; }
 }
 
 function saveCachedChannelEntries(entries) {
   try {
-    localStorage.setItem(CHANNEL_LIST_CACHE_KEY, JSON.stringify(entries));
+    localStorage.setItem(scopedUiKey(CHANNEL_LIST_CACHE_KEY), JSON.stringify(entries));
   } catch (_e) {}
 }
 
@@ -408,7 +427,7 @@ function returnToChannelList(options = {}) {
   _activeChannelContext = null;
   _activeChannelProfile = null;
   if (options.forgetLast) {
-    try { localStorage.removeItem('last_active_channel_root_id'); } catch (_e) {}
+    try { localStorage.removeItem(scopedUiKey(LAST_ACTIVE_CHANNEL_KEY)); } catch (_e) {}
   }
 
   if (!_containerEl) {
@@ -437,6 +456,24 @@ function returnToChannelList(options = {}) {
 
 function clearActiveChannelView() {
   returnToChannelList({ forgetLast: true });
+}
+
+/**
+ * アカウント切替・フルリロード時に前アカウントの一覧／フィードを捨てて再読込
+ */
+export function resetChannelViewForAccount(state = null) {
+  if (state) _stateRef = state;
+  _searchSeq += 1;
+  _lastPublicRootIds = [];
+  returnToChannelList({ forgetLast: false });
+  if (_containerEl) {
+    const resultsEl = _containerEl.querySelector('#channelSearchResults');
+    if (resultsEl) {
+      resultsEl.classList.add('d-none');
+      resultsEl.innerHTML = '';
+    }
+    loadChannelList();
+  }
 }
 
 if (typeof window !== 'undefined' && !window.__nokakoiChannelBackBound) {
@@ -702,7 +739,7 @@ export async function selectChannel(rootId) {
   _feedPaused = false;
   _activeChannelContext = null;
   _activeChannelProfile = null;
-  try { localStorage.setItem('last_active_channel_root_id', rootId); } catch (_e) {}
+  try { localStorage.setItem(scopedUiKey(LAST_ACTIVE_CHANNEL_KEY), rootId); } catch (_e) {}
 
   buildChannelEmbedContext(getState(), rootId).then(ctx => {
     _activeChannelContext = ctx;
