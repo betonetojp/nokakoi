@@ -13,9 +13,12 @@ import {
   clearTextShortcodeRegistry,
   extractEmojiTagsFromText
 } from '../emoji/custom-emoji-store.js';
+import { sendChannelMessage } from '../channel/channel-feed.js';
+import { pickChannelRootId } from '../channel/channel.js';
 
 let currentReplyTarget = null;
 let currentGeohashTarget = null;
+let currentChannelTarget = null;
 let currentQuoteMode = false;
 let __composerLastState = null;
 let __composerLastNip19 = null;
@@ -44,6 +47,12 @@ export function setReplyTarget(state, event, nip19) {
     labelEl.style.display = ''; // 表示を復元
     labelEl.setAttribute('data-i18n', 'composer.replyLabel');
     labelEl.textContent = t('composer.replyLabel');
+  }
+
+  // ×ボタン（キャンセルボタン）を必ず再表示
+  const cancelBtn = replyContext.querySelector('#cancelReply');
+  if (cancelBtn) {
+    cancelBtn.style.display = '';
   }
 
 // （quote target用関数は setReplyTarget の後方に移動済み）
@@ -114,6 +123,9 @@ export function setQuoteTarget(state, event, nip19) {
   const changeLabel = replyContext.querySelector('#changeGeohashLabel');
   if (changeLabel) changeLabel.style.display = 'none';
 
+  const cancelBtn = replyContext.querySelector('#cancelReply');
+  if (cancelBtn) cancelBtn.style.display = '';
+
   replyContext.hidden = false;
   composerTitle.textContent = t('composer.title');
 
@@ -140,6 +152,7 @@ export function setQuoteTarget(state, event, nip19) {
  */
 export function setGeohashTarget(geohash) {
   currentReplyTarget = null;
+  currentChannelTarget = null;
   currentGeohashTarget = (geohash || '').trim();
 
   // geohash履歴に追加・保存
@@ -199,15 +212,99 @@ export function setGeohashTarget(geohash) {
 }
 
 /**
- * 返信対象をクリアし投稿欄を通常モードに戻す
+ * チャンネル投稿ターゲットをセットし共通投稿欄UIを更新
  */
-export function clearReplyTarget() {
+export function setChannelTarget(channelInfo) {
+  if (!channelInfo || !channelInfo.rootId) return;
   currentReplyTarget = null;
   currentGeohashTarget = null;
+  currentQuoteMode = false;
+  currentChannelTarget = channelInfo;
+
+  const composer = $('#composer');
+  if (composer) composer.hidden = false;
+
+  const replyContext = $('#replyContext');
+  const replyContextContent = $('#replyContextContent');
+  const composerTitle = $('#composerTitle');
+  const noteInput = $('#noteInput');
+
+  if (!replyContext || !replyContextContent || !composerTitle || !noteInput) return;
+
+  const labelEl = replyContext.querySelector('.reply-context-label');
+  if (labelEl) {
+    labelEl.style.display = '';
+    labelEl.removeAttribute('data-i18n');
+    labelEl.textContent = '投稿先:';
+  }
+
+  // チャンネル選択時は手動×ボタンを非表示にする（他タブ切替時にのみ解除）
+  const cancelBtn = replyContext.querySelector('#cancelReply');
+  if (cancelBtn) {
+    cancelBtn.style.display = 'none';
+  }
+
+  const changeLabel = replyContext.querySelector('#changeGeohashLabel');
+  if (changeLabel) {
+    changeLabel.style.display = 'none';
+  }
+
+  replyContext.hidden = false;
+  const channelName = channelInfo.name || 'チャンネル';
+  composerTitle.textContent = t('composer.title') || '投稿';
+
+  replyContextContent.innerHTML = `<span class="font-bold"># ${escapeHtml(channelName)}</span>`;
+
+  try { noteInput.placeholder = `# ${channelName} に投稿...`; } catch (_e) {}
+}
+
+export function getChannelTarget() {
+  return currentChannelTarget;
+}
+
+export function clearChannelTarget() {
+  currentChannelTarget = null;
+  clearReplyTarget();
+}
+
+/**
+ * チャンネルタブで未選択時の投稿窓非表示処理
+ */
+export function hideComposerForUnselectedChannel() {
+  currentChannelTarget = null;
+  const composer = $('#composer');
+  if (composer) composer.hidden = true;
+}
+
+/**
+ * 投稿窓表示処理
+ */
+export function revealComposerForSelectedChannel() {
+  const composer = $('#composer');
+  if (composer) composer.hidden = false;
+}
+
+/**
+ * 返信対象をクリアし投稿欄を通常モードに戻す
+ */
+export function clearReplyTarget(options = {}) {
+  currentReplyTarget = null;
+  currentGeohashTarget = null;
+  if (!options || options.preserveChannel !== true) {
+    currentChannelTarget = null;
+  }
   currentQuoteMode = false;
   try { if (typeof window !== 'undefined') window.__nokakoiQuoteMode = false; } catch (e) {}
   __composerLastState = null;
   __composerLastNip19 = null;
+
+  const composer = $('#composer');
+  if (composer) composer.hidden = false;
+
+  if (currentChannelTarget) {
+    setChannelTarget(currentChannelTarget);
+    return;
+  }
 
   const replyContext = $('#replyContext');
   const composerTitle = $('#composerTitle');
@@ -215,12 +312,19 @@ export function clearReplyTarget() {
 
   if (replyContext) {
     replyContext.hidden = true;
+    const replyContextContent = $('#replyContextContent');
+    if (replyContextContent) replyContextContent.innerHTML = '';
     // ラベルを既定状態へ戻す
     const labelEl = replyContext.querySelector('.reply-context-label');
     if (labelEl) {
       labelEl.style.display = ''; // 表示を復元
       labelEl.setAttribute('data-i18n', 'composer.replyLabel');
       labelEl.textContent = t('composer.replyLabel');
+    }
+    // ×ボタンの表示を復元
+    const cancelBtn = replyContext.querySelector('#cancelReply');
+    if (cancelBtn) {
+      cancelBtn.style.display = '';
     }
     // geohash変更ラベルは非表示へ戻す
     const changeLabel = replyContext.querySelector('#changeGeohashLabel');
@@ -254,7 +358,8 @@ export function setupCancelReplyButton() {
   const cancelBtn = $('#cancelReply');
   if (cancelBtn) {
     cancelBtn.onclick = () => {
-      clearReplyTarget();
+      // チャンネル投稿モード中の返信キャンセルはチャンネル選択を維持
+      clearReplyTarget({ preserveChannel: !!currentChannelTarget });
       const noteInput = $('#noteInput');
       if (noteInput) {
         noteInput.value = '';
@@ -563,65 +668,108 @@ export function setupComposerUI(state, { getOmochatRelays, consumeShareText }) {
     } catch (e) { }
   }
 
+  async function executePublishAction() {
+    const noteInput = $('#noteInput');
+    const content = (noteInput && noteInput.value || '').trim();
+    if (!content) return;
+
+    // nsec投稿防止チェック（nsec1+58文字のみ警告）
+    if (/nsec1[0-9a-z]{58}/i.test(content)) {
+      const result = $('#publishResult');
+      if (result) result.textContent = t('publish.nsec_warning');
+      return;
+    }
+
+    const replyTarget = currentReplyTarget;
+    const geohashTarget = currentGeohashTarget;
+    const channelTarget = currentChannelTarget;
+    const channelRootFromReply = (replyTarget && replyTarget.kind === 42) ? pickChannelRootId(replyTarget) : null;
+    let success;
+
+    if (channelTarget || channelRootFromReply) {
+      // チャンネル投稿として送信 (kind:42, 返信・引用含む)
+      const rootId = (channelTarget && channelTarget.rootId) || channelRootFromReply;
+      try {
+        await sendChannelMessage(rootId, content, state, {
+          replyToEvent: replyTarget,
+          isQuote: currentQuoteMode,
+          relays: (channelTarget && channelTarget.relays) || undefined
+        });
+        success = true;
+      } catch (err) {
+        console.error('[composer] Failed to send channel message', err);
+        const result = $('#publishResult');
+        if (result) result.textContent = '送信失敗: ' + (err.message || err);
+        success = false;
+      }
+      if (success) {
+        // チャンネルタブ選択中は投稿モードを維持。通知等からの kind:42 返信はクリア
+        clearReplyTarget({ preserveChannel: !!channelTarget });
+        clearTextShortcodeRegistry();
+        if (noteInput) {
+          noteInput.value = '';
+          noteInput.dispatchEvent(new Event('input'));
+        }
+        const result = $('#publishResult');
+        if (result) result.textContent = '送信しました';
+        blurComposerAfterPublish();
+      }
+    } else if (replyTarget) {
+      // 返信として送信 (kind:1 または NIP-22)
+      success = await replyToEvent(state, replyTarget, content);
+      if (success) {
+        clearReplyTarget();
+        clearTextShortcodeRegistry();
+        if (noteInput) {
+          noteInput.value = '';
+          noteInput.dispatchEvent(new Event('input'));
+        }
+        blurComposerAfterPublish();
+      }
+    } else if (geohashTarget) {
+      // Geohash投稿として送信 (kind:20000)
+      success = await publishNote(state, content, $('#publishResult'), {
+        kind: 20000,
+        relays: getOmochatRelays(),
+        tags: [['g', geohashTarget]]
+      });
+      if (success) {
+        clearReplyTarget();
+        clearTextShortcodeRegistry();
+        if (noteInput) {
+          noteInput.value = '';
+          noteInput.dispatchEvent(new Event('input'));
+        }
+        blurComposerAfterPublish();
+      }
+    } else {
+      // 通常投稿として送信 (kind:1 または kind:20000)
+      const activeTabBtn = document.querySelector('.tab.active');
+      const activeTab = activeTabBtn ? activeTabBtn.dataset.tab : null;
+      if (activeTab === 'channels') {
+        console.warn('[composer] チャンネル未選択のため kind:1 送信をキャンセルしました');
+        return;
+      }
+      if (activeTab === 'bitchat') {
+        success = await publishNote(state, content, $('#publishResult'), { kind: 20000, relays: getOmochatRelays() });
+      } else {
+        success = await publishNote(state, content, $('#publishResult'));
+      }
+      if (success) {
+        clearTextShortcodeRegistry();
+        if (noteInput) {
+          noteInput.value = '';
+          noteInput.dispatchEvent(new Event('input'));
+        }
+        blurComposerAfterPublish();
+      }
+    }
+  }
+
   const publishBtn = $('#publishBtn');
   if (publishBtn) {
     publishBtn.onclick = async () => {
-      const content = ($('#noteInput') && $('#noteInput').value || '').trim();
-      if (!content) return;
-
-      // nsec投稿防止チェック（nsec1+58文字のみ警告）
-      if (/nsec1[0-9a-z]{58}/i.test(content)) {
-        const result = $('#publishResult');
-        if (result) result.textContent = t('publish.nsec_warning');
-        return;
-      }
-
-      const replyTarget = currentReplyTarget;
-      const geohashTarget = currentGeohashTarget;
-      let success;
-
-      if (replyTarget) {
-        // 返信として送信
-        success = await replyToEvent(state, replyTarget, content);
-        if (success) {
-          clearReplyTarget();
-          clearTextShortcodeRegistry();
-          $('#noteInput').value = '';
-          $('#noteInput').dispatchEvent(new Event('input'));
-          const result = $('#publishResult');
-          if (result) result.textContent = t('publish.replied');
-          blurComposerAfterPublish();
-        }
-      } else if (geohashTarget) {
-        // Geohash投稿として送信 (kind:20000)
-        success = await publishNote(state, content, $('#publishResult'), {
-          kind: 20000,
-          relays: getOmochatRelays(),
-          tags: [['g', geohashTarget]]
-        });
-        if (success) {
-          clearReplyTarget();
-          clearTextShortcodeRegistry();
-          $('#noteInput').value = '';
-          $('#noteInput').dispatchEvent(new Event('input'));
-          blurComposerAfterPublish();
-        }
-      } else {
-        // 通常投稿として送信
-        const activeTabBtn = document.querySelector('.tab.active');
-        const activeTab = activeTabBtn ? activeTabBtn.dataset.tab : null;
-        if (activeTab === 'bitchat') {
-          success = await publishNote(state, content, $('#publishResult'), { kind: 20000, relays: getOmochatRelays() });
-        } else {
-          success = await publishNote(state, content, $('#publishResult'));
-        }
-        if (success) {
-          clearTextShortcodeRegistry();
-          $('#noteInput').value = '';
-          $('#noteInput').dispatchEvent(new Event('input'));
-          blurComposerAfterPublish();
-        }
-      }
+      await executePublishAction();
     };
   }
 
@@ -635,59 +783,7 @@ export function setupComposerUI(state, { getOmochatRelays, consumeShareText }) {
     noteInput.addEventListener('keydown', async function (e) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
-        const content = noteInput.value.trim();
-        if (!content) return;
-
-        // nsec投稿防止チェック（nsec1+58文字のみ警告）
-        if (/nsec1[0-9a-z]{58}/i.test(content)) {
-          const result = $('#publishResult');
-          if (result) result.textContent = t('publish.nsec_warning');
-          return;
-        }
-
-        const replyTarget = currentReplyTarget;
-        const geohashTarget = currentGeohashTarget;
-        let success;
-
-        if (replyTarget) {
-          success = await replyToEvent(state, replyTarget, content);
-          if (success) {
-            clearReplyTarget();
-            clearTextShortcodeRegistry();
-            noteInput.value = '';
-            noteInput.dispatchEvent(new Event('input'));
-            const result = $('#publishResult');
-            if (result) result.textContent = t('publish.replied');
-            blurComposerAfterPublish();
-          }
-        } else if (geohashTarget) {
-          success = await publishNote(state, content, $('#publishResult'), {
-            kind: 20000,
-            relays: getOmochatRelays(),
-            tags: [['g', geohashTarget]]
-          });
-          if (success) {
-            clearReplyTarget();
-            clearTextShortcodeRegistry();
-            noteInput.value = '';
-            noteInput.dispatchEvent(new Event('input'));
-            blurComposerAfterPublish();
-          }
-        } else {
-          const activeTabBtn = document.querySelector('.tab.active');
-          const activeTab = activeTabBtn ? activeTabBtn.dataset.tab : null;
-          if (activeTab === 'bitchat') {
-            success = await publishNote(state, content, $('#publishResult'), { kind: 20000, relays: getOmochatRelays() });
-          } else {
-            success = await publishNote(state, content, $('#publishResult'));
-          }
-          if (success) {
-            clearTextShortcodeRegistry();
-            noteInput.value = '';
-            noteInput.dispatchEvent(new Event('input'));
-            blurComposerAfterPublish();
-          }
-        }
+        await executePublishAction();
       }
     });
   }

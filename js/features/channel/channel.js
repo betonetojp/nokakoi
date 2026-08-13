@@ -159,7 +159,7 @@ export function extractChannelProfileFields(rootEvent, metaEvent) {
   return out;
 }
 
-function encodeChannelNevent(eventId, options = {}) {
+export function encodeChannelNevent(eventId, options = {}) {
   let nevent = null;
   const relays = Array.isArray(options.relays) ? options.relays : [];
   const payload = { id: eventId, relays };

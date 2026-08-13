@@ -401,12 +401,10 @@
 
     <section id="composer" class="panel composer-floating" hidden>
       <div id="replyContext" class="reply-context" hidden>
-        <div class="reply-context-header">
-          <span class="reply-context-label" data-i18n="composer.replyLabel">返信先:</span>
-          <span id="changeGeohashLabel" class="change-geohash-label" data-i18n="composer.change_geohash_label">別のgeohashに投稿</span>
-          <button id="cancelReply" class="btn-cancel-reply" type="button" data-i18n-title="reply.cancelTitle" data-i18n-aria-label="reply.cancelTitle">✕</button>
-        </div>
-        <div id="replyContextContent" class="reply-context-content"></div>
+        <button id="cancelReply" class="btn-cancel-reply" type="button" data-i18n-title="reply.cancelTitle" data-i18n-aria-label="reply.cancelTitle">✕</button>
+        <span class="reply-context-label" data-i18n="composer.replyLabel">返信先:</span>
+        <span id="replyContextContent" class="reply-context-content"></span>
+        <span id="changeGeohashLabel" class="change-geohash-label" data-i18n="composer.change_geohash_label">別のgeohashに投稿</span>
       </div>
       <div class="composer-header-row">
         <h2 id="composerTitle" data-i18n="composer.title">投稿</h2>
@@ -601,6 +599,7 @@
       <div id="feed-mentions" class="feed"></div>
       <div id="feed-me" class="feed"></div>
       <div id="feed-bitchat" class="feed"></div>
+      <div id="feed-channels" class="feed"></div>
     </section>
   </main>
 

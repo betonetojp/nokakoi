@@ -104,6 +104,7 @@
   "tabs.global": "リレー",
   "tabs.me": "自分",
   "tabs.mentions": "通知",
+  "tabs.channels": "チャンネル",
   "tabs.bitchat": "omochat",
   "reply.cancelTitle": "キャンセル",
   "quote.label": "{author} を引用",

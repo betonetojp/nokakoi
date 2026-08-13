@@ -103,10 +103,46 @@ function addHashtagTags(draft) {
   }
 }
 
+// NIP-07 用のドラフト検証・補完 (aka-profiles / nostr-tools 等の厳格な検証エラーを防止)
+function ensureHexPubkey(pk) {
+  if (!pk || typeof pk !== 'string') return null;
+  const clean = pk.trim();
+  if (/^[0-9a-f]{64}$/i.test(clean)) return clean.toLowerCase();
+  if (clean.startsWith('npub1')) {
+    try {
+      const nip19 = getNip19();
+      if (nip19 && typeof nip19.decode === 'function') {
+        const decoded = nip19.decode(clean);
+        if (decoded && decoded.type === 'npub' && decoded.data) {
+          return decoded.data;
+        }
+      }
+    } catch (_e) {}
+  }
+  return null;
+}
+
+function sanitizeTags(tags) {
+  if (!Array.isArray(tags)) return [];
+  return tags
+    .filter(t => Array.isArray(t) && t.length > 0)
+    .map(t => {
+      const cleaned = t.map(val => (val === null || val === undefined) ? '' : String(val));
+      // 末尾の空文字を除去 (例: ['e', id, '', ''] -> ['e', id])
+      while (cleaned.length > 1 && cleaned[cleaned.length - 1] === '') {
+        cleaned.pop();
+      }
+      return cleaned;
+    });
+}
+
 /**
  * 現在の署名モードでイベントに署名
  */
 export async function signEventWithMode(state, draft) {
+  if (draft && draft.tags) {
+    draft.tags = sanitizeTags(draft.tags);
+  }
   const getPublicKey = getPublicKeyFn();
   const finalizeEvent = getFinalizeEvent();
 
@@ -148,14 +184,38 @@ export async function signEventWithMode(state, draft) {
     return signer.sign(draft);
   }
 
+  const prepareNip07Draft = async (d) => {
+    let hexPk = ensureHexPubkey(d.pubkey);
+    if (!hexPk) {
+      if (state && state.pubkey) hexPk = ensureHexPubkey(state.pubkey);
+      if (!hexPk) hexPk = ensureHexPubkey(localStorage.getItem('pubkey'));
+      if (!hexPk && window.nostr && typeof window.nostr.getPublicKey === 'function') {
+        try {
+          const extPk = await window.nostr.getPublicKey();
+          hexPk = ensureHexPubkey(extPk);
+        } catch (_e) {}
+      }
+    }
+    // nostr-tools/pure serializeEvent が厳格に求める 5 大要素プロパティ型 (tags内の全要素がstring型) で構成
+    return {
+      kind: Number(d.kind),
+      created_at: Number(d.created_at || Math.floor(Date.now() / 1000)),
+      tags: sanitizeTags(d.tags),
+      content: String(d.content || ''),
+      pubkey: hexPk || ''
+    };
+  };
+
   // NIP-07 明示指定
-  if ((state.signer === 'nip07' || effectiveSigner === 'nip07') && window.nostr && window.nostr.signEvent) {
-    return await window.nostr.signEvent(draft);
+  if ((state && state.signer === 'nip07' || effectiveSigner === 'nip07') && window.nostr && window.nostr.signEvent) {
+    const validDraft = await prepareNip07Draft(draft);
+    return await window.nostr.signEvent(validDraft);
   }
 
   // フォールバック: 拡張が利用可能なら試す
   if (window.nostr && window.nostr.signEvent) {
-    return await window.nostr.signEvent(draft);
+    const validDraft = await prepareNip07Draft(draft);
+    return await window.nostr.signEvent(validDraft);
   }
 
   // 最後の手段として、local sk があれば finalizeEvent を再試行
@@ -202,7 +262,7 @@ function releaseLock(name) {
 }
 
 // client タグ付与設定を localStorage/appSettings から取得するヘルパー
-function getClientAttachInfo() {
+export function getClientAttachInfo() {
   try {
     const appSettings = JSON.parse(localStorage.getItem('appSettings') || '{}');
     const attach = (appSettings.attachClientName !== undefined) ? appSettings.attachClientName : true;
@@ -501,7 +561,7 @@ export async function replyToEvent(state, targetEv, text) {
 
       if (!tags.some(t => t[0] === 'g')) {
         let geohash = 'xn';
-        try { const s = getActiveAppSettings(); if(s && s.omochatGeohash) geohash = s.omochatGeohash; } catch(e){}
+        try { const s = JSON.parse(localStorage.getItem('appSettings')); if(s && s.omochatGeohash) geohash = s.omochatGeohash; } catch(_e){}
         tags.push(['g', geohash]);
       }
 
@@ -519,6 +579,21 @@ export async function replyToEvent(state, targetEv, text) {
         } catch(e) {}
         tags.push(['n', name]);
       }
+    } else if (targetEv.kind === 42) {
+      // NIP-28 チャンネルメッセージへの返信は kind:42 で送信
+      const { pickChannelRootId } = await import('../channel/channel.js');
+      const { sendChannelMessage } = await import('../channel/channel-feed.js');
+      const rootId = pickChannelRootId(targetEv);
+      if (!rootId) {
+        alert(t('publish.failed', { msg: 'チャンネル root を解決できませんでした' }));
+        return false;
+      }
+      const quoteMode = window && window.getQuoteMode ? window.getQuoteMode() : (window.__nokakoiQuoteMode || false);
+      await sendChannelMessage(rootId, text, effectiveState, {
+        replyToEvent: targetEv,
+        isQuote: !!quoteMode
+      });
+      return true;
     } else if (alwaysUseComment || targetEv.kind === 1111) {
       // NIP-22 (kind: 1111) コメント送信
       replyKind = 1111;
@@ -644,7 +719,7 @@ export async function replyToEvent(state, targetEv, text) {
     let writeRelays;
     if (replyKind === 20000) {
       try {
-        const s = getActiveAppSettings();
+        const s = JSON.parse(localStorage.getItem('appSettings'));
         const isAuto = s && s.omochatAutoRelays !== false;
         if (isAuto && Array.isArray(s.omochatComputedRelays) && s.omochatComputedRelays.length > 0) {
           writeRelays = s.omochatComputedRelays.slice();

@@ -17,16 +17,8 @@ export function setupDelegatedFeedHandlers(state, settingsManager, feedsContaine
   const nip19 = getNip19();
   const touchTimers = new Map();
   
-  const eventListContainers = [
-    feedsContainer, 
-    document.getElementById('profileEvents')
-  ].filter(Boolean);
-
-  if (!eventListContainers.length) return;
-
-  eventListContainers.forEach((container) => {
-    // クリックイベントの委譲
-    container.addEventListener('click', async (e) => {
+  // 全タイムライン・チャンネルフィード・プロフイベントへ対応するため document 全体に委譲登録
+  document.addEventListener('click', async (e) => {
       try {
         const reactBtn = e.target.closest && e.target.closest('.btn-react');
         if (reactBtn) {
@@ -141,7 +133,7 @@ export function setupDelegatedFeedHandlers(state, settingsManager, feedsContaine
     }, false);
 
     // 右クリック（コンテキストメニュー）でのリアクション既定値変更モーダルの表示
-    container.addEventListener('contextmenu', (e) => {
+    document.addEventListener('contextmenu', (e) => {
       try {
         const reactBtn = e.target.closest && e.target.closest('.btn-react');
         if (!reactBtn) return;
@@ -181,7 +173,7 @@ export function setupDelegatedFeedHandlers(state, settingsManager, feedsContaine
     }, false);
 
     // モバイル長押しでのリアクション既定値変更モーダルの表示
-    container.addEventListener('touchstart', (e) => {
+    document.addEventListener('touchstart', (e) => {
       try {
         const reactBtn = e.target.closest && e.target.closest('.btn-react');
         if (!reactBtn) return;
@@ -226,7 +218,7 @@ export function setupDelegatedFeedHandlers(state, settingsManager, feedsContaine
       } catch (e) { }
     }, { passive: true });
 
-    container.addEventListener('touchend', (e) => {
+    document.addEventListener('touchend', (e) => {
       try {
         const reactBtn = e.target.closest && e.target.closest('.btn-react');
         if (!reactBtn) return;
@@ -238,5 +230,4 @@ export function setupDelegatedFeedHandlers(state, settingsManager, feedsContaine
         if (to) { clearTimeout(to); touchTimers.delete(tId); }
       } catch (e) { }
     }, { passive: true });
-  });
 }

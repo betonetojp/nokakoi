@@ -959,7 +959,7 @@ export function setupAuthedFeeds() {
         try { window.__mentionsInitialLoading = true; } catch (e) { }
         const isMentionsActive = activeTab === 'mentions';
         const mentionsHist = isMentionsActive ? [
-          { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+          { kinds: [1, 6, 7, 42, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
           { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
         ] : [];
         stopFetcherSlot('_mentionsFetcher');
@@ -1366,8 +1366,8 @@ export function handleTabChange(oldTab, newTab) {
   });
 
   try { cancelInactiveTabOneshots(newTab); } catch (e) { }
-  // bitchat 以外の非アクティブ化したタブについて、メモリを完全クリアせず、EVENTS_FETCH_LIMIT 件にトリムして保持する
-  if (oldTab && oldTab !== newTab && oldTab !== 'bitchat') {
+  // bitchat, channels 以外の非アクティブ化したタブについて、メモリを完全クリアせず、EVENTS_FETCH_LIMIT 件にトリムして保持する
+  if (oldTab && oldTab !== newTab && oldTab !== 'bitchat' && oldTab !== 'channels') {
     // フィードデータを EVENTS_FETCH_LIMIT 件にトリムしてメモリに保持
     trimFeedToMax(oldTab, EVENTS_FETCH_LIMIT);
 
@@ -1381,7 +1381,7 @@ export function handleTabChange(oldTab, newTab) {
   }
 
   // 2. 切り替え先 (newTab) の処理
-  if (newTab && newTab !== 'bitchat') {
+  if (newTab && newTab !== 'bitchat' && newTab !== 'channels') {
     // どんなタブ（mentions, me, global 等）に切り替える時でも、万が一 _homeFetcher (home_live) が死んでいれば即座に自動復旧する
     if (localStorage.getItem('pubkey') && !state._homeFetcher) {
       console.log('[FeedManager] タブ切り替え時に _homeFetcher (home_live) が存在しません。ホームフィードを自動復旧します');

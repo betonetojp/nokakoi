@@ -229,6 +229,9 @@ function setupInfiniteScrollObserver() {
     rootMargin: '600px 0px 600px 0px',
     threshold: 0
   });
+  if (typeof window !== 'undefined') {
+    window.__infiniteScrollObserver = _infiniteScrollObserver;
+  }
 }
 
 export async function initApp() {

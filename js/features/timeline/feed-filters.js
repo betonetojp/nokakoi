@@ -35,7 +35,7 @@ export function getFeedBaseFilters(state, settingsManager, feedId) {
     } else if (feedId === 'mentions') {
       const pubkey = localStorage.getItem('pubkey');
       return [
-        { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 7, 42, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
         { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
       ];
     } else if (feedId === 'me') {

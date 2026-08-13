@@ -1,4 +1,6 @@
 export async function awaitAny(promises) {
+  if (!promises || !promises.length) return Promise.resolve();
+  // Promise.any: 1つでも成功すれば resolve。全失敗時は AggregateError を throw（偽成功にしない）
   if (typeof Promise.any === 'function') return Promise.any(promises);
   return Promise.race(promises);
 }

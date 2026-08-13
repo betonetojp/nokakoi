@@ -40,6 +40,16 @@ export function pickETagEventId(ev) {
     return eTags[eTags.length - 1][1];
   }
 
+  if (ev.kind === 42) {
+    for (const t of eTags) {
+      if ((t[3] || '').toString().toLowerCase() === 'reply') return t[1];
+    }
+    if (eTags.length >= 2) {
+      return eTags[1][1];
+    }
+    return null;
+  }
+
   for (const t of eTags) {
     try {
       if ((t[3] || '').toString().toLowerCase() === 'reply') return t[1];
@@ -69,6 +79,17 @@ export function pickETagWithHint(ev) {
   if (ev.kind === 7) {
     const tag = eTags[eTags.length - 1];
     return { eventId: tag[1], relayHint: tag[2] || '' };
+  }
+
+  if (ev.kind === 42) {
+    for (const t of eTags) {
+      if ((t[3] || '').toString().toLowerCase() === 'reply') return { eventId: t[1], relayHint: t[2] || '' };
+    }
+    if (eTags.length >= 2) {
+      const replyTag = eTags[1];
+      return { eventId: replyTag[1], relayHint: replyTag[2] || '' };
+    }
+    return { eventId: null, relayHint: '' };
   }
 
   for (const t of eTags) {

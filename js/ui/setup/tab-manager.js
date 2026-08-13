@@ -7,10 +7,24 @@ import { showHomeDisplayQuickModal } from './display-settings.js';
 export const DEFAULT_TABS = [
   { id: 'home', labelKey: 'tabs.home', canToggle: true, defaultVisible: true },
   { id: 'global', labelKey: 'tabs.global', canToggle: true, defaultVisible: true },
+  { id: 'channels', labelKey: 'tabs.channels', fallbackLabel: 'チャンネル', canToggle: true, defaultVisible: false },
   { id: 'me', labelKey: 'tabs.me', canToggle: true, defaultVisible: true },
   { id: 'mentions', labelKey: 'tabs.mentions', canToggle: true, defaultVisible: true },
   { id: 'bitchat', labelKey: 'tabs.bitchat', fallbackLabel: 'omochat', canToggle: true, defaultVisible: true }
 ];
+
+async function ensureChannelView(settingsManager) {
+  const feedChan = document.getElementById('feed-channels');
+  const m = await import('../../features/channel/channel-ui.js');
+  if (feedChan && (!feedChan.children.length || feedChan.dataset.initialized !== 'true')) {
+    feedChan.dataset.initialized = 'true';
+    const currentState = (typeof window !== 'undefined' && window.__nostrState) ? window.__nostrState : null;
+    if (m && typeof m.initChannelView === 'function') {
+      m.initChannelView(feedChan, currentState, settingsManager);
+    }
+  }
+  return m;
+}
 
 export function loadTabSettings(settingsManager) {
   try {
@@ -24,7 +38,15 @@ export function loadTabSettings(settingsManager) {
         }
       }
     }
-    if (raw) return raw;
+    if (raw && Array.isArray(raw)) {
+      if (!raw.some(t => t.id === 'channels')) {
+        const bitIndex = raw.findIndex(t => t.id === 'bitchat');
+        const newChan = { id: 'channels', labelKey: 'tabs.channels', fallbackLabel: 'チャンネル', canToggle: true, defaultVisible: false, visible: false, notifyDot: true };
+        if (bitIndex >= 0) raw.splice(bitIndex, 0, newChan);
+        else raw.push(newChan);
+      }
+      return raw;
+    }
   } catch (e) {}
 
   let tabs = JSON.parse(JSON.stringify(DEFAULT_TABS));
@@ -148,7 +170,17 @@ export function setupTabs(settingsManager, preserveActive = false) {
         clearMentionBlinkState();
       }
 
-      try { clearReplyTarget(); } catch(e){}
+      if (btn.dataset.tab === 'channels') {
+        ensureChannelView(settingsManager).then((m) => {
+          if (m && typeof m.syncChannelComposerState === 'function') m.syncChannelComposerState();
+          if (m && typeof m.resumeChannelSubscriptions === 'function') m.resumeChannelSubscriptions();
+        }).catch(() => {});
+      } else {
+        try { clearReplyTarget(); } catch (_e) {}
+        import('../../features/channel/channel-ui.js').then(m => {
+          if (m && typeof m.pauseChannelSubscriptions === 'function') m.pauseChannelSubscriptions();
+        }).catch(() => {});
+      }
 
       try {
         const detailsEls = document.querySelectorAll('details');
@@ -337,6 +369,13 @@ export function setupTabs(settingsManager, preserveActive = false) {
     const fid = 'feed-' + target.dataset.tab;
     const f = document.getElementById(fid);
     if (f) f.classList.add('active');
+
+    if (target.dataset.tab === 'channels') {
+      ensureChannelView(settingsManager).then((m) => {
+        if (m && typeof m.syncChannelComposerState === 'function') m.syncChannelComposerState();
+        if (m && typeof m.resumeChannelSubscriptions === 'function') m.resumeChannelSubscriptions();
+      }).catch(() => {});
+    }
 
     const ehagakiBtn = document.getElementById('ehagakiBtn');
     if (ehagakiBtn) {

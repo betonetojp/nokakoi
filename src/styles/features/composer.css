@@ -59,13 +59,53 @@
   outline: none;
 }
 
+.reply-context {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.reply-context[hidden] {
+  display: none !important;
+}
+
+.btn-cancel-reply {
+  background: transparent;
+  border: none;
+  color: var(--muted, #888);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 0.9rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-cancel-reply:hover {
+  color: var(--text-danger, #ff4d4f);
+}
+
+.reply-context-label {
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .reply-context-content {
   font-size: 0.85rem;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 .reply-author {

@@ -37,9 +37,10 @@ import { renderReplyContext } from './reply-renderer.js';
 /**
  * リアクションボタンのセットアップ
  */
-export function setupReactButton(div, ev, settings, settingsManager, reactToEvent) {
+export function setupReactButton(div, ev, settings, settingsManager, reactToEvent, state = null) {
   const reactBtn = div.querySelector('.btn-react');
   if (!reactBtn) return;
+  const effectiveState = state || (typeof window !== 'undefined' && window.__nostrState) || null;
 
   const resolveImmediateEmojiTags = function (reaction) {
     let emojiTags = [];
@@ -165,7 +166,7 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
     if (e && (e.shiftKey || e.altKey || e.metaKey || e.ctrlKey)) {
       const nowDefault = (settingsManager && typeof settingsManager.get === 'function') ? (settingsManager.get('reactionDefault') || settings.reactionDefault || '+') : (settings.reactionDefault || '+');
       const runReactOnce = async (symbol) => {
-        const ok = await reactToEvent(ev, symbol);
+        const ok = typeof reactToEvent === 'function' ? await reactToEvent(effectiveState, ev, symbol) : false;
         if (!ok) {
           restoreReactionUI();
           throw new Error('react_failed');
@@ -185,7 +186,7 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
       });
     } else {
       const reactionSym = (settingsManager && typeof settingsManager.get === 'function') ? (settingsManager.get('reactionDefault') || settings.reactionDefault || '+') : (settings.reactionDefault || '+');
-      const ok = await reactToEvent(ev, reactionSym);
+      const ok = typeof reactToEvent === 'function' ? await reactToEvent(effectiveState, ev, reactionSym) : false;
       if (!ok) {
         restoreReactionUI();
         return;
@@ -199,7 +200,7 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
     e.preventDefault();
     const nowDefault = (settingsManager && typeof settingsManager.get === 'function') ? (settingsManager.get('reactionDefault') || settings.reactionDefault || '+') : (settings.reactionDefault || '+');
     const runReactOnce = async (symbol) => {
-      const ok = await reactToEvent(ev, symbol);
+      const ok = typeof reactToEvent === 'function' ? await reactToEvent(effectiveState, ev, symbol) : false;
       if (!ok) throw new Error('react_failed');
       settingsManager.saveUserReaction(ev.id, symbol);
       applyReactionUI(symbol);
@@ -950,7 +951,7 @@ function bindEventListeners(div, ev, state, nip19, settings, settingsManager, re
 
   if (!localStorage.getItem('pubkey')) return;
 
-  setupReactButton(div, ev, settings, settingsManager, reactToEvent);
+  setupReactButton(div, ev, settings, settingsManager, reactToEvent, state);
   setupRepostButton(div, ev, repostEvent);
   setupReplyButton(div, ev, replyToEvent);
 
@@ -976,7 +977,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
   const allowInlineMedia = (settings && settings.showTimelineMedia === true) && !muteState.isMuted;
 
   const replyToHtml = renderReplyContext(state, ev, nip19, { ...(settings || {}), settingsManager, isModal: false, showTimelineMedia: allowInlineMedia });
-  const channelContextHtml = ev.kind === 42 ? renderChannelContext(state, ev) : '';
+  const channelContextHtml = (ev.kind === 42 && feedId !== 'channels') ? renderChannelContext(state, ev) : '';
 
   let names;
   if (ev.kind === 20000) {
@@ -1061,7 +1062,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
       omochatButtons +
       (ev.kind !== 20000 ? '<button class="btn-quote" type="button" data-i18n-title="quote"><img src="icon/note.png" alt="" class="icon-btn" data-i18n-alt="quote"></button>' : '') +
       (ev.kind !== 20000 ? '<button class="btn-repost" type="button" data-i18n-title="repost"><img src="icon/repost.png" alt="" class="icon-btn" data-i18n-alt="repost"></button>' : '') +
-      (ev.kind === 1 || ev.kind === 1111 || ev.kind === 20000 ? '<button class="btn-reply" type="button" data-i18n-title="reply"><img src="icon/reply.png" alt="" class="icon-btn" data-i18n-alt="reply"></button>' : '') +
+      (ev.kind === 1 || ev.kind === 1111 || ev.kind === 20000 || ev.kind === 42 ? '<button class="btn-reply" type="button" data-i18n-title="reply"><img src="icon/reply.png" alt="" class="icon-btn" data-i18n-alt="reply"></button>' : '') +
       '</div>' : '') +
     '</div>';
 
