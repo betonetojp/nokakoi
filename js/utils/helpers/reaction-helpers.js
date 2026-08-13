@@ -1,5 +1,6 @@
 import { getRegisteredTextShortcodeVariant, resolveCustomEmoji } from '../../features/emoji/custom-emoji-store.js';
 import { logWarn } from './misc-helpers.js';
+import { getCustomEmojis } from '../../core/app-context.js';
 
 const REACTION_SHORTCODE_ONLY_RE = /^:([a-zA-Z0-9_+-]+):$/;
 
@@ -46,7 +47,7 @@ export function resolveReactionCustomEmoji(reaction) {
   } catch (e) { logWarn('[Utils] getRegisteredTextShortcodeVariant 失敗:', e); }
 
   try {
-    const customEmojis = (typeof window !== 'undefined' && window.__customEmojis instanceof Map) ? window.__customEmojis : null;
+    const customEmojis = getCustomEmojis();
     if (customEmojis) {
       const resolved = resolveCustomEmoji(customEmojis, shortcode);
       if (resolved && resolved.url) {

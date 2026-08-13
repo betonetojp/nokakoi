@@ -1,3 +1,5 @@
+import { getAppState, setRelayInspector } from '../app-context.js';
+
 import { findEventById, cacheEvent } from '../state.js';
 import { getReadRelays, normalizeUrl } from './relay-helpers.js';
 import { MAX_LIVE_PER_RELAY, MAX_ONESHOT_PER_RELAY, MAX_TOTAL_SUB_PER_RELAY, EVENTS_TIMEOUT, PER_RELAY_ONESHOT_LIMIT } from '../../config/constants.js';
@@ -6,6 +8,8 @@ import { debugRelay, relayStates } from './relay-state.js';
 
 // subId -> リスナー集合
 export const logicalListeners = new Map();
+// state.subs へ登録される前の同一 logical subscription 開始競合を集約する。
+export const pendingLogicalSubscriptions = new Map();
 
 // relay ごと・種別ごとのアクティブ件数
 export const relayActiveCounts = {
@@ -14,11 +18,116 @@ export const relayActiveCounts = {
 };
 
 export const subscribeQueue = [];
+export const relayCooldownUntil = new Map();
+const RELAY_DRAIN_COOLDOWN_MS = 250;
+let queueCooldownTimer = null;
+let queueProcessingSuspended = 0;
+
+export class RelaySubscriptionCancelledError extends Error {
+  constructor(message = 'relay subscription cancelled') {
+    super(message);
+    this.name = 'RelaySubscriptionCancelledError';
+    this.code = 'RELAY_SUBSCRIPTION_CANCELLED';
+  }
+}
+
+function settleQueuedRequest(req, outcome, value) {
+  if (!req || req.__startSettled) return false;
+  req.__startSettled = true;
+  try {
+    const callback = outcome === 'resolve' ? req.resolve : req.reject;
+    if (typeof callback === 'function') callback(value);
+  } catch (e) { }
+  return true;
+}
+
+function cleanupQueuedRequestIdentity(req) {
+  if (!req) return;
+  if (req.logicalIdentity) {
+    const pending = pendingLogicalSubscriptions.get(req.logicalIdentity);
+    if (pending && pending.queuedReq === req) {
+      try { pending.listeners.clear(); } catch (e) { }
+      pendingLogicalSubscriptions.delete(req.logicalIdentity);
+    }
+  }
+  if (req.subId) logicalListeners.delete(req.subId);
+}
+
+/**
+ * Cancel a queued (or not-yet-registered) subscription and settle its start promise.
+ * Safe to call repeatedly; cleanup, close, and rejection happen at most once.
+ */
+export function cancelQueuedSubscription(req, reason = 'relay subscription cancelled') {
+  if (!req) return false;
+  const wasQueued = subscribeQueue.includes(req);
+  const wasPending = !!(req.logicalIdentity &&
+    pendingLogicalSubscriptions.get(req.logicalIdentity)?.queuedReq === req);
+  const wasUnsettled = !req.__startSettled;
+
+  req.cancelled = true;
+  for (let i = subscribeQueue.length - 1; i >= 0; i--) {
+    if (subscribeQueue[i] === req) subscribeQueue.splice(i, 1);
+  }
+  cleanupQueuedRequestIdentity(req);
+
+  if (req.sub && typeof req.sub.close === 'function') {
+    try { req.sub.close(); } catch (e) { }
+  }
+  settleQueuedRequest(
+    req,
+    'reject',
+    reason instanceof RelaySubscriptionCancelledError
+      ? reason
+      : new RelaySubscriptionCancelledError(String(reason || 'relay subscription cancelled'))
+  );
+  return wasQueued || wasPending || wasUnsettled;
+}
+
+export function cancelQueuedSubscriptionsForPool(pool, reason = 'relay pool closed') {
+  if (!pool) return 0;
+  let count = 0;
+  const requests = new Set(subscribeQueue);
+  for (const pending of pendingLogicalSubscriptions.values()) {
+    if (pending && pending.queuedReq) requests.add(pending.queuedReq);
+  }
+  for (const req of requests) {
+    if (req && req.pool === pool && cancelQueuedSubscription(req, reason)) count++;
+  }
+  return count;
+}
 
 const FEED_TAB_IDS = ['home', 'global', 'mentions', 'me'];
 
 function relayKey(url) {
   return (typeof url === 'string') ? url.trim().replace(/\/+$/, '') : url;
+}
+
+function scheduleQueueAfterCooldown() {
+  if (queueCooldownTimer) return;
+  const now = Date.now();
+  let wait = Infinity;
+  for (const until of relayCooldownUntil.values()) {
+    if (until > now) wait = Math.min(wait, until - now);
+  }
+  if (!Number.isFinite(wait)) return;
+  queueCooldownTimer = setTimeout(() => {
+    queueCooldownTimer = null;
+    const current = Date.now();
+    for (const [key, until] of relayCooldownUntil.entries()) {
+      if (until <= current) relayCooldownUntil.delete(key);
+    }
+    processSubscribeQueue();
+    if (subscribeQueue.length) scheduleQueueAfterCooldown();
+  }, Math.max(0, wait));
+}
+
+function markRelayCooldown(relays) {
+  const until = Date.now() + RELAY_DRAIN_COOLDOWN_MS;
+  for (const relay of relays || []) {
+    const key = relayKey(relay);
+    if (key) relayCooldownUntil.set(key, Math.max(relayCooldownUntil.get(key) || 0, until));
+  }
+  scheduleQueueAfterCooldown();
 }
 
 function getNostrState() {
@@ -83,10 +192,16 @@ export function cancelOneshotByPredicate(predicate) {
       const type = req.type || inferReqType(req.filters, req.key);
       if (type !== 'oneshot') continue;
       if (!predicate(req.key, req)) continue;
-      req.cancelled = true;
-      subscribeQueue.splice(i, 1);
-      count++;
-      try { if (typeof req.reject === 'function') req.reject(new Error('cancelled')); } catch (e) { }
+      if (cancelQueuedSubscription(req)) count++;
+    }
+
+    // subscribeMany 開始済みだが Promise の state.subs 登録前にある購読も対象にする。
+    for (const pending of Array.from(pendingLogicalSubscriptions.values())) {
+      const req = pending && pending.queuedReq;
+      if (!req || req.cancelled) continue;
+      const type = req.type || inferReqType(req.filters, req.key);
+      if (type !== 'oneshot' || !predicate(req.key, req)) continue;
+      if (cancelQueuedSubscription(req)) count++;
     }
 
     const state = getNostrState();
@@ -195,18 +310,37 @@ export function sanitizeRelayActiveCounts() {
   }
 }
 
+export function shouldCloseSubscriptionNetwork(pool, relays) {
+  try {
+    if (!pool || !Array.isArray(relays) || relays.length === 0) return true;
+    const CONNECTING = (typeof WebSocket !== 'undefined' && typeof WebSocket.CONNECTING === 'number') ? WebSocket.CONNECTING : 0;
+    const OPEN = (typeof WebSocket !== 'undefined' && typeof WebSocket.OPEN === 'number') ? WebSocket.OPEN : 1;
+    const CLOSING = (typeof WebSocket !== 'undefined' && typeof WebSocket.CLOSING === 'number') ? WebSocket.CLOSING : 2;
+    const CLOSED = (typeof WebSocket !== 'undefined' && typeof WebSocket.CLOSED === 'number') ? WebSocket.CLOSED : 3;
+    for (const url of relays) {
+      try {
+        const relay = getRelayFromPool(pool, url);
+        const ws = relay && relay.ws;
+        if (!ws || typeof ws.readyState !== 'number') return true;
+        if (ws.readyState === CONNECTING || ws.readyState === OPEN) return true;
+        if (ws.readyState !== CLOSING && ws.readyState !== CLOSED) return true;
+      } catch (e) {
+        return true;
+      }
+    }
+    return false;
+  } catch (e) { }
+  return true;
+}
+
 export function hasOpenSocketForRelays(pool, relays) {
   try {
     if (!pool || !Array.isArray(relays) || relays.length === 0) return false;
     const OPEN = (typeof WebSocket !== 'undefined' && typeof WebSocket.OPEN === 'number') ? WebSocket.OPEN : 1;
     for (const url of relays) {
-      try {
-        const relay = getRelayFromPool(pool, url);
-        const ws = relay && relay.ws;
-        if (ws && typeof ws.readyState === 'number' && ws.readyState === OPEN) {
-          return true;
-        }
-      } catch (e) { }
+      const relay = getRelayFromPool(pool, url);
+      const ws = relay && relay.ws;
+      if (ws && typeof ws.readyState === 'number' && ws.readyState === OPEN) return true;
     }
   } catch (e) { }
   return false;
@@ -218,6 +352,10 @@ export function canStartForAll(relays, type, priority = false) {
   const map = relayActiveCounts[type] || relayActiveCounts.oneshot;
   const limit = (type === 'live') ? MAX_LIVE_PER_RELAY : MAX_ONESHOT_PER_RELAY;
   const totalLimit = typeof MAX_TOTAL_SUB_PER_RELAY === 'number' ? MAX_TOTAL_SUB_PER_RELAY : 5;
+  const now = Date.now();
+  for (const relay of relays) {
+    if ((relayCooldownUntil.get(relayKey(relay)) || 0) > now) return false;
+  }
   
   let blocked = false;
   for (const r of relays) {
@@ -289,11 +427,12 @@ try {
 } catch (e) { }
 
 export function processSubscribeQueue() {
+  if (queueProcessingSuspended > 0) return;
   if (!subscribeQueue.length) return;
   for (let i = 0; i < subscribeQueue.length; i++) {
     const req = subscribeQueue[i];
     if (req.cancelled) {
-      subscribeQueue.splice(i, 1);
+      cancelQueuedSubscription(req);
       i--;
       continue;
     }
@@ -311,13 +450,19 @@ export function processSubscribeQueue() {
         const pool = req.pool || (typeof window !== 'undefined' && window.__nostrState && window.__nostrState.pool) || null;
         if (!pool) {
           decrementActiveCounts(req.targetRelays, type);
-          req.reject(new Error('no pool available'));
+          settleQueuedRequest(req, 'reject', new Error('no pool available'));
           continue;
         }
         try {
           debugRelay('[Relay] 購読処理を開始', { relays: req.targetRelays, type: type, filters: req.filters });
         } catch (e) { }
-        const sub = pool.subscribeMany(req.targetRelays, req.filters, {
+        let sub = null;
+        let closeRequested = false;
+        const requestClose = () => {
+          closeRequested = true;
+          try { if (sub && typeof sub.close === 'function') sub.close(); } catch (e) { }
+        };
+        sub = pool.subscribeMany(req.targetRelays, req.filters, {
           onevent: (function () {
             if (type === 'oneshot') {
               const perRelayLimit = PER_RELAY_ONESHOT_LIMIT;
@@ -348,12 +493,8 @@ export function processSubscribeQueue() {
                     if (doneFlag) {
                       eoseSeen.add(key);
                     }
-                    if (total >= perRelayLimit * relayCount) {
-                      try { if (sub && typeof sub.close === 'function') sub.close(); } catch (e) { }
-                    }
-                    if (eoseSeen.size >= relayCount) {
-                      try { if (sub && typeof sub.close === 'function') sub.close(); } catch (e) { }
-                    }
+                    if (total >= perRelayLimit * relayCount) requestClose();
+                    if (eoseSeen.size >= relayCount) requestClose();
                   } catch (e) { }
                 } catch (e) { }
               };
@@ -375,6 +516,7 @@ export function processSubscribeQueue() {
             try {
               try { req.dispatcher(null, relay, true); } catch (e) { }
             } catch (e) { }
+            if (type === 'oneshot') requestClose();
           }
         });
         const origClose = sub.close.bind(sub);
@@ -383,62 +525,96 @@ export function processSubscribeQueue() {
           sub.__pool = pool;
           sub.__type = type;
           sub.__key = req.key || null;
+          sub.__sid = req.subId || null;
+          sub.__logicalIdentity = req.logicalIdentity || null;
         } catch (e) { }
         let oneshotTimer = null;
         if (type === 'oneshot') {
           try {
             oneshotTimer = setTimeout(() => {
-              try { if (sub && typeof sub.close === 'function') sub.close(); } catch (e) { }
+              requestClose();
             }, EVENTS_TIMEOUT);
           } catch (e) { }
         }
 
         sub.closed = false;
         sub.__decremented = false;
-        const subKey = sub.__key || subId;
+        const subId = sub.__sid || null;
+        const logicalIdentity = sub.__logicalIdentity || null;
 
-        sub.close = function () {
-          if (sub.closed && sub.__decremented) return;
+        let releaseStarted = false;
+        let releaseFinalized = false;
+        const finalizeRelease = function () {
+          if (releaseFinalized) return;
+          releaseFinalized = true;
+          if (!sub.__decremented) {
+            sub.__decremented = true;
+            try { decrementActiveCounts(req.targetRelays, type); } catch (e) { }
+          }
+          markRelayCooldown(req.targetRelays);
+          try { processSubscribeQueue(); } catch (e) { }
+        };
+        const release = function (closeNetwork) {
+          if (releaseFinalized) return;
+          if (releaseStarted) {
+            // Pool teardown must release accounting synchronously even if a prior
+            // network CLOSE is still pending.
+            if (!closeNetwork) finalizeRelease();
+            return;
+          }
+          releaseStarted = true;
           sub.closed = true;
           try {
-            const appState = req.state || (typeof window !== 'undefined' && window.__nostrState) || null;
-            if (subKey && appState && appState.subs && appState.subs.get(subKey) === sub) {
-              appState.subs.delete(subKey);
+            const appState = req.state || getAppState();
+            if (subId && appState && appState.subs && appState.subs.get(subId) === sub) {
+              appState.subs.delete(subId);
             }
           } catch (e) { }
+          if (subId) logicalListeners.delete(subId);
+          if (logicalIdentity) {
+            const pending = pendingLogicalSubscriptions.get(logicalIdentity);
+            if (pending && pending.queuedReq === req) pendingLogicalSubscriptions.delete(logicalIdentity);
+          }
           if (oneshotTimer) {
             clearTimeout(oneshotTimer);
             oneshotTimer = null;
           }
 
-          let shouldClose = true;
-          try {
-            shouldClose = hasOpenSocketForRelays(pool, req.targetRelays);
-          } catch (e) { }
+          if (!closeNetwork || !shouldCloseSubscriptionNetwork(pool, req.targetRelays)) {
+            finalizeRelease();
+            return;
+          }
 
+          let closeResult;
           try {
-            if (shouldClose) {
-              origClose().catch(() => {});
-            } else {
-              debugRelay('[Relay] OPEN socket なしのため sub.close の送信をスキップ');
-            }
-          } finally {
-            if (!sub.__decremented) {
-              sub.__decremented = true;
-              try { decrementActiveCounts(req.targetRelays, type); } catch (e) { }
-            }
-            try { processSubscribeQueue(); } catch (e) { }
+            closeResult = origClose();
+          } catch (e) {
+            finalizeRelease();
+            return;
+          }
+          if (closeResult && typeof closeResult.then === 'function') {
+            Promise.resolve(closeResult).then(finalizeRelease, finalizeRelease);
+          } else {
+            finalizeRelease();
           }
         };
+        sub.__releaseLocal = function () {
+          release(false);
+        };
+        sub.close = function () {
+          release(true);
+        };
+        if (closeRequested) sub.close();
         if (req.cancelled) {
-          try { sub.close(); } catch (e) { }
-          req.reject(new Error('cancelled'));
+          req.sub = sub;
+          cancelQueuedSubscription(req);
           continue;
         }
-        req.resolve(sub);
+        req.sub = sub;
+        settleQueuedRequest(req, 'resolve', sub);
       } catch (e) {
         try { decrementActiveCounts(req.targetRelays, type); } catch (er) { }
-        req.reject(e);
+        settleQueuedRequest(req, 'reject', e);
       }
     }
   }
@@ -491,6 +667,26 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
   const logicalPrefix = key + '|' + filterKey + ':';
 
   const inferredType = inferReqType(filters, key);
+  const logicalIdentity = logicalPrefix + '|' + targetRelays.slice().sort().join(',');
+
+  const pending = pendingLogicalSubscriptions.get(logicalIdentity);
+  if (pending && pending.state === state && pending.pool === state.pool &&
+      pending.type === inferredType && pending.queuedReq && !pending.queuedReq.cancelled) {
+    pending.listeners.add(onEvent);
+    let removed = false;
+    return function () {
+      if (removed) return;
+      removed = true;
+      pending.listeners.delete(onEvent);
+      if (pending.listeners.size > 0) return;
+      const req = pending.queuedReq;
+      if (req.sub && typeof req.sub.close === 'function') {
+        try { req.sub.close(); } catch (e) { }
+      } else {
+        cancelQueuedSubscription(req);
+      }
+    };
+  }
 
   try {
     let existingSid = null;
@@ -569,6 +765,7 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
   try {
     const listeners = new Set();
     listeners.add(onEvent);
+    logicalListeners.set(subId, listeners);
     const dispatcher = function (ev, relay, done) {
       try {
         for (const fn of Array.from(listeners)) {
@@ -593,7 +790,25 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
         }
       } catch (e) { }
     }
-    queuedReq = { targetRelays: targetRelays, filters: filters, dispatcher: dispatcher, pool: state.pool, cancelled: false, key: key, type: inferredType };
+    queuedReq = {
+      targetRelays,
+      filters,
+      dispatcher,
+      pool: state.pool,
+      state,
+      cancelled: false,
+      key,
+      type: inferredType,
+      subId,
+      logicalIdentity
+    };
+    pendingLogicalSubscriptions.set(logicalIdentity, {
+      state,
+      pool: state.pool,
+      type: inferredType,
+      listeners,
+      queuedReq
+    });
     const startPromise = new Promise((resolve, reject) => {
       queuedReq.resolve = resolve;
       queuedReq.reject = reject;
@@ -629,41 +844,63 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
       try { processSubscribeQueue(); } catch (e) { console.warn('[Relay] processSubscribeQueue に失敗', e); }
     });
 
-    let subStarted = null;
     startPromise.then(s => {
-      subStarted = s;
       try { queuedReq.sub = s; } catch (e) { }
-      try { state.subs.set(subId, s); } catch (e) { }
+      const currentPending = pendingLogicalSubscriptions.get(logicalIdentity);
+      if (currentPending && currentPending.queuedReq === queuedReq) {
+        pendingLogicalSubscriptions.delete(logicalIdentity);
+      }
+      try {
+        if (s && !s.closed && listeners.size > 0 && !queuedReq.cancelled) {
+          state.subs.set(subId, s);
+        }
+      } catch (e) { }
     }).catch(e => {
+      const currentPending = pendingLogicalSubscriptions.get(logicalIdentity);
+      if (currentPending && currentPending.queuedReq === queuedReq) {
+        pendingLogicalSubscriptions.delete(logicalIdentity);
+      }
     });
 
   } catch (e) {
+    try { logicalListeners.delete(subId); } catch (inner) { }
+    try {
+      const pending = pendingLogicalSubscriptions.get(logicalIdentity);
+      if (pending && pending.queuedReq === queuedReq) pendingLogicalSubscriptions.delete(logicalIdentity);
+    } catch (inner) { }
     console.warn('[Relay] 購読失敗', e);
     return function () { };
   }
+  let unsubscribed = false;
   return function () {
+    if (unsubscribed) return;
+    unsubscribed = true;
     try {
       if (typeof queuedReq === 'undefined') {
         return;
       }
       if (queuedReq && queuedReq.sub) {
-        try { queuedReq.sub.close(); } catch (e) { console.warn('[Relay] 購読解除失敗:', e); }
-        try { state.subs.delete(subId); } catch (e) { }
+        const listeners = logicalListeners.get(subId);
+        if (listeners) listeners.delete(onEvent);
+        if (!listeners || listeners.size === 0) {
+          try { queuedReq.sub.close(); } catch (e) { console.warn('[Relay] 購読解除失敗:', e); }
+          try { state.subs.delete(subId); } catch (e) { }
+        }
       } else if (queuedReq) {
-        try {
-          queuedReq.cancelled = true;
-          const idx = subscribeQueue.indexOf(queuedReq);
-          if (idx !== -1) subscribeQueue.splice(idx, 1);
-        } catch (e) { }
+        const pending = pendingLogicalSubscriptions.get(logicalIdentity);
+        if (pending) pending.listeners.delete(onEvent);
+        if (!pending || pending.listeners.size === 0) {
+          try {
+            cancelQueuedSubscription(queuedReq);
+          } catch (e) { }
+        }
       }
     } catch (e) { console.warn('[Relay] 購読解除失敗:', e); }
   };
 }
 
-try {
-  if (typeof window !== 'undefined') {
-    window.__relayDebug = function () {
-      try {
+setRelayInspector(function inspectRelaySubscriptions() {
+  try {
         function aggregateCounts(map) {
           const agg = Object.create(null);
           for (const [k, v] of map.entries()) {
@@ -682,12 +919,60 @@ try {
           queue: q,
           activeCounts: { live: liveCounts, oneshot: oneshotCounts },
           logicalListenersCount: logicalListeners.size,
-          subsKeys: Array.from((window.__nostrState && window.__nostrState.subs) ? window.__nostrState.subs.keys() : [])
+          subsKeys: Array.from((getAppState() && getAppState().subs) ? getAppState().subs.keys() : [])
         };
-      } catch (e) { return { error: e && e.message }; }
-    };
+  } catch (e) {
+    return { error: e && e.message };
   }
-} catch (e) { }
+});
+
+/**
+ * Release managed subscriptions for a pool without sending per-subscription CLOSE messages.
+ * Pool socket shutdown cancels the corresponding server-side requests.
+ */
+export function releaseSubscriptionsForPool(state, pool, queuedReason = null) {
+  if (!pool) return 0;
+  const subscriptions = new Set();
+  try {
+    if (state && state.subs) {
+      for (const sub of state.subs.values()) {
+        if (sub && sub.__pool === pool) subscriptions.add(sub);
+      }
+    }
+  } catch (e) { }
+  try {
+    for (const pending of pendingLogicalSubscriptions.values()) {
+      const req = pending && pending.queuedReq;
+      if (req && req.pool === pool && req.sub) subscriptions.add(req.sub);
+    }
+  } catch (e) { }
+  try {
+    for (const req of subscribeQueue) {
+      if (req && req.pool === pool && req.sub) subscriptions.add(req.sub);
+    }
+  } catch (e) { }
+
+  let released = 0;
+  queueProcessingSuspended++;
+  try {
+    for (const sub of subscriptions) {
+      try {
+        if (typeof sub.__releaseLocal === 'function') {
+          const wasClosed = !!sub.closed;
+          sub.__releaseLocal();
+          if (!wasClosed) released++;
+        }
+      } catch (e) { }
+    }
+    if (queuedReason) {
+      cancelQueuedSubscriptionsForPool(pool, queuedReason);
+    }
+  } finally {
+    queueProcessingSuspended = Math.max(0, queueProcessingSuspended - 1);
+  }
+  try { processSubscribeQueue(); } catch (e) { }
+  return released;
+}
 
 export function unsubscribeAll(state) {
   try {

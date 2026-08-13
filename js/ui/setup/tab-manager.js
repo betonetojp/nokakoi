@@ -3,6 +3,14 @@ import { showOmochatSettingsModal } from '../modals/modals.js';
 import { clearReplyTarget } from '../../features/post/composer.js';
 import { setMentionBlink } from './mention-blink.js';
 import { showHomeDisplayQuickModal } from './display-settings.js';
+import { getAppState } from '../../core/app-context.js';
+import { writeMentionLastViewed } from '../../utils/mention-last-viewed.js';
+import {
+  initChannelView,
+  pauseChannelSubscriptions,
+  resumeChannelSubscriptions,
+  syncChannelComposerState
+} from '../../features/channel/channel-ui.js';
 
 export const DEFAULT_TABS = [
   { id: 'home', labelKey: 'tabs.home', canToggle: true, defaultVisible: true },
@@ -15,15 +23,18 @@ export const DEFAULT_TABS = [
 
 async function ensureChannelView(settingsManager) {
   const feedChan = document.getElementById('feed-channels');
-  const m = await import('../../features/channel/channel-ui.js');
   if (feedChan && (!feedChan.children.length || feedChan.dataset.initialized !== 'true')) {
     feedChan.dataset.initialized = 'true';
-    const currentState = (typeof window !== 'undefined' && window.__nostrState) ? window.__nostrState : null;
-    if (m && typeof m.initChannelView === 'function') {
-      m.initChannelView(feedChan, currentState, settingsManager);
+    const currentState = getAppState();
+    if (typeof initChannelView === 'function') {
+      initChannelView(feedChan, currentState, settingsManager);
     }
   }
-  return m;
+  return {
+    pauseChannelSubscriptions,
+    resumeChannelSubscriptions,
+    syncChannelComposerState
+  };
 }
 
 export function loadTabSettings(settingsManager) {
@@ -72,6 +83,7 @@ export function clearMentionBlinkState() {
   try {
     const mentionsFeed = document.getElementById('feed-mentions');
     let newest = 0;
+    let newestId = '';
     try {
       const evt = (function () {
         try {
@@ -80,8 +92,9 @@ export function clearMentionBlinkState() {
             const first = el.querySelector('.event');
             if (first && first.dataset && first.dataset.eventId) {
               const evId = first.dataset.eventId;
-              if (window.__nostrState) {
-                const ev = window.__nostrState && window.__nostrState.feeds && window.__nostrState.feeds['mentions'] && window.__nostrState.feeds['mentions'].map && window.__nostrState.feeds['mentions'].map.get(evId);
+              const appState = getAppState();
+              if (appState) {
+                const ev = appState.feeds && appState.feeds['mentions'] && appState.feeds['mentions'].map && appState.feeds['mentions'].map.get(evId);
                 if (ev) return ev;
               }
             }
@@ -91,16 +104,96 @@ export function clearMentionBlinkState() {
       })();
       if (evt && evt.created_at) {
         newest = evt.created_at;
-        try { if (evt.id) localStorage.setItem('mentions_last_viewed_id', String(evt.id)); } catch (e) { }
+        newestId = evt.id || '';
       }
     } catch (e) { }
     if (newest <= 0) newest = Math.floor(Date.now() / 1000);
-    localStorage.setItem('mentions_last_viewed_at', String(newest));
+    writeMentionLastViewed({ at: newest, id: newestId });
   } catch (e) { }
   setMentionBlink(false);
 }
 
-export function setupTabs(settingsManager, preserveActive = false) {
+export function activateTab(tabOrId, settingsManager, options = {}) {
+  const tabsContainer = document.querySelector('.tabs');
+  if (!tabsContainer) return false;
+  const targetTab = typeof tabOrId === 'string'
+    ? Array.from(tabsContainer.querySelectorAll('.tab')).find(tab => tab.dataset.tab === tabOrId)
+    : tabOrId;
+  if (!targetTab || !tabsContainer.contains(targetTab)) return false;
+
+  const tabId = targetTab.dataset.tab;
+  const {
+    scroll = true,
+    emitChange = true,
+    skipFeedLifecycle = false,
+    eventDetail = {}
+  } = options;
+  tabsContainer.querySelectorAll('.tab').forEach(tab => {
+    tab.classList.toggle('active', tab === targetTab);
+  });
+
+  const feeds = document.querySelectorAll('.feed');
+  feeds.forEach(feed => feed.classList.remove('active'));
+  const targetFeed = document.getElementById('feed-' + tabId);
+  if (targetFeed) {
+    targetFeed.classList.add('active');
+    if (scroll) {
+      setTimeout(() => {
+        const tabsBar = document.querySelector('.tabs');
+        const tabsBarHeight = tabsBar ? tabsBar.getBoundingClientRect().height : 0;
+        try {
+          const top = targetFeed.getBoundingClientRect().top + window.scrollY - tabsBarHeight;
+          window.scrollTo({ top, behavior: 'auto' });
+        } catch (e) { }
+      }, 50);
+    }
+  }
+
+  const ehagakiBtn = document.getElementById('ehagakiBtn');
+  if (ehagakiBtn) {
+    ehagakiBtn.classList.toggle('d-none', tabId === 'bitchat');
+  }
+
+  try { targetTab.classList.remove('has-new-dot'); } catch (e) { }
+  if (tabId === 'mentions') clearMentionBlinkState();
+
+  if (tabId === 'channels') {
+    if (skipFeedLifecycle) {
+      try {
+        if (typeof syncChannelComposerState === 'function') syncChannelComposerState();
+      } catch (e) { }
+    } else {
+      ensureChannelView(settingsManager).then((module) => {
+        if (module && typeof module.resumeChannelSubscriptions === 'function') {
+          module.resumeChannelSubscriptions();
+        }
+        if (module && typeof module.syncChannelComposerState === 'function') {
+          module.syncChannelComposerState();
+        }
+      }).catch(() => {});
+    }
+  } else {
+    try { clearReplyTarget(); } catch (e) { }
+    try {
+      if (typeof pauseChannelSubscriptions === 'function') pauseChannelSubscriptions();
+    } catch (e) { }
+  }
+
+  try {
+    document.querySelectorAll('details').forEach(details => { details.open = false; });
+  } catch (e) { }
+
+  if (emitChange) {
+    try {
+      window.dispatchEvent(new CustomEvent('tab:changed', {
+        detail: { ...eventDetail, tab: tabId }
+      }));
+    } catch (e) { }
+  }
+  return true;
+}
+
+export function setupTabs(settingsManager, preserveActive = false, options = {}) {
   const tabsContainer = document.querySelector('.tabs');
   if (!tabsContainer) return;
 
@@ -119,8 +212,6 @@ export function setupTabs(settingsManager, preserveActive = false) {
   }
 
   tabsContainer.innerHTML = '';
-  const feeds = document.querySelectorAll('.feed');
-
   const visibleTabs = tabsConfig.filter(t => t.visible !== false);
   visibleTabs.forEach(cfg => {
     const btn = document.createElement('button');
@@ -142,54 +233,7 @@ export function setupTabs(settingsManager, preserveActive = false) {
     }
 
     btn.onclick = function () {
-      const allTabs = tabsContainer.querySelectorAll('.tab');
-      allTabs.forEach(b => b.classList.toggle('active', b === btn));
-      feeds.forEach(f => f.classList.remove('active'));
-      const target = document.getElementById('feed-' + btn.dataset.tab);
-      if (target) {
-        target.classList.add('active');
-        setTimeout(() => {
-          const tabsBar = document.querySelector('.tabs');
-          const tabsBarHeight = tabsBar ? tabsBar.getBoundingClientRect().height : 0;
-          try {
-             const top = target.getBoundingClientRect().top + window.scrollY - tabsBarHeight;
-             window.scrollTo({ top, behavior: "auto" });
-          } catch(e) {}
-        }, 50);
-      }
-
-      const ehagakiBtn = document.getElementById('ehagakiBtn');
-      if (ehagakiBtn) {
-        if (btn.dataset.tab === 'bitchat') ehagakiBtn.classList.add('d-none');
-        else ehagakiBtn.classList.remove('d-none');
-      }
-
-      try { btn.classList.remove('has-new-dot'); } catch (e) { }
-
-      if (btn.dataset.tab === 'mentions') {
-        clearMentionBlinkState();
-      }
-
-      if (btn.dataset.tab === 'channels') {
-        ensureChannelView(settingsManager).then((m) => {
-          if (m && typeof m.syncChannelComposerState === 'function') m.syncChannelComposerState();
-          if (m && typeof m.resumeChannelSubscriptions === 'function') m.resumeChannelSubscriptions();
-        }).catch(() => {});
-      } else {
-        try { clearReplyTarget(); } catch (_e) {}
-        import('../../features/channel/channel-ui.js').then(m => {
-          if (m && typeof m.pauseChannelSubscriptions === 'function') m.pauseChannelSubscriptions();
-        }).catch(() => {});
-      }
-
-      try {
-        const detailsEls = document.querySelectorAll('details');
-        detailsEls.forEach(d => { d.open = false; });
-      } catch (e) { }
-
-      try {
-        window.dispatchEvent(new CustomEvent('tab:changed', { detail: { tab: btn.dataset.tab } }));
-      } catch (e) { }
+      activateTab(btn, settingsManager);
     };
 
     if (cfg.id === 'bitchat') {
@@ -288,7 +332,7 @@ export function setupTabs(settingsManager, preserveActive = false) {
       const triggerGlobalSelector = () => {
         import('../../features/relay/global-relay.js').then(m => {
           if (m && typeof m.showGlobalRelaySelector === 'function') {
-            const currentState = (typeof window !== 'undefined' && window.__nostrState) ? window.__nostrState : null;
+            const currentState = getAppState();
             m.showGlobalRelaySelector(currentState, settingsManager);
           }
         });
@@ -364,24 +408,11 @@ export function setupTabs(settingsManager, preserveActive = false) {
     }
     if (!target) target = allBtns[0];
 
-    feeds.forEach(f => f.classList.remove('active'));
-    target.classList.add('active');
-    const fid = 'feed-' + target.dataset.tab;
-    const f = document.getElementById(fid);
-    if (f) f.classList.add('active');
-
-    if (target.dataset.tab === 'channels') {
-      ensureChannelView(settingsManager).then((m) => {
-        if (m && typeof m.syncChannelComposerState === 'function') m.syncChannelComposerState();
-        if (m && typeof m.resumeChannelSubscriptions === 'function') m.resumeChannelSubscriptions();
-      }).catch(() => {});
-    }
-
-    const ehagakiBtn = document.getElementById('ehagakiBtn');
-    if (ehagakiBtn) {
-       if (target.dataset.tab === 'bitchat') ehagakiBtn.classList.add('d-none');
-       else ehagakiBtn.classList.remove('d-none');
-    }
+    activateTab(target, settingsManager, {
+      scroll: false,
+      emitChange: !preserveActive || target.dataset.tab !== activeId,
+      ...options
+    });
   }
 }
 

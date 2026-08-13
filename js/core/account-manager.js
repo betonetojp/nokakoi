@@ -5,10 +5,11 @@ import { authenticateWithPasskey, decryptNsecWithPasskey } from './webauthn.js';
 import { Nip46Client, DEFAULT_NIP46_RELAYS } from './nip46.js';
 import { getNip46LocalSecretKey, setNip46LocalSecretKey } from './auth/nip46-session.js';
 import { t } from '../utils/i18n.js';
-import { saveRelaysForAccount, loadRelaysForAccount } from './relay.js';
-import { saveMuteListForAccount, loadMuteListForAccount } from '../features/mute/mute.js';
+import { closePoolAndWait, saveRelaysForAccount, loadRelaysForAccount } from './relay.js';
+import { invalidateMuteWork, saveMuteListForAccount, loadMuteListForAccount } from '../features/mute/mute.js';
 import { updateGlobalButtonLabel } from '../features/relay/global-relay.js';
 import { showAlertModal } from '../ui/modals/modals.js';
+import { initializeMentionLastViewed } from '../utils/mention-last-viewed.js';
 
 const ACCOUNTS_STORAGE_KEY = 'nokakoi-accounts';
 
@@ -210,13 +211,14 @@ export function getActiveSwitchSessionId() {
  */
 export async function switchAccount(targetPubkey, state, settingsManager, loginFn) {
   if (!targetPubkey) return;
-  const sessionId = ++activeSwitchSessionId;
   const currentPubkey = state.pubkey || localStorage.getItem('pubkey');
   const targetId = targetPubkey.toLowerCase();
 
   if (currentPubkey && currentPubkey.toLowerCase() === targetId && signer.hasKey()) {
     return; // すでに同一アカウントかつ鍵保持済み
   }
+  const sessionId = ++activeSwitchSessionId;
+  invalidateMuteWork(targetId);
 
   // 切り替え前のバックアップ
   const prevSk = signer.hasKey() ? signer.getKey() : null;
@@ -442,12 +444,32 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
     return;
   }
 
+  // The authenticated target must never reuse the previous account's relay
+  // pool. Wait briefly for the old subscriptions and sockets to close before
+  // loginFn can restart feeds and create a fresh pool.
+  try {
+    await closePoolAndWait(state, 750);
+  } catch (e) {
+    console.warn('[AccountManager] 旧リレープールの終了待機に失敗しました:', e);
+  }
+
+  // A newer switch may have started while the pool was closing. Its auth state
+  // now owns state, so do not roll it back or start subscriptions for this one.
+  if (sessionId !== activeSwitchSessionId) {
+    console.warn(`[AccountManager] 切替セッション ${sessionId} はリレープール終了待機中に競合キャンセルされました`);
+    return;
+  }
+
   // 4. アクティブアカウントおよび認証方式情報の確実な更新
+  // SettingsManager.set は app state を localStorage より優先して保存先を決めるため、
+  // 認証成功後の設定保存・アカウント別 UI リセットより先に切り替える。
+  state.pubkey = targetId;
   setActiveAccountId(targetId);
   try {
     localStorage.setItem('pubkey', targetId);
     localStorage.setItem('lastLoginMethod', method);
     localStorage.removeItem('skipAutoLogin');
+    initializeMentionLastViewed(targetId);
   } catch (e) {}
 
   if (settingsManager) {
@@ -455,6 +477,7 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
   }
 
   // 5. 前のアカウントのメモリ状態（フィードキャッシュ・DOM描画・通知バッジ・点滅等）を完全にクリア
+  // Account-scoped resets and loads must observe the authenticated target.
   try {
     const { clearFullState } = await import('./state.js');
     if (typeof clearFullState === 'function') {
@@ -470,11 +493,29 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
     }
   } catch (e) { }
 
+  // Apply the target account's tab order before login restarts feeds. setupTabs
+  // activates the first visible target tab through the normal tab lifecycle.
+  try {
+    const { setupTabs } = await import('../ui/setup/tab-manager.js');
+    if (sessionId !== activeSwitchSessionId) return;
+    if (typeof setupTabs === 'function') {
+      setupTabs(settingsManager, false, {
+        skipFeedLifecycle: true,
+        eventDetail: {
+          accountSwitchInitial: true,
+          skipFeedLifecycle: true
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('[AccountManager] 対象アカウントのタブ初期化に失敗しました:', e);
+  }
+
   // 6. 再ログイン・UI同期
-  state.pubkey = targetId;
   if (typeof loginFn === 'function') {
     await loginFn();
   }
+  if (sessionId !== activeSwitchSessionId) return;
   try {
     const { loadProfile } = await import('../features/profile/profile.js');
     if (typeof loadProfile === 'function') {
@@ -488,7 +529,7 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
       updateHeaderName(state, getNip19());
     }
     if (typeof syncAccountUI === 'function') {
-      syncAccountUI(state, settingsManager);
+      syncAccountUI(state, settingsManager, { reload: false });
     } else {
       updateGlobalButtonLabel(settingsManager);
     }

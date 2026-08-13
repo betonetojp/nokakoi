@@ -9,7 +9,11 @@ import { initializeProfileCache } from '../features/profile/profile.js';
 import { reactToEvent, repostEvent } from '../features/post/actions.js';
 import { setupModalEscClose } from '../ui/modals/modals.js';
 import { login, autoLogin, setupAuthUI } from './auth.js';
-import { setupComposerScrollBehavior, revealComposer } from '../features/post/composer-scroll.js';
+import {
+  revealComposer,
+  setupComposerScrollBehavior,
+  setupComposerScrollLifecycle
+} from '../features/post/composer-scroll.js';
 import { setReplyTarget, clearReplyTarget, setupCancelReplyButton, setupEmojiPreview, setupEmojiShortcodeSuggest, openHiddenTagCharModal, setupComposerUI, setQuoteTarget } from '../features/post/composer.js';
 import { setupGlobalTabSelector, updateGlobalButtonLabel, showGlobalRelaySelector } from '../features/relay/global-relay.js';
 import { setupRelaySettingsUI } from '../features/relay/relay-settings.js';
@@ -24,15 +28,29 @@ import { setupTabs as uiSetupTabs, setupDisplaySettings as uiSetupDisplaySetting
 import { setupPostLinkUI, updatePostLinkButtonAndModal } from '../features/post/postlink.js';
 import { setupEhagakiPublicChatsPicker } from '../ui/ehagaki-public-chats-picker.js';
 import { t, detectBrowserLang, initI18n, applyTranslations } from '../utils/i18n.js';
-import { getClosestRelays } from '../features/relay/geo-relay-directory.js';
 import { setupKeyboardShortcuts } from '../ui/keyboard-shortcuts.js';
 import { initFeedRenderer, renderFeed, ensureEventRestored } from '../features/timeline/feed-renderer.js';
+import { shouldConnectOmochatOnBoot } from '../features/timeline/omochat-lifecycle.js';
+import { getInfiniteScrollObserver, setupInfiniteScrollObserver } from '../boot/infinite-scroll.js';
+import {
+  refreshOmochatRelaysOnBoot,
+  setupOmochatSettingsListener,
+  setupOmochatTabListener
+} from '../boot/omochat.js';
+import {
+  configureAppContext,
+  installDeprecatedWindowBridges,
+  setBuildInfo,
+  setDebugEnabled
+} from './app-context.js';
+import { initializeMentionLastViewed } from '../utils/mention-last-viewed.js';
 
 import { 
   initFeedManager, 
   restartFeeds, 
   setupGlobalFeed, 
-  setupBitchatFeed, 
+  setupBitchatFeed,
+  scheduleBitchatFeedSetup,
   ensureFeedUiState, 
   getRenderSettingsWithUiState, 
   resolveGlobalRelays, 
@@ -72,7 +90,9 @@ let settings = null;
 let nip19 = null;
 let cleanupScrollBehavior = null;
 let authGuardInterval = null;
-let _infiniteScrollObserver = null;
+
+// Deprecated window properties remain available only as an explicit migration bridge.
+installDeprecatedWindowBridges();
 
 // UIヘルパー呼び出し用ラッパー
 function setupTabs(preserve) { return uiSetupTabs(settingsManager, preserve); }
@@ -99,9 +119,7 @@ try {
     let storedDebug = false;
     try { storedDebug = localStorage.getItem('nokakoiDebug') === '1'; } catch (e) { }
 
-    if (typeof window.__nokakoiDebug !== 'boolean') {
-      window.__nokakoiDebug = isLocal || storedDebug;
-    }
+    setDebugEnabled(isLocal || storedDebug);
 
     if (typeof console.debug !== 'function' && typeof console.log === 'function') {
       console.debug = console.log.bind(console);
@@ -117,7 +135,7 @@ const BUILD_INFO = {
 function updateBuildInfo() {
   try {
     const infoStr = `v${BUILD_INFO.version} (${BUILD_INFO.buildTime})`;
-    window.__buildInfo = infoStr;
+    setBuildInfo(infoStr);
     const el = document.getElementById('buildInfo');
     if (el) {
       el.textContent = infoStr;
@@ -139,34 +157,6 @@ function applyI18nTitles() {
       });
     }).catch(() => { });
   } catch (e) { }
-}
-
-function shouldConnectBitchatOnBoot() {
-  try {
-    if (settingsManager.get('showHomeOmochat') === true) return true;
-    const activeTabEl = document.querySelector('.tab.active');
-    const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
-    if (activeTab === 'bitchat') return true;
-  } catch (e) { }
-  return false;
-}
-
-async function refreshClosestOmochatRelays(geohash) {
-  const isAuto = settingsManager.get('omochatAutoRelays') !== false;
-  if (!isAuto) return false;
-  const targetGeohash = geohash || settingsManager.get('omochatGeohash') || 'xn';
-  try {
-    const algo = settingsManager.get('omochatAutoRelayAlgo') || 'merged';
-    const mergeParent = settingsManager.get('omochatMergeParent') === true;
-    const relays = await getClosestRelays(targetGeohash, 5, algo, mergeParent);
-    if (Array.isArray(relays) && relays.length > 0) {
-      settingsManager.set('omochatComputedRelays', relays);
-      return true;
-    }
-  } catch (e) {
-    console.error('[Main] 最寄りの omochat リレーの取得に失敗しました:', e);
-  }
-  return false;
 }
 
 function showProfileModalProxy(pubkey) {
@@ -195,45 +185,6 @@ function showProfileModalProxy(pubkey) {
   }
 }
 
-function setupInfiniteScrollObserver() {
-  if (_infiniteScrollObserver) return;
-  if (typeof IntersectionObserver === 'undefined') return;
-
-  _infiniteScrollObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const target = entry.target;
-        if (!target) return;
-
-        let btn = null;
-        if (target.classList && target.classList.contains('load-more-btn')) {
-          btn = target;
-        } else {
-          const feedEl = target.closest ? target.closest('.feed') : null;
-          if (feedEl) {
-            btn = feedEl.querySelector('.load-more-btn');
-          }
-        }
-
-        if (btn && typeof btn.click === 'function') {
-          // 物理的に disabled または実際に処理中の場合のみスキップ
-          if (btn.disabled) {
-            return;
-          }
-          btn.click();
-        }
-      }
-    });
-  }, {
-    root: null,
-    rootMargin: '600px 0px 600px 0px',
-    threshold: 0
-  });
-  if (typeof window !== 'undefined') {
-    window.__infiniteScrollObserver = _infiniteScrollObserver;
-  }
-}
-
 export async function initApp() {
   try {
     if (typeof window !== 'undefined' && window.__nokakoiInitDone) return;
@@ -246,10 +197,13 @@ export async function initApp() {
   try { state.relays = loadRelays(); } catch (e) { console.warn('[Init] loadRelays の読み込みに失敗', e); }
   settingsManager = new SettingsManager();
   settings = settingsManager.settings;
+  configureAppContext({
+    state,
+    settingsManager,
+    customEmojis: state.customEmojis
+  });
 
   if (typeof window !== 'undefined') {
-    window.__nostrState = state;
-    window.settingsManager = settingsManager;
     window.showProfileModalProxy = showProfileModalProxy;
     window.invokeShowProfileModalProxy = showProfileModalProxy;
     window.setupCustomEmojiSubscription = setupCustomEmojiSubscription;
@@ -287,7 +241,7 @@ export async function initApp() {
       getRenderSettingsWithUiState,
       findEventById,
       setupInfiniteScrollObserver,
-      getInfiniteScrollObserver: () => _infiniteScrollObserver,
+      getInfiniteScrollObserver,
       resolveGlobalRelays,
       buildHomeLoadMoreFiltersForGlobalMerge,
       runMergedGlobalLoadMore,
@@ -343,7 +297,6 @@ export async function initApp() {
   });
 
   const enableComposerScroll = () => {
-    if (cleanupScrollBehavior) cleanupScrollBehavior();
     cleanupScrollBehavior = setupComposerScrollBehavior();
   };
 
@@ -364,6 +317,7 @@ export async function initApp() {
   });
 
   setupComposerUI(state, { getOmochatRelays, consumeShareText });
+  setupComposerScrollLifecycle();
 
   function updateAuthPendingUI() {
     try {
@@ -385,18 +339,7 @@ export async function initApp() {
   const SimplePool = SimplePoolProvider();
   relayConnect(state, SimplePool, restartFeeds);
 
-  if (settingsManager.get('omochatAutoRelays') !== false) {
-    const originalRelaysStr = JSON.stringify(settingsManager.get('omochatComputedRelays') || []);
-    refreshClosestOmochatRelays().then(updated => {
-      if (updated) {
-        const newRelaysStr = JSON.stringify(settingsManager.get('omochatComputedRelays') || []);
-        if (originalRelaysStr !== newRelaysStr) {
-          console.log('[Main] 起動時に Omochat リレーが更新されました。フィードを再読み込み中...');
-          if (typeof window.softReload === 'function') window.softReload();
-        }
-      }
-    });
-  }
+  refreshOmochatRelaysOnBoot(settingsManager, setupBitchatFeed);
 
   // 未ログイン時のタブ制限処理
   function updateTabVisibility(isLoggedIn) {
@@ -418,9 +361,7 @@ export async function initApp() {
       }
     } catch (e) { }
   }
-  if (typeof window !== 'undefined') {
-    window.updateTabVisibility = updateTabVisibility;
-  }
+  configureAppContext({ updateTabVisibility });
 
   try {
     const pubkey = localStorage.getItem('pubkey');
@@ -428,51 +369,15 @@ export async function initApp() {
     if (!pubkey) {
       setupGlobalFeed();
       try {
-        if (shouldConnectBitchatOnBoot()) {
-          setTimeout(() => {
-            try { setupBitchatFeed(); } catch (e) { }
-          }, 1500);
+        if (shouldConnectOmochatOnBoot(settingsManager)) {
+          scheduleBitchatFeedSetup(1500);
         }
       } catch (e) { }
     }
   } catch (e) { }
 
   try {
-    if (typeof window !== 'undefined') {
-      let lastActiveTab = null;
-      // 初期化時に現在のアクティブタブを取得
-      setTimeout(() => {
-        try {
-          const activeTabEl = document.querySelector('.tab.active');
-          if (activeTabEl && activeTabEl.dataset) {
-            lastActiveTab = activeTabEl.dataset.tab;
-          }
-        } catch (e) { }
-      }, 500);
-
-      window.addEventListener('tab:changed', (e) => {
-        try {
-          const activeTab = e.detail && e.detail.tab;
-          if (activeTab) {
-            try {
-              const sourceTab = lastActiveTab || (document.querySelector('.tab.active')?.dataset?.tab || null);
-              handleTabChange(sourceTab, activeTab);
-            } catch (err) {
-              console.warn('[Main] タブ切り替え処理に失敗しました:', err);
-            }
-            lastActiveTab = activeTab;
-          }
-          if (activeTab === 'bitchat') {
-            if (!state._bitchatFetcher) {
-              console.log('[Main] bitchat タブを有効化し、フィードをセットアップ中...');
-              setupBitchatFeed();
-            }
-          }
-        } catch (err) {
-          console.warn('[Main] tab:changed イベント処理に失敗しました:', err);
-        }
-      });
-    }
+    setupOmochatTabListener(state, { handleTabChange, setupBitchatFeed });
   } catch (e) { }
 
   updateBuildInfo();
@@ -491,13 +396,7 @@ export async function initApp() {
   );
 
   try {
-    const pk = localStorage.getItem('pubkey');
-    const keyAt = pk ? `mentions_last_viewed_at.${pk.toLowerCase()}` : 'mentions_last_viewed_at';
-    const keyId = pk ? `mentions_last_viewed_id.${pk.toLowerCase()}` : 'mentions_last_viewed_id';
-    if (!localStorage.getItem(keyAt)) {
-      localStorage.setItem(keyAt, String(Math.floor(Date.now() / 1000)));
-      localStorage.setItem(keyId, '');
-    }
+    initializeMentionLastViewed(localStorage.getItem('pubkey'));
   } catch (e) { }
 
   try {
@@ -530,45 +429,32 @@ export async function initApp() {
   try {
     window.addEventListener('customEmoji:changed', function () {
       try {
-        if (typeof window.softReload === 'function') {
-          window.softReload();
-        } else {
-          try { window.dispatchEvent(new Event('softReloadRequest')); } catch (e) { }
-        }
+        scheduleCustomEmojiSubscription(0);
+        ['home', 'global', 'mentions', 'me', 'bitchat'].forEach((feedId) => {
+          try { renderFeed(feedId, true); } catch (e) { }
+        });
       } catch (e) { }
     });
   } catch (e) { }
 
-  // omochat 設定変更時に UI と feed を更新するリスナー
   try {
-    window.addEventListener('omochatSettingsSaved', async () => {
-      try {
-        setupTabs(true);
-        setupGlobalTabSelector(state, settingsManager, () => {
-          clearFeed(state, 'global');
-          const el = $('#feed-global');
-          if (el) el.innerHTML = '';
-          setupGlobalFeed();
-        });
-        try { updateGlobalButtonLabel(settingsManager); } catch (e) { }
-
-        const isAuto = settingsManager.get('omochatAutoRelays') !== false;
-        if (isAuto) {
-          showToast(t('omochat.relays.updating') || '位置情報リレーを更新中...', { type: 'info' });
-          const originalRelaysStr = JSON.stringify(settingsManager.get('omochatComputedRelays') || []);
-          const updated = await refreshClosestOmochatRelays();
-          if (updated) {
-            const newRelaysStr = JSON.stringify(settingsManager.get('omochatComputedRelays') || []);
-            if (originalRelaysStr !== newRelaysStr) {
-              showToast(t('omochat.relays.updated') || '位置情報リレーを更新しました', { type: 'success' });
-            }
-          }
-        }
-        if (typeof window.softReload === 'function') window.softReload();
-        else window.dispatchEvent(new Event('softReloadRequest'));
-      } catch(e) { }
+    setupOmochatSettingsListener({
+      state,
+      settingsManager,
+      setupTabs,
+      setupGlobalTabSelector,
+      clearGlobalFeed: () => {
+        clearFeed(state, 'global');
+        const el = $('#feed-global');
+        if (el) el.innerHTML = '';
+        setupGlobalFeed();
+      },
+      updateGlobalButtonLabel,
+      showToast,
+      t,
+      setupBitchatFeed
     });
-  } catch(e) { }
+  } catch (e) { }
 
   // デバッグモーダルの初期化
   try {

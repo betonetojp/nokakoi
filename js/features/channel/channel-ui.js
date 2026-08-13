@@ -17,15 +17,19 @@ import { t } from '../../utils/i18n.js';
 const CHANNEL_LIST_CACHE_KEY = 'nokakoi_public_chats_cache_v1';
 const LAST_ACTIVE_CHANNEL_KEY = 'last_active_channel_root_id';
 
-function scopedUiKey(base) {
-  const pk = getPubkey();
-  return pk ? `${base}.${String(pk).toLowerCase()}` : base;
+function normalizePubkey(pubkey) {
+  return pubkey ? String(pubkey).trim().toLowerCase() : '';
 }
 
-function migrateUnscopedUiKey(base) {
-  const pk = getPubkey();
+function scopedUiKey(base, pubkey = getPubkey()) {
+  const pk = normalizePubkey(pubkey);
+  return pk ? `${base}.${pk}` : base;
+}
+
+function migrateUnscopedUiKey(base, pubkey = getPubkey()) {
+  const pk = normalizePubkey(pubkey);
   if (!pk) return;
-  const scoped = `${base}.${String(pk).toLowerCase()}`;
+  const scoped = `${base}.${pk}`;
   try {
     if (localStorage.getItem(scoped) != null) return;
     const legacy = localStorage.getItem(base);
@@ -44,6 +48,7 @@ let _ehagakiBound = false;
 let _feedPaused = false;
 let _lastPublicRootIds = [];
 let _searchSeq = 0;
+let _channelListLoadGen = 0;
 let _publicChatsListenerBound = false;
 
 /**
@@ -324,18 +329,12 @@ async function syncMembershipToPublicChats(rootId, join) {
   return { ok: false, localOnly: true };
 }
 
-function getCachedChannelEntries() {
+function getCachedChannelEntries(pubkey) {
   try {
-    migrateUnscopedUiKey(CHANNEL_LIST_CACHE_KEY);
-    const raw = localStorage.getItem(scopedUiKey(CHANNEL_LIST_CACHE_KEY));
+    migrateUnscopedUiKey(CHANNEL_LIST_CACHE_KEY, pubkey);
+    const raw = localStorage.getItem(scopedUiKey(CHANNEL_LIST_CACHE_KEY, pubkey));
     return raw ? JSON.parse(raw) : null;
   } catch (_e) { return null; }
-}
-
-function saveCachedChannelEntries(entries) {
-  try {
-    localStorage.setItem(scopedUiKey(CHANNEL_LIST_CACHE_KEY), JSON.stringify(entries));
-  } catch (_e) {}
 }
 
 function rememberPublicRootIds(entries, options = {}) {
@@ -351,11 +350,11 @@ function rememberPublicRootIds(entries, options = {}) {
  * チャンネルリスト項目の描画ヘルパー
  */
 function renderChannelListItems(listEl, statusEl, publicEntries, options = {}) {
-  if (!listEl) return;
+  if (!listEl) return [];
   rememberPublicRootIds(publicEntries, options);
   const items = mergeChannelMembership(publicEntries);
 
-  if (statusEl) {
+  if (statusEl && options.updateStatus !== false) {
     statusEl.textContent = items.length
       ? (t('channel.joined_count') || '参加中: {count}件').replace('{count}', String(items.length))
       : (t('channel.none_joined') || '参加中のチャンネルがありません');
@@ -416,6 +415,7 @@ function renderChannelListItems(listEl, statusEl, publicEntries, options = {}) {
   } else if (!_activeRootId) {
     hideComposerForUnselectedChannel();
   }
+  return items;
 }
 
 /**
@@ -463,16 +463,23 @@ function clearActiveChannelView() {
  */
 export function resetChannelViewForAccount(state = null) {
   if (state) _stateRef = state;
+  _channelListLoadGen += 1;
   _searchSeq += 1;
   _lastPublicRootIds = [];
   returnToChannelList({ forgetLast: false });
   if (_containerEl) {
+    const listEl = _containerEl.querySelector('#channelList');
+    const statusEl = _containerEl.querySelector('#channelListStatus');
+    const searchInput = _containerEl.querySelector('#channelSearchInput');
     const resultsEl = _containerEl.querySelector('#channelSearchResults');
+    if (listEl) listEl.innerHTML = '';
+    if (statusEl) statusEl.textContent = t('channel.loading_list') || 'チャンネル一覧を読み込み中...';
+    if (searchInput) searchInput.value = '';
     if (resultsEl) {
       resultsEl.classList.add('d-none');
       resultsEl.innerHTML = '';
     }
-    loadChannelList();
+    loadChannelList().catch(() => {});
   }
 }
 
@@ -550,34 +557,54 @@ export async function loadChannelList() {
   const statusEl = _containerEl.querySelector('#channelListStatus');
   if (!listEl) return;
 
-  const cached = getCachedChannelEntries();
+  const pubkey = normalizePubkey(getPubkey());
+  const loadGen = ++_channelListLoadGen;
+  const isCurrentLoad = () => (
+    loadGen === _channelListLoadGen
+    && normalizePubkey(getPubkey()) === pubkey
+  );
+  const cacheKey = scopedUiKey(CHANNEL_LIST_CACHE_KEY, pubkey);
+  const cached = getCachedChannelEntries(pubkey);
+  if (statusEl) statusEl.textContent = t('channel.loading_list') || 'チャンネル一覧を読み込み中...';
+
+  let usableEntryCount = 0;
   if (cached && Array.isArray(cached) && cached.length) {
-    renderChannelListItems(listEl, statusEl, cached, { prune: false });
+    usableEntryCount = renderChannelListItems(listEl, statusEl, cached, {
+      prune: false,
+      updateStatus: false,
+    }).length;
   } else {
-    if (statusEl) statusEl.textContent = t('channel.loading_list') || 'チャンネル一覧を読み込み中...';
     // キャッシュが空でも手動参加分は描画
-    renderChannelListItems(listEl, statusEl, [], { prune: false });
+    usableEntryCount = renderChannelListItems(listEl, statusEl, [], {
+      prune: false,
+      updateStatus: false,
+    }).length;
   }
 
   try {
     const state = getState();
-    const pubkey = getPubkey();
     if (state && pubkey) {
       const result = await fetchPublicChatsEntries(state, pubkey, { maxEntries: 40 });
+      if (!isCurrentLoad()) return;
       if (result && Array.isArray(result.entries)) {
-        saveCachedChannelEntries(result.entries);
+        // The key is captured with the load so a later account switch cannot redirect this write.
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(result.entries));
+        } catch (_e) {}
         // event があるときだけ除外を prune（空の 10005 なら allowEmpty で刈り取り可）
         renderChannelListItems(listEl, statusEl, result.entries, {
           prune: !!result.event,
           allowEmpty: !!result.event,
         });
+      } else {
+        throw new Error('Invalid public chats response');
       }
     }
   } catch (err) {
+    if (!isCurrentLoad()) return;
     console.warn('[channel-ui] fetchPublicChatsEntries error', err);
-    if (!cached || !cached.length) {
-      if (statusEl) statusEl.textContent = t('channel.load_failed') || 'チャンネル一覧の取得に失敗しました';
-    }
+    if (statusEl) statusEl.textContent = t('channel.load_failed') || 'チャンネル一覧の取得に失敗しました';
+    if (!usableEntryCount) listEl.innerHTML = '';
   }
 }
 

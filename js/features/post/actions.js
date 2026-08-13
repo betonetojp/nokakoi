@@ -10,6 +10,7 @@ import { bytesToHex, randomBytes } from '../../core/crypto.js';
 import { t } from '../../utils/i18n.js';
 import { DEFAULT_OMOCHAT_RELAYS } from '../../config/constants.js';
 import { signer } from '../../core/signer.js';
+import { getCustomEmojis, getSettingsManager } from '../../core/app-context.js';
 
 /**
  * サインイン順序を解決（署名モードに応じて）
@@ -400,9 +401,7 @@ export async function publishNote(state, content, statusEl, options) {
     try {
       const supportedKinds = [1, 6, 7, 42, 16, 20000]; // kind:1 投稿、repost、reaction など
       if (supportedKinds.includes(draft.kind)) {
-        const customEmojis = (typeof window !== 'undefined' && window.__customEmojis instanceof Map)
-          ? window.__customEmojis
-          : null;
+        const customEmojis = getCustomEmojis();
         if (customEmojis) {
           const emojiTags = extractEmojiTagsFromText(draft.content, customEmojis);
           for (const emojiTag of emojiTags) {
@@ -602,7 +601,7 @@ export async function replyToEvent(state, targetEv, text) {
     let replyKind = (kinds && kinds.Text) || 1;
 
     // 設定管理から NIP-22 常時使用オプションを取得
-    const sm = (typeof window !== 'undefined' && window.settingsManager) ? window.settingsManager : null;
+    const sm = getSettingsManager();
     const alwaysUseComment = sm && typeof sm.get === 'function' && sm.get('alwaysUseNip22Comment') === true;
 
     if (targetEv.kind === 20000) {

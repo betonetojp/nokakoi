@@ -2,12 +2,20 @@
 // 投稿欄スクロール動作
 // ============================================================================
 
+import { isProgrammaticScroll } from '../../core/app-context.js';
+
 const COMPOSER_TRANSITION_SCROLL = 'transform 0.3s ease-out';
 const COMPOSER_TRANSITION_OVERLAY = 'transform 0.2s ease-out';
 const KEYBOARD_THRESHOLD_PX = 80;
+const EXTERNAL_SCROLL_INTENT_MS = 400;
+const SCROLL_INTENT_KEYS = new Set([
+  'ArrowDown', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp', ' '
+]);
 
 /** setupComposerScrollBehavior 実行中のコントローラ */
 let scrollController = null;
+let composerLifecycleObserver = null;
+let composerLifecycleTarget = null;
 
 function getComposerEl() {
   return document.getElementById('composer');
@@ -26,6 +34,7 @@ export function setupComposerScrollBehavior() {
   if (!composer || composer.hidden) return;
 
   if (scrollController) {
+    if (scrollController.composer === composer) return scrollController.cleanup;
     try { scrollController.cleanup(); } catch (e) { }
   }
 
@@ -34,15 +43,73 @@ export function setupComposerScrollBehavior() {
 }
 
 /**
+ * hidden中に初期setupが見送られた投稿欄を、表示後に一度だけ初期化する。
+ */
+export function ensureComposerScrollBehavior() {
+  const composer = getComposerEl();
+  if (!composer || composer.hidden) return;
+  if (scrollController && scrollController.composer === composer) {
+    return scrollController.cleanup;
+  }
+  return setupComposerScrollBehavior();
+}
+
+/**
+ * app lifetimeでcomposerの表示復帰を監視し、初期化順序に依存せずcontrollerを保証する。
+ */
+export function setupComposerScrollLifecycle() {
+  const composer = getComposerEl();
+  if (!composer) return null;
+
+  if (composerLifecycleObserver && composerLifecycleTarget === composer) {
+    if (!composer.hidden) ensureComposerScrollBehavior();
+    return composerLifecycleObserver;
+  }
+
+  cleanupComposerScrollLifecycle();
+  composerLifecycleTarget = composer;
+
+  if (typeof MutationObserver !== 'undefined') {
+    composerLifecycleObserver = new MutationObserver(() => {
+      if (!composer.hidden) ensureComposerScrollBehavior();
+    });
+    composerLifecycleObserver.observe(composer, {
+      attributes: true,
+      attributeFilter: ['hidden']
+    });
+  }
+
+  if (!composer.hidden) ensureComposerScrollBehavior();
+  return composerLifecycleObserver;
+}
+
+export function cleanupComposerScrollLifecycle() {
+  if (composerLifecycleObserver) {
+    try { composerLifecycleObserver.disconnect(); } catch (e) { }
+  }
+  composerLifecycleObserver = null;
+  composerLifecycleTarget = null;
+}
+
+export function resetComposerScrollBehaviorForTests() {
+  cleanupComposerScrollLifecycle();
+  if (scrollController) {
+    try { scrollController.cleanup(); } catch (e) { }
+  }
+  scrollController = null;
+}
+
+/**
  * 投稿欄を表示（スクロール非表示を解除）
  */
 export function revealComposer() {
-  if (scrollController) {
-    scrollController.reveal();
-    return getComposerEl();
-  }
   const composer = getComposerEl();
   if (!composer || composer.hidden) return null;
+  ensureComposerScrollBehavior();
+  if (scrollController) {
+    scrollController.reveal();
+    return composer;
+  }
   if (composer.dataset && composer.dataset._settingsHidden) return null;
   composer.style.transform = 'translateY(0)';
   composer.style.transition = COMPOSER_TRANSITION_SCROLL;
@@ -133,6 +200,7 @@ function createScrollController(composer) {
   let ticking = false;
   let resumeGracePeriod = false;
   let graceTimer = null;
+  let lastExternalScrollIntentAt = -Infinity;
 
   // バックグラウンド復帰やソフトリロード時にフィード再構築によるスクロール変動で
   // 投稿窓が隠れるのを防ぐためのリセット処理
@@ -172,6 +240,33 @@ function createScrollController(composer) {
     }
   }
 
+  function isComposerEvent(event) {
+    try {
+      if (!event) return false;
+      const path = typeof event.composedPath === 'function' ? event.composedPath() : null;
+      if (Array.isArray(path) && path.includes(composer)) return true;
+      return !!(event.target && composer.contains(event.target));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function noteExternalScrollIntent(event) {
+    if (isComposerEvent(event)) return;
+    lastExternalScrollIntentAt = Date.now();
+  }
+
+  function noteExternalKeyScrollIntent(event) {
+    if (!event || !SCROLL_INTENT_KEYS.has(event.key)) return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    noteExternalScrollIntent(event);
+  }
+
+  function hasRecentExternalScrollIntent(now = Date.now()) {
+    const elapsed = now - lastExternalScrollIntentAt;
+    return elapsed >= 0 && elapsed <= EXTERNAL_SCROLL_INTENT_MS;
+  }
+
   function computeKeyboardOffset() {
     if (!window.visualViewport) return 0;
     const vv = window.visualViewport;
@@ -203,7 +298,7 @@ function createScrollController(composer) {
         composer.style.transform = 'translateY(100%)';
         return;
       }
-      if (window.__nokakoiProgrammaticScroll) return;
+      if (isProgrammaticScroll()) return;
 
       if (isComposerHidden) {
         composer.style.bottom = '0';
@@ -276,7 +371,9 @@ function createScrollController(composer) {
           clearTimeout(scrollTimeout);
         }
 
-        if (window.__nokakoiProgrammaticScroll) {
+        const hasUserScrollIntent = hasRecentExternalScrollIntent();
+
+        if (isProgrammaticScroll() && !hasUserScrollIntent) {
           lastScrollY = currentScrollY;
           ticking = false;
           return;
@@ -349,6 +446,11 @@ function createScrollController(composer) {
     }, 150);
   }
 
+  window.addEventListener('wheel', noteExternalScrollIntent, { passive: true, capture: true });
+  window.addEventListener('touchstart', noteExternalScrollIntent, { passive: true, capture: true });
+  window.addEventListener('touchmove', noteExternalScrollIntent, { passive: true, capture: true });
+  window.addEventListener('pointerdown', noteExternalScrollIntent, { passive: true, capture: true });
+  window.addEventListener('keydown', noteExternalKeyScrollIntent, { capture: true });
   window.addEventListener('scroll', handleScroll, { passive: true });
 
   if (window.visualViewport) {
@@ -375,12 +477,18 @@ function createScrollController(composer) {
   window.addEventListener('softReloadRequest', handleSoftReloadRequest);
 
   const controller = {
+    composer,
     reveal,
     hideForOverlay,
     restoreFromOverlay,
     syncComposerViewport,
     isComposerScrollHidden: () => isComposerHidden,
     cleanup() {
+      window.removeEventListener('wheel', noteExternalScrollIntent, true);
+      window.removeEventListener('touchstart', noteExternalScrollIntent, true);
+      window.removeEventListener('touchmove', noteExternalScrollIntent, true);
+      window.removeEventListener('pointerdown', noteExternalScrollIntent, true);
+      window.removeEventListener('keydown', noteExternalKeyScrollIntent, true);
       window.removeEventListener('scroll', handleScroll);
       if (window.visualViewport) {
         window.visualViewport.removeEventListener('resize', syncComposerViewport);

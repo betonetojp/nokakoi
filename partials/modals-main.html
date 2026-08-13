@@ -1,0 +1,169 @@
+    <!-- eHagaki モーダル -->
+    <div id="ehagakiModal" class="modal" role="dialog" aria-modal="true" hidden>
+      <div class="modal-body modal-body--md panel">
+        <div class="modal-header-row">
+          <h2 class="modal-title" data-i18n="ehagaki">eHagaki</h2>
+          <button id="ehagakiClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+        </div>
+        <iframe id="ehagakiFrame" src="" data-src="" loading="lazy" allow="local-network-access; local-network; loopback-network"></iframe>
+        <div id="ehagakiPublicChatsPanel" class="ehagaki-public-chats-panel" hidden>
+          <div class="ehagaki-public-chats-panel-header">
+            <span class="ehagaki-public-chats-heading">パブリックチャット一覧</span>
+            <button type="button" class="ehagaki-public-chats-refresh secondary" data-i18n="ehagaki.public_chats.refresh">再読込</button>
+          </div>
+          <div class="ehagaki-public-chats-status muted" hidden></div>
+          <div class="ehagaki-public-chats-list" role="list"></div>
+        </div>
+        <div class="ehagaki-modal-toolbar">
+          <div id="ehagakiAutoCloseContainer" class="ehagaki-auto-close-slot"></div>
+          <button id="ehagakiPublicChatsBtn" class="ehagaki-public-chats-fab secondary" type="button" aria-expanded="false" aria-controls="ehagakiPublicChatsPanel" title="パブリックチャット一覧" aria-label="パブリックチャット一覧">🔖</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 隠し文字埋め込みモーダル -->
+    <div id="steganographyModal" class="modal" role="dialog" aria-modal="true" hidden>
+      <div class="modal-body modal-body--sm panel">
+        <div class="modal-header-row">
+          <h2 class="modal-title" data-i18n="steganography.title">隠し文字埋め込み</h2>
+          <button id="steganographyClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+        </div>
+        <div class="modal-field">
+          <label for="steganographyEmoji" class="modal-field-label" data-i18n="steganography.emoji_label">絵文字</label>
+          <input type="text" id="steganographyEmoji" data-i18n-placeholder="steganography.emoji_placeholder">
+        </div>
+        <div class="modal-field">
+          <label for="steganographyText" class="modal-field-label" data-i18n="steganography.text_label">隠すテキスト</label>
+          <textarea id="steganographyText" rows="3" data-i18n-placeholder="steganography.text_placeholder"></textarea>
+        </div>
+        <div id="steganographyStatus" class="muted modal-status"></div>
+        <div class="row">
+          <button id="steganographyConfirm" type="button" data-i18n="steganography.confirm">埋め込む</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ホームタブ クイック表示設定モーダル -->
+    <div id="homeDisplayQuickModal" class="modal" role="dialog" aria-modal="true" hidden>
+      <div class="modal-body modal-body--sm panel">
+        <h2 class="modal-title" data-i18n="homeDisplayQuick.title">表示のクイック設定</h2>
+        <div class="mt-12">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="homeDisplayQuickCompactCheck">
+            <span data-i18n="simpleDisplayMode">コンパクト表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="homeDisplayQuickMediaCheck">
+            <span data-i18n="showTimelineMedia">画像・動画をインライン表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="homeDisplayQuickReactionsCheck">
+            <span data-i18n="showHomeReactions">ホームにリアクションを表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="homeDisplayQuickDeltaCheck">
+            <span data-i18n="showReceivedDelta">live受信時の端末時計との差分を表示</span>
+          </label>
+        </div>
+        <div class="mt-12 mb-8 flex-col gap-8 items-start">
+          <button id="openFollowEditModalQuickBtn" type="button" class="w-auto" data-i18n="editor.follow.title">フォローリスト編集</button>
+          <button id="openMuteEditModalQuickBtn" type="button" class="w-auto" data-i18n="editor.mute.title">ミュートリスト編集</button>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="homeDisplayQuickMuteCheck">
+            <span data-i18n="mute.apply">ミュートを適用</span>
+          </label>
+        </div>
+        <div class="row mt-16">
+          <button id="homeDisplayQuickCloseBtn" class="secondary" type="button" data-i18n="close">閉じる</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- omochat設定モーダル -->
+    <div id="omochatModal" class="modal" role="dialog" aria-modal="true" hidden>
+      <div class="modal-body modal-body--sm panel">
+        <h2 class="modal-title" data-i18n="omochat.settings.title">omochat設定</h2>
+        <p class="muted text-sm mb-12" data-i18n="omochat.modal.hint">購読するgeohashを設定できます。</p>
+
+        <label for="omochatGeohashInput" class="d-block mb-4 font-bold" data-i18n="omochat.geohash.label">geohash (#g)</label>
+        <div class="omochat-geohash-input-container">
+          <div class="flex-row gap-6">
+            <input type="text" id="omochatGeohashInput" name="omochatGeohashInput" placeholder="xn, ..." data-i18n-placeholder="omochat.geohash.placeholder" class="flex-1">
+            <button id="omochatGeohashHistoryBtn" type="button" class="secondary text-base" data-i18n="omochat.geohash_history.btn" title="履歴">履歴</button>
+          </div>
+          <div id="omochatGeohashHistoryPopup" class="geohash-history-popup"></div>
+        </div>
+
+        <!-- 下位geohash表示オプション -->
+        <label class="omochat-option-label">
+          <input type="checkbox" id="omochatSubordinateCheck">
+          <div>
+            <div data-i18n="omochat.subordinate.label">配下のgeohashも表示</div>
+            <div class="muted settings-hint-sm">
+              <span data-i18n="omochat.subordinate.hint">設定したgeohashで始まる投稿（例: xnならxn77, xn0m7m等）も含めて表示します。</span>
+            </div>
+          </div>
+        </label>
+
+        <!-- リレー自動取得オプション -->
+        <label class="omochat-option-label">
+          <input type="checkbox" id="omochatAutoRelayCheck">
+          <div>
+            <div data-i18n="omochat.auto_relay.label">リレーを位置情報から自動選択 (推奨)</div>
+            <div class="muted settings-hint-sm">
+              <span data-i18n="omochat.auto_relay.hint">指定したgeohashに最も近いNostrリレーを自動的に判別して接続します。</span>
+            </div>
+          </div>
+        </label>
+
+        <!-- アルゴリズム選択（自動選択ON時のみ表示） -->
+        <div id="omochatAutoRelayAlgoContainer">
+          <label for="omochatAutoRelayAlgoSelect" class="modal-field-label font-bold" data-i18n="omochat.auto_relay_algo.label">自動選択モード</label>
+          <select id="omochatAutoRelayAlgoSelect" class="w-full">
+            <option value="merged" data-i18n="omochat.auto_relay_algo.merged">両アプリの選出を結合 (デフォルト・推奨)</option>
+            <option value="ios" data-i18n="omochat.auto_relay_algo.ios">iOSアプリ互換 (決定論的)</option>
+            <option value="android" data-i18n="omochat.auto_relay_algo.android">Androidアプリ互換</option>
+          </select>
+        </div>
+
+        <!-- 上位エリアのマージ（自動選択ON時のみ表示） -->
+        <label id="omochatMergeParentContainer">
+          <input type="checkbox" id="omochatMergeParentCheck">
+          <div>
+            <div data-i18n="omochat.merge_parent.label">上位エリアの近傍リレーも結合</div>
+            <div class="muted settings-hint-sm">
+              <span data-i18n="omochat.merge_parent.hint">ひとつ上の広域エリア（例: xn77ならxn7、xnならx）の近傍リレーもマージして接続します。</span>
+            </div>
+          </div>
+        </label>
+
+        <!-- GeoRelay手動更新ボタン -->
+        <div id="omochatRefreshGeoRelaysContainer" class="mt-8 mb-8">
+          <button id="omochatRefreshGeoRelaysBtn" class="secondary text-sm" type="button" data-i18n="omochat.relays.refresh_georelays">最新のGeoRelaysを取得</button>
+        </div>
+
+        <!-- リレー設定 -->
+        <details id="omochatRelayDetails" class="mt-16 mb-12">
+          <summary data-i18n="omochat.relays.title">リレー設定</summary>
+          <div id="omochatRelayList"></div>
+          <div class="flex-row">
+            <button id="omochatAddRelay" class="secondary" type="button" data-i18n="omochat.relays.add">リレーを追加</button>
+            <button id="omochatResetRelays" class="secondary" type="button" data-i18n="omochat.relays.reset">初期値に戻す</button>
+          </div>
+        </details>
+
+        <div class="row">
+          <button id="omochatSaveBtn" type="button" data-i18n="reaction.save">保存</button>
+          <button id="omochatCancelBtn" class="secondary" type="button" data-i18n="cancel">キャンセル</button>
+        </div>
+        <div id="omochatStatus" class="muted mt-8"></div>
+      </div>
+    </div>

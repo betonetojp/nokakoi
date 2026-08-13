@@ -2,7 +2,8 @@ import { logWarn } from '../../utils/utils.js';
 import { getNostrTools } from '../nostr-compat.js';
 import { getAllRelayUrls, cleanupPoolDuplicates } from './relay-helpers.js';
 import { stopMonitoringRelays, monitorRelayConnections, startKeepalive, setupVisibilityHandler, debugRelay } from './relay-state.js';
-import { subscribeQueue } from './relay-subscription.js';
+import { releaseSubscriptionsForPool } from './relay-subscription.js';
+import { appendRelayConnectionLog } from '../app-context.js';
 
 /**
  * リレー設定をオブジェクト形式に正規化
@@ -113,30 +114,14 @@ export function relayConnect(state, SimplePool, restartFeedsCallback = null) {
       try {
         try {
           const counts = countPoolSockets(oldPool);
-          try { window.__relayConnectionLog && window.__relayConnectionLog.push({ when: Date.now(), action: 'closing_old_pool', totalRelays: counts.total, openSockets: counts.open }); } catch (e) { }
+          appendRelayConnectionLog({ when: Date.now(), action: 'closing_old_pool', totalRelays: counts.total, openSockets: counts.open });
           debugRelay('[Relay] 既存 pool を閉じます, relays:', counts.total, 'open sockets:', counts.open);
         } catch (e) { }
 
+        try { releaseSubscriptionsForPool(state, oldPool, 'relay pool replaced'); } catch (e) { }
+        try { state.subs.clear(); } catch (e) { console.warn('[Relay] 購読参照クリア失敗:', e); }
         try {
-          state.subs.clear();
-        } catch (e) {
-          console.warn('[Relay] 購読参照クリア失敗:', e);
-        }
-        try {
-          closePoolSocketsSafely(state.pool);
-        } catch (e) { }
-        try {
-          if (typeof subscribeQueue !== 'undefined' && Array.isArray(subscribeQueue) && subscribeQueue.length) {
-            for (let i = subscribeQueue.length - 1; i >= 0; i--) {
-              try {
-                const req = subscribeQueue[i];
-                if (req && req.pool === oldPool) {
-                  try { req.cancelled = true; } catch (e) { }
-                  try { subscribeQueue.splice(i, 1); } catch (e) { }
-                }
-              } catch (e) { }
-            }
-          }
+          closePoolSocketsSafely(oldPool);
         } catch (e) { }
         state.pool = null;
       } catch (e) {
@@ -151,7 +136,7 @@ export function relayConnect(state, SimplePool, restartFeedsCallback = null) {
     try { state.pool.trackRelays = true; } catch (e) { }
     try {
       const countsNew = countPoolSockets(state.pool);
-      try { window.__relayConnectionLog && window.__relayConnectionLog.push({ when: Date.now(), action: 'created_new_pool', totalRelays: countsNew.total, openSockets: countsNew.open }); } catch (e) { }
+      appendRelayConnectionLog({ when: Date.now(), action: 'created_new_pool', totalRelays: countsNew.total, openSockets: countsNew.open });
       debugRelay('[Relay] 新しい pool を作成, relays:', countsNew.total, 'open sockets:', countsNew.open);
     } catch (e) { }
     try { cleanupPoolDuplicates(state.pool); } catch (e) { logWarn('[Relay] cleanupPoolDuplicates 失敗:', e); }
@@ -183,23 +168,26 @@ export async function closePoolAndWait(state, timeoutMs = 1000) {
   const oldPool = state.pool;
   try {
     try { stopMonitoringRelays(state); } catch (e) { }
-    try {
-      try { state.subs.clear(); } catch (e) { }
-    } catch (e) { }
+    try { releaseSubscriptionsForPool(state, oldPool, 'relay pool closed'); } catch (e) { }
+    try { state.subs.clear(); } catch (e) { }
 
-    try {
-      if (typeof subscribeQueue !== 'undefined' && Array.isArray(subscribeQueue) && subscribeQueue.length) {
-        for (let i = subscribeQueue.length - 1; i >= 0; i--) {
-          try {
-            const req = subscribeQueue[i];
-            if (req && req.pool === oldPool) {
-              try { req.cancelled = true; } catch (e) { }
-              try { subscribeQueue.splice(i, 1); } catch (e) { }
-            }
-          } catch (e) { }
+    const fetcherKeys = [
+      '_globalFetcher',
+      '_homeFetcher',
+      '_homeOmochatFetcher',
+      '_mentionsFetcher',
+      '_meFetcher',
+      '_bitchatFetcher'
+    ];
+    for (const key of fetcherKeys) {
+      try {
+        const fetcher = state[key];
+        if (fetcher) {
+          try { if (fetcher.controller && typeof fetcher.controller.abort === 'function') fetcher.controller.abort(); } catch (e) { }
         }
-      }
-    } catch (e) { }
+      } catch (e) { }
+      try { state[key] = null; } catch (e) { }
+    }
 
     try {
       closePoolSocketsSafely(oldPool);

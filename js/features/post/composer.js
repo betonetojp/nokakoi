@@ -6,7 +6,11 @@ import { $, escapeHtml, truncateName, truncateByGraphemeVisible, logWarn, replac
 import { displayName } from '../profile/profile.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { attachEmojiShortcodeSuggest } from '../emoji/emoji-shortcode-suggest.js';
-import { revealComposer, syncComposerViewport } from './composer-scroll.js';
+import {
+  ensureComposerScrollBehavior,
+  revealComposer,
+  syncComposerViewport
+} from './composer-scroll.js';
 import { publishNote, replyToEvent } from './actions.js';
 import {
   buildEmojiUrlMapFromText,
@@ -15,6 +19,7 @@ import {
 } from '../emoji/custom-emoji-store.js';
 import { sendChannelMessage } from '../channel/channel-feed.js';
 import { pickChannelRootId } from '../channel/channel.js';
+import { getCustomEmojis, getSettingsManager } from '../../core/app-context.js';
 
 let currentReplyTarget = null;
 let currentGeohashTarget = null;
@@ -23,6 +28,14 @@ let currentQuoteMode = false;
 let __composerLastState = null;
 let __composerLastNip19 = null;
 const COMPOSER_AUTHOR_LIMIT = 16;
+
+function showComposerAndEnsureScroll() {
+  const composer = $('#composer');
+  if (!composer) return null;
+  composer.hidden = false;
+  ensureComposerScrollBehavior();
+  return composer;
+}
 
 /**
  * 返信対象をセットし投稿欄UIを更新
@@ -157,7 +170,7 @@ export function setGeohashTarget(geohash) {
 
   // geohash履歴に追加・保存
   try {
-    const sm = (typeof window !== 'undefined' && window.settingsManager) ? window.settingsManager : null;
+    const sm = getSettingsManager();
     if (sm && typeof sm.get === 'function' && typeof sm.set === 'function') {
       let hist = sm.get('omochatGeohashHistory');
       if (!Array.isArray(hist)) hist = [];
@@ -229,8 +242,7 @@ export function setChannelTarget(channelInfo) {
   currentQuoteMode = false;
   currentChannelTarget = channelInfo;
 
-  const composer = $('#composer');
-  if (composer) composer.hidden = false;
+  showComposerAndEnsureScroll();
 
   const replyContext = $('#replyContext');
   const replyContextContent = $('#replyContextContent');
@@ -317,8 +329,7 @@ export function hideComposerForUnselectedChannel() {
  * 投稿窓表示処理
  */
 export function revealComposerForSelectedChannel() {
-  const composer = $('#composer');
-  if (composer) composer.hidden = false;
+  showComposerAndEnsureScroll();
 }
 
 /**
@@ -335,8 +346,7 @@ export function clearReplyTarget(options = {}) {
   __composerLastState = null;
   __composerLastNip19 = null;
 
-  const composer = $('#composer');
-  if (composer) composer.hidden = false;
+  showComposerAndEnsureScroll();
 
   if (currentChannelTarget) {
     setChannelTarget(currentChannelTarget);
@@ -478,9 +488,7 @@ let currentEmojiPreviewTags = []; // 投稿欄で検出されたショートコ�
  * @returns {Array} emoji タグの配列
  */
 export function extractUsedEmojiTags(text) {
-  const customEmojis = (typeof window !== 'undefined' && window.__customEmojis instanceof Map)
-    ? window.__customEmojis
-    : new Map();
+  const customEmojis = getCustomEmojis();
   return extractEmojiTagsFromText(text, customEmojis);
 }
 
@@ -519,9 +527,7 @@ function updateEmojiPreview() {
     previewContainer.innerHTML = ''; // クリア
 
     // テキストから emoji 関連要素のみを抽出してプレビュー生成
-    const customEmojis = (typeof window !== 'undefined' && window.__customEmojis instanceof Map)
-      ? window.__customEmojis
-      : new Map();
+    const customEmojis = getCustomEmojis();
     const emojiMap = buildEmojiUrlMapFromText(text, customEmojis);
 
     const lines = text.split('\n');

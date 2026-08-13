@@ -155,7 +155,7 @@ export function clearFullState(state) {
 
   // 3. DOM上のフィード要素の初期化
   try {
-    const feedIds = ['feed-home', 'feed-global', 'feed-mentions', 'feed-me', 'feed-omochat'];
+    const feedIds = ['feed-home', 'feed-global', 'feed-mentions', 'feed-me', 'feed-bitchat', 'feed-channels'];
     feedIds.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '';

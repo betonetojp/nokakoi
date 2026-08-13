@@ -1,10 +1,13 @@
 // js/features/emoji/custom-emoji-sub.js
 
-import { getReadRelays } from '../../core/relay.js';
+import { getReadRelays, subOnce } from '../../core/relay.js';
 import { addCustomEmojiVariant } from '../../features/emoji/custom-emoji-store.js';
+import { setCustomEmojis } from '../../core/app-context.js';
 
 let state = null;
 let settingsManager = null;
+let emojiSetupGeneration = 0;
+let cancelCurrentEmojiSetup = null;
 
 /**
  * カスタム絵文字購読モジュールの初期化
@@ -12,6 +15,7 @@ let settingsManager = null;
 export function initCustomEmojiSub(appState, appSettingsManager) {
   state = appState;
   settingsManager = appSettingsManager;
+  setCustomEmojis(state && state.customEmojis);
 }
 
 /**
@@ -127,26 +131,66 @@ export function setupCustomEmojiSubscription() {
     }
   } catch (e) { }
 
+  emojiSetupGeneration += 1;
+  const generation = emojiSetupGeneration;
+  try {
+    if (typeof cancelCurrentEmojiSetup === 'function') cancelCurrentEmojiSetup();
+  } catch (e) { }
+  cancelCurrentEmojiSetup = null;
+
   try {
     if (!state || !state.pool) return;
-    const relays = getReadRelays(state.relays);
+    const setupState = state;
+    const account = (() => {
+      try {
+        const value = localStorage.getItem('pubkey');
+        return value ? String(value).toLowerCase() : '';
+      } catch (e) {
+        return '';
+      }
+    })();
+    const relays = getReadRelays(setupState.relays);
     if (!relays || relays.length === 0) return;
 
-    // 既存の購読があればクローズ（重複登録防止）
-    try {
-      if (state.subs && state.subs.has('custom-emoji')) {
-        const oldSub = state.subs.get('custom-emoji');
-        try { if (oldSub && typeof oldSub.close === 'function') oldSub.close(); } catch (e) { }
+    let listUnsubscribe = null;
+    let setUnsubscribe = null;
+    let listTimer = null;
+    let setTimer = null;
+    let cancelled = false;
+    const isCurrentSetup = () => {
+      if (cancelled || generation !== emojiSetupGeneration || state !== setupState) return false;
+      try {
+        const current = localStorage.getItem('pubkey');
+        return (current ? String(current).toLowerCase() : '') === account;
+      } catch (e) {
+        return false;
       }
-      if (state.subs && state.subs.has('custom-emoji-list')) {
-        const oldListSub = state.subs.get('custom-emoji-list');
-        try { if (oldListSub && typeof oldListSub.close === 'function') oldListSub.close(); } catch (e) { }
-      }
-    } catch (e) { }
+    };
+    const safeUnsubscribe = (unsubscribe) => {
+      try { if (typeof unsubscribe === 'function') unsubscribe(); } catch (e) { }
+    };
+    const closeListRequest = () => {
+      const unsubscribe = listUnsubscribe;
+      listUnsubscribe = null;
+      safeUnsubscribe(unsubscribe);
+    };
+    const closeSetRequest = () => {
+      const unsubscribe = setUnsubscribe;
+      setUnsubscribe = null;
+      safeUnsubscribe(unsubscribe);
+    };
+    cancelCurrentEmojiSetup = () => {
+      if (cancelled) return;
+      cancelled = true;
+      if (listTimer) clearTimeout(listTimer);
+      if (setTimer) clearTimeout(setTimer);
+      closeListRequest();
+      closeSetRequest();
+    };
 
     // 絵文字データを初期クリアして更新通知
-    try { state.customEmojis.clear(); } catch (e) { }
-    try { window.__customEmojis = state.customEmojis; } catch (e) { }
+    try { setupState.customEmojis.clear(); } catch (e) { }
+    setCustomEmojis(setupState.customEmojis);
     dispatchCustomEmojiUpdated();
 
     // 購読対象の著者を取得
@@ -154,131 +198,125 @@ export function setupCustomEmojiSubscription() {
     if (!authors.length) return;
 
     const latestListByAuthor = new Map();
-    let listOoseDone = false;
+    let listFinalized = false;
 
-    const closeListSub = () => {
+    const finalizeList = () => {
+      if (listFinalized) return;
+      listFinalized = true;
+      if (listTimer) clearTimeout(listTimer);
+      closeListRequest();
+      if (!isCurrentSetup()) return;
       try {
-        if (listSub && typeof listSub.close === 'function') listSub.close();
-      } catch (e) { }
-      try { state.subs.delete('custom-emoji-list'); } catch (e) { }
-    };
+        const referenced = new Set();
+        const refAuthors = new Set();
+        const refDs = new Set();
+        let directEmojiCount = 0;
 
-    const listTimer = setTimeout(() => {
-      if (!listOoseDone) {
-        listOoseDone = true;
-        closeListSub();
-      }
-    }, 5000);
+        // 著者ごとの最新の kind:10030 リストを処理
+        for (const ev of latestListByAuthor.values()) {
+          try {
+            directEmojiCount += ingestDirectEmojiTagsFromListEvent(ev);
+            if (!Array.isArray(ev.tags)) continue;
+            for (const t of ev.tags) {
+              if (!Array.isArray(t) || t[0] !== 'a' || !t[1]) continue;
+              const parsed = parseEmojiSetAddress(t[1]);
+              if (!parsed) continue;
+              referenced.add(parsed.address);
+              refAuthors.add(parsed.pubkey);
+              refDs.add(parsed.identifier);
+            }
+          } catch (e) { }
+        }
 
-    const listSub = state.pool.subscribeMany(relays, [{ kinds: [10030], authors, limit: 1000 }], {
-      onevent: (ev) => {
-        try {
-          if (!ev || ev.kind !== 10030 || !ev.pubkey) return;
-          const prev = latestListByAuthor.get(ev.pubkey);
-          if (!prev || Number(ev.created_at || 0) >= Number(prev.created_at || 0)) {
-            latestListByAuthor.set(ev.pubkey, ev);
-          }
-        } catch (e) { }
-      },
-      oneose: () => {
-        if (listOoseDone) return;
-        listOoseDone = true;
-        clearTimeout(listTimer);
-        closeListSub();
-        try {
-          const referenced = new Set();
-          const refAuthors = new Set();
-          const refDs = new Set();
-          let directEmojiCount = 0;
+        if (directEmojiCount > 0) dispatchCustomEmojiUpdated();
 
-          // 著者ごとの最新の kind:10030 リストを処理
-          for (const ev of latestListByAuthor.values()) {
-            try {
-              directEmojiCount += ingestDirectEmojiTagsFromListEvent(ev);
-              if (!Array.isArray(ev.tags)) continue;
-              for (const t of ev.tags) {
-                if (!Array.isArray(t) || t[0] !== 'a' || !t[1]) continue;
-                const parsed = parseEmojiSetAddress(t[1]);
-                if (!parsed) continue;
-                referenced.add(parsed.address);
-                refAuthors.add(parsed.pubkey);
-                refDs.add(parsed.identifier);
-              }
-            } catch (e) { }
-          }
-
+        if (!referenced.size) {
           if (directEmojiCount > 0) {
-            try { window.__customEmojis = state.customEmojis; } catch (e) { }
-            dispatchCustomEmojiUpdated();
+            console.debug('[Custom Emoji] kind:10030 直接 emoji のみロード完了');
+          } else {
+            console.debug('[Custom Emoji] kind:10030 に emoji がありません');
           }
+          return;
+        }
 
-          if (!referenced.size) {
-            if (directEmojiCount > 0) {
-              console.debug('[Custom Emoji] kind:10030 直接 emoji のみロード完了');
-            } else {
-              console.debug('[Custom Emoji] kind:10030 に emoji がありません');
-            }
-            return;
-          }
+        const filters = [{ kinds: [30030], authors: Array.from(refAuthors), '#d': Array.from(refDs), limit: 1000 }];
+        const seenEvents = new Set();
+        let setFinalized = false;
+        const finalizeSets = () => {
+          if (setFinalized) return;
+          setFinalized = true;
+          if (setTimer) clearTimeout(setTimer);
+          closeSetRequest();
+          if (!isCurrentSetup()) return;
+          console.debug('[Custom Emoji] kind:10030 -> kind:30030 初期ロード完了');
+        };
 
-          // 参照されている kind:30030 （絵文字セット）を取得する
-          const filters = [{ kinds: [30030], authors: Array.from(refAuthors), '#d': Array.from(refDs), limit: 1000 }];
-          let subOoseDone = false;
-
-          const closeSub = () => {
-            try {
-              if (sub && typeof sub.close === 'function') sub.close();
-            } catch (e) { }
-            try { state.subs.delete('custom-emoji'); } catch (e) { }
-          };
-
-          const subTimer = setTimeout(() => {
-            if (!subOoseDone) {
-              subOoseDone = true;
-              closeSub();
-            }
-          }, 5000);
-
-          const sub = state.pool.subscribeMany(relays, filters, {
-            onevent: (ev) => {
+        setUnsubscribe = subOnce(
+          setupState,
+          `custom-emoji-sets:${account}`,
+          filters,
+          (ev, relay, done) => {
+            void relay;
+            if (!isCurrentSetup()) return;
+            if (ev) {
               try {
-                if (!ev || ev.kind !== 30030 || !ev.pubkey || !Array.isArray(ev.tags)) return;
+                if (ev.kind !== 30030 || !ev.pubkey || !Array.isArray(ev.tags)) return;
                 const identifier = getEventIdentifier(ev);
                 const coordinate = `30030:${ev.pubkey}:${identifier}`;
                 if (!referenced.has(coordinate)) return;
+                const eventKey = ev.id || `${coordinate}:${Number(ev.created_at || 0)}`;
+                if (seenEvents.has(eventKey)) return;
+                seenEvents.add(eventKey);
 
                 const emojiTags = ev.tags.filter(t => Array.isArray(t) && t[0] === 'emoji' && t[1] && t[2]);
                 for (const tag of emojiTags) {
                   const shortcode = String(tag[1]);
                   const url = String(tag[2]);
                   const address = tag[3] ? String(tag[3]) : coordinate;
-                  addCustomEmojiVariant(state.customEmojis, shortcode, { url, address });
+                  addCustomEmojiVariant(setupState.customEmojis, shortcode, { url, address });
                 }
-
-                try { window.__customEmojis = state.customEmojis; } catch (e) { }
                 dispatchCustomEmojiUpdated();
               } catch (e) {
                 console.warn('[Custom Emoji] kind:30030 処理に失敗:', e);
               }
-            },
-            oneose: () => {
-              if (subOoseDone) return;
-              subOoseDone = true;
-              clearTimeout(subTimer);
-              closeSub();
-              console.debug('[Custom Emoji] kind:10030 -> kind:30030 初期ロード完了');
             }
-          });
-
-          try { state.subs.set('custom-emoji', sub); } catch (e) { }
-          try { window.__customEmojiSub = sub; } catch (e) { }
-        } catch (e) {
-          console.warn('[Custom Emoji] kind:10030 解析に失敗:', e);
+            if (done) finalizeSets();
+          },
+          relays
+        );
+        if (setFinalized) {
+          closeSetRequest();
+        } else {
+          setTimer = setTimeout(finalizeSets, 5000);
         }
+      } catch (e) {
+        console.warn('[Custom Emoji] kind:10030 解析に失敗:', e);
       }
-    });
+    };
 
-    try { state.subs.set('custom-emoji-list', listSub); } catch (e) { }
+    listUnsubscribe = subOnce(
+      setupState,
+      `custom-emoji-list:${account}`,
+      [{ kinds: [10030], authors, limit: 1000 }],
+      (ev, relay, done) => {
+        void relay;
+        if (!isCurrentSetup()) return;
+        try {
+          if (ev && ev.kind === 10030 && ev.pubkey) {
+            const prev = latestListByAuthor.get(ev.pubkey);
+            if (!prev || Number(ev.created_at || 0) >= Number(prev.created_at || 0)) {
+              latestListByAuthor.set(ev.pubkey, ev);
+            }
+          }
+        } catch (e) { }
+        if (done) finalizeList();
+      }
+    );
+    if (listFinalized) {
+      closeListRequest();
+    } else {
+      listTimer = setTimeout(finalizeList, 5000);
+    }
   } catch (e) {
     console.warn('[Custom Emoji] セットアップに失敗:', e);
   }

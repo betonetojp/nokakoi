@@ -9,10 +9,15 @@ import { updateUserStatusDom, updateNameDom, loadProfile } from '../../features/
 import { applyReactionToButton } from '../../ui/renderer.js';
 import { showFeedNotification, sanitizeNotificationBody, ensureNotificationPermission, shouldShowBrowserNotification, normalizeMentionNotificationMode, _notifiedEventIds } from '../../utils/notification.js';
 import { t } from '../../utils/i18n.js';
-import { getClosestRelays } from '../../features/relay/geo-relay-directory.js';
 import { getNip19, getSimplePool, getNostrTools } from '../../core/nostr-compat.js';
 import { checkMentionBlink } from '../../ui/ui-setup.js';
 import { setStatus } from '../../utils/utils.js';
+import { shouldConnectOmochatOnBoot, shouldLoadOmochatHistory } from './omochat-lifecycle.js';
+import { resetAutoMoreState } from './feed-more-policy.js';
+import {
+  readMentionLastViewed,
+  writeMentionLastViewed,
+} from '../../utils/mention-last-viewed.js';
 import {
   buildHomeLoadMoreFiltersForGlobalMerge as buildHomeLoadMoreFiltersForGlobalMergeImpl,
   getFeedBaseFilters as getFeedBaseFiltersImpl,
@@ -44,6 +49,39 @@ const SimplePoolProvider = function () {
 
 const _feedUiStateById = new Map();
 let _restartFeedsCalled = false;
+let _feedGeneration = 0;
+let _delayedBitchatTimer = null;
+const _poolIds = new WeakMap();
+let _nextPoolId = 1;
+
+function poolIdentity(pool) {
+  if (!pool || (typeof pool !== 'object' && typeof pool !== 'function')) return 0;
+  if (!_poolIds.has(pool)) _poolIds.set(pool, _nextPoolId++);
+  return _poolIds.get(pool);
+}
+
+function stableConfig(value) {
+  if (Array.isArray(value)) return value.map(stableConfig).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const key of Object.keys(value).sort()) out[key] = stableConfig(value[key]);
+    return out;
+  }
+  return value;
+}
+
+function feedConfigKey(config) {
+  try { return JSON.stringify(stableConfig(config)); } catch (_e) { return ''; }
+}
+
+function sameFetcherConfig(fetcher, configKey) {
+  return !!(fetcher && fetcher.__configKey === configKey);
+}
+
+function markFetcherConfig(fetcher, configKey) {
+  try { if (fetcher) fetcher.__configKey = configKey; } catch (_e) { }
+  return fetcher;
+}
 
 // 外部から利用するために export する
 export { _feedUiStateById };
@@ -119,6 +157,7 @@ export function markFeedHistBufferStart(feedId) {
   try {
     if (!feedLoadState[feedId]) feedLoadState[feedId] = {};
     feedLoadState[feedId].histLoading = true;
+    resetAutoMoreState(feedLoadState[feedId], Date.now(), false);
   } catch (e) { }
 }
 
@@ -129,6 +168,7 @@ export function markFeedHistBufferEnd(feedId, actuallyLoaded = false) {
   try {
     if (!feedLoadState[feedId]) feedLoadState[feedId] = {};
     feedLoadState[feedId].histLoading = false;
+    resetAutoMoreState(feedLoadState[feedId], Date.now(), true);
     if (actuallyLoaded) {
       feedLoadState[feedId].histLoaded = true;
     }
@@ -169,6 +209,18 @@ export function resolveGlobalRelays(settingsManager, stateRelays) {
   }
   if (Array.isArray(globalRelay)) return globalRelay.slice();
   return [globalRelay];
+}
+
+/**
+ * 認証済みホームの live 購読先を 1 リレーに絞る。
+ * 複数候補がある場合はグローバル購読先と重ならない read リレーを優先する。
+ */
+export function selectHomeLiveRelays(readRelays, globalRelays) {
+  const reads = Array.from(new Set((Array.isArray(readRelays) ? readRelays : []).filter(Boolean)));
+  if (reads.length <= 1) return reads;
+  const normalizeRelay = url => String(url).replace(/\/+$/, '').toLowerCase();
+  const globalSet = new Set((Array.isArray(globalRelays) ? globalRelays : []).filter(Boolean).map(normalizeRelay));
+  return [reads.find(url => !globalSet.has(normalizeRelay(url))) || reads[0]];
 }
 
 /**
@@ -363,7 +415,7 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
     const expected = relayToFilters.size;
     for (const [relay, filtersList] of relayToFilters.entries()) {
       try {
-        const key = 'merged_global_more_' + relay + '_' + Math.random().toString(36).slice(2, 8);
+        const key = 'merged_global_more_' + relay;
         const unsub = subOnce(state, key, filtersList, (ev, r, done) => {
           try { if (ev?.id && isGlobalMergeKind(ev)) moreBuffer.set(ev.id, ev); } catch (e) { }
           if (done) {
@@ -524,8 +576,7 @@ export function addToFeed(feedId, ev, keepLatestCount = null, relay = null) {
         if (typeof window !== 'undefined' && window.__mentionsInitialLoading) {
           // 初期ロード時は処理スキップ
         } else {
-          const lastViewed = parseInt(localStorage.getItem('mentions_last_viewed_at') || '0', 10);
-          const lastViewedId = localStorage.getItem('mentions_last_viewed_id') || '';
+          const { at: lastViewed, id: lastViewedId } = readMentionLastViewed();
           let activeTab = null;
           try {
             const activeTabEl = document.querySelector('.tab.active');
@@ -536,8 +587,7 @@ export function addToFeed(feedId, ev, keepLatestCount = null, relay = null) {
             try {
               const created = ev && ev.created_at ? ev.created_at : Math.floor(Date.now() / 1000);
               const id = ev && ev.id ? ev.id : '';
-              localStorage.setItem('mentions_last_viewed_at', String(created));
-              localStorage.setItem('mentions_last_viewed_id', String(id));
+              writeMentionLastViewed({ at: created, id });
               setMentionBlink(false);
             } catch (e) { }
           } else {
@@ -672,8 +722,16 @@ export function setupGlobalFeed() {
         liveFilters.push({ kinds: [30315], '#d': ['music'], since });
       }
     } catch (e) { }
+    const configKey = feedConfigKey({
+      feedId: 'global',
+      relays,
+      histEnabled: isActive,
+      mergeHome,
+      showMusicStatus: settingsManager.get('showMusicStatus') !== false
+    });
+    if (sameFetcherConfig(state._globalFetcher, configKey)) return state._globalFetcher;
     stopFetcherSlot('_globalFetcher');
-    const fetcher = setupFeedFetcher({
+    const fetcher = markFetcherConfig(setupFeedFetcher({
       state,
       feedId: 'global',
       histFilters,
@@ -689,25 +747,12 @@ export function setupGlobalFeed() {
       onHistFinalize: mergeHome ? () => {
         try { finalizeMergedGlobalFeed(true); } catch (e) { }
       } : null
-    });
+    }), configKey);
     try { state._globalFetcher = fetcher; } catch (e) { }
+    return fetcher;
   } catch (e) {
     console.warn('[Main] setupGlobalFeed に失敗したため元の挙動へフォールバック', e);
   }
-}
-
-/**
- * 起動時の Bitchat 自動接続判定
- */
-function shouldConnectBitchatOnBoot() {
-  try {
-    if (settingsManager.get('showHomeOmochat') === true) return true;
-    if (settingsManager.get('showOmochat') !== false) return true;
-    const activeTabEl = document.querySelector('.tab.active');
-    const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
-    if (activeTab === 'bitchat') return true;
-  } catch (e) { }
-  return false;
 }
 
 /**
@@ -727,21 +772,37 @@ export function getOmochatRelays() {
 }
 
 /**
- * Bitchat (Omochat) フィードのセットアップ
+ * Bitchat (Omochat) フィードを live-only または履歴付きでセットアップする
  */
-export function setupBitchatFeed() {
-  const showOmochat = settingsManager.get('showOmochat') !== false;
-  if (!showOmochat) return;
+export function setupBitchatFeed({ mode: requestedMode } = {}) {
+  if (!shouldConnectOmochatOnBoot(settingsManager)) {
+    stopFetcherSlot('_bitchatFetcher');
+    return null;
+  }
 
+  const mode = requestedMode === 'full' || requestedMode === 'live-only'
+    ? requestedMode
+    : (shouldLoadOmochatHistory(settingsManager) ? 'full' : 'live-only');
   if (!state.feeds['bitchat']) state.feeds['bitchat'] = { list: [], map: new Map() };
   const relays = getOmochatRelays();
   const geohash = settingsManager.get('omochatGeohash') || 'xn';
   const subordinate = settingsManager.get('omochatSubordinate') === true;
   const includeHomeOmochat = settingsManager.get('showHomeOmochat') === true;
+  const configKey = feedConfigKey({
+    feedId: 'bitchat',
+    mode,
+    relays,
+    geohash,
+    subordinate,
+    includeHomeOmochat
+  });
+  if (sameFetcherConfig(state._bitchatFetcher, configKey)) return state._bitchatFetcher;
 
   try {
     const fiveMinAgo = Math.floor(Date.now() / 1000) - (5 * 60);
-    const histFilters = [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT, since: fiveMinAgo }];
+    const histFilters = mode === 'full'
+      ? [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT, since: fiveMinAgo }]
+      : [];
     const since = Math.floor(Date.now() / 1000);
     const liveFilters = [{ kinds: [20000], since }];
 
@@ -774,7 +835,7 @@ export function setupBitchatFeed() {
     try { state._bitchatFeedAdder = feedAdder; } catch (e) { }
 
     stopFetcherSlot('_bitchatFetcher');
-    const fetcher = setupFeedFetcher({
+    const fetcher = markFetcherConfig(setupFeedFetcher({
       state,
       feedId: 'bitchat',
       histFilters,
@@ -787,8 +848,9 @@ export function setupBitchatFeed() {
       histKeepLimit: EVENTS_MAX,
       acceptHistEvent: matchesGeohash,
       ...feedFetcherHistHooks()
-    });
+    }), configKey);
     try { state._bitchatFetcher = fetcher; } catch (e) { }
+    return fetcher;
   } catch (e) {
     console.warn('[Main] setupBitchatFeed に失敗', e);
   }
@@ -797,14 +859,23 @@ export function setupBitchatFeed() {
 /**
  * 認証情報に基づくフォローフィードなどのセットアップ
  */
-export function setupAuthedFeeds() {
+export function setupAuthedFeeds(generation = _feedGeneration) {
   const pubkey = localStorage.getItem('pubkey');
+  if (!pubkey) return false;
+  const pendingToken = pubkey + '|' + generation;
+  if (state._authedFeedsPendingToken === pendingToken) return false;
+  state._authedFeedsPendingToken = pendingToken;
   state._homeFetcherPending = true;
+  let authedInitialized = false;
   subOnce(state, 'follows', [{ kinds: [3], authors: [pubkey], limit: 1 }], function (ev) {
+    if (generation !== _feedGeneration || state._authedFeedsPendingToken !== pendingToken) return;
     if (!ev) {
       state._homeFetcherPending = false;
+      state._authedFeedsPendingToken = null;
       return;
     }
+    if (authedInitialized) return;
+    authedInitialized = true;
     const tags = ev.tags || [];
     const follows = [];
     try {
@@ -860,7 +931,11 @@ export function setupAuthedFeeds() {
       }
     } catch (e) { }
 
-    if (!follows.length) return;
+    if (!follows.length) {
+      state._homeFetcherPending = false;
+      state._authedFeedsPendingToken = null;
+      return;
+    }
 
     const includeHomeReactions = settingsManager.get('showHomeReactions') === true;
     const includeHomeOmochat = settingsManager.get('showHomeOmochat') === true;
@@ -909,7 +984,12 @@ export function setupAuthedFeeds() {
 
       (function createHomeFetcher(attempts) {
         try {
+          if (generation !== _feedGeneration || state._authedFeedsPendingToken !== pendingToken) return;
           const relaysForHist = getReadRelays(state.relays) || [];
+          const liveRelays = selectHomeLiveRelays(
+            relaysForHist,
+            resolveGlobalRelays(settingsManager, state.relays)
+          );
           if ((!relaysForHist || relaysForHist.length === 0) && attempts < 5) {
             setTimeout(() => createHomeFetcher(attempts + 1), 300);
             return;
@@ -937,6 +1017,7 @@ export function setupAuthedFeeds() {
             histFilters: homeHist,
             liveFilters: homeLive,
             relays: relaysForHist,
+            liveRelays,
             addToFeed: multicastAddToFeed,
             scheduleRender,
             eventsFetchLimit: EVENTS_FETCH_LIMIT,
@@ -946,9 +1027,11 @@ export function setupAuthedFeeds() {
           try {
             state._homeFetcher = fetcher;
             state._homeFetcherPending = false;
+            state._authedFeedsPendingToken = null;
           } catch (e) { }
         } catch (e) {
           try { state._homeFetcherPending = false; } catch (err) { }
+          try { state._authedFeedsPendingToken = null; } catch (err) { }
           console.warn('[Main] createHomeFetcher に失敗したため元の挙動へフォールバック', e);
         }
       })(0);
@@ -1062,15 +1145,65 @@ export function setupAuthedFeeds() {
         }, (i / batchSize) * delay);
       }
     } catch (e) {
+      try {
+        state._homeFetcherPending = false;
+        state._authedFeedsPendingToken = null;
+      } catch (_err) { }
       console.warn('[Main] setupAuthedFeeds setupFeedFetcher に失敗', e);
     }
   });
+  return true;
 }
 
 /**
  * フィードの再起動
  */
+export function scheduleBitchatFeedSetup(delayMs = 1500, generation = _feedGeneration) {
+  if (_delayedBitchatTimer) {
+    clearTimeout(_delayedBitchatTimer);
+    _delayedBitchatTimer = null;
+  }
+  _delayedBitchatTimer = setTimeout(() => {
+    _delayedBitchatTimer = null;
+    if (generation !== _feedGeneration) return;
+    try { setupBitchatFeed(); } catch (e) { console.warn('[FeedManager] 遅延 bitchat セットアップ失敗:', e); }
+  }, delayMs);
+  return _delayedBitchatTimer;
+}
+
 export function restartFeeds(fullReset = false) {
+  const restartSignature = feedConfigKey({
+    fullReset,
+    pubkey: localStorage.getItem('pubkey') || '',
+    relays: state && state.relays,
+    pool: poolIdentity(state && state.pool),
+    globalRelay: settingsManager && settingsManager.get('globalRelay'),
+    globalMergeHome: settingsManager && settingsManager.get('globalMergeHome'),
+    showHomeOmochat: settingsManager && settingsManager.get('showHomeOmochat'),
+    showHomeReactions: settingsManager && settingsManager.get('showHomeReactions'),
+    showHomeChannel: settingsManager && settingsManager.get('showHomeChannel'),
+    showHomeRepost16: settingsManager && settingsManager.get('showHomeRepost16'),
+    showMusicStatus: settingsManager && settingsManager.get('showMusicStatus'),
+    showOmochat: settingsManager && settingsManager.get('showOmochat'),
+    omochatRelays: getOmochatRelays()
+  });
+  const now = Date.now();
+  if (state && state._lastFeedRestart &&
+      state._lastFeedRestart.signature === restartSignature &&
+      now - state._lastFeedRestart.at < 1000) {
+    return false;
+  }
+  if (state) state._lastFeedRestart = { signature: restartSignature, at: now };
+  const generation = ++_feedGeneration;
+  if (state) {
+    state._feedGeneration = generation;
+    state._authedFeedsPendingToken = null;
+    state._homeFetcherPending = false;
+  }
+  if (_delayedBitchatTimer) {
+    clearTimeout(_delayedBitchatTimer);
+    _delayedBitchatTimer = null;
+  }
   _restartFeedsCalled = true;
   try {
     const fetcherKeys = ['_globalFetcher', '_homeFetcher', '_homeOmochatFetcher', '_mentionsFetcher', '_meFetcher', '_bitchatFetcher'];
@@ -1128,18 +1261,17 @@ export function restartFeeds(fullReset = false) {
   }
 
   function startFeeds() {
+    if (generation !== _feedGeneration) return;
     const isAuthed = !!localStorage.getItem('pubkey');
     if (isAuthed) {
-      setupAuthedFeeds();
+      setupAuthedFeeds(generation);
     } else {
       scheduleCustomEmojiSubscription(2000);
     }
     setupGlobalFeed();
-    // bitchat hist が home/global の oneshot 枠を奪わないよう起動を遅延
-    if (shouldConnectBitchatOnBoot()) {
-      setTimeout(() => {
-        try { setupBitchatFeed(); } catch (e) { console.warn('[FeedManager] 遅延 bitchat セットアップ失敗:', e); }
-      }, 1500);
+    // 通知ドット用 live は起動するが、非表示なら履歴 oneshot は作らない
+    if (shouldConnectOmochatOnBoot(settingsManager)) {
+      scheduleBitchatFeedSetup(1500, generation);
     }
     window.__nokakoiFeedsReady = false;
     setTimeout(() => { window.__nokakoiFeedsReady = true; }, 5000);
@@ -1190,27 +1322,7 @@ export function restartFeeds(fullReset = false) {
   } else {
     startFeeds();
   }
-}
-
-/**
- * 位置情報 omchat リレー更新ブリッジ
- */
-async function refreshClosestOmochatRelays(geohash) {
-  const isAuto = settingsManager.get('omochatAutoRelays') !== false;
-  if (!isAuto) return false;
-  const targetGeohash = geohash || settingsManager.get('omochatGeohash') || 'xn';
-  try {
-    const algo = settingsManager.get('omochatAutoRelayAlgo') || 'merged';
-    const mergeParent = settingsManager.get('omochatMergeParent') === true;
-    const relays = await getClosestRelays(targetGeohash, 5, algo, mergeParent);
-    if (Array.isArray(relays) && relays.length > 0) {
-      settingsManager.set('omochatComputedRelays', relays);
-      return true;
-    }
-  } catch (e) {
-    console.error('[Main] refreshClosestOmochatRelays failed:', e);
-  }
-  return false;
+  return true;
 }
 
 /**
@@ -1267,6 +1379,10 @@ export function setupSingleFeed(feedId) {
       };
 
       const relaysForHist = getReadRelays(state.relays) || [];
+      const liveRelays = selectHomeLiveRelays(
+        relaysForHist,
+        resolveGlobalRelays(settingsManager, state.relays)
+      );
       stopFetcherSlot('_homeFetcher');
       const fetcher = setupFeedFetcher({
         state,
@@ -1274,6 +1390,7 @@ export function setupSingleFeed(feedId) {
         histFilters: homeHist,
         liveFilters: homeLive,
         relays: relaysForHist,
+        liveRelays,
         addToFeed: multicastAddToFeed,
         scheduleRender,
         eventsFetchLimit: EVENTS_FETCH_LIMIT,
@@ -1390,7 +1507,7 @@ export function handleTabChange(oldTab, newTab) {
   // 2. 切り替え先 (newTab) の処理
   if (newTab && newTab !== 'bitchat' && newTab !== 'channels') {
     // どんなタブ（mentions, me, global 等）に切り替える時でも、万が一 _homeFetcher (home_live) が死んでいれば即座に自動復旧する
-    if (localStorage.getItem('pubkey') && !state._homeFetcher) {
+    if (localStorage.getItem('pubkey') && !state._homeFetcher && !state._homeFetcherPending) {
       console.log('[FeedManager] タブ切り替え時に _homeFetcher (home_live) が存在しません。ホームフィードを自動復旧します');
       try { setupSingleFeed('home'); } catch (e) { console.warn('[FeedManager] ホームフィードの自動復旧に失敗しました:', e); }
     }

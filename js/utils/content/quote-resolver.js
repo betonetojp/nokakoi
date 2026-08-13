@@ -1,12 +1,31 @@
 import { findEventById, cacheEvent } from '../../core/state.js';
 import { getReadRelays } from '../../core/relay.js';
+import { subOnce } from '../../core/relay/relay-subscription.js';
 import { getNip19 } from './linkifier.js';
 
 export const _quoteFetchInflight = new Map();
+export const _quoteIdBatches = new Map();
 export const QUOTE_BATCH_TIMEOUT_MS = 4000;
+export const QUOTE_BATCH_WINDOW_MS = 30;
+
+const objectIds = new WeakMap();
+const idPromiseEntries = new WeakMap();
+let nextObjectId = 1;
+
+function objectIdentity(value) {
+  if ((typeof value !== 'object' && typeof value !== 'function') || value === null) {
+    return String(value);
+  }
+  if (!objectIds.has(value)) objectIds.set(value, nextObjectId++);
+  return String(objectIds.get(value));
+}
 
 export function relaySetKey(relays) {
-  return (relays || []).slice().sort().join('\0');
+  return Array.from(new Set((relays || [])
+    .map(relay => typeof relay === 'string' ? relay.trim().replace(/\/+$/, '') : '')
+    .filter(Boolean)))
+    .sort()
+    .join('\0');
 }
 
 export function resolveQuoteRelays(quoteEl, state) {
@@ -37,119 +56,306 @@ export function naddrFetchKey(kind, pubkey, identifier, relays) {
   return `naddr:${kind}:${pubkey}:${identifier}:${relaySetKey(relays)}`;
 }
 
-export async function fetchQuoteEventById(state, relays, eventId) {
+function stableHash(value) {
+  let hash = 0x811c9dc5;
+  const input = String(value);
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function captureContext(state) {
+  const pool = state?.pool || null;
+  const account = state?.pubkey || null;
+  const memoryKey = `${objectIdentity(state)}\0${objectIdentity(pool)}\0${account || ''}`;
+  return { state, pool, account, memoryKey };
+}
+
+function isContextCurrent(context) {
+  return context.state?.pool === context.pool &&
+    (context.state?.pubkey || null) === context.account;
+}
+
+function safeSubscriptionKey(type, relayKey, requestKey) {
+  return `quote:${type}:${stableHash(relayKey)}:${stableHash(requestKey)}`;
+}
+
+function waitWithSignal(promise, signal) {
+  if (!signal || typeof signal.addEventListener !== 'function') return promise;
+  if (signal.aborted) return Promise.resolve(null);
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = value => {
+      if (settled) return;
+      settled = true;
+      try { signal.removeEventListener('abort', onAbort); } catch (e) { }
+      resolve(value);
+    };
+    const onAbort = () => finish(null);
+    try { signal.addEventListener('abort', onAbort, { once: true }); } catch (e) { }
+    promise.then(finish, () => finish(null));
+  });
+}
+
+function managedFirstEvent(state, key, relays, filter, matches, options = {}, context = captureContext(state)) {
+  return new Promise((resolve) => {
+    let settled = false;
+    let unsubscribe = null;
+    let unsubscribeCalled = false;
+    const signal = options?.signal;
+    const safeUnsubscribe = () => {
+      if (unsubscribeCalled || typeof unsubscribe !== 'function') return;
+      unsubscribeCalled = true;
+      try { unsubscribe(); } catch (e) { }
+    };
+    const finish = (event = null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (signal && typeof signal.removeEventListener === 'function') {
+        try { signal.removeEventListener('abort', onAbort); } catch (e) { }
+      }
+      safeUnsubscribe();
+      resolve(event);
+    };
+    const onAbort = () => finish(null);
+    const timer = setTimeout(() => finish(null), QUOTE_BATCH_TIMEOUT_MS);
+
+    if (signal?.aborted) {
+      finish(null);
+      return;
+    }
+    if (signal && typeof signal.addEventListener === 'function') {
+      try { signal.addEventListener('abort', onAbort, { once: true }); } catch (e) { }
+    }
+
+    try {
+      unsubscribe = subOnce(state, key, [filter], (event, _relay, done) => {
+        if (!isContextCurrent(context)) {
+          finish(null);
+        } else if (event && matches(event)) {
+          cacheEvent(state, event);
+          finish(event);
+        } else if (done) {
+          finish(null);
+        }
+      }, relays);
+      // A synchronous event/EOSE may settle before subOnce returns its handle.
+      if (settled) safeUnsubscribe();
+    } catch (e) {
+      finish(null);
+    }
+  });
+}
+
+function settleBatchEntry(batch, id, event) {
+  const entry = batch.entries.get(id);
+  if (!entry || entry.settled) return;
+  entry.settled = true;
+  batch.pending.delete(id);
+  if (_quoteFetchInflight.get(entry.inflightKey) === entry.promise) {
+    _quoteFetchInflight.delete(entry.inflightKey);
+  }
+  entry.resolve(event || null);
+}
+
+function finishIdBatch(batch) {
+  if (batch.settled) return;
+  batch.settled = true;
+  if (batch.timer) clearTimeout(batch.timer);
+  if (batch.timeout) clearTimeout(batch.timeout);
+  if (typeof batch.unsubscribe === 'function' && !batch.unsubscribeCalled) {
+    batch.unsubscribeCalled = true;
+    try { batch.unsubscribe(); } catch (e) { }
+  }
+  for (const id of batch.pending) settleBatchEntry(batch, id, null);
+}
+
+function startIdBatch(batch) {
+  batch.timer = null;
+  _quoteIdBatches.delete(batch.key);
+  const ids = [...batch.entries.entries()]
+    .filter(([, entry]) => !entry.settled)
+    .map(([id]) => id)
+    .sort();
+  batch.pending = new Set(ids);
+  if (!ids.length) {
+    finishIdBatch(batch);
+    return;
+  }
+  if (!isContextCurrent(batch.context)) {
+    finishIdBatch(batch);
+    return;
+  }
+
+  batch.timeout = setTimeout(() => finishIdBatch(batch), QUOTE_BATCH_TIMEOUT_MS);
+  try {
+    batch.unsubscribe = subOnce(
+      batch.state,
+      safeSubscriptionKey('ids', batch.relayKey, ids.join(',')),
+      [{ ids }],
+      (event, _relay, done) => {
+        if (!isContextCurrent(batch.context)) {
+          finishIdBatch(batch);
+          return;
+        }
+        if (event?.id && batch.pending.has(event.id)) {
+          cacheEvent(batch.state, event);
+          settleBatchEntry(batch, event.id, event);
+          if (batch.pending.size === 0) finishIdBatch(batch);
+        }
+        if (done) finishIdBatch(batch);
+      },
+      batch.relays
+    );
+    if (batch.settled && typeof batch.unsubscribe === 'function' && !batch.unsubscribeCalled) {
+      batch.unsubscribeCalled = true;
+      try { batch.unsubscribe(); } catch (e) { }
+    }
+  } catch (e) {
+    finishIdBatch(batch);
+  }
+}
+
+function getSharedIdEntry(state, relays, eventId) {
+  const relayKey = relaySetKey(relays);
+  const context = captureContext(state);
+  const inflightKey = `${context.memoryKey}\0${eventFetchKey(eventId, relays)}`;
+  const existing = _quoteFetchInflight.get(inflightKey);
+  if (existing) return idPromiseEntries.get(existing);
+
+  const batchKey = `${context.memoryKey}\0${relayKey}`;
+  let batch = _quoteIdBatches.get(batchKey);
+  if (!batch) {
+    batch = {
+      key: batchKey,
+      state,
+      relays,
+      relayKey,
+      context,
+      entries: new Map(),
+      pending: new Set(),
+      timer: null,
+      timeout: null,
+      unsubscribe: null,
+      unsubscribeCalled: false,
+      settled: false
+    };
+    batch.timer = setTimeout(() => startIdBatch(batch), QUOTE_BATCH_WINDOW_MS);
+    _quoteIdBatches.set(batchKey, batch);
+  }
+
+  let resolveEntry;
+  const promise = new Promise(resolve => { resolveEntry = resolve; })
+    .finally(() => {
+      if (_quoteFetchInflight.get(inflightKey) === promise) {
+        _quoteFetchInflight.delete(inflightKey);
+      }
+    });
+  const entry = {
+    id: eventId,
+    resolve: resolveEntry,
+    settled: false,
+    inflightKey,
+    promise,
+    batch,
+    waiters: 0
+  };
+  batch.entries.set(eventId, entry);
+  idPromiseEntries.set(promise, entry);
+  _quoteFetchInflight.set(inflightKey, promise);
+  return entry;
+}
+
+function cancelIdEntryIfUnused(entry) {
+  if (!entry || entry.settled || entry.waiters > 0) return;
+  const batch = entry.batch;
+  settleBatchEntry(batch, entry.id, null);
+  if (batch.timer && [...batch.entries.values()].every(candidate => candidate.settled)) {
+    _quoteIdBatches.delete(batch.key);
+    finishIdBatch(batch);
+  } else if (!batch.timer && batch.pending.size === 0) {
+    finishIdBatch(batch);
+  }
+}
+
+function waitForIdEntry(entry, signal) {
+  entry.waiters++;
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = (value, cancelled = false) => {
+      if (settled) return;
+      settled = true;
+      entry.waiters = Math.max(0, entry.waiters - 1);
+      if (signal && typeof signal.removeEventListener === 'function') {
+        try { signal.removeEventListener('abort', onAbort); } catch (e) { }
+      }
+      if (cancelled) cancelIdEntryIfUnused(entry);
+      resolve(value);
+    };
+    const onAbort = () => finish(null, true);
+    if (signal?.aborted) {
+      onAbort();
+      return;
+    }
+    if (signal && typeof signal.addEventListener === 'function') {
+      try { signal.addEventListener('abort', onAbort, { once: true }); } catch (e) { }
+    }
+    entry.promise.then(value => finish(value), () => finish(null));
+  });
+}
+
+export async function fetchQuoteEventById(state, relays, eventId, options = {}) {
   if (!eventId || !state?.pool || !relays?.length) return null;
   const cached = findEventById(state, eventId);
   if (cached) return cached;
-
-  const key = eventFetchKey(eventId, relays);
-  if (_quoteFetchInflight.has(key)) return _quoteFetchInflight.get(key);
-
-  const promise = state.pool.get(relays, { ids: [eventId] })
-    .then((ev) => {
-      if (ev) cacheEvent(state, ev);
-      return ev || null;
-    })
-    .catch(() => null)
-    .finally(() => {
-      _quoteFetchInflight.delete(key);
-    });
-
-  _quoteFetchInflight.set(key, promise);
-  return promise;
+  return waitForIdEntry(getSharedIdEntry(state, relays, eventId), options?.signal);
 }
 
-export async function fetchQuoteEventByNaddr(state, relays, kind, pubkey, identifier) {
+export async function fetchQuoteEventByNaddr(state, relays, kind, pubkey, identifier, options = {}) {
   if (!state?.pool || !relays?.length || isNaN(kind) || !pubkey || identifier === undefined) return null;
 
+  const context = captureContext(state);
   const key = naddrFetchKey(kind, pubkey, identifier, relays);
-  if (_quoteFetchInflight.has(key)) return _quoteFetchInflight.get(key);
+  const inflightKey = `${context.memoryKey}\0${key}`;
+  if (_quoteFetchInflight.has(inflightKey)) {
+    return waitWithSignal(_quoteFetchInflight.get(inflightKey), options?.signal);
+  }
 
-  const promise = state.pool.get(relays, { authors: [pubkey], kinds: [kind], '#d': [identifier] })
-    .then((ev) => {
-      if (ev) cacheEvent(state, ev);
-      return ev || null;
-    })
-    .catch(() => null)
+  const promise = managedFirstEvent(
+    state,
+    safeSubscriptionKey('naddr', relaySetKey(relays), key),
+    relays,
+    { authors: [pubkey], kinds: [kind], '#d': [identifier] },
+    event => event?.kind === kind && event?.pubkey === pubkey &&
+      Array.isArray(event.tags) && event.tags.some(tag => tag?.[0] === 'd' && tag?.[1] === identifier),
+    options,
+    context
+  )
     .finally(() => {
-      _quoteFetchInflight.delete(key);
+      if (_quoteFetchInflight.get(inflightKey) === promise) {
+        _quoteFetchInflight.delete(inflightKey);
+      }
     });
 
-  _quoteFetchInflight.set(key, promise);
-  return promise;
+  _quoteFetchInflight.set(inflightKey, promise);
+  return waitWithSignal(promise, options?.signal);
 }
 
 export async function prefetchQuoteEventIds(state, relays, eventIds, options = {}) {
   const uniqueIds = [...new Set(eventIds)].filter(Boolean);
-  const missing = uniqueIds.filter((id) => {
-    if (findEventById(state, id)) return false;
-    if (_quoteFetchInflight.has(eventFetchKey(id, relays))) return false;
-    return true;
-  });
-
-  if (!missing.length) {
-    await Promise.all(uniqueIds.map((id) => {
-      const inflight = _quoteFetchInflight.get(eventFetchKey(id, relays));
-      return inflight || Promise.resolve();
-    }));
-    return;
-  }
-
-  if (missing.length === 1) {
-    const fetched = await fetchQuoteEventById(state, relays, missing[0]);
-    if (fetched && options && typeof options.onEvent === 'function') {
-      try { options.onEvent(fetched); } catch (e) { }
+  const missing = uniqueIds.filter(id => !findEventById(state, id));
+  const fetched = await Promise.all(
+    missing.map(id => fetchQuoteEventById(state, relays, id, options))
+  );
+  if (options && typeof options.onEvent === 'function') {
+    for (const event of fetched) {
+      if (!event) continue;
+      try { options.onEvent(event); } catch (e) { }
     }
-    return;
   }
-
-  const batchKey = `batch:${relaySetKey(relays)}:${missing.slice().sort().join(',')}`;
-  if (_quoteFetchInflight.has(batchKey)) {
-    await _quoteFetchInflight.get(batchKey);
-    return;
-  }
-
-  let finishBatch;
-  const batchPromise = new Promise((resolve) => { finishBatch = resolve; });
-  _quoteFetchInflight.set(batchKey, batchPromise);
-
-  for (const id of missing) {
-    const ikey = eventFetchKey(id, relays);
-    if (_quoteFetchInflight.has(ikey)) continue;
-    const tracked = batchPromise
-      .then(() => findEventById(state, id) || null)
-      .finally(() => { _quoteFetchInflight.delete(ikey); });
-    _quoteFetchInflight.set(ikey, tracked);
-  }
-
-  const pending = new Set(missing);
-  let unsub = null;
-  const timer = setTimeout(done, QUOTE_BATCH_TIMEOUT_MS);
-  function done() {
-    clearTimeout(timer);
-    try { if (typeof unsub === 'function') unsub(); } catch (e) { }
-    finishBatch();
-    _quoteFetchInflight.delete(batchKey);
-  }
-
-  try {
-    unsub = state.pool.subscribeMany(relays, [{ ids: missing }], {
-      onevent(ev) {
-        if (!ev?.id || !pending.has(ev.id)) return;
-        pending.delete(ev.id);
-        cacheEvent(state, ev);
-        if (options && typeof options.onEvent === 'function') {
-          try { options.onEvent(ev); } catch (e) { }
-        }
-        if (pending.size === 0) done();
-      },
-      oneose: done
-    });
-  } catch (e) {
-    done();
-  }
-
-  await batchPromise;
 }
 
 export async function prefetchQuotesForElements(state, quoteElements, options = {}) {
@@ -187,7 +393,7 @@ export async function prefetchQuotesForElements(state, quoteElements, options = 
   for (const { relays, ids, naddrs } of prefetchByRelay.values()) {
     if (ids.length) tasks.push(prefetchQuoteEventIds(state, relays, ids, options));
     for (const na of naddrs) {
-      tasks.push(fetchQuoteEventByNaddr(state, relays, na.kind, na.pubkey, na.identifier));
+      tasks.push(fetchQuoteEventByNaddr(state, relays, na.kind, na.pubkey, na.identifier, options));
     }
   }
   if (tasks.length) await Promise.all(tasks);
@@ -195,15 +401,16 @@ export async function prefetchQuotesForElements(state, quoteElements, options = 
 
 export function sanitizeRelays(relays) {
   if (!Array.isArray(relays)) return [];
-  return relays.filter(r => {
+  const sanitized = relays.map(r => {
     try {
-      if (typeof r !== 'string') return false;
-      const trimmed = r.trim();
-      if (!trimmed) return false;
+      if (typeof r !== 'string') return null;
+      const trimmed = r.trim().replace(/\/+$/, '');
+      if (!trimmed) return null;
       const u = new URL(trimmed);
-      return u.protocol === 'ws:' || u.protocol === 'wss:';
+      return (u.protocol === 'ws:' || u.protocol === 'wss:') ? trimmed : null;
     } catch (e) {
-      return false;
+      return null;
     }
   });
+  return Array.from(new Set(sanitized.filter(Boolean)));
 }

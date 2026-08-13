@@ -12,7 +12,7 @@ const PROFILE_CACHE_KEY = 'nostr_profiles_cache';
 const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; //24時間
 
 // リレー過負荷を避けるためプロフィール取得の同時実行数を制限
-const MAX_CONCURRENT_PROFILE_LOADS = 3;
+const MAX_CONCURRENT_PROFILE_LOADS = 1;
 let _profileLoadActive = 0;
 const _profileLoadQueue = [];
 function _enqueueProfileLoad(fn) {
@@ -192,10 +192,6 @@ export async function loadProfile(state, pubkey) {
     lastAttempt: Date.now()
   }));
 
-  // getReadRelaysをimport
-  const { getReadRelays } = await import('../../core/relay.js');
-  const readRelays = getReadRelays(state.relays);
-
   // キュー投入できるようネットワーク取得処理を関数化
   const doFetch = async () => {
     try {
@@ -216,16 +212,14 @@ export async function loadProfile(state, pubkey) {
 
       // 複数リレーへの重複要求による過負荷を避けるため
       // プロフィール取得は中央インデクサのみを使用
-      const indexerPromise = state.pool.get([profileIndexerRelay], {
+      const events = await state.pool.querySync([profileIndexerRelay], {
         kinds: [0],
-        authors: [pubkey]
-      });
-
-      // 短いタイムアウト付きでインデクサ応答待機。タイムアウト時は未検出扱い
-      const ev = await Promise.race([
-        indexerPromise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 800))
-      ]);
+        authors: [pubkey],
+        limit: 20
+      }, { maxWait: 800 });
+      const ev = (Array.isArray(events) ? events : [])
+        .filter((event) => event && event.kind === 0 && event.pubkey === pubkey)
+        .sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0))[0] || null;
 
       if (ev && ev.content) {
         try {
@@ -289,10 +283,7 @@ export async function loadProfile(state, pubkey) {
   };
 
   try {
-    // バースト集中を避けるためキュー投入前にランダム遅延（0-200ms）
-    const jitter = Math.floor(Math.random() * 201);
-    await new Promise(resolve => setTimeout(resolve, jitter));
-    // 同時要求を抑えるためキュー経由で実行
+    // indexer は同一接続上の重複 subscription に厳しいため、キューで完全に直列化する。
     const res = await _enqueueProfileLoad(doFetch);
     return res;
   } catch (e) {

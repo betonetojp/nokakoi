@@ -1,9 +1,74 @@
 import { getNip04, getNip44, hexToBytes } from '../../core/nostr-compat.js';
-import { getReadRelays } from '../../core/relay.js';
+import { getReadRelays, subOnce } from '../../core/relay.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { addAutoCloseCheckbox, waitForEhagakiPublish } from '../../ui/ehagaki-autoclose.js';
 import { refreshEventsMuteState, invalidateMuteConfigCache } from '../../ui/renderers/render-helpers.js';
 import { signer } from '../../core/signer.js';
+
+const reportedMuteEventDiagnostics = new Set();
+const reportedMuteSuccessEvents = new Set();
+let muteWorkGeneration = 0;
+let muteAccountIdentity = null;
+
+function normalizePubkey(pubkey) {
+  return typeof pubkey === 'string' && pubkey ? pubkey.toLowerCase() : null;
+}
+
+function establishMuteAccount(pubkey) {
+  const normalized = normalizePubkey(pubkey);
+  if (muteAccountIdentity !== normalized) {
+    muteAccountIdentity = normalized;
+    muteWorkGeneration += 1;
+  }
+  return muteWorkGeneration;
+}
+
+function beginMuteRequest(pubkey, state) {
+  muteAccountIdentity = normalizePubkey(pubkey);
+  muteWorkGeneration += 1;
+  return { pubkey: muteAccountIdentity, generation: muteWorkGeneration, state };
+}
+
+export function invalidateMuteWork(nextPubkey = null) {
+  muteWorkGeneration += 1;
+  muteAccountIdentity = normalizePubkey(nextPubkey);
+  return muteWorkGeneration;
+}
+
+function isCurrentMuteRequest(request) {
+  if (!request || request.generation !== muteWorkGeneration || request.pubkey !== muteAccountIdentity) return false;
+  try {
+    if (normalizePubkey(localStorage.getItem('pubkey')) !== request.pubkey) return false;
+  } catch (e) {
+    return false;
+  }
+  return !request.state || normalizePubkey(request.state.pubkey) === request.pubkey;
+}
+
+function debugMuteEventOnce(ev, format, itemCount = 0) {
+  try {
+    if (typeof window === 'undefined' || !window.__nokakoiDebug) return;
+    const eventId = ev && typeof ev.id === 'string' ? ev.id : 'unknown';
+    const diagnosticKey = eventId + '|' + format;
+    if (reportedMuteEventDiagnostics.has(diagnosticKey)) return;
+    reportedMuteEventDiagnostics.add(diagnosticKey);
+    console.debug('[mute] イベント診断', { eventId, format, itemCount });
+  } catch (e) { }
+}
+
+function debugMuteSuccessOnce(ev, formats, itemCount) {
+  try {
+    if (typeof window === 'undefined' || !window.__nokakoiDebug) return;
+    const eventId = ev && typeof ev.id === 'string' ? ev.id : 'unknown';
+    if (reportedMuteSuccessEvents.has(eventId)) return;
+    reportedMuteSuccessEvents.add(eventId);
+    console.debug('[mute] 復号要約', {
+      eventId,
+      formats: Array.from(formats || []).sort(),
+      itemCount
+    });
+  } catch (e) { }
+}
 
 function getMuteSettingKey(key) {
   const pk = localStorage.getItem('pubkey');
@@ -12,9 +77,19 @@ function getMuteSettingKey(key) {
 
 export function getMuteSetting(key, defaultValue = '') {
   try {
-    const val = localStorage.getItem(getMuteSettingKey(key));
+    const scopedKey = getMuteSettingKey(key);
+    const val = localStorage.getItem(scopedKey);
     if (val !== null) return val;
     const fallback = localStorage.getItem(key);
+    if (scopedKey !== key && fallback !== null) {
+      const migrationKey = `${key}.__legacy_migrated`;
+      if (localStorage.getItem(migrationKey) === null) {
+        localStorage.setItem(scopedKey, fallback);
+        localStorage.setItem(migrationKey, '1');
+        return fallback;
+      }
+      return defaultValue;
+    }
     return fallback !== null ? fallback : defaultValue;
   } catch (e) {
     return defaultValue;
@@ -58,10 +133,12 @@ export function saveMuteListForAccount(pubkey) {
 
 export function loadMuteListForAccount(pubkey) {
   if (!pubkey) {
+    invalidateMuteWork(null);
     clearMuteListState();
     return null;
   }
   const targetId = pubkey.toLowerCase();
+  establishMuteAccount(targetId);
   try {
     const raw10000 = localStorage.getItem(`muteList_raw_kind10000.${targetId}`);
     const expanded = localStorage.getItem(`muteList_expanded.${targetId}`);
@@ -160,6 +237,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
   const prevScroll = preserveScroll && (typeof window !== 'undefined')
     ? (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0)
     : 0;
+  let request = null;
 
   try {
     if (!state.pool) {
@@ -168,37 +246,59 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
       return { ok: false, reason: 'no_pool' };
     }
 
-    const pubkey = localStorage.getItem('pubkey');
+    const pubkey = normalizePubkey(localStorage.getItem('pubkey'));
     if (!pubkey) {
       if (status) status.textContent = t('auth.login_required');
       try { if (preserveScroll) window.scrollTo(0, prevScroll); } catch (e) { }
       return { ok: false, reason: 'no_pubkey' };
     }
+    request = beginMuteRequest(pubkey, state);
+    if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };
 
     if (status) status.textContent = t('mute.fetching');
     if (countsWrap) countsWrap.hidden = true;
 
-    const SimplePoolClass = SimplePoolProvider();
-    const pool = (state && state.pool) ? state.pool : (typeof SimplePoolClass === 'function' ? new SimplePoolClass() : SimplePoolClass);
-    const isOwnPool = !(state && state.pool);
+    void SimplePoolProvider;
     const relays = getReadRelays(state.relays);
     const filter = { kinds: [10000], authors: [pubkey], limit: 10 };
     let results = [];
 
-    await new Promise((resolve, reject) => {
+    await new Promise((resolve) => {
       try {
-        const sub = pool.subscribeMany(relays, [filter], {
-          onevent: (ev) => { results.push(ev); },
-          oneose: () => { try { sub.close(); } catch (e) { } if (isOwnPool) { try { pool.close(relays); } catch (e) { } } resolve(); },
-          onerror: (err) => { reject(err); }
-        });
-        setTimeout(() => { try { sub.close(); } catch (e) { } if (isOwnPool) { try { pool.close(relays); } catch (e) { } } resolve(); }, 4000);
-      } catch (e) { reject(e); }
+        let settled = false;
+        let timer = null;
+        let unsubscribe = null;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          if (timer) clearTimeout(timer);
+          try { if (typeof unsubscribe === 'function') unsubscribe(); } catch (e) { }
+          resolve();
+        };
+        unsubscribe = subOnce(
+          state,
+          `mute-list:${pubkey}`,
+          [filter],
+          (ev, relay, done) => {
+            void relay;
+            if (ev) results.push(ev);
+            if (done) finish();
+          },
+          relays
+        );
+        if (settled && typeof unsubscribe === 'function') unsubscribe();
+        if (!settled) timer = setTimeout(finish, 4000);
+      } catch (e) {
+        resolve();
+      }
     });
+    if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };
 
     if (!results.length) {
+      if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };
       clearMuteListState();
-      if (pubkey) saveMuteListForAccount(pubkey);
+      localStorage.removeItem(`muteList_raw_kind10000.${pubkey}`);
+      localStorage.removeItem(`muteList_expanded.${pubkey}`);
       updateMuteListCountsUI();
       if (status) status.textContent = t('mute.kind10000.notfound');
       return { ok: false, reason: 'not_found' };
@@ -225,21 +325,17 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
     const expanded = { pubkeys: { public: [], private: [] }, words: { public: [], private: [] } };
     const detectedFormats = new Set();
     let hasEncryptedEvents = false;
+    let decryptSucceeded = false;
 
     function reportDecryptSuccess(label, parsed, fromEncrypted) {
-      try {
-        const pp = parsed && (Array.isArray(parsed) ? parsed.length : (typeof parsed === 'object' ? Object.keys(parsed).length : 0));
-        const counts = {
-          pub_public: expanded.pubkeys.public.length,
-          pub_private: expanded.pubkeys.private.length,
-          words_public: expanded.words.public.length,
-          words_private: expanded.words.private.length
-        };
-        console.log('[mute] 復号成功:', label, fromEncrypted ? '(暗号化イベント由来)' : '', 'parsed_items:', pp, 'counts:', counts);
-      } catch (e) { /* 無視 */ }
+      void label;
+      void parsed;
+      void fromEncrypted;
+      decryptSucceeded = true;
     }
 
     for (const ev of latestResults) {
+      if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };
       let content = ev.content || '';
 
       try {
@@ -317,6 +413,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
             }
             try { attempts.push(['nip04.decrypt(content)', await nip04.decrypt(content)]); } catch (e) { attempts.push(['nip04.decrypt(content) failed', e]); }
             try { attempts.push(['nip04.decrypt(ev.pubkey, content)', await nip04.decrypt(ev.pubkey, content)]); } catch (e) { attempts.push(['nip04.decrypt(ev.pubkey, content) failed', e]); }
+            if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };
 
             let candidateLabel = null;
             for (const a of attempts) {
@@ -347,8 +444,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
           reportDecryptSuccess('local-decrypt', parsed, true);
           continue;
         } catch (e) {
-          console.warn('[mute] 復号できたが JSON 解析に失敗', e);
-          console.log('[mute] 復号結果プレビュー:', (decrypted || '').slice(0, 1000));
+          debugMuteEventOnce(ev, 'decrypted-invalid-json');
         }
       }
 
@@ -360,26 +456,21 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
         }
       } catch (e) { }
 
-      try {
-        console.debug('[mute] イベント内容の解析/解釈に失敗', ev.id, 'tags:', ev.tags);
-      } catch (e) { console.warn('[mute] デバッグログ出力エラー', e); }
+      // 外部署名や NIP-46 の遅延復号対象は、ここでは未処理であって失敗ではない。
+      // raw content / tags は非公開ミュート対象を含み得るため、ログには出さない。
+      if (!hasEncryptedEvents) debugMuteEventOnce(ev, 'unsupported', 0);
     }
+    if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };
 
     try {
+      localStorage.setItem(`muteList_raw_kind10000.${pubkey}`, JSON.stringify(results));
       localStorage.setItem('muteList_raw_kind10000', JSON.stringify(results));
       // 暗号化イベントが存在し非同期復号が控えている場合は、未復号のままexpandedを保存して上書きすることを防止
       if (!hasEncryptedEvents) {
+        localStorage.setItem(`muteList_expanded.${pubkey}`, JSON.stringify(expanded));
         localStorage.setItem('muteList_expanded', JSON.stringify(expanded));
-        if (state && state.pubkey) {
-          saveMuteListForAccount(state.pubkey);
-        }
       }
       try { if (status) status.textContent = t('mute.fetch.done'); } catch (ee) { }
-      if (window.__nokakoiDebug && detectedFormats.size) {
-        const arr = Array.from(detectedFormats).sort();
-        console.log('[mute] 検出した暗号化形式:', arr.join(', '));
-      }
-      if (window.__nokakoiDebug) console.log('[mute][final] 展開後のミュートリスト:', expanded);
     } catch (e) {
       console.warn('[mute] 保存に失敗', e);
       if (status) status.textContent = t('mute.save.error');
@@ -395,6 +486,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
     if (wordPrivEl) wordPrivEl.textContent = wdPr;
     if (countsWrap) countsWrap.hidden = false;
 
+    if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };
     window.__nokakoiMuteList = expanded;
 
     try {
@@ -412,6 +504,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
 
       async function performDeferredDecrypt() {
         try {
+          if (!isCurrentMuteRequest(request)) return false;
           if (!latestResults || !latestResults.length) return false;
 
           if (status) {
@@ -445,6 +538,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
                   try {
                     if (typeof client[m.fn] === 'function') {
                       const res = await client[m.fn](ev.pubkey, content, DECRYPT_TIMEOUT);
+                      if (!isCurrentMuteRequest(request)) return null;
                       if (typeof res === 'string' && res.length) return { raw: res, label: 'NIP-46(' + m.label + ')' };
                     }
                   } catch (e) {
@@ -455,6 +549,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
                 try {
                   if (typeof client._decrypt === 'function') {
                     const res = await client._decrypt(content, ev.pubkey);
+                    if (!isCurrentMuteRequest(request)) return null;
                     if (typeof res === 'string' && res.length) {
                       try {
                         JSON.parse(res);
@@ -495,6 +590,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
               for (const c of candidates) {
                 try {
                   const res = await c.fn();
+                  if (!isCurrentMuteRequest(request)) return null;
                   if (typeof res === 'string' && res.length) return { raw: res, label: c.label };
                   if (res && typeof res === 'object') {
                     try { return { raw: JSON.stringify(res), label: c.label }; } catch (e) { return null; }
@@ -509,15 +605,14 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
 
             let any = false;
             for (const ev of latestResults) {
+              if (!isCurrentMuteRequest(request)) return false;
               if (!ev || !ev.content) continue;
               try {
-                if (window.__nokakoiDebug) console.log('[mute][ext] 拡張復号を試行', ev.id || ev);
                 const dec = await tryDecryptEvent(ev);
-                if (window.__nokakoiDebug) console.log('[mute][ext] 復号結果(raw):', dec && dec.raw ? dec.raw : dec, '候補:', dec && dec.label ? dec.label : '不明');
+                if (!isCurrentMuteRequest(request)) return false;
                 if (dec && dec.raw) {
                   const decrypted = dec.raw;
                   const candidateLabel = dec.label || 'unknown';
-                  if (window.__nokakoiDebug) console.log('[mute][ext] 成功した候補:', candidateLabel);
                   let parsed = null;
                   if (typeof decrypted === 'string') {
                     try { parsed = JSON.parse(decrypted); } catch (e) { }
@@ -529,6 +624,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
                     mergeMuteObject(expanded, parsed, { fromEncrypted: true });
                     detectedFormats.add('NIP-07(extension)');
                     detectedFormats.add(candidateLabel);
+                    decryptSucceeded = true;
                     any = true;
                   }
                 }
@@ -536,9 +632,10 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
             }
 
           if (any) {
+              if (!isCurrentMuteRequest(request)) return false;
               try {
+                localStorage.setItem(`muteList_expanded.${pubkey}`, JSON.stringify(expanded));
                 localStorage.setItem('muteList_expanded', JSON.stringify(expanded));
-                if (pubkey) saveMuteListForAccount(pubkey);
               } catch (e) { }
               const pubP2 = expanded.pubkeys.public ? expanded.pubkeys.public.length : 0;
               const pubPr2 = expanded.pubkeys.private ? expanded.pubkeys.private.length : 0;
@@ -550,10 +647,12 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
               if (wordPrivEl) wordPrivEl.textContent = wdPr2;
               if (countsWrap) countsWrap.hidden = false;
               try { if (status) status.textContent = t('mute.fetch.done'); } catch (e) { }
-              if (window.__nokakoiDebug && detectedFormats.size) {
-                const arr = Array.from(detectedFormats).sort();
-                console.log('[mute] 検出した暗号化形式（拡張）:', arr.join(', '));
-              }
+              debugMuteSuccessOnce(
+                latestResults[0],
+                detectedFormats,
+                expanded.pubkeys.public.length + expanded.pubkeys.private.length +
+                  expanded.words.public.length + expanded.words.private.length
+              );
               try {
                 if (typeof renderFeed === 'function') {
                   ['home', 'global', 'mentions', 'me', 'bitchat'].forEach(id => { try { renderFeed(id, true); } catch (e) { } });
@@ -562,6 +661,15 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
               try { if (preserveScroll) window.scrollTo(0, prevScroll); } catch (e) { }
             return true;
           } else {
+            if (!isCurrentMuteRequest(request)) return false;
+            if (decryptSucceeded) {
+              debugMuteSuccessOnce(
+                latestResults[0],
+                detectedFormats,
+                expanded.pubkeys.public.length + expanded.pubkeys.private.length +
+                  expanded.words.public.length + expanded.words.private.length
+              );
+            }
             if (state.signer === 'nip46') {
               try { if (status) status.textContent = t('mute.fetch.done') + ' (Decrypt failed)'; } catch (e) { }
             } else {
@@ -573,7 +681,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
 
         } catch (e) {
           console.warn('[mute][ext] 復号フローに失敗', e);
-          try { if (status) status.textContent = t('mute.ext_decrypt_error', { msg: (e && e.message) }); } catch (e2) { }
+          try { if (isCurrentMuteRequest(request) && status) status.textContent = t('mute.ext_decrypt_error', { msg: (e && e.message) }); } catch (e2) { }
           return false;
         }
       }
@@ -584,18 +692,29 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
         if (noUiContext) {
           try { await performDeferredDecrypt(); } catch (e) { if (window.__nokakoiDebug) console.warn('[Mute] 起動時復号に失敗', e); }
         } else {
-          setTimeout(() => { performDeferredDecrypt().catch(e => { if (window.__nokakoiDebug) console.warn('[Mute] 自動遅延復号に失敗', e); }); }, 50);
+          setTimeout(() => {
+            if (!isCurrentMuteRequest(request)) return;
+            performDeferredDecrypt().catch(e => { if (window.__nokakoiDebug) console.warn('[Mute] 自動遅延復号に失敗', e); });
+          }, 50);
         }
+      } else if (decryptSucceeded) {
+        debugMuteSuccessOnce(
+          latestResults[0],
+          detectedFormats,
+          expanded.pubkeys.public.length + expanded.pubkeys.private.length +
+            expanded.words.public.length + expanded.words.private.length
+        );
       }
     } catch (e) { console.warn('[mute] 拡張復号セットアップに失敗', e); }
-    try { if (preserveScroll) window.scrollTo(0, prevScroll); } catch { }
+    if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };
+    try { if (isCurrentMuteRequest(request) && preserveScroll) window.scrollTo(0, prevScroll); } catch { }
     return { ok: true, reason: 'fetched' };
   } catch (e) {
     console.error('[mute] 取得処理に失敗', e);
-    try { if (status) status.textContent = t('mute.fetch.failed', { msg: (e && e.message) }); } catch (e2) { }
+    try { if ((!request || isCurrentMuteRequest(request)) && status) status.textContent = t('mute.fetch.failed', { msg: (e && e.message) }); } catch (e2) { }
     return { ok: false, reason: 'error', error: e };
   } finally {
-    try { window.dispatchEvent(new CustomEvent('muteListFetched')); } catch (e) { }
+    try { if (!request || isCurrentMuteRequest(request)) window.dispatchEvent(new CustomEvent('muteListFetched')); } catch (e) { }
   }
 }
 
@@ -840,7 +959,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         // apply チェック変更時に子設定表示を切り替え
         applyCheckbox.addEventListener('change', function () {
           try {
-            localStorage.setItem('mute_apply', applyCheckbox.checked ? '1' : '0');
+            setMuteSetting('mute_apply', applyCheckbox.checked ? '1' : '0');
             try {
               const quickMuteCheck = document.getElementById('homeDisplayQuickMuteCheck');
               if (quickMuteCheck) quickMuteCheck.checked = applyCheckbox.checked;

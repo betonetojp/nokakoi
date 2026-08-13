@@ -59,6 +59,9 @@ npm run preview
 # ユニットテスト
 npm test
 
+# バージョン表記の整合性確認
+npm run version:check
+
 # ESLint
 npm run lint
 ```
@@ -70,7 +73,7 @@ npm run lint
 
 ### CI
 
-`main` への push で GitHub Actions が `lint` → `test` → `build` の順に実行し、GitHub Pages へデプロイします。
+`main` への push で GitHub Actions が `version:check` → `lint` → `test` → `build` の順に実行し、GitHub Pages へデプロイします。
 
 ## ディレクトリ構成
 

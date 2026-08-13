@@ -454,8 +454,7 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
           btn.onclick = function (e) {
             e.stopPropagation();
             const nextExpanded = !isMutedExpanded;
-            const curState = state || window.__nokakoiState;
-            updateEventMuteDom(div, curState, settings, nextExpanded);
+            updateEventMuteDom(div, state, settings, nextExpanded);
           };
         }
         const existingFold = div.querySelector('.muted-fold-bar');

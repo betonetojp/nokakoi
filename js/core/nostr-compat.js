@@ -17,6 +17,24 @@ function normalizeFilters(filterOrFilters) {
   return [];
 }
 
+export function makeIdempotentSubscription(subscription) {
+  if (!subscription || typeof subscription.close !== 'function') return subscription || { close() { } };
+  const originalClose = subscription.close.bind(subscription);
+  let closed = false;
+  subscription.close = function (reason) {
+    if (closed) return;
+    closed = true;
+    try {
+      const result = originalClose(reason);
+      if (result && typeof result.catch === 'function') result.catch(() => {});
+      return result;
+    } catch (_e) {
+      return undefined;
+    }
+  };
+  return subscription;
+}
+
 /**
  * 複数 Filter を同一 REQ に載せるため subscribeMap へ展開する
  */
@@ -29,9 +47,9 @@ function subscribeWithFilters(pool, relays, filterOrFilters, params, eoseOnly) {
 
   if (filters.length === 1) {
     if (eoseOnly) {
-      return NostrSimplePool.prototype.subscribeEose.call(pool, urls, filters[0], params);
+      return makeIdempotentSubscription(NostrSimplePool.prototype.subscribeEose.call(pool, urls, filters[0], params));
     }
-    return NostrSimplePool.prototype.subscribe.call(pool, urls, filters[0], params);
+    return makeIdempotentSubscription(NostrSimplePool.prototype.subscribe.call(pool, urls, filters[0], params));
   }
 
   const requests = [];
@@ -53,10 +71,10 @@ function subscribeWithFilters(pool, relays, filterOrFilters, params, eoseOnly) {
         }
       }
     });
-    return subcloser;
+    return makeIdempotentSubscription(subcloser);
   }
 
-  return pool.subscribeMap(requests, params);
+  return makeIdempotentSubscription(pool.subscribeMap(requests, params));
 }
 
 /**

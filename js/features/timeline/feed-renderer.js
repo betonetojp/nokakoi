@@ -7,11 +7,18 @@ import { reactToEvent, repostEvent } from '../post/actions.js';
 import { setReplyTarget } from '../post/composer.js';
 import { getReadRelays } from '../../core/relay.js';
 import { fetchMore, applyPerFilterUntil } from './feed-fetcher.js';
+import { canStartMore, markMoreFinished, markMoreStarted } from './feed-more-policy.js';
 import { EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT, EVENTS_MAX } from '../../config/constants.js';
 import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } from '../../utils/url-parser.js';
 import { t } from '../../utils/i18n.js';
 import { $ } from '../../utils/utils.js';
 import { getSelectedEventEl, setSelectedEventEl } from '../../ui/keyboard-shortcuts.js';
+import {
+  getScrollAnchor,
+  isDebugEnabled,
+  isProgrammaticScroll,
+  setProgrammaticScroll
+} from '../../core/app-context.js';
 
 export const feedLoadState = {};
 export const userKind7Memory = new Map();
@@ -50,24 +57,16 @@ function isDomPurgeEnabled() {
   );
 }
 
-function isProgrammaticScroll() {
-  try {
-    return typeof window !== 'undefined' && window.__nokakoiProgrammaticScroll === true;
-  } catch (e) {
-    return false;
-  }
-}
-
 function markProgrammaticScrollBriefly(ms) {
   if (typeof window === 'undefined') return;
   try {
-    window.__nokakoiProgrammaticScroll = true;
+    setProgrammaticScroll(true);
     if (_purgeScrollClearTimer) clearTimeout(_purgeScrollClearTimer);
     _purgeScrollClearTimer = setTimeout(() => {
       _purgeScrollClearTimer = null;
       try {
-        if (!window.__nokakoiScrollAnchor) {
-          window.__nokakoiProgrammaticScroll = false;
+        if (!getScrollAnchor()) {
+          setProgrammaticScroll(false);
         }
       } catch (e) { }
     }, typeof ms === 'number' ? ms : 120);
@@ -77,7 +76,7 @@ function markProgrammaticScrollBriefly(ms) {
 function applyAccumulatedScroll(heightDiff) {
   if (!heightDiff || typeof window === 'undefined') return;
   try {
-    if (window.__nokakoiScrollAnchor) {
+    if (getScrollAnchor()) {
       const feed = document.querySelector('.feed.active');
       if (feed) followUpTimelineAnchor(feed);
       return;
@@ -198,7 +197,7 @@ export function teardownDomPurge() {
 
 function debugFeed(...args) {
   try {
-    if (typeof window !== 'undefined' && window.__nokakoiDebug) {
+    if (isDebugEnabled()) {
       console.debug(...args);
     }
   } catch (e) { }
@@ -753,6 +752,7 @@ export function renderFeed(id = 'global', force = false) {
     bottomBar.type = 'button';
     bottomBar.className = 'feed-bar feed-bar-bottom accent-center load-more-btn' + (isAutoMode ? ' is-loading-auto' : '');
     bottomBar.textContent = isAutoMode ? t('loading') : (isLoadingMore ? t('loading') : t('feed.load_more'));
+    bottomBar.dataset.autoLoad = isAutoMode ? '1' : '0';
 
     if (_options.setupInfiniteScrollObserver) {
       _options.setupInfiniteScrollObserver();
@@ -763,14 +763,17 @@ export function renderFeed(id = 'global', force = false) {
       _infiniteScrollObserver.observe(bottomBar);
     }
 
-    bottomBar.onclick = () => {
+    bottomBar.onclick = (clickEvent) => {
       try {
+        const isManual = clickEvent?.isTrusted === true;
         const listForClick = feed.list || [];
-        if (!listForClick.length || (feedLoadState[id] && feedLoadState[id].loadingMore)) {
+        if (!listForClick.length) {
           return;
         }
         feedLoadState[id] = feedLoadState[id] || {};
-        feedLoadState[id].loadingMore = true;
+        const now = Date.now();
+        if (!canStartMore(feedLoadState[id], isManual, now)) return;
+        markMoreStarted(feedLoadState[id], isManual, now);
         if (bottomBar) {
           bottomBar.classList.add('is-loading-auto');
           bottomBar.textContent = t('loading');
@@ -838,15 +841,10 @@ export function renderFeed(id = 'global', force = false) {
 
         const finishLoadMore = (result) => {
           try {
-            feedLoadState[id].loadingMore = false;
             if (result && typeof result === 'object') {
-              if (result.appendedCount === 0) {
-                feedLoadState[id].autoFetchFailed = true;
-              } else if (result.appendedCount > 0) {
-                feedLoadState[id].autoFetchFailed = false;
-              }
+              markMoreFinished(feedLoadState[id], result.appendedCount, Date.now());
             } else {
-              feedLoadState[id].autoFetchFailed = true;
+              markMoreFinished(feedLoadState[id], 0, Date.now());
             }
           } catch (e) { }
           try {
@@ -854,9 +852,11 @@ export function renderFeed(id = 'global', force = false) {
               if (feedLoadState[id].autoFetchFailed) {
                 bottomBar.classList.remove('is-loading-auto');
                 bottomBar.textContent = t('feed.load_more');
+                bottomBar.dataset.autoLoad = '0';
               } else {
                 bottomBar.classList.add('is-loading-auto');
                 bottomBar.textContent = t('loading');
+                bottomBar.dataset.autoLoad = '1';
               }
             }
           } catch (e) { }

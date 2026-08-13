@@ -13,7 +13,11 @@ import { addAccount, migrateFromSingleAccount } from '../account-manager.js';
 import { defaultJaRelayUrl, defaultIntlRelayUrl, saveRelaysForAccount, loadRelaysForAccount, getDefaultGlobalRelayByLang } from '../relay.js';
 import { detectBrowserLang } from '../../utils/i18n.js';
 import { updateGlobalButtonLabel } from '../../features/relay/global-relay.js';
-import { saveMuteListForAccount, loadMuteListForAccount, clearMuteListState } from '../../features/mute/mute.js';
+import { invalidateMuteWork, saveMuteListForAccount, loadMuteListForAccount, clearMuteListState } from '../../features/mute/mute.js';
+import {
+  getSettingsManager,
+  updateTabVisibility as invokeTabVisibilityUpdate
+} from '../app-context.js';
 
 let isPasskeyAuthPending = false;
 
@@ -236,9 +240,7 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
     if (composer) composer.hidden = false;
 
     // タブの表示更新（未ログイン時制限の解除）
-    if (typeof window.updateTabVisibility === 'function') {
-      window.updateTabVisibility(true);
-    }
+    invokeTabVisibilityUpdate(true);
 
     // 秘密鍵作成直後の場合、kind:10002 (NIP-65 Relay List) を自動発行し、kind:0 編集画面を開く
     if (window.__nokakoiOpenProfileEditorAfterLogin) {
@@ -311,7 +313,7 @@ export function updateHeaderName(state, nip19) {
       return;
     }
 
-    const settingsManager = window.settingsManager;
+    const settingsManager = getSettingsManager();
     const showAvatars = settingsManager ? settingsManager.get('showAvatars') !== false : true;
 
     const names = displayNameWithUsername(state, pk, nip19, { usePetname: true });
@@ -351,6 +353,7 @@ export function updateHeaderName(state, nip19) {
 }
 
 export function logout(state, settings, settingsManager, restartFeeds) {
+  invalidateMuteWork(null);
   const currentPk = state.pubkey || localStorage.getItem('pubkey');
   if (currentPk) {
     if (settingsManager && typeof settingsManager.saveForAccount === 'function') {
@@ -372,7 +375,14 @@ export function logout(state, settings, settingsManager, restartFeeds) {
 
   try {
     if (state.nip46 && state.nip46.client) {
-      try { state.nip46.client.close(); } catch (e) { }
+      try {
+        const disconnectResult = typeof state.nip46.client.disconnect === 'function'
+          ? state.nip46.client.disconnect()
+          : state.nip46.client.close?.();
+        if (disconnectResult && typeof disconnectResult.catch === 'function') {
+          disconnectResult.catch(() => {});
+        }
+      } catch (e) { }
       state.nip46.client = null;
       state.nip46.remotePubkey = null;
       state.nip46.connected = false;
@@ -387,7 +397,7 @@ export function logout(state, settings, settingsManager, restartFeeds) {
     settingsManager.set('nip46RemotePubkey', null);
     settingsManager.set('nip46Relays', null);
     settingsManager.set('nip46Secret', null);
-    clearNip46LocalSecretKey();
+    clearNip46LocalSecretKey(currentPk);
   } catch (e) { }
 
   try {
@@ -401,7 +411,7 @@ export function logout(state, settings, settingsManager, restartFeeds) {
     try {
       updateGlobalButtonLabel(settingsManager);
     } catch (e) { }
-    clearNip46LocalSecretKey();
+    clearNip46LocalSecretKey(currentPk);
   } catch (e) { }
 
   // メモリ状態およびDOM・通知点滅等の完全クリア
@@ -427,9 +437,7 @@ export function logout(state, settings, settingsManager, restartFeeds) {
   if (composer) composer.hidden = true;
 
   // タブの表示更新（未ログイン時制限）
-  if (typeof window.updateTabVisibility === 'function') {
-    window.updateTabVisibility(false);
-  }
+  invokeTabVisibilityUpdate(false);
 
   syncAccountUI(state, settingsManager);
 
@@ -606,7 +614,7 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
   try { window.__nokakoiAuthPending = false; } catch (e) { }
 }
 
-export function syncAccountUI(state, settingsManager) {
+export function syncAccountUI(state, settingsManager, options = {}) {
   if (!state) return;
 
   // 1. リレー設定画面のDOM再描画
@@ -646,13 +654,15 @@ export function syncAccountUI(state, settingsManager) {
   } catch (e) {}
 
   // 5. メインフィードのソフトリロード
-  try {
-    if (typeof window !== 'undefined') {
-      if (typeof window.softReload === 'function') {
-        window.softReload();
-      } else {
-        window.dispatchEvent(new CustomEvent('softReloadRequest'));
+  if (options.reload !== false) {
+    try {
+      if (typeof window !== 'undefined') {
+        if (typeof window.softReload === 'function') {
+          window.softReload();
+        } else {
+          window.dispatchEvent(new CustomEvent('softReloadRequest'));
+        }
       }
-    }
-  } catch (e) {}
+    } catch (e) {}
+  }
 }

@@ -1,3 +1,9 @@
+import {
+  getScrollAnchor,
+  setProgrammaticScroll,
+  setScrollAnchor
+} from '../../core/app-context.js';
+
 let _anchorMaintainObserver = null;
 let _anchorMaintainTimer = null;
 
@@ -37,10 +43,8 @@ export function clearAnchorMaintenance() {
       clearTimeout(_anchorMaintainTimer);
       _anchorMaintainTimer = null;
     }
-    if (typeof window !== 'undefined') {
-      window.__nokakoiScrollAnchor = null;
-      window.__nokakoiProgrammaticScroll = false;
-    }
+    setScrollAnchor(null);
+    setProgrammaticScroll(false);
   } catch (e) { }
 }
 
@@ -51,7 +55,7 @@ export function applyTimelineAnchorDrift(anchor, container) {
     if (!anchorEl) return false;
     const drift = anchorEl.getBoundingClientRect().top - anchor.top;
     if (Math.abs(drift) <= 1) return false;
-    window.__nokakoiProgrammaticScroll = true;
+    setProgrammaticScroll(true);
     window.scrollTo(0, window.scrollY + drift);
     return true;
   } catch (e) {
@@ -94,42 +98,55 @@ export function restoreTimelineAnchor(anchor, container, options) {
     const maintainMs = (options && typeof options.maintainMs === 'number') ? options.maintainMs : 800;
 
     clearAnchorMaintenance();
-    window.__nokakoiScrollAnchor = anchor;
-    window.__nokakoiProgrammaticScroll = true;
+    setScrollAnchor(anchor);
+    setProgrammaticScroll(true);
+    // anchor要素やobserverの成否に関係なく、必ずprogrammatic状態を解除する。
+    _anchorMaintainTimer = setTimeout(() => {
+      clearAnchorMaintenance();
+    }, Math.max(0, maintainMs));
 
     const runApply = () => {
       try { applyTimelineAnchorDrift(anchor, container); } catch (e) { }
     };
 
-    requestAnimationFrame(() => requestAnimationFrame(runApply));
+    try {
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => requestAnimationFrame(runApply));
+      } else {
+        setTimeout(runApply, 0);
+      }
+    } catch (e) {
+      try { setTimeout(runApply, 0); } catch (_e) { }
+    }
 
     if (maintainMs > 0 && typeof ResizeObserver !== 'undefined') {
-      const anchorEl = findTimelineAnchorElement(anchor, container);
-      if (anchorEl) {
-        _anchorMaintainObserver = new ResizeObserver(() => {
-          try { applyTimelineAnchorDrift(anchor, container); } catch (e) { }
-        });
-        _anchorMaintainObserver.observe(anchorEl);
-        const feed = anchorEl.closest('.feed');
-        if (feed && feed !== anchorEl) {
-          _anchorMaintainObserver.observe(feed);
+      try {
+        const anchorEl = findTimelineAnchorElement(anchor, container);
+        if (anchorEl) {
+          _anchorMaintainObserver = new ResizeObserver(() => {
+            try { applyTimelineAnchorDrift(anchor, container); } catch (e) { }
+          });
+          _anchorMaintainObserver.observe(anchorEl);
+          const feed = anchorEl.closest('.feed');
+          if (feed && feed !== anchorEl) {
+            _anchorMaintainObserver.observe(feed);
+          }
+        }
+      } catch (e) {
+        if (_anchorMaintainObserver) {
+          try { _anchorMaintainObserver.disconnect(); } catch (_e) { }
+          _anchorMaintainObserver = null;
         }
       }
-      _anchorMaintainTimer = setTimeout(() => {
-        clearAnchorMaintenance();
-      }, maintainMs);
-    } else {
-      setTimeout(() => {
-        try { window.__nokakoiProgrammaticScroll = false; } catch (e) { }
-        try { window.__nokakoiScrollAnchor = null; } catch (e) { }
-      }, Math.max(maintainMs, 100));
     }
-  } catch (e) { }
+  } catch (e) {
+    clearAnchorMaintenance();
+  }
 }
 
 export function followUpTimelineAnchor(container) {
   try {
-    const anchor = (typeof window !== 'undefined') ? window.__nokakoiScrollAnchor : null;
+    const anchor = getScrollAnchor();
     if (!anchor) return;
     applyTimelineAnchorDrift(anchor, container);
   } catch (e) { }

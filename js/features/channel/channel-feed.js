@@ -13,6 +13,7 @@ import { awaitAny } from '../../utils/utils.js';
 
 import { EVENTS_FETCH_LIMIT } from '../../config/constants.js';
 import { t } from '../../utils/i18n.js';
+import { getInfiniteScrollObserver } from '../../boot/infinite-scroll.js';
 
 const _channelSubs = new Map(); // rootId -> sub/unsub object
 const _observedLoadMoreBtns = new WeakMap(); // containerEl -> loadMoreBtn
@@ -132,8 +133,9 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
       containerEl.appendChild(loadMoreBtn);
 
       try {
-        if (typeof window !== 'undefined' && window.__infiniteScrollObserver) {
-          window.__infiniteScrollObserver.observe(loadMoreBtn);
+        const observer = getInfiniteScrollObserver();
+        if (observer) {
+          observer.observe(loadMoreBtn);
           _observedLoadMoreBtns.set(containerEl, loadMoreBtn);
         }
       } catch (_e) {}
@@ -174,8 +176,9 @@ function unobserveLoadMore(containerEl) {
   if (!containerEl) return;
   try {
     const prev = _observedLoadMoreBtns.get(containerEl);
-    if (prev && typeof window !== 'undefined' && window.__infiniteScrollObserver) {
-      window.__infiniteScrollObserver.unobserve(prev);
+    const observer = getInfiniteScrollObserver();
+    if (prev && observer) {
+      observer.unobserve(prev);
     }
   } catch (_e) {}
   try { _observedLoadMoreBtns.delete(containerEl); } catch (_e) {}

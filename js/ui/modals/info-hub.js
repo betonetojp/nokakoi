@@ -4,6 +4,7 @@
 
 import { VERSION } from '../../config/version.js';
 import { applyTranslations } from '../../utils/i18n.js';
+import { getBuildInfo } from '../../core/app-context.js';
 
 export function setupInfoHubModal(state, settings) {
   const brand = document.querySelector('.brand');
@@ -19,7 +20,7 @@ export function setupInfoHubModal(state, settings) {
     if (e) e.preventDefault();
 
     if (infoHubVersion) {
-      const buildInfo = window.__buildInfo || `v${VERSION}`;
+      const buildInfo = getBuildInfo() || `v${VERSION}`;
       infoHubVersion.textContent = buildInfo;
     }
 

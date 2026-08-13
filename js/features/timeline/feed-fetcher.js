@@ -1,6 +1,18 @@
 import { subOnce, getReadRelays } from '../../core/relay.js';
 import { EVENTS_MAX } from '../../config/constants.js';
 
+const moreInFlightByState = new WeakMap();
+
+function getMoreInFlightMap(state) {
+  if (!state || (typeof state !== 'object' && typeof state !== 'function')) return null;
+  let map = moreInFlightByState.get(state);
+  if (!map) {
+    map = new Map();
+    moreInFlightByState.set(state, map);
+  }
+  return map;
+}
+
 function matchesFilter(ev, filter) {
   if (!ev || !filter) return false;
   if (filter.kinds && Array.isArray(filter.kinds) && filter.kinds.length > 0) {
@@ -117,6 +129,7 @@ export function setupFeedFetcher(opts) {
     histFilters = [],
     liveFilters = null,
     relays = null,
+    liveRelays = null,
     addToFeed,
     scheduleRender,
     eventsFetchLimit = 60,
@@ -138,6 +151,7 @@ export function setupFeedFetcher(opts) {
   };
 
   const usedRelays = Array.isArray(relays) && relays.length ? relays.slice() : getReadRelays(state.relays);
+  const usedLiveRelays = Array.isArray(liveRelays) ? liveRelays.slice() : usedRelays;
   const perRelayUnsubs = new Set();
   const histBuffer = new Map();
   // hist 購読のみを宣言的に停止できるよう AbortController を使用（live は維持）
@@ -248,7 +262,7 @@ export function setupFeedFetcher(opts) {
       }
       relayList.forEach(relay => {
         try {
-          const key = feedId + '_hist_' + relay + '_' + Math.random().toString(36).slice(2, 8);
+          const key = feedId + '_hist_' + relay;
           const unsub = subOnce(state, key, histFilters, (ev, r, done) => {
             try { absorbHistEvent(ev, r); } catch (e) { }
             try {
@@ -294,13 +308,13 @@ export function setupFeedFetcher(opts) {
         liveUnsub = subOnce(state, feedId + '_live', liveFilters, (ev, relay) => {
           stampReceivedAtOnLiveEvent(ev);
           try { if (ev) addToFeed(feedId, ev, null, relay); } catch (e) { }
-        }, usedRelays.length ? usedRelays : null);
+        }, usedLiveRelays.length ? usedLiveRelays : null);
       } catch (e) {
         try {
           liveUnsub = subOnce(state, feedId + '_live', liveFilters, (ev, relay) => {
             stampReceivedAtOnLiveEvent(ev);
             try { if (ev) addToFeed(feedId, ev, null, relay); } catch (ee) { }
-          }); } catch (ee) { }
+          }, usedLiveRelays.length ? usedLiveRelays : null); } catch (ee) { }
       }
     }
   } catch (e) { }
@@ -334,6 +348,10 @@ export function fetchMore(opts) {
     eventsTimeout = 10000,
     onCollect = null
   } = opts || {};
+
+  const inFlightMap = getMoreInFlightMap(state);
+  const existing = inFlightMap && inFlightMap.get(feedId);
+  if (existing) return existing;
 
   // 呼び出し側が中断できるよう AbortController を作成し、返却 Promise に紐づける
   const controller = new AbortController();
@@ -401,7 +419,7 @@ export function fetchMore(opts) {
           for (const ev of keep) { try { if (ev && ev.id) m.set(ev.id, ev); } catch (e) { } }
           state.feeds[feedId].map = m;
         } catch (e) { }
-        appended = Math.max(0, (keepCount - startListLength));
+        appended = Math.max(0, keep.length - startListLength);
         total = keep.length;
       } catch (e) { }
       try { updatePerFilterUntil(state, feedId, filters, state.feeds[feedId]?.list || []); } catch (e) { }
@@ -430,7 +448,7 @@ export function fetchMore(opts) {
       const doneRelays = new Set();
       const relayCount = Array.isArray(relayList) ? relayList.length : 0;
       try {
-        unsubAll = subOnce(state, feedId + '_more_multi_' + Math.random().toString(36).slice(2, 8), filters, (ev, relay, done) => {
+        unsubAll = subOnce(state, feedId + '_more_multi', filters, (ev, relay, done) => {
           collectEvent(ev);
           try {
             const r = relay || 'multi';
@@ -469,7 +487,7 @@ export function fetchMore(opts) {
     }
     relayList.forEach(relay => {
       try {
-        const key = feedId + '_more_' + relay + '_' + Math.random().toString(36).slice(2, 8);
+        const key = feedId + '_more_' + relay;
         const unsub = subOnce(state, key, filters, (ev, r, done) => {
           collectEvent(ev);
           try {
@@ -503,5 +521,13 @@ export function fetchMore(opts) {
   });
   // 呼び出し側が abort できるよう controller を返却 Promise に付与
   try { p.controller = controller; } catch (e) { }
+  if (inFlightMap) {
+    inFlightMap.set(feedId, p);
+    const release = () => {
+      if (inFlightMap.get(feedId) === p) inFlightMap.delete(feedId);
+      if (inFlightMap.size === 0) moreInFlightByState.delete(state);
+    };
+    p.then(release, release);
+  }
   return p;
 }

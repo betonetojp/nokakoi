@@ -9,6 +9,7 @@ import {
   iterCustomEmojiVariants,
   registerTextShortcodeVariant
 } from './custom-emoji-store.js';
+import { getCustomEmojis } from '../../core/app-context.js';
 
 const INCOMPLETE_SHORTCODE_RE = /^:([a-zA-Z0-9_+-]{2,})$/;
 const DEFAULT_MAX_RESULTS = 1000;
@@ -68,9 +69,7 @@ function dedupeSuggestRows(rows, myPubkey) {
  */
 export function findMatchingEmojis(query, limit = DEFAULT_MAX_RESULTS) {
   if (!query || query.length < 2) return [];
-  const customEmojis = (typeof window !== 'undefined' && window.__customEmojis instanceof Map)
-    ? window.__customEmojis
-    : null;
+  const customEmojis = getCustomEmojis();
   if (!customEmojis || customEmojis.size === 0) return [];
 
   const prefixMatches = [];

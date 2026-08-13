@@ -5,6 +5,11 @@
 import { showToast } from '../utils/utils.js';
 import { t } from '../utils/i18n.js';
 import { restoreDomPurgeAround } from '../features/timeline/feed-renderer.js';
+import {
+  getScrollAnchor,
+  getSettingsManager,
+  setProgrammaticScroll
+} from '../core/app-context.js';
 
 export function setupScrollToTopButton() {
   const button = document.getElementById('scrollToTopBtn');
@@ -33,8 +38,7 @@ export function setupScrollToTopButton() {
 
   const getUseDomPurge = () => {
     try {
-      // 稼働中の settingsManager を優先（main.js により window に設定される）
-      const sm = typeof window !== 'undefined' ? window.settingsManager : null;
+      const sm = getSettingsManager();
       if (sm && typeof sm.get === 'function') {
         return sm.get('useDomPurge') === true;
       }
@@ -69,10 +73,10 @@ export function setupScrollToTopButton() {
     const tabTop = computeTabTopPosition();
     // プログラムによるスクロールとしてマークし、パージのスクロールリスナーがこのジャンプをユーザースクロールとして扱わないようにする。
     try {
-      window.__nokakoiProgrammaticScroll = true;
+      setProgrammaticScroll(true);
       setTimeout(() => {
         try {
-          if (!window.__nokakoiScrollAnchor) window.__nokakoiProgrammaticScroll = false;
+          if (!getScrollAnchor()) setProgrammaticScroll(false);
         } catch (e) { }
       }, 200);
     } catch (e) { }

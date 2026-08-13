@@ -2,9 +2,12 @@
 // NIP-30 カスタム絵文字ストア（同名 shortcode 複数 variant + suffix 対応）
 // ============================================================================
 
+import { getCustomEmojis } from '../../core/app-context.js';
+
 export const EMOJI_SHORTCODE_CHARS = 'a-zA-Z0-9_+\\-';
 export const EMOJI_SHORTCODE_PATTERN = `[${EMOJI_SHORTCODE_CHARS}]+`;
 const SUFFIX_RE = /^(.+)_(\d+)$/;
+const textShortcodeRegistry = new Map();
 
 function normalizeVariant(variant) {
   if (!variant) return null;
@@ -112,11 +115,7 @@ export function* iterCustomEmojiVariants(map) {
 }
 
 function getTextShortcodeRegistry() {
-  if (typeof window === 'undefined') return null;
-  if (!(window.__customEmojiByTextShortcode instanceof Map)) {
-    window.__customEmojiByTextShortcode = new Map();
-  }
-  return window.__customEmojiByTextShortcode;
+  return textShortcodeRegistry;
 }
 
 export function clearTextShortcodeRegistry() {
@@ -214,7 +213,7 @@ export function allocateTextShortcode(text, baseShortcode, variant, options = {}
     let regVariant = registry ? registry.get(entry.textShortcode) : null;
     if (!regVariant) {
       const resolved = resolveCustomEmoji(
-        (typeof window !== 'undefined' && window.__customEmojis instanceof Map) ? window.__customEmojis : new Map(),
+        getCustomEmojis(),
         entry.textShortcode
       );
       if (resolved) regVariant = resolved;
@@ -252,9 +251,7 @@ export function buildEmojiTag(textShortcode, variant) {
  */
 export function extractEmojiTagsFromText(text, map) {
   if (!text) return [];
-  const emojiMap = (map instanceof Map) ? map : (
-    (typeof window !== 'undefined' && window.__customEmojis instanceof Map) ? window.__customEmojis : new Map()
-  );
+  const emojiMap = (map instanceof Map) ? map : getCustomEmojis();
   const re = new RegExp(':(' + EMOJI_SHORTCODE_PATTERN + '):', 'g');
   const tags = [];
   const seen = new Set();
@@ -277,9 +274,7 @@ export function extractEmojiTagsFromText(text, map) {
  * text shortcode → URL（プレビュー・linkify 用）
  */
 export function buildEmojiUrlMapFromText(text, map) {
-  const emojiMap = (map instanceof Map) ? map : (
-    (typeof window !== 'undefined' && window.__customEmojis instanceof Map) ? window.__customEmojis : new Map()
-  );
+  const emojiMap = (map instanceof Map) ? map : getCustomEmojis();
   const urlMap = new Map();
   if (!text) return urlMap;
   const re = new RegExp(':(' + EMOJI_SHORTCODE_PATTERN + '):', 'g');

@@ -3,6 +3,7 @@ import { t } from '../../utils/i18n.js';
 import { VERSION } from '../../config/version.js';
 import { signer } from '../../core/signer.js';
 import { setupInfoHubModal } from './info-hub.js';
+import { getAppState, getBuildInfo, getRelayDebugInfo } from '../../core/app-context.js';
 
 export function setupDebugModal(state, settings) {
   const setup = () => {
@@ -22,7 +23,7 @@ export function setupDebugModal(state, settings) {
         } catch (e) { return u; }
       }
 
-      const rawState = window.__nostrState || state;
+      const rawState = getAppState() || state;
       const prunedState = rawState ? {
         signer: rawState.signer,
         pubkey: rawState.pubkey || localStorage.getItem('pubkey') || null,
@@ -50,12 +51,9 @@ export function setupDebugModal(state, settings) {
         preferredSingerSetting: settings && settings.preferredSigner ? settings.preferredSigner : null
       };
 
-      let relayDebugInfo = null;
-      try {
-        if (typeof window !== 'undefined' && typeof window.__relayDebug === 'function') {
-          try { relayDebugInfo = window.__relayDebug(); } catch (e) { relayDebugInfo = null; }
-        }
-      } catch (e) { relayDebugInfo = null; }
+      const relayDebugInfo = (() => {
+        try { return getRelayDebugInfo(); } catch (e) { return null; }
+      })();
 
       function formatReadyState(rs) {
         switch (rs) {
@@ -133,7 +131,7 @@ export function setupDebugModal(state, settings) {
 
       let debugObj = {
         appVersion: VERSION,
-        buildInfo: window.__buildInfo || 'N/A',
+        buildInfo: getBuildInfo() || 'N/A',
         state: prunedState,
         settings: settingsSummary,
         skInfo,

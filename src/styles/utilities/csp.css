@@ -1,0 +1,145 @@
+/* Static declarations moved out of index.html for a strict style-src policy. */
+html,
+body,
+#feeds {
+  -webkit-overflow-scrolling: touch;
+}
+
+.relay-snapshots-container {
+  padding: 8px 0;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.space-between {
+  justify-content: space-between;
+}
+
+.settings-range-input {
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.settings-brightness-value {
+  min-width: 42px;
+  text-align: right;
+}
+
+.omochat-geohash-input-container {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+#omochatRelayList {
+  margin: 8px 0;
+}
+
+#omochatStatus {
+  min-height: 1.2em;
+}
+
+.nip46-relay-actions {
+  display: flex;
+  gap: 8px;
+}
+
+#ehagakiConfirmOrigin {
+  display: block;
+  margin-top: 4px;
+  color: var(--accent);
+  word-break: break-all;
+}
+
+.ehagaki-confirm-content-wrap {
+  max-height: 120px;
+  margin: 12px 0;
+  padding: 8px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.ehagaki-confirm-content-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+#ehagakiConfirmContent {
+  margin: 0;
+  font-size: 0.9em;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.ehagaki-confirm-trust-wrap {
+  margin-bottom: 16px;
+}
+
+.ehagaki-confirm-trust-label {
+  gap: 6px;
+  font-size: 0.95em;
+}
+
+#infoHubModal .modal-body {
+  width: 90%;
+  max-width: 480px;
+}
+
+.info-hub-summary {
+  margin-bottom: 16px;
+  font-size: 0.9em;
+}
+
+#infoHubVersion {
+  color: var(--color-text);
+  font-weight: bold;
+}
+
+.info-hub-section-title {
+  margin-bottom: 8px;
+  font-size: 0.85em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.info-hub-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.info-hub-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  color: var(--color-text);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.info-hub-link-origin {
+  margin-left: auto;
+  font-size: 0.8em;
+}
+
+.info-hub-debug-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#openDebugFromInfoHubBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 16px;
+}
