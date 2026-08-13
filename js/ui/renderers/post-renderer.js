@@ -37,10 +37,9 @@ import { renderReplyContext } from './reply-renderer.js';
 /**
  * リアクションボタンのセットアップ
  */
-export function setupReactButton(div, ev, settings, settingsManager, reactToEvent, state = null) {
+export function setupReactButton(div, ev, settings, settingsManager, reactToEvent, _state = null) {
   const reactBtn = div.querySelector('.btn-react');
   if (!reactBtn) return;
-  const effectiveState = state || (typeof window !== 'undefined' && window.__nostrState) || null;
 
   const resolveImmediateEmojiTags = function (reaction) {
     let emojiTags = [];
@@ -108,11 +107,17 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
   let lpTriggered = false;
   let suppressClickUntil = 0;
 
+  // UI 側の reactToEvent は (ev, sym) => ... 形式（feed-renderer / channel-feed など）
+  const callReact = async (symbol) => {
+    if (typeof reactToEvent !== 'function') return false;
+    return !!(await reactToEvent(ev, symbol));
+  };
+
   const openSetDefault = function () {
     lpTriggered = true;
     const nowDefault = (settingsManager && typeof settingsManager.get === 'function') ? (settingsManager.get('reactionDefault') || settings.reactionDefault || '+') : (settings.reactionDefault || '+');
     const runReactOnce = async (symbol) => {
-      const ok = await reactToEvent(ev, symbol);
+      const ok = await callReact(symbol);
       if (!ok) {
         restoreReactionUI();
         throw new Error('react_failed');
@@ -166,7 +171,7 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
     if (e && (e.shiftKey || e.altKey || e.metaKey || e.ctrlKey)) {
       const nowDefault = (settingsManager && typeof settingsManager.get === 'function') ? (settingsManager.get('reactionDefault') || settings.reactionDefault || '+') : (settings.reactionDefault || '+');
       const runReactOnce = async (symbol) => {
-        const ok = typeof reactToEvent === 'function' ? await reactToEvent(effectiveState, ev, symbol) : false;
+        const ok = await callReact(symbol);
         if (!ok) {
           restoreReactionUI();
           throw new Error('react_failed');
@@ -186,7 +191,7 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
       });
     } else {
       const reactionSym = (settingsManager && typeof settingsManager.get === 'function') ? (settingsManager.get('reactionDefault') || settings.reactionDefault || '+') : (settings.reactionDefault || '+');
-      const ok = typeof reactToEvent === 'function' ? await reactToEvent(effectiveState, ev, reactionSym) : false;
+      const ok = await callReact(reactionSym);
       if (!ok) {
         restoreReactionUI();
         return;
@@ -200,7 +205,7 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
     e.preventDefault();
     const nowDefault = (settingsManager && typeof settingsManager.get === 'function') ? (settingsManager.get('reactionDefault') || settings.reactionDefault || '+') : (settings.reactionDefault || '+');
     const runReactOnce = async (symbol) => {
-      const ok = typeof reactToEvent === 'function' ? await reactToEvent(effectiveState, ev, symbol) : false;
+      const ok = await callReact(symbol);
       if (!ok) throw new Error('react_failed');
       settingsManager.saveUserReaction(ev.id, symbol);
       applyReactionUI(symbol);

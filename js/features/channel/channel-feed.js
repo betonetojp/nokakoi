@@ -5,7 +5,8 @@
 import { getReadRelays, getWriteRelays } from '../../core/relay.js';
 import { cacheEvent } from '../../core/state.js';
 import { fetchChannelMetadata, pickChannelRootRelayHints } from './channel.js';
-import { getClientAttachInfo, signEventWithMode, reactToEvent, replyToEvent, repostEvent } from '../post/actions.js';
+import { getClientAttachInfo, signEventWithMode, reactToEvent, repostEvent, enrichDraftTagsFromContent } from '../post/actions.js';
+import { setReplyTarget } from '../post/composer.js';
 import { renderEvent } from '../../ui/renderers/post-renderer.js';
 import { getNip19 } from '../../core/nostr-compat.js';
 import { awaitAny } from '../../utils/utils.js';
@@ -209,15 +210,16 @@ function createChannelMessageElement(ev, state, settingsManager) {
   const settings = (settingsManager && typeof settingsManager.getAll === 'function') ? settingsManager.getAll() : {};
 
   try {
+    // post-renderer は (ev, sym) / (ev) 形式のコールバックを期待する（feed-renderer と同じ）
     const cardEl = renderEvent(
       state,
       ev,
       nip19,
       settings,
       settingsManager,
-      reactToEvent,
-      replyToEvent,
-      repostEvent,
+      (targetEv, sym) => reactToEvent(state, targetEv, sym),
+      (targetEv) => { setReplyTarget(state, targetEv, nip19); },
+      (targetEv) => repostEvent(state, targetEv),
       'channels'
     );
     return cardEl;
@@ -237,22 +239,19 @@ export async function sendChannelMessage(rootId, content, state, options = {}) {
   const readRelays = (state && state.relays) ? getReadRelays(state.relays) : [];
   const optionRelays = Array.isArray(options.relays) ? options.relays.filter(r => typeof r === 'string' && r.trim()) : [];
   const relayHint = (writeRelays[0] || readRelays[0] || optionRelays[0] || 'wss://yabu.me/');
+  const isQuote = !!options.isQuote;
+  const replyEv = options.replyToEvent;
 
   const tags = [
     ['e', rootId, relayHint, 'root']
   ];
 
-  // 返信対象メッセージがある場合
-  if (options.replyToEvent && options.replyToEvent.id) {
-    tags.push(['e', options.replyToEvent.id, relayHint, 'reply']);
-    if (options.replyToEvent.pubkey) {
-      tags.push(['p', options.replyToEvent.pubkey]);
+  // 通常返信のみ reply e / p を付与。引用は q（本文スキャン）に任せ、返信扱いにしない
+  if (!isQuote && replyEv && replyEv.id) {
+    tags.push(['e', replyEv.id, relayHint, 'reply']);
+    if (replyEv.pubkey) {
+      tags.push(['p', replyEv.pubkey]);
     }
-  }
-
-  // 引用対象メッセージがある場合 (NIP-18 qタグ)
-  if (options.isQuote && options.replyToEvent && options.replyToEvent.id) {
-    tags.push(['q', options.replyToEvent.id, relayHint]);
   }
 
   // 設定有効時のみ client タグ付与
@@ -266,14 +265,16 @@ export async function sendChannelMessage(rootId, content, state, options = {}) {
   } catch (_e) { }
 
   let finalContent = content;
-  // 引用の場合で、本文に nostr: リンクがまだ含まれていなければ自動アペンド
-  if (options.isQuote && options.replyToEvent) {
+  // 引用で本文に当該イベントへの参照が無いときだけ nevent を補完（エンコード差による二重挿入を防ぐ）
+  if (isQuote && replyEv && replyEv.id) {
     try {
-      const nip19 = getNip19();
-      if (nip19 && typeof nip19.neventEncode === 'function') {
-        const nevent = nip19.neventEncode({ id: options.replyToEvent.id, author: options.replyToEvent.pubkey });
-        if (nevent && !content.includes(nevent)) {
-          finalContent = content + '\n\nnostr:' + nevent;
+      if (!contentReferencesEventId(finalContent, replyEv.id)) {
+        const nip19 = getNip19();
+        if (nip19 && typeof nip19.neventEncode === 'function') {
+          const nevent = nip19.neventEncode({ id: replyEv.id, author: replyEv.pubkey });
+          if (nevent) {
+            finalContent = (finalContent || '').trimEnd() + '\n\nnostr:' + nevent;
+          }
         }
       }
     } catch (_e) {}
@@ -286,6 +287,8 @@ export async function sendChannelMessage(rootId, content, state, options = {}) {
     content: finalContent,
     pubkey: (state && state.pubkey) || localStorage.getItem('pubkey') || ''
   };
+
+  enrichDraftTagsFromContent(unsignedEv);
 
   // イベントの署名 (NIP-07 / NIP-46 / nsec 共通モード)
   const signedEv = await signEventWithMode(state, unsignedEv);
@@ -307,4 +310,32 @@ export async function sendChannelMessage(rootId, content, state, options = {}) {
 
   cacheEvent(state, signedEv);
   return signedEv;
+}
+
+/**
+ * 本文中の nostr:nevent1 / note1 が指定 event id を既に指しているか
+ */
+function contentReferencesEventId(content, eventId) {
+  if (!content || !eventId) return false;
+  const target = String(eventId).toLowerCase();
+  try {
+    const nip19 = getNip19();
+    if (!nip19 || typeof nip19.decode !== 'function') {
+      return content.toLowerCase().includes(target);
+    }
+    const regex = /nostr:(nevent1[a-z0-9]+|note1[a-z0-9]+)/gi;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      try {
+        const decoded = nip19.decode(match[1]);
+        let id = null;
+        if (decoded && decoded.type === 'nevent' && decoded.data) id = decoded.data.id;
+        else if (decoded && decoded.type === 'note') {
+          id = typeof decoded.data === 'string' ? decoded.data : (decoded.data && decoded.data.id);
+        }
+        if (id && String(id).toLowerCase() === target) return true;
+      } catch (_e) {}
+    }
+  } catch (_e) {}
+  return false;
 }

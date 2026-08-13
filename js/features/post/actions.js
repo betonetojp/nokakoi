@@ -103,6 +103,69 @@ function addHashtagTags(draft) {
   }
 }
 
+/**
+ * 本文中の nostr:nevent1... / nostr:note1... から q タグを追加 (NIP-18)
+ */
+function addQuoteTags(draft) {
+  if (!draft || !draft.content) return;
+  if (draft.kind !== 1 && draft.kind !== 42) return;
+
+  try {
+    const nip19 = getNip19();
+    if (!nip19 || typeof nip19.decode !== 'function') return;
+
+    const regex = /nostr:(nevent1[a-z0-9]+|note1[a-z0-9]+)/gi;
+    let match;
+    const foundIds = new Set();
+
+    while ((match = regex.exec(draft.content)) !== null) {
+      try {
+        const decoded = nip19.decode(match[1]);
+        let eventId = null;
+        let relayHint = '';
+        let author = '';
+
+        if (decoded && decoded.type === 'nevent' && decoded.data) {
+          eventId = decoded.data.id || null;
+          if (Array.isArray(decoded.data.relays) && decoded.data.relays[0]) {
+            relayHint = String(decoded.data.relays[0]);
+          }
+          if (decoded.data.author) author = String(decoded.data.author);
+        } else if (decoded && decoded.type === 'note') {
+          eventId = typeof decoded.data === 'string' ? decoded.data : (decoded.data && decoded.data.id) || null;
+        }
+
+        if (!eventId || !/^[0-9a-f]{64}$/i.test(eventId) || foundIds.has(eventId)) continue;
+        foundIds.add(eventId);
+
+        if (!draft.tags) draft.tags = [];
+        const alreadyExists = draft.tags.some(t => Array.isArray(t) && t[0] === 'q' && t[1] === eventId);
+        if (alreadyExists) continue;
+
+        const tag = ['q', eventId];
+        if (relayHint || author) {
+          tag.push(relayHint || '');
+          if (author) tag.push(author);
+        }
+        draft.tags.push(tag);
+      } catch (e) {
+        console.warn('[Actions] 引用タグの解析に失敗:', match[0], e);
+      }
+    }
+  } catch (e) {
+    console.warn('[Actions] 引用タグ抽出処理全体でエラー:', e);
+  }
+}
+
+/**
+ * 本文から p / t / q タグを補完（kind:1, 42）
+ */
+export function enrichDraftTagsFromContent(draft) {
+  addMentionTags(draft);
+  addHashtagTags(draft);
+  addQuoteTags(draft);
+}
+
 // NIP-07 用のドラフト検証・補完 (aka-profiles / nostr-tools 等の厳格な検証エラーを防止)
 function ensureHexPubkey(pk) {
   if (!pk || typeof pk !== 'string') return null;
@@ -397,8 +460,7 @@ export async function publishNote(state, content, statusEl, options) {
       if (statusEl) statusEl.textContent = t('publish.signed');
     }
 
-    addMentionTags(draft);
-    addHashtagTags(draft);
+    enrichDraftTagsFromContent(draft);
 
     const ev = await signEventWithMode(effectiveState, draft);
 
@@ -758,8 +820,7 @@ export async function replyToEvent(state, targetEv, text) {
       // エラーを無視
     }
 
-    addMentionTags(draft);
-    addHashtagTags(draft);
+    enrichDraftTagsFromContent(draft);
 
     const ev = await signEventWithMode(effectiveState, draft);
 
