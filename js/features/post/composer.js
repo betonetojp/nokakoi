@@ -213,9 +213,17 @@ export function setGeohashTarget(geohash) {
 
 /**
  * チャンネル投稿ターゲットをセットし共通投稿欄UIを更新
+ * チャンネルタブ非アクティブ時は無視（メタデータ取得の遅延完了による sticky 復活を防ぐ）
  */
 export function setChannelTarget(channelInfo) {
   if (!channelInfo || !channelInfo.rootId) return;
+  try {
+    const activeTabBtn = document.querySelector('.tabs .tab.active');
+    if (!activeTabBtn || activeTabBtn.dataset.tab !== 'channels') return;
+    if (!isChannelChatOpen()) return;
+  } catch (_e) {
+    return;
+  }
   currentReplyTarget = null;
   currentGeohashTarget = null;
   currentQuoteMode = false;
@@ -267,13 +275,42 @@ export function clearChannelTarget() {
   clearReplyTarget();
 }
 
+function isChannelChatOpen() {
+  try {
+    const wrapper = document.querySelector('.channel-portal-wrapper');
+    return !!(wrapper && wrapper.classList.contains('show-chat'));
+  } catch (_e) {
+    return false;
+  }
+}
+
 /**
  * チャンネルタブで未選択時の投稿窓非表示処理
  */
 export function hideComposerForUnselectedChannel() {
   currentChannelTarget = null;
-  const composer = $('#composer');
-  if (composer) composer.hidden = true;
+  currentReplyTarget = null;
+  currentQuoteMode = false;
+
+  const composer = document.getElementById('composer') || $('#composer');
+  if (composer) {
+    composer.hidden = true;
+    composer.setAttribute('hidden', '');
+  }
+
+  const replyContext = document.getElementById('replyContext') || $('#replyContext');
+  if (replyContext) {
+    replyContext.hidden = true;
+    const replyContextContent = document.getElementById('replyContextContent') || $('#replyContextContent');
+    if (replyContextContent) replyContextContent.innerHTML = '';
+  }
+
+  const noteInput = document.getElementById('noteInput') || $('#noteInput');
+  if (noteInput) {
+    try { noteInput.placeholder = t('composer.placeholder'); } catch (_e) {
+      noteInput.placeholder = 'What are you up to?';
+    }
+  }
 }
 
 /**
@@ -682,7 +719,7 @@ export function setupComposerUI(state, { getOmochatRelays, consumeShareText }) {
 
     const replyTarget = currentReplyTarget;
     const geohashTarget = currentGeohashTarget;
-    const channelTarget = currentChannelTarget;
+    const channelTarget = (currentChannelTarget && isChannelChatOpen()) ? currentChannelTarget : null;
     const channelRootFromReply = (replyTarget && replyTarget.kind === 42) ? pickChannelRootId(replyTarget) : null;
     let success;
 

@@ -14,21 +14,17 @@
   pointer-events: none;
 }
 
-/* チャンネルポータル UI スタイル (共通単一スクロール構造) */
+/* 一覧 / チャットを切り替える単一ペイン構成（デスクトップ・モバイル共通） */
 .channel-portal-wrapper {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
+  display: block;
   margin-top: 8px;
 }
 
 .channel-sidebar {
-  width: 280px;
-  min-width: 240px;
+  width: 100%;
   border: 1px solid var(--border-color, #e1e4e8);
   border-radius: 8px;
   background: var(--bg-secondary, #f6f8fa);
-  flex-shrink: 0;
 }
 
 .channel-sidebar-header {
@@ -37,6 +33,12 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border-color, #e1e4e8);
+}
+
+.channel-sidebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .channel-sidebar-header h3 {
@@ -51,10 +53,60 @@
   border-bottom: 1px solid var(--border-color, #e1e4e8);
 }
 
+.channel-join-box-nested {
+  border-bottom: none;
+  padding: 8px 0 4px;
+}
+
+.channel-id-advanced {
+  padding: 4px 12px 8px;
+  border-bottom: 1px solid var(--border-color, #e1e4e8);
+  font-size: 0.82rem;
+}
+
+.channel-id-advanced summary {
+  cursor: pointer;
+  color: var(--muted, #666);
+  user-select: none;
+}
+
 .channel-id-input {
   flex: 1;
+  min-width: 0;
   font-size: 0.82rem;
   padding: 4px 8px;
+}
+
+.channel-search-results {
+  max-height: 220px;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border-color, #e1e4e8);
+  background: var(--bg-primary, #fff);
+}
+
+.channel-search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color, #eee);
+}
+
+.channel-search-result-item:last-child {
+  border-bottom: none;
+}
+
+.channel-search-result-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.channel-search-result-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .channel-list-status {
@@ -62,13 +114,20 @@
 }
 
 .channel-list {
-  flex: 1;
   overflow-y: auto;
   padding: 4px;
+  max-height: min(60vh, 520px);
+}
+
+.channel-list-item-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .channel-list-item {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   text-align: left;
   padding: 8px 12px;
   border-radius: 6px;
@@ -78,8 +137,35 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   font-size: 0.9rem;
   color: var(--text-color, #24292e);
+}
+
+.channel-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.channel-item-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.channel-list-remove {
+  flex-shrink: 0;
+  opacity: 0.55;
+  margin-right: 4px;
+}
+
+.channel-list-remove:hover {
+  opacity: 1;
+  color: var(--text-danger, #ff4d4f);
 }
 
 .channel-list-item:hover {
@@ -92,9 +178,16 @@
   color: var(--accent-color, #0284c7);
 }
 
+.d-none {
+  display: none !important;
+}
+
+.p-8 {
+  padding: 8px 12px;
+}
+
 .channel-main-view {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   border: 1px solid var(--border-color, #e1e4e8);
   border-radius: 8px;
   background: var(--bg-primary, #ffffff);
@@ -119,8 +212,13 @@
   background: var(--bg-primary, #ffffff);
 }
 
+.channel-back-btn {
+  flex-shrink: 0;
+}
+
 .channel-header-info {
   flex: 1;
+  min-width: 0;
 }
 
 .channel-title-row {
@@ -129,9 +227,65 @@
   gap: 8px;
 }
 
+.channel-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.channel-info-section .mb-4 {
+  margin-bottom: 4px;
+}
+
+.channel-info-id-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.channel-info-id {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  word-break: break-all;
+  border: 1px solid var(--border-color, #e1e4e8);
+  border-radius: 6px;
+  background: var(--bg-secondary, #f6f8fa);
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+.channel-info-local-notice {
+  margin-top: 8px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e1e4e8);
+  background: var(--bg-secondary, #f6f8fa);
+}
+
+.channel-item-badge--local {
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color, #d0d7de);
+  color: var(--muted, #666);
+  background: var(--bg-secondary, #f6f8fa);
+  white-space: nowrap;
+}
+
 .channel-header-info h4 {
   margin: 0;
   font-size: 1.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .micro-btn {
@@ -170,26 +324,11 @@
   gap: 10px;
 }
 
-/* composerはアプリ共通のeHagaki/Composerに一本化 */
-
-.d-mobile-only {
+/* 一覧とチャットを排他表示 */
+.channel-portal-wrapper.show-chat .channel-sidebar {
   display: none;
 }
 
-@media (max-width: 640px) {
-  .d-mobile-only {
-    display: inline-block;
-  }
-
-  .channel-sidebar {
-    width: 100%;
-  }
-
-  .channel-portal-wrapper.show-chat-mobile .channel-sidebar {
-    display: none;
-  }
-
-  .channel-portal-wrapper:not(.show-chat-mobile) .channel-main-view {
-    display: none;
-  }
+.channel-portal-wrapper:not(.show-chat) .channel-main-view {
+  display: none;
 }

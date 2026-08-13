@@ -24,7 +24,7 @@ export function renderChannelContext(state, ev) {
 }
 
 /**
- * チャンネル名クリックで eHagaki に channel context を渡す
+ * チャンネル名クリックでチャンネルタブへ（タブ非表示時は eHagaki）
  * @param {ParentNode} root ラベルを含むコンテナ
  * @param {object} ev kind:42 イベント
  * @param {object} state
@@ -45,11 +45,22 @@ export function bindChannelLabelClickHandler(root, ev, state) {
 
     try {
       labelEl.classList.add('is-busy');
+
+      const channelsTabBtn = document.querySelector('.tabs .tab[data-tab="channels"]');
+      if (channelsTabBtn) {
+        channelsTabBtn.click();
+        const mod = await import('../../features/channel/channel-ui.js');
+        if (mod && typeof mod.openChannelFromExternal === 'function') {
+          await mod.openChannelFromExternal(rootId, state);
+        }
+        return;
+      }
+
       const channel = await buildChannelEmbedContext(state, rootId, ev);
       if (!channel || !channel.reference) return;
       await openEhagakiWithChannel(channel);
     } catch (err) {
-      console.warn('[Channel] eHagaki へのチャンネル受け渡しに失敗', err);
+      console.warn('[Channel] チャンネル遷移に失敗', err);
     } finally {
       try { labelEl.classList.remove('is-busy'); } catch (err) { }
     }

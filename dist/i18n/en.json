@@ -106,6 +106,7 @@
   "content_warning.reason": "Content Warning: {reason}",
   "tabs.me": "Me",
   "tabs.mentions": "Mentions",
+  "tabs.channels": "Channels",
   "tabs.bitchat": "omochat",
   "reply.cancelTitle": "Cancel",
   "quote.label": "Quote from {author}",

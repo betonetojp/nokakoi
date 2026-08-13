@@ -22,9 +22,14 @@ const _observedLoadMoreBtns = new WeakMap(); // containerEl -> loadMoreBtn
 export async function subscribeChannelFeed(rootId, state, containerEl, settingsManager = null) {
   if (!rootId || !containerEl) return;
 
-  // 既存のサブスクリプションがあれば一旦クリア
-  unsubscribeChannelFeed(rootId);
+  unsubscribeAllChannelFeeds();
   unobserveLoadMore(containerEl);
+
+  const myGen = (containerEl.__channelFeedGen = (containerEl.__channelFeedGen || 0) + 1);
+  containerEl.dataset.channelRootId = rootId;
+  const isStale = () => (
+    containerEl.dataset.channelRootId !== rootId || containerEl.__channelFeedGen !== myGen
+  );
 
   containerEl.innerHTML = '<div class="muted p-12 text-center">メッセージを取得中...</div>';
 
@@ -38,6 +43,8 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
       if (hints.length) metaRelays = hints;
     }
   } catch (_e) {}
+
+  if (isStale()) return;
 
   const targetRelays = Array.from(new Set([...mainRelays, ...metaRelays])).slice(0, 10);
   if (!targetRelays.length) {
@@ -92,7 +99,7 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
   }
 
   function renderEvents() {
-    if (!containerEl) return;
+    if (!containerEl || isStale()) return;
     unobserveLoadMore(containerEl);
 
     // 最新が上になるよう降順 (新しい順) でソート
@@ -138,7 +145,7 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
       const filter = { kinds: [42], '#e': [rootId], limit: EVENTS_FETCH_LIMIT };
       const sub = state.pool.subscribeMany(targetRelays, [filter], {
         onevent(ev) {
-          if (!ev || ev.kind !== 42) return;
+          if (isStale() || !ev || ev.kind !== 42) return;
           cacheEvent(state, ev);
           if (!eventsMap.has(ev.id)) {
             eventsMap.set(ev.id, ev);
@@ -146,6 +153,7 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
           }
         },
         oneose() {
+          if (isStale()) return;
           if (!eventsMap.size) renderEvents();
         },
         eoseTimeout: 5000,
@@ -184,6 +192,12 @@ export function unsubscribeChannelFeed(rootId) {
       else if (typeof sub.unsub === 'function') sub.unsub();
     } catch (_e) {}
     _channelSubs.delete(rootId);
+  }
+}
+
+export function unsubscribeAllChannelFeeds() {
+  for (const id of Array.from(_channelSubs.keys())) {
+    unsubscribeChannelFeed(id);
   }
 }
 

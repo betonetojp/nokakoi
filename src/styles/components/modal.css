@@ -288,7 +288,10 @@ body.theme-light #eventModalContent::-webkit-scrollbar-thumb {
 .modal #profileUsername,
 .modal #profileAbout,
 .modal #profileMetadata,
-.modal #eventModalContent {
+.modal #eventModalContent,
+.modal #channelInfoContent,
+.modal #channelInfoContent .channel-info-id,
+.modal #channelInfoContent code {
   -webkit-user-select: text;
   user-select: text;
 }

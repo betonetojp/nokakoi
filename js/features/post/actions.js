@@ -124,16 +124,11 @@ function ensureHexPubkey(pk) {
 
 function sanitizeTags(tags) {
   if (!Array.isArray(tags)) return [];
+  // null/undefined を文字列化し、配列でない要素を除外するだけ。
+  // 末尾の空文字は NIP-10/22 のプレースホルダとして意味があるため除去しない。
   return tags
     .filter(t => Array.isArray(t) && t.length > 0)
-    .map(t => {
-      const cleaned = t.map(val => (val === null || val === undefined) ? '' : String(val));
-      // 末尾の空文字を除去 (例: ['e', id, '', ''] -> ['e', id])
-      while (cleaned.length > 1 && cleaned[cleaned.length - 1] === '') {
-        cleaned.pop();
-      }
-      return cleaned;
-    });
+    .map(t => t.map(val => (val === null || val === undefined) ? '' : String(val)));
 }
 
 /**

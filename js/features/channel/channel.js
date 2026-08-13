@@ -126,7 +126,8 @@ export function pickChannelRootRelayHints(ev, rootId) {
 }
 
 /**
- * kind:41 優先で name / about / picture / relays を解決
+ * kind:41 優先で name / about / picture を解決。
+ * relays は最新 kind:41 にあればそれだけ。無ければ kind:40 にフォールバック。
  */
 export function extractChannelProfileFields(rootEvent, metaEvent) {
   const fromMeta = parseChannelContentFields(metaEvent && metaEvent.content);
@@ -146,10 +147,10 @@ export function extractChannelProfileFields(rootEvent, metaEvent) {
     fromMeta && fromMeta.picture,
     fromRoot && fromRoot.picture,
   );
-  const relays = mergeRelayLists(
-    fromMeta && fromMeta.relays,
-    fromRoot && fromRoot.relays,
-  );
+  // 最新 41 の relays を正本とする（死にリレーを 40 から引きずらない）
+  const relays = (fromMeta && Array.isArray(fromMeta.relays) && fromMeta.relays.length)
+    ? fromMeta.relays.slice()
+    : ((fromRoot && Array.isArray(fromRoot.relays) && fromRoot.relays.length) ? fromRoot.relays.slice() : []);
 
   const out = {};
   if (name) out.name = name;
@@ -254,10 +255,27 @@ function channelEventReferencesRoot(ev, rootId) {
   return ev.tags.some(tag => tag && tag[0] === 'e' && tag[1] === rootId);
 }
 
-function findLatestKind41InCache(state, rootId) {
+function isKind41FromCreator(ev, rootEvent) {
+  if (!ev || ev.kind !== 41) return false;
+  if (!rootEvent || typeof rootEvent.pubkey !== 'string' || !rootEvent.pubkey) {
+    // root 未取得時は一旦受理し、後段で root 取得後に再フィルタする
+    return true;
+  }
+  return typeof ev.pubkey === 'string' && ev.pubkey.toLowerCase() === rootEvent.pubkey.toLowerCase();
+}
+
+function pickNewerEvent(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  return ((b.created_at || 0) > (a.created_at || 0)) ? b : a;
+}
+
+function findLatestKind41InCache(state, rootId, rootEvent = null) {
   let best = null;
+  const effectiveRoot = rootEvent || findEventById(state, rootId);
   const consider = (ev) => {
     if (!ev || ev.kind !== 41 || !channelEventReferencesRoot(ev, rootId)) return;
+    if (!isKind41FromCreator(ev, effectiveRoot)) return;
     if (!best || (ev.created_at || 0) > (best.created_at || 0)) best = ev;
   };
   try {
@@ -275,21 +293,21 @@ function findLatestKind41InCache(state, rootId) {
   return best;
 }
 
-async function fetchLatestKind41(state, rootId, relays) {
-  if (!state?.pool || !relays?.length) return findLatestKind41InCache(state, rootId);
+async function fetchLatestKind41(state, rootId, relays, rootEvent = null) {
+  if (!state?.pool || !relays?.length) return findLatestKind41InCache(state, rootId, rootEvent);
 
-  const cached = findLatestKind41InCache(state, rootId);
-  if (cached) return cached;
+  const cached = findLatestKind41InCache(state, rootId, rootEvent);
+  const effectiveRoot = rootEvent || findEventById(state, rootId);
 
   if (typeof state.pool.subscribeMany !== 'function') {
     try {
       const ev = await state.pool.get(relays, { kinds: [41], '#e': [rootId], limit: 20 });
-      if (ev && ev.kind === 41) {
+      if (ev && ev.kind === 41 && channelEventReferencesRoot(ev, rootId) && isKind41FromCreator(ev, effectiveRoot)) {
         cacheEvent(state, ev);
-        return ev;
+        return pickNewerEvent(cached, ev);
       }
     } catch (e) { }
-    return null;
+    return cached;
   }
 
   return new Promise((resolve) => {
@@ -302,22 +320,18 @@ async function fetchLatestKind41(state, rootId, relays) {
       try {
         if (unsub && typeof unsub.close === 'function') unsub.close();
       } catch (e) { }
-      if (!collected.length) {
-        resolve(null);
-        return;
-      }
-      let best = collected[0];
+      let best = cached;
       for (const ev of collected) {
-        if ((ev.created_at || 0) > (best.created_at || 0)) best = ev;
+        best = pickNewerEvent(best, ev);
       }
-      resolve(best);
+      resolve(best || null);
     };
 
     const timer = setTimeout(finish, 5000);
     try {
       unsub = state.pool.subscribeMany(relays, [{ kinds: [41], '#e': [rootId], limit: 50 }], {
         onevent(ev) {
-          if (ev && ev.kind === 41 && channelEventReferencesRoot(ev, rootId)) {
+          if (ev && ev.kind === 41 && channelEventReferencesRoot(ev, rootId) && isKind41FromCreator(ev, effectiveRoot)) {
             cacheEvent(state, ev);
             collected.push(ev);
           }
@@ -343,29 +357,22 @@ export function getChannelLabelFromCache(state, rootId) {
   if (__labelCache.has(rootId)) return __labelCache.get(rootId);
 
   const rootEvent = findEventById(state, rootId);
-  const metaEvent = findLatestKind41InCache(state, rootId);
+  const metaEvent = findLatestKind41InCache(state, rootId, rootEvent);
   return resolveChannelLabelFromEvents(rootEvent, metaEvent) || null;
 }
 
 /**
  * kind:40 + 最新 kind:41 を取得して表示名を解決
+ * キャッシュ命中時もネット取得し、新しい kind:41 があれば採用する
  */
 export async function fetchChannelMetadata(state, rootId) {
   if (!rootId) return { label: null, rootEvent: null, metaEvent: null };
-
-  if (__labelCache.has(rootId)) {
-    return {
-      label: __labelCache.get(rootId),
-      rootEvent: findEventById(state, rootId),
-      metaEvent: findLatestKind41InCache(state, rootId),
-    };
-  }
 
   if (__inflight.has(rootId)) return __inflight.get(rootId);
 
   const promise = (async () => {
     let rootEvent = findEventById(state, rootId);
-    let metaEvent = findLatestKind41InCache(state, rootId);
+    let metaEvent = findLatestKind41InCache(state, rootId, rootEvent);
 
     const relays = getReadRelays(state.relays);
     if (relays && relays.length > 0 && state.pool) {
@@ -375,14 +382,20 @@ export async function fetchChannelMetadata(state, rootId) {
           if (fetched) {
             cacheEvent(state, fetched);
             rootEvent = fetched;
+            // root 取得後に作成者フィルタでキャッシュを見直す
+            metaEvent = findLatestKind41InCache(state, rootId, rootEvent);
           }
         } catch (e) { }
       }
-      if (!metaEvent) {
-        try {
-          metaEvent = await fetchLatestKind41(state, rootId, relays);
-        } catch (e) { }
-      }
+      try {
+        const fetchedMeta = await fetchLatestKind41(state, rootId, relays, rootEvent);
+        metaEvent = pickNewerEvent(metaEvent, fetchedMeta);
+      } catch (e) { }
+    }
+
+    // 最終的に作成者以外の kind:41 を落とす
+    if (metaEvent && rootEvent && !isKind41FromCreator(metaEvent, rootEvent)) {
+      metaEvent = findLatestKind41InCache(state, rootId, rootEvent);
     }
 
     const label = resolveChannelLabelFromEvents(rootEvent, metaEvent);
@@ -401,6 +414,15 @@ export function prefetchChannelMetadata(state, rootId) {
   if (!rootId) return;
   if (__labelCache.has(rootId)) return;
   fetchChannelMetadata(state, rootId).catch(() => { });
+}
+
+/** メタデータ更新後に表示名キャッシュを無効化 */
+export function invalidateChannelLabelCache(rootId) {
+  if (!rootId) {
+    __labelCache.clear();
+    return;
+  }
+  __labelCache.delete(rootId);
 }
 
 export function formatChannelLabelText(knownName, rootId) {

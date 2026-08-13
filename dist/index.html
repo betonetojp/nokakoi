@@ -68,29 +68,29 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <script type="module" crossorigin src="./assets/index-CmG1T888.js"></script>
+  <script type="module" crossorigin src="./assets/index-CpCpqD0Z.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-DK3Fl9T5.js">
   <link rel="modulepreload" crossorigin href="./assets/nostr-compat-DN4SB2qK.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-B2jP82uX.js">
-  <link rel="modulepreload" crossorigin href="./assets/utils-CGigMaPF.js">
+  <link rel="modulepreload" crossorigin href="./assets/utils-DpVhaw9l.js">
   <link rel="modulepreload" crossorigin href="./assets/constants-DimGJAOS.js">
   <link rel="modulepreload" crossorigin href="./assets/crypto-DKwsZZvJ.js">
   <link rel="modulepreload" crossorigin href="./assets/nip46-BvHH3cMZ.js">
-  <link rel="modulepreload" crossorigin href="./assets/relay-s3LA_GAi.js">
+  <link rel="modulepreload" crossorigin href="./assets/relay-FqtJSmKM.js">
   <link rel="modulepreload" crossorigin href="./assets/preload-helper-B7qeedMF.js">
-  <link rel="modulepreload" crossorigin href="./assets/profile--ae2630D.js">
+  <link rel="modulepreload" crossorigin href="./assets/profile-Bi6tlb4E.js">
   <link rel="modulepreload" crossorigin href="./assets/webauthn-CDFLoINz.js">
   <link rel="modulepreload" crossorigin href="./assets/signer-BNBrFOs9.js">
-  <link rel="modulepreload" crossorigin href="./assets/actions-C5C1kbS4.js">
-  <link rel="modulepreload" crossorigin href="./assets/modals-C05IqKZb.js">
-  <link rel="modulepreload" crossorigin href="./assets/ehagaki-autoclose-Bv-fNm4E.js">
-  <link rel="modulepreload" crossorigin href="./assets/mute-uIe6vkoX.js">
-  <link rel="modulepreload" crossorigin href="./assets/global-relay-Duc_qdAk.js">
-  <link rel="modulepreload" crossorigin href="./assets/account-manager-d6wQD4gs.js">
-  <link rel="modulepreload" crossorigin href="./assets/url-parser-njvr9ztd.js">
-  <link rel="modulepreload" crossorigin href="./assets/json-modal-CVy2RySZ.js">
-  <link rel="modulepreload" crossorigin href="./assets/renderer-D0mJK9e8.js">
-  <link rel="stylesheet" crossorigin href="./assets/index-Bd4GWyhQ.css">
+  <link rel="modulepreload" crossorigin href="./assets/actions-DudLuYxd.js">
+  <link rel="modulepreload" crossorigin href="./assets/modals-DJJ8-chl.js">
+  <link rel="modulepreload" crossorigin href="./assets/ehagaki-autoclose-Qa8gk8n0.js">
+  <link rel="modulepreload" crossorigin href="./assets/mute-D37c89xL.js">
+  <link rel="modulepreload" crossorigin href="./assets/global-relay-zUhiPTK-.js">
+  <link rel="modulepreload" crossorigin href="./assets/account-manager-DzWH-mgm.js">
+  <link rel="modulepreload" crossorigin href="./assets/url-parser-TYKPr79N.js">
+  <link rel="modulepreload" crossorigin href="./assets/json-modal-CFvXnLv6.js">
+  <link rel="modulepreload" crossorigin href="./assets/composer-DduYgqj-.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-CHw4UOIe.css">
 </head>
 <body>
   <script>
@@ -423,12 +423,10 @@
 
     <section id="composer" class="panel composer-floating" hidden>
       <div id="replyContext" class="reply-context" hidden>
-        <div class="reply-context-header">
-          <span class="reply-context-label" data-i18n="composer.replyLabel">返信先:</span>
-          <span id="changeGeohashLabel" class="change-geohash-label" data-i18n="composer.change_geohash_label">別のgeohashに投稿</span>
-          <button id="cancelReply" class="btn-cancel-reply" type="button" data-i18n-title="reply.cancelTitle" data-i18n-aria-label="reply.cancelTitle">✕</button>
-        </div>
-        <div id="replyContextContent" class="reply-context-content"></div>
+        <button id="cancelReply" class="btn-cancel-reply" type="button" data-i18n-title="reply.cancelTitle" data-i18n-aria-label="reply.cancelTitle">✕</button>
+        <span class="reply-context-label" data-i18n="composer.replyLabel">返信先:</span>
+        <span id="replyContextContent" class="reply-context-content"></span>
+        <span id="changeGeohashLabel" class="change-geohash-label" data-i18n="composer.change_geohash_label">別のgeohashに投稿</span>
       </div>
       <div class="composer-header-row">
         <h2 id="composerTitle" data-i18n="composer.title">投稿</h2>
@@ -623,6 +621,7 @@
       <div id="feed-mentions" class="feed"></div>
       <div id="feed-me" class="feed"></div>
       <div id="feed-bitchat" class="feed"></div>
+      <div id="feed-channels" class="feed"></div>
     </section>
   </main>
 

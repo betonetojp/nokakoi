@@ -912,6 +912,52 @@
     </div>
   </div>
 
+  <!-- Public chats (kind:10005) 編集モーダル -->
+  <div id="publicChatsEditModal" class="modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-body modal-body--md panel">
+      <div class="modal-header-row">
+        <h2 class="modal-title" data-i18n="channel.editor.title">参加リスト編集</h2>
+        <button id="publicChatsEditClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div id="publicChatsEditStatus" class="muted mb-12"></div>
+      <div id="publicChatsEditContent"></div>
+      <div class="row mt-16">
+        <button id="publicChatsEditSaveBtn" type="button" data-i18n="editor.common.save">保存</button>
+        <button id="publicChatsEditCancelBtn" class="secondary" type="button" data-i18n="editor.common.cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- チャンネルメタデータ (kind:41) 編集モーダル -->
+  <div id="channelMetaEditModal" class="modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-body modal-body--md panel">
+      <div class="modal-header-row">
+        <h2 class="modal-title" data-i18n="channel.meta.title">チャンネル情報編集</h2>
+        <button id="channelMetaEditClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div id="channelMetaEditStatus" class="muted mb-12"></div>
+      <div id="channelMetaEditContent"></div>
+      <div class="row mt-16">
+        <button id="channelMetaEditSaveBtn" type="button" data-i18n="editor.common.save">保存</button>
+        <button id="channelMetaEditCancelBtn" class="secondary" type="button" data-i18n="editor.common.cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- チャンネル情報（閲覧）モーダル -->
+  <div id="channelInfoModal" class="modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-body modal-body--md panel">
+      <div class="modal-header-row">
+        <h2 class="modal-title" id="channelInfoTitle" data-i18n="channel.info.title">チャンネル情報</h2>
+        <button id="channelInfoClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div id="channelInfoContent"></div>
+      <div class="row mt-16">
+        <button id="channelInfoOkBtn" class="secondary" type="button" data-i18n="ok">OK</button>
+      </div>
+    </div>
+  </div>
+
   <!-- JSON viewer modal -->
   <div id="jsonModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body modal-body--lg panel">

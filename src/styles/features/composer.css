@@ -1,3 +1,7 @@
+#composer[hidden] {
+  display: none !important;
+}
+
 #composer.composer-floating,
 #composer.floating {
   position: fixed;
