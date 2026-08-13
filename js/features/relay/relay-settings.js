@@ -554,11 +554,11 @@ export function setupRelaySettingsUI(state, relayConnect, getSimplePool, restart
 /**
  * 既存アカウント初追加時のみ kind:10002 を裏で自動取得・適用
  */
-export async function fetchAndApplyKind10002ForAccount(pubkey, state, restartFeeds, settingsManager) {
+export async function fetchAndApplyKind10002ForAccount(pubkey, state, restartFeeds, settingsManager, force = false) {
   if (!pubkey) return false;
   const targetId = pubkey.toLowerCase();
-  // すでにアカウント別キーがローカルに存在する場合は手動管理を優先しスキップ
-  if (localStorage.getItem(`relays.${targetId}`)) {
+  // すでにアカウント別キーがローカルに存在する場合は手動管理を優先しスキップ (force=true 時は強制実行)
+  if (!force && localStorage.getItem(`relays.${targetId}`)) {
     return false;
   }
   try {
@@ -566,7 +566,9 @@ export async function fetchAndApplyKind10002ForAccount(pubkey, state, restartFee
     const poolInstance = (state && state.pool) ? state.pool : (SimplePool ? new SimplePool() : null);
     if (!poolInstance) return false;
 
-    const relaysForQuery = getReadRelays(state ? state.relays : defaultRelays);
+    const currentReadUrls = getReadRelays(state ? state.relays : defaultRelays);
+    const defaultReadUrls = defaultRelays ? defaultRelays.filter(r => r.read).map(r => r.url) : [];
+    const relaysForQuery = Array.from(new Set([...currentReadUrls, ...defaultReadUrls]));
     const filter = { kinds: [10002], authors: [targetId], limit: 5 };
     const results = [];
 
@@ -619,6 +621,16 @@ export async function fetchAndApplyKind10002ForAccount(pubkey, state, restartFee
           });
         } catch (e) {}
       }
+
+      // リレー設定画面のUI描画をリアルタイムで再レンダリング
+      try {
+        const container = document.getElementById('relayList');
+        if (container && typeof container.__renderRelayList === 'function') {
+          container.__renderRelayList();
+        } else {
+          renderRelayList(state.relays);
+        }
+      } catch (e) {}
 
       if (typeof restartFeeds === 'function') restartFeeds(true);
       console.log(`[NIP-65] 既存アカウント (${targetId.substring(0, 8)}...) の kind:10002 を初回自動取得し、Readリレー (${readRelayUrls.length}件) をグローバルリレーに設定しました:`, newRelays);

@@ -116,9 +116,13 @@ export function removeAccount(pubkey) {
   
   saveAccountList(data);
 
-  // ローカルに保存されている対象アカウント固有の設定とNIP-46キーを削除
+  // ローカルに保存されている対象アカウント固有の全データを完全削除
   try {
     localStorage.removeItem(`appSettings.${targetId}`);
+    localStorage.removeItem(`relays.${targetId}`);
+    localStorage.removeItem(`mutes.${targetId}`);
+    localStorage.removeItem(`relay_list_snapshots.${targetId}`);
+    localStorage.removeItem(`profile_snapshots.${targetId}`);
     localStorage.removeItem(`nokakoi.nip46.localSecretKey.${targetId}`);
   } catch (e) {
     console.warn('[AccountManager] アカウント固有データの削除失敗:', e);

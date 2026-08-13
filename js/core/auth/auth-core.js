@@ -202,7 +202,9 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
 
     const isNewAccount = !localStorage.getItem(`relays.${state.pubkey}`);
     state.relays = loadRelaysForAccount(state.pubkey);
-    saveRelaysForAccount(state.pubkey);
+    if (!isNewAccount) {
+      saveRelaysForAccount(state.pubkey);
+    }
     loadMuteListForAccount(state.pubkey);
 
     // 既存アカウント初追加時のみ kind:10002 (NIP-65) を一回だけ自動取得して同期
@@ -210,10 +212,16 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
       setTimeout(() => {
         import('../../features/relay/relay-settings.js').then(mod => {
           if (mod && typeof mod.fetchAndApplyKind10002ForAccount === 'function') {
-            mod.fetchAndApplyKind10002ForAccount(state.pubkey, state, restartFeeds, settingsManager);
+            mod.fetchAndApplyKind10002ForAccount(state.pubkey, state, restartFeeds, settingsManager, true).then(success => {
+              if (success) {
+                syncAccountUI(state, settingsManager);
+              } else if (!localStorage.getItem(`relays.${state.pubkey}`)) {
+                saveRelaysForAccount(state.pubkey);
+              }
+            });
           }
         }).catch(e => console.warn('[Auth] NIP-65 初回自動取得呼び出しエラー:', e));
-      }, 800);
+      }, 500);
     }
 
     // アカウント全体のUI描画を同期・再更新

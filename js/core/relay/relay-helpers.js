@@ -115,7 +115,6 @@ export function saveRelaysForAccount(pubkey) {
  */
 export function loadRelaysForAccount(pubkey) {
   if (!pubkey) {
-    saveRelays(defaultRelays);
     return defaultRelays;
   }
   const targetId = pubkey.toLowerCase();
@@ -128,26 +127,10 @@ export function loadRelaysForAccount(pubkey) {
         return loadRelays();
       }
     }
-    // 個別設定が未作成の場合: 単一キーに有効なリレー設定があればそれをアカウント用に自動昇格・コピー保存
-    const existingRaw = localStorage.getItem('relays');
-    if (existingRaw) {
-      try {
-        const existingList = JSON.parse(existingRaw);
-        if (Array.isArray(existingList) && existingList.length) {
-          localStorage.setItem(`relays.${targetId}`, existingRaw);
-          return loadRelays();
-        }
-      } catch (e) {}
-    }
-
-    saveRelays(defaultRelays);
-    localStorage.setItem(`relays.${targetId}`, JSON.stringify(defaultRelays));
-    return defaultRelays;
   } catch (e) {
     console.warn('[Relay] アカウント別リレー読み込み失敗:', e);
-    saveRelays(defaultRelays);
-    return defaultRelays;
   }
+  return defaultRelays;
 }
 
 export function reportRelayStatus(state) {

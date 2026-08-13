@@ -140,11 +140,17 @@ export function showGlobalRelaySelector(state, settingsManager, onSelect) {
     input.name = 'globalRelay_item';
     input.value = relayObj.url;
 
+    const isSelected = Array.isArray(selectedRelays) && selectedRelays.some(u => {
+      const uNorm = u ? u.replace(/\/+$/, '').toLowerCase() : '';
+      const rNorm = relayObj.url ? relayObj.url.replace(/\/+$/, '').toLowerCase() : '';
+      return uNorm === rNorm;
+    });
+
     if (mergeHome && Array.isArray(selectedRelays) && selectedRelays.length === 0) {
       input.checked = false;
     } else if (allRelaysSelected || (Array.isArray(selectedRelays) && selectedRelays.length === 0)) {
       input.checked = true;
-    } else if (Array.isArray(selectedRelays) && selectedRelays.indexOf(relayObj.url) !== -1) {
+    } else if (isSelected) {
       input.checked = true;
     }
 
