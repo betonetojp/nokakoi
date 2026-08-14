@@ -42,6 +42,8 @@ vi.mock('../../utils/i18n.js', () => ({ t: key => key }));
 import {
   initChannelView,
   pauseChannelSubscriptions,
+  refreshActiveChannelFeed,
+  reloadChannelView,
   resetChannelViewForAccount,
   resumeChannelSubscriptions,
   selectChannel,
@@ -261,6 +263,75 @@ describe('channel info modal', () => {
     const pictureImg = contentEl.querySelector('.channel-info-picture');
     expect(pictureImg).toBeTruthy();
     expect(pictureImg.src).toContain('https://example.com/channel.png');
+  });
+});
+
+describe('channel feed reload', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    document.body.innerHTML = `
+      <div class="tabs"><button class="tab active" data-tab="channels"></button></div>
+    `;
+    mocks.fetchPublicChatsEntries.mockResolvedValue({ event: null, entries: [] });
+  });
+
+  it('keeps active chat open and re-subscribes when reloadChannelView is called', async () => {
+    localStorage.setItem('pubkey', ACCOUNT_A);
+    const state = { pubkey: ACCOUNT_A };
+    const container = setupView(state);
+    await flushPromises();
+    await selectChannel(OLD_CHANNEL);
+    await flushPromises();
+
+    const wrapper = container.querySelector('.channel-portal-wrapper');
+    expect(wrapper.classList.contains('show-chat')).toBe(true);
+
+    mocks.subscribeChannelFeed.mockClear();
+    reloadChannelView(state);
+    await flushPromises();
+
+    expect(wrapper.classList.contains('show-chat')).toBe(true);
+    expect(mocks.subscribeChannelFeed).toHaveBeenCalledTimes(1);
+    expect(mocks.subscribeChannelFeed).toHaveBeenCalledWith(
+      OLD_CHANNEL,
+      state,
+      container.querySelector('#channelMessages'),
+      null
+    );
+  });
+
+  it('clears search results and query on reloadChannelView and refresh button click', async () => {
+    localStorage.setItem('pubkey', ACCOUNT_A);
+    const state = { pubkey: ACCOUNT_A };
+    const container = setupView(state);
+    await flushPromises();
+
+    const searchInput = container.querySelector('#channelSearchInput');
+    const resultsEl = container.querySelector('#channelSearchResults');
+
+    // Simulate search results displayed
+    searchInput.value = 'test query';
+    resultsEl.classList.remove('d-none');
+    resultsEl.innerHTML = '<div class="channel-search-result-item">result</div>';
+
+    // Test reloadChannelView clears search
+    reloadChannelView(state);
+    expect(searchInput.value).toBe('');
+    expect(resultsEl.classList.contains('d-none')).toBe(true);
+    expect(resultsEl.innerHTML).toBe('');
+
+    // Re-simulate search results
+    searchInput.value = 'another query';
+    resultsEl.classList.remove('d-none');
+    resultsEl.innerHTML = '<div class="channel-search-result-item">result 2</div>';
+
+    // Test refreshBtn click clears search
+    const refreshBtn = container.querySelector('#channelRefreshBtn');
+    refreshBtn.click();
+    expect(searchInput.value).toBe('');
+    expect(resultsEl.classList.contains('d-none')).toBe(true);
+    expect(resultsEl.innerHTML).toBe('');
   });
 });
 

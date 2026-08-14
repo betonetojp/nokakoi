@@ -75,6 +75,11 @@ export function initChannelView(container, state, settingsManager = null) {
             <button type="button" id="channelEditListBtn" class="secondary small" title="${t('channel.edit_list') || '参加リストを編集'}">${t('channel.edit_list_btn') || 'リスト編集'}</button>
           </div>
         </div>
+        <div class="channel-list-status-row">
+          <div class="channel-list-status muted text-sm" id="channelListStatus">${t('channel.loading') || '読み込み中...'}</div>
+          <button type="button" id="channelRefreshBtn" class="secondary micro-btn" title="${t('channel.fetch') || '再読込'}">${t('channel.fetch') || '再読込'}</button>
+        </div>
+        <div class="channel-list" id="channelList"></div>
         <div class="channel-join-box">
           <input type="text" id="channelSearchInput" placeholder="${t('channel.search_placeholder') || 'キーワードで検索（空で直近一覧）'}" class="channel-id-input" autocomplete="off">
           <button type="button" id="channelSearchBtn" class="secondary small">${t('channel.search') || '検索'}</button>
@@ -87,11 +92,6 @@ export function initChannelView(container, state, settingsManager = null) {
             <button type="button" id="channelJoinBtn" class="secondary small">${t('channel.add') || '追加'}</button>
           </div>
         </details>
-        <div class="channel-list-status-row">
-          <div class="channel-list-status muted text-sm" id="channelListStatus">${t('channel.loading') || '読み込み中...'}</div>
-          <button type="button" id="channelRefreshBtn" class="secondary micro-btn" title="${t('channel.fetch') || '再読込'}">${t('channel.fetch') || '再読込'}</button>
-        </div>
-        <div class="channel-list" id="channelList"></div>
       </div>
       <div class="channel-main-view" id="channelMainView">
         <div class="channel-empty-state" id="channelEmptyState">
@@ -104,8 +104,8 @@ export function initChannelView(container, state, settingsManager = null) {
               <div class="channel-title-row">
                 <h4 id="channelTitle">${t('tabs.channels') || 'チャンネル'}</h4>
                 <div class="channel-title-actions">
-                  <button type="button" id="channelInfoBtn" class="secondary micro-btn" title="${t('channel.info.open') || '情報'}">${t('channel.info.open') || '情報'}</button>
                   <button type="button" id="channelMetaEditBtn" class="secondary micro-btn d-none" title="${t('channel.meta.edit') || '編集'}">${t('channel.meta.edit') || '編集'}</button>
+                  <button type="button" id="channelInfoBtn" class="secondary micro-btn" title="${t('channel.info.open') || '情報'}">${t('channel.info.open') || '情報'}</button>
                 </div>
               </div>
             </div>
@@ -120,7 +120,12 @@ export function initChannelView(container, state, settingsManager = null) {
   bindPublicChatsUpdatedListener();
 
   const refreshBtn = container.querySelector('#channelRefreshBtn');
-  if (refreshBtn) refreshBtn.onclick = () => loadChannelList();
+  if (refreshBtn) {
+    refreshBtn.onclick = () => {
+      clearChannelSearchResults();
+      loadChannelList();
+    };
+  }
 
   const editListBtn = container.querySelector('#channelEditListBtn');
   if (editListBtn) {
@@ -528,9 +533,7 @@ function renderChannelListItems(listEl, statusEl, publicEntries, options = {}) {
     }
   });
 
-  if (_activeRootId && !items.some(i => i.rootId === _activeRootId)) {
-    returnToChannelList({ forgetLast: true });
-  } else if (!_activeRootId) {
+  if (!_activeRootId) {
     hideComposerForUnselectedChannel();
   }
   return items;
@@ -577,27 +580,69 @@ function clearActiveChannelView() {
   returnToChannelList({ forgetLast: true });
 }
 
+function clearChannelSearchResults() {
+  _searchSeq += 1;
+  if (!_containerEl) return;
+  const searchInput = _containerEl.querySelector('#channelSearchInput');
+  const resultsEl = _containerEl.querySelector('#channelSearchResults');
+  if (searchInput) searchInput.value = '';
+  if (resultsEl) {
+    resultsEl.classList.add('d-none');
+    resultsEl.innerHTML = '';
+  }
+}
+
 /**
- * アカウント切替・フルリロード時に前アカウントの一覧／フィードを捨てて再読込
+ * チャンネルビューのリロード（リレー再接続・ソフトリロード時など）
+ * 開いているチャンネルがあれば一覧に戻さずフィードを再取得する
+ */
+export function reloadChannelView(state = null) {
+  if (state) _stateRef = state;
+  if (!_containerEl) return;
+
+  clearChannelSearchResults();
+
+  const wrapper = _containerEl.querySelector('.channel-portal-wrapper');
+  const isChatOpen = wrapper && wrapper.classList.contains('show-chat') && _activeRootId;
+
+  if (isChatOpen) {
+    refreshActiveChannelFeed();
+    loadChannelList().catch(() => {});
+  } else {
+    _channelListLoadGen += 1;
+    loadChannelList().catch(() => {});
+  }
+}
+
+/**
+ * アクティブなチャンネルのフィードを再取得
+ */
+export function refreshActiveChannelFeed() {
+  if (!_activeRootId || !_containerEl) return;
+  const msgsEl = _containerEl.querySelector('#channelMessages');
+  if (!msgsEl) return;
+  msgsEl.dataset.channelRootId = _activeRootId;
+  msgsEl.__channelFeedGen = (msgsEl.__channelFeedGen || 0) + 1;
+  msgsEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.loading_messages') || 'メッセージを読み込み中...'}</div>`;
+  if (!_feedPaused) {
+    subscribeChannelFeed(_activeRootId, getState(), msgsEl, _settingsManagerRef);
+  }
+}
+
+/**
+ * アカウント切替時に前アカウントの一覧／フィードを捨てて再読込
  */
 export function resetChannelViewForAccount(state = null) {
   if (state) _stateRef = state;
   _channelListLoadGen += 1;
-  _searchSeq += 1;
   _lastPublicRootIds = [];
   returnToChannelList({ forgetLast: false });
+  clearChannelSearchResults();
   if (_containerEl) {
     const listEl = _containerEl.querySelector('#channelList');
     const statusEl = _containerEl.querySelector('#channelListStatus');
-    const searchInput = _containerEl.querySelector('#channelSearchInput');
-    const resultsEl = _containerEl.querySelector('#channelSearchResults');
     if (listEl) listEl.innerHTML = '';
     if (statusEl) statusEl.textContent = t('channel.loading_list') || 'チャンネル一覧を読み込み中...';
-    if (searchInput) searchInput.value = '';
-    if (resultsEl) {
-      resultsEl.classList.add('d-none');
-      resultsEl.innerHTML = '';
-    }
     loadChannelList().catch(() => {});
   }
 }

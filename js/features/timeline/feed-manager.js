@@ -1233,7 +1233,9 @@ export function restartFeeds(fullReset = false) {
   if (fullReset) {
     try {
       import('../channel/channel-ui.js').then((m) => {
-        if (m && typeof m.resetChannelViewForAccount === 'function') {
+        if (m && typeof m.reloadChannelView === 'function') {
+          m.reloadChannelView(state);
+        } else if (m && typeof m.resetChannelViewForAccount === 'function') {
           m.resetChannelViewForAccount(state);
         }
       }).catch(() => {});
