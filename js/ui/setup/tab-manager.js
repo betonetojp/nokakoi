@@ -144,6 +144,7 @@ export function activateTab(tabOrId, settingsManager, options = {}) {
     targetFeed.classList.add('active');
     if (scroll) {
       setTimeout(() => {
+        if (typeof document === 'undefined') return;
         const tabsBar = document.querySelector('.tabs');
         const tabsBarHeight = tabsBar ? tabsBar.getBoundingClientRect().height : 0;
         try {

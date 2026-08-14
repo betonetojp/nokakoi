@@ -268,8 +268,30 @@
   margin-left: auto;
 }
 
+.channel-info-section {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .channel-info-section .mb-4 {
   margin-bottom: 4px;
+}
+
+.channel-info-about {
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.channel-info-about a {
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .channel-info-id-row {
@@ -404,6 +426,7 @@
 .channel-sub-info {
   margin-top: 2px;
   word-break: break-word;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
   max-height: 3.2em;
   overflow-y: auto;
@@ -415,6 +438,7 @@
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 4px;
+  max-width: 100%;
 }
 
 .channel-relay-badge {
@@ -424,6 +448,9 @@
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 0.7rem;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 .channel-messages {

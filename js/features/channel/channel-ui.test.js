@@ -263,6 +263,46 @@ describe('channel info modal', () => {
     const pictureImg = contentEl.querySelector('.channel-info-picture');
     expect(pictureImg).toBeTruthy();
     expect(pictureImg.src).toContain('https://example.com/channel.png');
+
+    const aboutEl = contentEl.querySelector('#channelInfoAbout');
+    expect(aboutEl).toBeTruthy();
+    expect(aboutEl.classList.contains('channel-info-about')).toBe(true);
+    expect(aboutEl.textContent).toContain('Channel Description');
+  });
+
+  it('linkifies URLs in channel about with long query parameters', async () => {
+    const creatorPubkey = 'f'.repeat(64);
+    const mockRootEvent = { id: OLD_CHANNEL, pubkey: creatorPubkey, kind: 40 };
+    mocks.fetchChannelMetadata.mockResolvedValue({
+      label: 'Test Channel',
+      rootEvent: mockRootEvent,
+      metaEvent: null,
+    });
+
+    const longUrl = 'https://lokuyow.github.io/ehagaki/?channel=nevent1qvzqqqqq9qqsuamnwvaz7tmev9382tndv5hszgthwden5te0wfjkccte9448qtnwdaehgu3wwa5hyetydejhgtn2wqhszrnhwden5te0dehhxtnvdakz7qg4waehxw309aex2mrp0yhxgctdw4eju6t09uq3yamnwvaz7tmj9e4k76nfwfsju6t09uq3uamnwvaz7tmwdaehgu3wvdhk6urfd3jj6etjwfhhytnwv46z7qpq94qllvmum7y9gvvkpe8843277ctssxk5k02ukua3vktrp0k3evasx3x9gp';
+    const channelProfile = {
+      name: 'Test Channel',
+      about: `投稿リンク： ${longUrl}`,
+      picture: '',
+      relays: [],
+    };
+    mocks.extractChannelProfileFields.mockReturnValue(channelProfile);
+
+    const state = { pubkey: ACCOUNT_A, profiles: new Map() };
+    const container = setupView(state);
+    await flushPromises();
+    await selectChannel(OLD_CHANNEL);
+    await flushPromises();
+
+    const infoBtn = container.querySelector('#channelInfoBtn');
+    infoBtn.click();
+    await flushPromises();
+
+    const aboutEl = document.querySelector('#channelInfoAbout');
+    expect(aboutEl).toBeTruthy();
+    const link = aboutEl.querySelector('a');
+    expect(link).toBeTruthy();
+    expect(link.href).toBe(longUrl);
   });
 });
 

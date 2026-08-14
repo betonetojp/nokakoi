@@ -18,6 +18,7 @@ import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { showMediaViewer } from '../../ui/media-viewer.js';
 import { displayNameWithUsername, loadProfile } from '../profile/profile.js';
 import { getNip19 } from '../../core/nostr-compat.js';
+import { linkifyText } from '../../utils/content/linkifier.js';
 
 const CHANNEL_LIST_CACHE_KEY = 'nokakoi_public_chats_cache_v1';
 const LAST_ACTIVE_CHANNEL_KEY = 'last_active_channel_root_id';
@@ -293,6 +294,10 @@ function openChannelInfoModal() {
     const localOnly = isLocalOnlyChannel(rootId);
     const creatorPubkey = (rootEv && typeof rootEv.pubkey === 'string') ? rootEv.pubkey : null;
 
+    const aboutHtml = about
+      ? linkifyText(about, [], { inlineMedia: false })
+      : `<span class="muted">${t('channel.info.empty_about') || '説明はありません'}</span>`;
+
     contentEl.innerHTML = `
       <div class="channel-info-section">
         <div class="muted text-sm mb-4">${t('channel.info.id') || 'チャンネルID'}</div>
@@ -303,7 +308,7 @@ function openChannelInfoModal() {
       </div>
       <div class="channel-info-section mt-16">
         <div class="muted text-sm mb-4">${t('channel.meta.about') || '説明'}</div>
-        <div class="text-sm">${about ? escapeText(about) : `<span class="muted">${t('channel.info.empty_about') || '説明はありません'}</span>`}</div>
+        <div class="text-sm channel-info-about" id="channelInfoAbout">${aboutHtml}</div>
       </div>
       <div class="channel-info-section mt-16" id="channelInfoCreatorSection">
         ${renderChannelCreatorHtml(creatorPubkey, state)}

@@ -159,7 +159,12 @@
   padding: 8px 10px;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: anywhere;
   line-height: 1.5;
+}
+#profileAbout a {
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 #profileMetadata {
   padding: 8px 10px;
@@ -169,12 +174,14 @@
   font-size: 0.88em;
   -webkit-user-select: text;
   user-select: text;
+  overflow-wrap: anywhere;
 }
 .profile-metadata-item {
   display: flex;
   align-items: center;
   gap: 8px;
   word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .profile-metadata-label {
   font-weight: 600;
@@ -190,10 +197,14 @@
   min-width: 0;
   -webkit-user-select: text;
   user-select: text;
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .profile-metadata-value a {
   color: var(--accent);
   text-decoration: underline;
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .nip05-status {
   display: inline-flex;

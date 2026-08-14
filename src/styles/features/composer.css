@@ -124,6 +124,8 @@
   min-height: 0px;
   line-height: 1.4;
   font-size: inherit;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .compose-line {
   margin-bottom: 0;
@@ -151,4 +153,10 @@
 .compose-text-block {
   display: block;
   word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.compose-text-block a {
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }

@@ -75,20 +75,27 @@ export function setupTabSwipe() {
 
   // タッチイベントハンドラ
   const touchStartHandler = (e) => {
+    touchStartX = 0;
+    touchStartY = 0;
+    handled = false;
+
     const target = e.target;
     if (!target) return;
 
-    // ボタン、リンク、モーダル内、カスタム絵文字サジェストは除外
-    if (target.closest('button, a, [role="button"], .modal, .emoji-shortcode-suggest')) {
+    // モーダル内、カスタム絵文字サジェスト、タブバー、レンジ入力は除外
+    if (target.closest('.modal, .emoji-shortcode-suggest, .tabs, .tabs-scroller, input[type="range"]')) {
       return;
     }
 
-    // 横スクロール可能な要素内でのタッチを除外（テキスト入力欄が横スクロールする場合も自動除外される）
+    // 横スクロール専用要素内（コードブロック等）でのタッチを除外（縦スクロールコンテナや入力欄は除外しない）
     let parent = target;
     while (parent && parent !== document.body) {
       try {
         const style = window.getComputedStyle(parent);
-        if ((style.overflowX === 'auto' || style.overflowX === 'scroll') && parent.scrollWidth > parent.clientWidth) {
+        const isHorizontalScroll = (style.overflowX === 'auto' || style.overflowX === 'scroll') &&
+                                   (style.overflowY !== 'auto' && style.overflowY !== 'scroll') &&
+                                   (parent.scrollWidth - parent.clientWidth > 20);
+        if (isHorizontalScroll) {
           return;
         }
       } catch (err) {}
@@ -98,7 +105,6 @@ export function setupTabSwipe() {
     touchStartX = e.changedTouches[0].screenX;
     touchStartY = e.changedTouches[0].screenY;
     touchStartTime = Date.now();
-    handled = false;
   };
 
   const touchEndHandler = (e) => {
@@ -145,4 +151,10 @@ export function setupTabSwipe() {
   document.addEventListener('touchstart', touchStartHandler, { passive: true });
   document.addEventListener('touchend', touchEndHandler, { passive: true });
   document.addEventListener('touchcancel', touchCancelHandler, { passive: true });
+
+  return () => {
+    document.removeEventListener('touchstart', touchStartHandler);
+    document.removeEventListener('touchend', touchEndHandler);
+    document.removeEventListener('touchcancel', touchCancelHandler);
+  };
 }
