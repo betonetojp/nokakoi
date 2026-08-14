@@ -130,7 +130,6 @@ export function setupTabSwipe() {
     }
 
     handled = true;
-    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
     touchEndX = e.changedTouches[0].screenX;
     touchEndY = e.changedTouches[0].screenY;
     handleSwipe();
@@ -140,11 +139,10 @@ export function setupTabSwipe() {
     touchStartY = 0;
   };
 
-  const touchCancelHandler = (e) => {
+  const touchCancelHandler = () => {
     handled = true;
     touchStartX = 0;
     touchStartY = 0;
-    try { if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation(); } catch (err) { }
   };
 
   // documentにイベントリスナーを追加

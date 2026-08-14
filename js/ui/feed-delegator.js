@@ -218,7 +218,7 @@ export function setupDelegatedFeedHandlers(state, settingsManager, feedsContaine
       } catch (e) { }
     }, { passive: true });
 
-    document.addEventListener('touchend', (e) => {
+    const clearLongpress = (e) => {
       try {
         const reactBtn = e.target.closest && e.target.closest('.btn-react');
         if (!reactBtn) return;
@@ -228,6 +228,10 @@ export function setupDelegatedFeedHandlers(state, settingsManager, feedsContaine
         const tId = eventId + '::longpress';
         const to = touchTimers.get(tId);
         if (to) { clearTimeout(to); touchTimers.delete(tId); }
-      } catch (e) { }
-    }, { passive: true });
+      } catch (_e) { }
+    };
+
+    document.addEventListener('touchend', clearLongpress, { passive: true });
+    document.addEventListener('touchcancel', clearLongpress, { passive: true });
+    document.addEventListener('touchmove', clearLongpress, { passive: true });
 }

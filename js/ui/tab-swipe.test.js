@@ -154,14 +154,14 @@ describe('setupTabSwipe', () => {
     expect(clickSpy).not.toHaveBeenCalled();
   });
 
-  it('does NOT switch tab when dragging range slider', () => {
-    const globalTab = document.getElementById('tab-global');
-    const clickSpy = vi.fn();
-    globalTab.addEventListener('click', clickSpy);
+  it('does NOT stop touchend propagation to other document listeners', () => {
+    const documentTouchEndSpy = vi.fn();
+    document.addEventListener('touchend', documentTouchEndSpy);
 
-    const rangeInput = document.getElementById('testRange');
-    simulateTouchSwipe(rangeInput, { startX: 50, startY: 100, endX: 250, endY: 100, durationMs: 150 });
+    const channelItem = document.getElementById('channelItemBtn');
+    simulateTouchSwipe(channelItem, { startX: 200, startY: 100, endX: 205, endY: 102, durationMs: 50 });
 
-    expect(clickSpy).not.toHaveBeenCalled();
+    expect(documentTouchEndSpy).toHaveBeenCalledTimes(1);
+    document.removeEventListener('touchend', documentTouchEndSpy);
   });
 });
