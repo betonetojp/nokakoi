@@ -103,6 +103,7 @@
 .channel-search-results {
   max-height: 220px;
   overflow-y: auto;
+  overflow-x: hidden;
   border-top: 1px solid var(--border);
   background: var(--panel);
 }
@@ -113,6 +114,7 @@
   gap: 8px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
+  min-width: 0;
 }
 
 .channel-search-result-item:last-child {
@@ -122,6 +124,8 @@
 .channel-search-result-meta {
   flex: 1;
   min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .channel-search-result-name {
@@ -131,6 +135,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--text);
+}
+
+.channel-search-result-meta .muted,
+.channel-search-result-about {
+  font-size: 0.75rem;
+  color: var(--muted);
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+  margin-top: 2px;
 }
 
 .channel-list-item-row {

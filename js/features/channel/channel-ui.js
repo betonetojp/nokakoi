@@ -1,4 +1,4 @@
-import { fetchPublicChatsEntries, togglePublicChatMembership } from './public-chats.js';
+import { fetchPublicChatsEntries } from './public-chats.js';
 import { fetchChannelMetadata, extractChannelProfileFields, buildChannelEmbedContext, shortenChannelEventId } from './channel.js';
 import { subscribeChannelFeed, unsubscribeChannelFeed, unsubscribeAllChannelFeeds } from './channel-feed.js';
 import {
@@ -415,48 +415,6 @@ function getPubkey() {
   return (state && state.pubkey) || (typeof localStorage !== 'undefined' ? localStorage.getItem('pubkey') : null);
 }
 
-function notifyLocalFallback() {
-  try {
-    const statusEl = _containerEl && _containerEl.querySelector('#channelListStatus');
-    if (statusEl) {
-      statusEl.textContent = t('channel.publish_failed_local') || 'リレーへの同期に失敗したため、端末内のみ反映しました';
-    }
-  } catch (_e) { }
-}
-
-/**
- * kind:10005 へ即時同期。失敗時はローカル join/leave にフォールバック
- */
-async function syncMembershipToPublicChats(rootId, join) {
-  const state = getState();
-  const pubkey = getPubkey();
-  if (!state || !pubkey) {
-    if (join) joinChannelLocally(rootId, { publicRootIds: _lastPublicRootIds });
-    else leaveChannelLocally(rootId, { publicRootIds: _lastPublicRootIds });
-    return { ok: false, localOnly: true };
-  }
-
-  try {
-    const res = await togglePublicChatMembership(state, rootId, { join: !!join });
-    if (res && res.ok) {
-      if (join) {
-        // 既に 10005 にある場合も除外解除・custom 整理
-        joinChannelLocally(rootId, { publicRootIds: [..._lastPublicRootIds, rootId] });
-      } else {
-        leaveChannelLocally(rootId, { publicRootIds: [] });
-      }
-      return { ok: true, localOnly: false };
-    }
-  } catch (err) {
-    console.warn('[channel-ui] togglePublicChatMembership failed', err);
-  }
-
-  if (join) joinChannelLocally(rootId, { publicRootIds: _lastPublicRootIds });
-  else leaveChannelLocally(rootId, { publicRootIds: _lastPublicRootIds });
-  notifyLocalFallback();
-  return { ok: false, localOnly: true };
-}
-
 function getCachedChannelEntries(pubkey) {
   try {
     migrateUnscopedUiKey(CHANNEL_LIST_CACHE_KEY, pubkey);
@@ -812,7 +770,7 @@ async function handleChannelSearch() {
       meta.className = 'channel-search-result-meta';
       meta.innerHTML = `
         <div class="channel-search-result-name"># ${escapeText(item.name || shortenChannelEventId(item.rootId))}</div>
-        <div class="muted text-xs">${escapeText(item.about || shortenChannelEventId(item.rootId))}</div>
+        <div class="muted text-xs channel-search-result-about">${escapeText(item.about || shortenChannelEventId(item.rootId))}</div>
       `;
 
       const addBtn = document.createElement('button');
@@ -822,7 +780,7 @@ async function handleChannelSearch() {
       addBtn.onclick = async () => {
         addBtn.disabled = true;
         try {
-          await syncMembershipToPublicChats(item.rootId, true);
+          joinChannelLocally(item.rootId, { publicRootIds: _lastPublicRootIds });
           resultsEl.classList.add('d-none');
           resultsEl.innerHTML = '';
           inputEl.value = '';
@@ -993,7 +951,7 @@ async function handleJoinChannelById() {
   }
 
   inputEl.value = '';
-  await syncMembershipToPublicChats(rootId, true);
+  joinChannelLocally(rootId, { publicRootIds: _lastPublicRootIds });
   await loadChannelList();
   selectChannel(rootId);
 }
@@ -1038,7 +996,7 @@ async function handleLeaveChannel(rootId) {
     .replace('{name}', displayName);
 
   showConfirmModal(title, message, async () => {
-    await syncMembershipToPublicChats(rootId, false);
+    leaveChannelLocally(rootId, { publicRootIds: _lastPublicRootIds });
     if (_activeRootId === rootId) {
       clearActiveChannelView();
     }
