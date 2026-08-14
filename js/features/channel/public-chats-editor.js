@@ -130,7 +130,7 @@ function stopDragAutoScroll() {
   }
 }
 
-function attachDragHandlers(row, dragHandle, itemType, index, itemsArray, container, listSelector, onReorder) {
+function attachDragAndTouchHandlers(row, dragHandle, itemType, index, itemsArray, container, listSelector, onReorder) {
   row.setAttribute('draggable', 'true');
   row.setAttribute('data-drag-index', index.toString());
 
@@ -185,8 +185,81 @@ function attachDragHandlers(row, dragHandle, itemType, index, itemsArray, contai
     } catch (_err) { }
   };
 
+  // Mobile / Touch Drag Events
   if (dragHandle) {
     dragHandle.onmousedown = (e) => e.stopPropagation();
+
+    dragHandle.ontouchstart = (_e) => {
+      const fromIndex = index;
+      row.classList.add('dragging');
+
+      const onTouchMove = (moveEv) => {
+        if (moveEv.cancelable) moveEv.preventDefault();
+        const moveTouch = moveEv.touches[0];
+        const clientY = moveTouch.clientY;
+        const clientX = moveTouch.clientX;
+
+        const listEl = container.querySelector(listSelector);
+        handleDragAutoScroll({ clientY }, listEl);
+
+        const elementUnder = document.elementFromPoint(clientX, clientY);
+        const targetRow = elementUnder ? elementUnder.closest('.editor-list-item') : null;
+
+        container.querySelectorAll('.editor-list-item').forEach((el) => {
+          el.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+
+        if (targetRow && targetRow !== row) {
+          const rect = targetRow.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          if (clientY < midY) {
+            targetRow.classList.add('drag-over-top');
+          } else {
+            targetRow.classList.add('drag-over-bottom');
+          }
+        }
+      };
+
+      const onTouchEnd = (endEv) => {
+        stopDragAutoScroll();
+        row.classList.remove('dragging');
+        const endTouch = endEv.changedTouches[0];
+        const clientY = endTouch ? endTouch.clientY : 0;
+        const clientX = endTouch ? endTouch.clientX : 0;
+
+        const elementUnder = document.elementFromPoint(clientX, clientY);
+        const targetRow = elementUnder ? elementUnder.closest('.editor-list-item') : null;
+
+        container.querySelectorAll('.editor-list-item').forEach((el) => {
+          el.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+
+        if (targetRow) {
+          const targetIndexStr = targetRow.getAttribute('data-drag-index');
+          if (targetIndexStr !== null) {
+            const toIdx = parseInt(targetIndexStr, 10);
+            const rect = targetRow.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            let finalIdx = clientY < midY ? toIdx : toIdx + 1;
+
+            if (fromIndex !== finalIdx) {
+              const [moved] = itemsArray.splice(fromIndex, 1);
+              if (finalIdx > fromIndex) finalIdx--;
+              itemsArray.splice(finalIdx, 0, moved);
+              if (typeof onReorder === 'function') onReorder();
+            }
+          }
+        }
+
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('touchend', onTouchEnd);
+        window.removeEventListener('touchcancel', onTouchEnd);
+      };
+
+      window.addEventListener('touchmove', onTouchMove, { passive: false });
+      window.addEventListener('touchend', onTouchEnd);
+      window.addEventListener('touchcancel', onTouchEnd);
+    };
   }
 }
 
@@ -409,7 +482,7 @@ export async function openPublicChatsEditor(state, options = {}) {
         dragHandle.textContent = '☰';
         row.appendChild(dragHandle);
 
-        attachDragHandlers(row, dragHandle, listSection, index, items, parentContainer, '#publicChatsDragList', () => {
+        attachDragAndTouchHandlers(row, dragHandle, listSection, index, items, parentContainer, '#publicChatsDragList', () => {
           renderCurrentView(parentContainer);
         });
       }
@@ -419,11 +492,7 @@ export async function openPublicChatsEditor(state, options = {}) {
       const nameEl = document.createElement('span');
       nameEl.className = 'editor-list-name';
       nameEl.textContent = item.label || shortenChannelEventId(item.rootId);
-      const subEl = document.createElement('span');
-      subEl.className = 'editor-list-sub';
-      subEl.textContent = shortenChannelEventId(item.rootId);
       info.appendChild(nameEl);
-      info.appendChild(subEl);
       row.appendChild(info);
 
       const actions = document.createElement('div');

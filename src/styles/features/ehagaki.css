@@ -64,15 +64,15 @@
 }
 .ehagaki-public-chats-fab {
   flex: 0 0 auto;
-  width: 36px;
   height: 36px;
-  padding: 0;
+  padding: 0 12px;
   border-radius: 8px;
-  font-size: 1.1rem;
+  font-size: 0.85rem;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
 }
 
 /* Public chats panel */

@@ -1,6 +1,6 @@
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { showToast, debounce } from '../../utils/utils.js';
-import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, EVENTLINK_DEFAULT_TITLE, EVENTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH, EVENTS_MAX } from '../../config/constants.js';
+import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, EVENTLINK_DEFAULT_TITLE, EVENTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH, EVENTS_MAX, setEventsMax } from '../../config/constants.js';
 import { ensureNotificationPermission } from '../../utils/notification.js';
 import { teardownDomPurge } from '../../features/timeline/feed-renderer.js';
 import { applyTheme, applyColorTheme, applyBgBrightness, getBrightnessForCurrentTheme, getCurrentThemeMode } from './theme-manager.js';

@@ -13,6 +13,11 @@ import { openEhagakiWithChannel } from '../post/postlink.js';
 import { setChannelTarget, hideComposerForUnselectedChannel, revealComposerForSelectedChannel } from '../post/composer.js';
 import { showConfirmModal } from '../../ui/modals/modals.js';
 import { t } from '../../utils/i18n.js';
+import { escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
+import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
+import { showMediaViewer } from '../../ui/media-viewer.js';
+import { displayNameWithUsername, loadProfile } from '../profile/profile.js';
+import { getNip19 } from '../../core/nostr-compat.js';
 
 const CHANNEL_LIST_CACHE_KEY = 'nokakoi_public_chats_cache_v1';
 const LAST_ACTIVE_CHANNEL_KEY = 'last_active_channel_root_id';
@@ -41,6 +46,7 @@ function migrateUnscopedUiKey(base, pubkey = getPubkey()) {
 let _activeRootId = null;
 let _activeChannelContext = null;
 let _activeChannelProfile = null;
+let _activeRootEvent = null;
 let _stateRef = null;
 let _containerEl = null;
 let _settingsManagerRef = null;
@@ -66,8 +72,7 @@ export function initChannelView(container, state, settingsManager = null) {
         <div class="channel-sidebar-header">
           <h3>${t('tabs.channels') || 'チャンネル'}</h3>
           <div class="channel-sidebar-actions">
-            <button type="button" id="channelEditListBtn" class="secondary small" title="${t('channel.edit_list') || '参加リストを編集'}">${t('channel.edit') || '編集'}</button>
-            <button type="button" id="channelRefreshBtn" class="secondary small" title="${t('channel.fetch') || '取得'}">${t('channel.fetch') || '取得'}</button>
+            <button type="button" id="channelEditListBtn" class="secondary small" title="${t('channel.edit_list') || '参加リストを編集'}">${t('channel.edit_list_btn') || 'リスト編集'}</button>
           </div>
         </div>
         <div class="channel-join-box">
@@ -82,7 +87,10 @@ export function initChannelView(container, state, settingsManager = null) {
             <button type="button" id="channelJoinBtn" class="secondary small">${t('channel.add') || '追加'}</button>
           </div>
         </details>
-        <div class="channel-list-status muted text-sm" id="channelListStatus">${t('channel.loading') || '読み込み中...'}</div>
+        <div class="channel-list-status-row">
+          <div class="channel-list-status muted text-sm" id="channelListStatus">${t('channel.loading') || '読み込み中...'}</div>
+          <button type="button" id="channelRefreshBtn" class="secondary micro-btn" title="${t('channel.fetch') || '再読込'}">${t('channel.fetch') || '再読込'}</button>
+        </div>
         <div class="channel-list" id="channelList"></div>
       </div>
       <div class="channel-main-view" id="channelMainView">
@@ -91,12 +99,12 @@ export function initChannelView(container, state, settingsManager = null) {
         </div>
         <div class="channel-chat-container d-none" id="channelChatContainer">
           <div class="channel-chat-header">
-            <button type="button" id="channelBackToListBtn" class="secondary small channel-back-btn">${t('channel.back') || '戻る'}</button>
+            <button type="button" id="channelBackToListBtn" class="secondary small channel-back-btn">${t('channel.back_to_list') || t('channel.back') || '一覧'}</button>
             <div class="channel-header-info">
               <div class="channel-title-row">
                 <h4 id="channelTitle">${t('tabs.channels') || 'チャンネル'}</h4>
                 <div class="channel-title-actions">
-                  <button type="button" id="channelInfoBtn" class="secondary micro-btn" title="${t('channel.info.open') || '情報'}">ℹ</button>
+                  <button type="button" id="channelInfoBtn" class="secondary micro-btn" title="${t('channel.info.open') || '情報'}">${t('channel.info.open') || '情報'}</button>
                   <button type="button" id="channelMetaEditBtn" class="secondary micro-btn d-none" title="${t('channel.meta.edit') || '編集'}">${t('channel.meta.edit') || '編集'}</button>
                 </div>
               </div>
@@ -203,71 +211,181 @@ function isLocalOnlyChannel(rootId) {
   return getCustomJoinedChannels().includes(id);
 }
 
+function openCreatorProfileModal(pubkey) {
+  if (!pubkey) return;
+  try {
+    if (typeof window !== 'undefined' && typeof window.showProfileModalProxy === 'function') {
+      window.showProfileModalProxy(pubkey);
+    } else {
+      import('../profile/profile-modal.js').then((mod) => {
+        if (mod && typeof mod.showProfileModal === 'function') {
+          mod.showProfileModal(getState(), pubkey, getNip19());
+        }
+      }).catch(() => {});
+    }
+  } catch (_e) {}
+}
+
+function renderChannelCreatorHtml(creatorPubkey, state) {
+  const headerHtml = `<div class="muted text-sm mb-4">${t('channel.info.creator') || '作成者'}</div>`;
+  if (!creatorPubkey) {
+    return `
+      ${headerHtml}
+      <div class="muted text-sm" id="channelInfoCreatorStatus">${t('channel.info.loading_creator') || '読み込み中...'}</div>
+    `;
+  }
+
+  const nip19 = getNip19();
+  const names = state
+    ? displayNameWithUsername(state, creatorPubkey, nip19, { noTruncate: true })
+    : { main: shortenChannelEventId(creatorPubkey), sub: '' };
+
+  let avatarUrl = '';
+  if (state && state.profiles) {
+    const prof = state.profiles.get(creatorPubkey);
+    if (prof && prof.picture) {
+      avatarUrl = sanitizeUrlCandidate(prof.picture) || '';
+    }
+  }
+
+  const avatarHtml = avatarUrl
+    ? `<img src="${escapeHtml(avatarUrl)}" alt="avatar" class="channel-info-creator-avatar" loading="lazy" />`
+    : `<div class="channel-info-creator-avatar" style="display:flex;align-items:center;justify-content:center;background:var(--border);color:var(--muted);font-size:16px;">👤</div>`;
+
+  const mainName = replaceBadgeEmoji(escapeHtml(names.main || shortenChannelEventId(creatorPubkey)));
+  const subName = names.sub ? `@${escapeHtml(names.sub)}` : '';
+
+  return `
+    ${headerHtml}
+    <div class="channel-info-creator-row" id="channelInfoCreatorRow" data-pubkey="${escapeHtml(creatorPubkey)}">
+      ${avatarHtml}
+      <div class="channel-info-creator-names">
+        <span class="channel-info-creator-main">${mainName}</span>
+        ${subName ? `<span class="channel-info-creator-sub">${subName}</span>` : ''}
+      </div>
+    </div>
+  `;
+}
+
 function openChannelInfoModal() {
   const modal = document.getElementById('channelInfoModal');
   const contentEl = document.getElementById('channelInfoContent');
   const titleEl = document.getElementById('channelInfoTitle');
   if (!modal || !contentEl || !_activeRootId) return;
 
+  const rootId = _activeRootId;
+  const state = getState();
   const profile = _activeChannelProfile || {};
-  const name = profile.name || shortenChannelEventId(_activeRootId);
+  const name = profile.name || shortenChannelEventId(rootId);
   if (titleEl) titleEl.textContent = `# ${name}`;
 
-  const about = (profile.about && String(profile.about).trim()) || '';
-  const picture = (profile.picture && String(profile.picture).trim()) || '';
-  const relays = Array.isArray(profile.relays) ? profile.relays : [];
-  const localOnly = isLocalOnlyChannel(_activeRootId);
+  const renderModal = (curProfile, rootEv) => {
+    if (_activeRootId !== rootId) return;
+    const about = (curProfile.about && String(curProfile.about).trim()) || '';
+    const rawPicture = (curProfile.picture && String(curProfile.picture).trim()) || '';
+    const safePicture = rawPicture ? sanitizeUrlCandidate(rawPicture) : null;
+    const relays = Array.isArray(curProfile.relays) ? curProfile.relays : [];
+    const localOnly = isLocalOnlyChannel(rootId);
+    const creatorPubkey = (rootEv && typeof rootEv.pubkey === 'string') ? rootEv.pubkey : null;
 
-  contentEl.innerHTML = `
-    <div class="channel-info-section">
-      <div class="muted text-sm mb-4">${t('channel.info.id') || 'チャンネルID'}</div>
-      <div class="channel-info-id-row">
-        <code class="channel-info-id" id="channelInfoIdText">${escapeText(_activeRootId)}</code>
-        <button type="button" class="secondary small" id="channelInfoCopyIdBtn">${t('channel.info.copy_id') || 'コピー'}</button>
+    contentEl.innerHTML = `
+      <div class="channel-info-section">
+        <div class="muted text-sm mb-4">${t('channel.info.id') || 'チャンネルID'}</div>
+        <div class="channel-info-id-row">
+          <code class="channel-info-id" id="channelInfoIdText">${escapeText(rootId)}</code>
+        </div>
+        ${localOnly ? `<div class="channel-info-local-notice muted">${t('channel.info.local_notice') || 'kind:10005 に未反映（この端末のみの参加です）'}</div>` : ''}
       </div>
-      ${localOnly ? `<div class="channel-info-local-notice muted">${t('channel.info.local_notice') || 'kind:10005 に未反映（この端末のみの参加です）'}</div>` : ''}
-    </div>
-    <div class="channel-info-section mt-16">
-      <div class="muted text-sm mb-4">${t('channel.meta.about') || '説明'}</div>
-      <div class="text-sm">${about ? escapeText(about) : `<span class="muted">${t('channel.info.empty_about') || '説明はありません'}</span>`}</div>
-    </div>
-    ${picture ? `
-    <div class="channel-info-section mt-16">
-      <div class="muted text-sm mb-4">${t('channel.meta.picture') || '画像URL'}</div>
-      <div class="text-sm" style="word-break:break-all"><a href="${escapeText(picture)}" target="_blank" rel="noopener noreferrer">${escapeText(picture)}</a></div>
-    </div>` : ''}
-    <div class="channel-info-section mt-16">
-      <div class="muted text-sm mb-4">${t('channel.meta.relays') || 'リレー'}</div>
-      ${relays.length
-        ? `<div class="channel-relays-list">${relays.map((r) => `<span class="channel-relay-badge">📡 ${escapeText(r)}</span>`).join(' ')}</div>`
-        : `<div class="muted text-sm">${t('channel.info.empty_relays') || 'リレー指定はありません'}</div>`}
-    </div>
-  `;
+      <div class="channel-info-section mt-16">
+        <div class="muted text-sm mb-4">${t('channel.meta.about') || '説明'}</div>
+        <div class="text-sm">${about ? escapeText(about) : `<span class="muted">${t('channel.info.empty_about') || '説明はありません'}</span>`}</div>
+      </div>
+      <div class="channel-info-section mt-16" id="channelInfoCreatorSection">
+        ${renderChannelCreatorHtml(creatorPubkey, state)}
+      </div>
+      ${safePicture ? `
+      <div class="channel-info-section mt-16">
+        <div class="muted text-sm mb-4">${t('channel.info.picture') || t('channel.meta.picture') || '画像'}</div>
+        <div class="channel-info-picture-wrap">
+          <img src="${escapeHtml(safePicture)}" alt="Channel picture" class="channel-info-picture" loading="lazy" />
+        </div>
+      </div>` : ''}
+      <div class="channel-info-section mt-16">
+        <div class="muted text-sm mb-4">${t('channel.meta.relays') || 'リレー'}</div>
+        ${relays.length
+          ? `<div class="channel-relays-list">${relays.map((r) => `<span class="channel-relay-badge">📡 ${escapeText(r)}</span>`).join(' ')}</div>`
+          : `<div class="muted text-sm">${t('channel.info.empty_relays') || 'リレー指定はありません'}</div>`}
+      </div>
+    `;
 
-  const copyBtn = contentEl.querySelector('#channelInfoCopyIdBtn');
-  if (copyBtn) {
-    copyBtn.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(_activeRootId);
-        copyBtn.textContent = t('channel.info.copied') || 'コピーしました';
-        setTimeout(() => {
-          if (copyBtn.isConnected) copyBtn.textContent = t('channel.info.copy_id') || 'コピー';
-        }, 1500);
-      } catch (_e) {
-        // フォールバック: 選択状態にする
-        const idEl = contentEl.querySelector('#channelInfoIdText');
-        if (idEl && window.getSelection) {
-          const range = document.createRange();
-          range.selectNodeContents(idEl);
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
-        }
+    const creatorRow = contentEl.querySelector('#channelInfoCreatorRow');
+    if (creatorRow) {
+      const pk = creatorRow.getAttribute('data-pubkey');
+      if (pk) {
+        creatorRow.onclick = () => openCreatorProfileModal(pk);
       }
-    };
-  }
+    }
 
+    const imgEl = contentEl.querySelector('.channel-info-picture');
+    if (imgEl && safePicture) {
+      imgEl.onclick = () => {
+        try {
+          showMediaViewer(safePicture, 'image');
+        } catch (_e) {}
+      };
+    }
+
+    if (creatorPubkey && state) {
+      const prof = state.profiles ? state.profiles.get(creatorPubkey) : null;
+      if (!prof || (!prof.loaded && !prof.loading)) {
+        loadProfile(state, creatorPubkey).then(() => {
+          if (_activeRootId === rootId && !modal.hidden) {
+            const creatorSection = contentEl.querySelector('#channelInfoCreatorSection');
+            if (creatorSection) {
+              creatorSection.innerHTML = renderChannelCreatorHtml(creatorPubkey, state);
+              const newCreatorRow = creatorSection.querySelector('#channelInfoCreatorRow');
+              if (newCreatorRow) {
+                newCreatorRow.onclick = () => openCreatorProfileModal(creatorPubkey);
+              }
+            }
+          }
+        }).catch(() => {});
+      }
+    }
+  };
+
+  renderModal(profile, _activeRootEvent);
   modal.hidden = false;
+
+  fetchChannelMetadata(state, rootId).then((meta) => {
+    if (_activeRootId !== rootId) return;
+    if (meta && meta.rootEvent) {
+      _activeRootEvent = meta.rootEvent;
+      const latestProfile = extractChannelProfileFields(meta.rootEvent, meta.metaEvent);
+      _activeChannelProfile = latestProfile;
+      const curName = latestProfile.name || meta.label || shortenChannelEventId(rootId);
+      if (titleEl) titleEl.textContent = `# ${curName}`;
+      renderModal(latestProfile, meta.rootEvent);
+    } else if (!_activeRootEvent) {
+      const creatorSection = contentEl.querySelector('#channelInfoCreatorSection');
+      if (creatorSection) {
+        creatorSection.innerHTML = `
+          <div class="muted text-sm mb-4">${t('channel.info.creator') || '作成者'}</div>
+          <div class="muted text-sm">${t('channel.info.unknown_creator') || '作成者不明'}</div>
+        `;
+      }
+    }
+  }).catch(() => {
+    if (_activeRootId === rootId && !_activeRootEvent) {
+      const creatorSection = contentEl.querySelector('#channelInfoCreatorSection');
+      if (creatorSection) {
+        creatorSection.innerHTML = `
+          <div class="muted text-sm mb-4">${t('channel.info.creator') || '作成者'}</div>
+          <div class="muted text-sm">${t('channel.info.unknown_creator') || '作成者不明'}</div>
+        `;
+      }
+    }
+  });
 }
 
 function bindPublicChatsUpdatedListener() {
@@ -426,6 +544,7 @@ function returnToChannelList(options = {}) {
   _activeRootId = null;
   _activeChannelContext = null;
   _activeChannelProfile = null;
+  _activeRootEvent = null;
   if (options.forgetLast) {
     try { localStorage.removeItem(scopedUiKey(LAST_ACTIVE_CHANNEL_KEY)); } catch (_e) {}
   }
@@ -567,19 +686,15 @@ export async function loadChannelList() {
   const cached = getCachedChannelEntries(pubkey);
   if (statusEl) statusEl.textContent = t('channel.loading_list') || 'チャンネル一覧を読み込み中...';
 
-  let usableEntryCount = 0;
-  if (cached && Array.isArray(cached) && cached.length) {
-    usableEntryCount = renderChannelListItems(listEl, statusEl, cached, {
+  const usableEntryCount = (cached && Array.isArray(cached) && cached.length)
+    ? renderChannelListItems(listEl, statusEl, cached, {
+      prune: false,
+      updateStatus: false,
+    }).length
+    : renderChannelListItems(listEl, statusEl, [], {
       prune: false,
       updateStatus: false,
     }).length;
-  } else {
-    // キャッシュが空でも手動参加分は描画
-    usableEntryCount = renderChannelListItems(listEl, statusEl, [], {
-      prune: false,
-      updateStatus: false,
-    }).length;
-  }
 
   try {
     const state = getState();
@@ -766,6 +881,7 @@ export async function selectChannel(rootId) {
   _feedPaused = false;
   _activeChannelContext = null;
   _activeChannelProfile = null;
+  _activeRootEvent = null;
   try { localStorage.setItem(scopedUiKey(LAST_ACTIVE_CHANNEL_KEY), rootId); } catch (_e) {}
 
   buildChannelEmbedContext(getState(), rootId).then(ctx => {
@@ -800,6 +916,7 @@ export async function selectChannel(rootId) {
     if (_activeRootId !== rootId) return;
     const profile = extractChannelProfileFields(meta.rootEvent, meta.metaEvent);
     _activeChannelProfile = profile;
+    _activeRootEvent = meta.rootEvent || null;
     const name = profile.name || meta.label || shortenChannelEventId(rootId);
     if (titleEl) titleEl.textContent = `# ${name}`;
     updateOwnerMetaEditButton(meta.rootEvent);

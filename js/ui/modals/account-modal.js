@@ -53,7 +53,7 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
         ${t('account.modal.edit_profile')}
       </button>
       <button type="button" class="secondary btn-danger" id="accountLogoutBtn">
-        🚪 ${t('logout')}
+        ${t('logout')}
       </button>
     </div>
 
@@ -63,9 +63,11 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
     <div class="account-list" id="accountListContainer"></div>
 
     <!-- アカウント追加ボタン -->
-    <button type="button" class="secondary" id="accountAddBtn" style="width:100%; padding:10px;">
-      ${t('account.modal.add')}
-    </button>
+    <div class="account-modal-bottom-actions">
+      <button type="button" class="secondary" id="accountAddBtn">
+        ${t('account.modal.add')}
+      </button>
+    </div>
   `;
 
   // 1. プロフィール編集ボタン
@@ -179,8 +181,8 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
           </div>
         </div>
         <div class="account-actions">
-          ${!isCurrent ? `<button type="button" class="secondary switch-acc-btn">${t('account.modal.switch')}</button>` : ''}
-          <button type="button" class="secondary btn-danger delete-acc-btn" title="${t('account.modal.delete')}">🗑️</button>
+          ${!isCurrent ? `<button type="button" class="secondary text-xs switch-acc-btn">${t('account.modal.switch')}</button>` : ''}
+          <button type="button" class="secondary btn-danger text-xs delete-acc-btn">${t('account.modal.delete')}</button>
         </div>
       `;
 

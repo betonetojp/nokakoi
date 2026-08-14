@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   fetchPublicChatsEntries: vi.fn(),
   fetchChannelMetadata: vi.fn(async () => ({ label: 'Channel', rootEvent: null, metaEvent: null })),
+  extractChannelProfileFields: vi.fn(() => ({})),
   revealComposerForSelectedChannel: vi.fn(),
   setChannelTarget: vi.fn(),
   subscribeChannelFeed: vi.fn(),
@@ -16,7 +17,7 @@ vi.mock('./public-chats.js', () => ({
 }));
 vi.mock('./channel.js', () => ({
   buildChannelEmbedContext: vi.fn(async () => null),
-  extractChannelProfileFields: vi.fn(() => ({})),
+  extractChannelProfileFields: mocks.extractChannelProfileFields,
   fetchChannelMetadata: mocks.fetchChannelMetadata,
   shortenChannelEventId: vi.fn(id => String(id || '').slice(0, 8)),
 }));
@@ -195,3 +196,71 @@ describe('channel tab re-entry', () => {
     expect(mocks.revealComposerForSelectedChannel).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('channel info modal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    document.body.innerHTML = `
+      <div id="channelInfoModal" hidden>
+        <div id="channelInfoTitle"></div>
+        <div id="channelInfoContent"></div>
+        <button id="channelInfoClose"></button>
+        <button id="channelInfoOkBtn"></button>
+      </div>
+    `;
+    mocks.fetchPublicChatsEntries.mockResolvedValue({ event: null, entries: [] });
+  });
+
+  it('renders creator row and channel image in channel info modal', async () => {
+    const creatorPubkey = 'f'.repeat(64);
+    const mockRootEvent = { id: OLD_CHANNEL, pubkey: creatorPubkey, kind: 40 };
+    mocks.fetchChannelMetadata.mockResolvedValue({
+      label: 'Test Channel',
+      rootEvent: mockRootEvent,
+      metaEvent: null,
+    });
+
+    const channelProfile = {
+      name: 'Test Channel',
+      about: 'Channel Description',
+      picture: 'https://example.com/channel.png',
+      relays: ['wss://relay.example.com'],
+    };
+    mocks.extractChannelProfileFields.mockReturnValue(channelProfile);
+
+    const state = {
+      pubkey: ACCOUNT_A,
+      profiles: new Map([[creatorPubkey, { display_name: 'Creator Name', name: 'creator', picture: 'https://example.com/avatar.png', loaded: true }]]),
+    };
+
+    const container = setupView(state);
+    await flushPromises();
+    await selectChannel(OLD_CHANNEL);
+    await flushPromises();
+
+    // Trigger openChannelInfoModal via info button
+    const infoBtn = container.querySelector('#channelInfoBtn');
+    expect(infoBtn).toBeTruthy();
+    infoBtn.click();
+    await flushPromises();
+
+    const modal = document.getElementById('channelInfoModal');
+    expect(modal.hidden).toBe(false);
+
+    const contentEl = document.getElementById('channelInfoContent');
+    const creatorRow = contentEl.querySelector('#channelInfoCreatorRow');
+    expect(creatorRow).toBeTruthy();
+    expect(creatorRow.getAttribute('data-pubkey')).toBe(creatorPubkey);
+    expect(creatorRow.textContent).toContain('Creator Name');
+    expect(creatorRow.textContent).not.toContain('npub1');
+
+    const copyBtn = contentEl.querySelector('#channelInfoCopyIdBtn');
+    expect(copyBtn).toBeNull();
+
+    const pictureImg = contentEl.querySelector('.channel-info-picture');
+    expect(pictureImg).toBeTruthy();
+    expect(pictureImg.src).toContain('https://example.com/channel.png');
+  });
+});
+

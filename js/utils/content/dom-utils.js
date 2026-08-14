@@ -7,7 +7,7 @@ import { getNip19, linkifyText, linkifyNostrUri } from './linkifier.js';
 import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } from './timeline-anchor.js';
 import { resolveQuoteRelays, fetchQuoteEventById, fetchQuoteEventByNaddr, prefetchQuotesForElements, sanitizeRelays } from './quote-resolver.js';
 import { getEffectiveTextLength, getPreviewWithFullLinksAndEmojis } from './text-preview.js';
-import { evaluateMuteState } from '../../ui/renderers/render-helpers.js';
+import { evaluateMuteState, updateEventMuteDom } from '../../ui/renderers/render-helpers.js';
 
 export const NOSTR_QUOTE_RECURSION_MAX_DEPTH = 2;
 

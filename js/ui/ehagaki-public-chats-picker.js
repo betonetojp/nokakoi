@@ -67,7 +67,7 @@ function renderEntries(panelEl, entries) {
   }
 
   if (!entries || entries.length === 0) {
-    setPanelStatus(panelEl, t('ehagaki.public_chats.empty') || 'パブリックチャットがありません');
+    setPanelStatus(panelEl, t('ehagaki.public_chats.empty') || '参加チャンネルがありません');
     return;
   }
 
@@ -162,11 +162,13 @@ export function setupEhagakiPublicChatsPicker() {
 
   const refreshLabels = () => {
     try {
-      const title = t('ehagaki.public_chats.button') || 'パブリックチャット一覧';
-      fabBtn.setAttribute('aria-label', title);
-      fabBtn.setAttribute('title', title);
+      const btnText = t('ehagaki.public_chats.button') || 'チャンネル';
+      const headingText = t('ehagaki.public_chats.heading') || '参加チャンネル';
+      fabBtn.textContent = btnText;
+      fabBtn.setAttribute('aria-label', headingText);
+      fabBtn.setAttribute('title', headingText);
       const heading = panelEl.querySelector('.ehagaki-public-chats-heading');
-      if (heading) heading.textContent = title;
+      if (heading) heading.textContent = headingText;
     } catch (e) { }
   };
   refreshLabels();
