@@ -73,6 +73,7 @@ export function initChannelView(container, state, settingsManager = null) {
         <div class="channel-sidebar-header">
           <h3>${t('tabs.channels') || 'チャンネル'}</h3>
           <div class="channel-sidebar-actions">
+            <button type="button" id="channelCreateBtn" class="secondary small" title="${t('channel.create_title') || 'チャンネル新規作成'}">${t('channel.create') || '新規作成'}</button>
             <button type="button" id="channelEditListBtn" class="secondary small" title="${t('channel.edit_list') || '参加リストを編集'}">${t('channel.edit_list_btn') || 'リスト編集'}</button>
           </div>
         </div>
@@ -125,6 +126,27 @@ export function initChannelView(container, state, settingsManager = null) {
     refreshBtn.onclick = () => {
       clearChannelSearchResults();
       loadChannelList();
+    };
+  }
+
+  const createBtn = container.querySelector('#channelCreateBtn');
+  if (createBtn) {
+    createBtn.onclick = () => {
+      const st = getState();
+      if (!st || !getPubkey()) return;
+      import('./channel-creator.js').then((mod) => {
+        if (mod && typeof mod.openChannelCreateModal === 'function') {
+          mod.openChannelCreateModal(st, {
+            onCreated: async ({ rootId }) => {
+              joinChannelLocally(rootId, { publicRootIds: _lastPublicRootIds });
+              await selectChannel(rootId);
+              loadChannelList().catch(() => {});
+            },
+          });
+        }
+      }).catch((err) => {
+        console.warn('[channel-ui] channel-creator load failed', err);
+      });
     };
   }
 

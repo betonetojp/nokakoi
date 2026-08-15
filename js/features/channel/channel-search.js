@@ -1,5 +1,5 @@
 // ============================================================================
-// チャンネル検索（kind:40/41 取得 + クライアント側絞り込み）
+// チャンネル検索（kind:40/41/42 取得 + クライアント側絞り込み・アクティブ順ソート）
 // NIP-50 search は非対応リレーで REQ 全体が拒否されるため使わない
 // ============================================================================
 
@@ -8,11 +8,12 @@ import { cacheEvent } from '../../core/state.js';
 import { getNip19 } from '../../core/nostr-compat.js';
 import {
   extractChannelProfileFields,
+  fetchChannelMetadata,
   resolveChannelLabelFromEvents,
   shortenChannelEventId,
 } from './channel.js';
 
-const SEARCH_LIMIT = 100;
+const SEARCH_LIMIT = 150;
 const SEARCH_TIMEOUT_MS = 5000;
 
 function normalizeQuery(q) {
@@ -51,7 +52,7 @@ export function resolveChannelRootIdInput(raw) {
   return null;
 }
 
-function pickRootIdFromKind41(ev) {
+export function pickRootIdFromKind41(ev) {
   if (!ev || !Array.isArray(ev.tags)) return null;
   for (const tag of ev.tags) {
     if (tag && tag[0] === 'e' && tag[1] && (tag[3] || '').toString().toLowerCase() === 'root') {
@@ -64,7 +65,20 @@ function pickRootIdFromKind41(ev) {
   return null;
 }
 
-function buildChannelRecord(rootId, rootEvent, metaEvent) {
+export function pickRootIdFromKind42(ev) {
+  if (!ev || ev.kind !== 42 || !Array.isArray(ev.tags)) return null;
+  for (const tag of ev.tags) {
+    if (tag && tag[0] === 'e' && tag[1] && (tag[3] || '').toString().toLowerCase() === 'root') {
+      return normalizeRootId(tag[1]);
+    }
+  }
+  for (const tag of ev.tags) {
+    if (tag && tag[0] === 'e' && tag[1]) return normalizeRootId(tag[1]);
+  }
+  return null;
+}
+
+function buildChannelRecord(rootId, rootEvent, metaEvent, lastMessageAt = 0) {
   const profile = extractChannelProfileFields(rootEvent, metaEvent);
   const label = resolveChannelLabelFromEvents(rootEvent, metaEvent);
   const name = (profile && profile.name) || label || shortenChannelEventId(rootId);
@@ -76,15 +90,20 @@ function buildChannelRecord(rootId, rootEvent, metaEvent) {
     metaEvent && metaEvent.content,
   ].filter(Boolean).join('\n').toLowerCase();
 
+  const created_at = Math.max(
+    (rootEvent && rootEvent.created_at) || 0,
+    (metaEvent && metaEvent.created_at) || 0,
+  );
+  const last_active_at = Math.max(lastMessageAt || 0, created_at || 0);
+
   return {
     rootId,
     name,
     about,
     relays: (profile && profile.relays) || null,
-    created_at: Math.max(
-      (rootEvent && rootEvent.created_at) || 0,
-      (metaEvent && metaEvent.created_at) || 0,
-    ),
+    created_at,
+    last_message_at: lastMessageAt || 0,
+    last_active_at,
     haystack,
   };
 }
@@ -120,7 +139,7 @@ function collectViaSubscribe(state, relays, filter, timeoutMs) {
       sub = state.pool.subscribeMany(relays, [filter], {
         onevent(ev) {
           if (!ev || !ev.id) return;
-          if (ev.kind !== 40 && ev.kind !== 41) return;
+          if (ev.kind !== 40 && ev.kind !== 41 && ev.kind !== 42) return;
           cacheEvent(state, ev);
           const prev = byId.get(ev.id);
           if (!prev || (ev.created_at || 0) >= (prev.created_at || 0)) {
@@ -138,7 +157,7 @@ function collectViaSubscribe(state, relays, filter, timeoutMs) {
 }
 
 async function collectChannelEvents(state, relays, timeoutMs) {
-  const filter = { kinds: [40, 41], limit: SEARCH_LIMIT };
+  const filter = { kinds: [40, 41, 42], limit: SEARCH_LIMIT };
 
   // querySync があれば優先（maxWait でまとめて待つ）
   if (state && state.pool && typeof state.pool.querySync === 'function') {
@@ -148,7 +167,7 @@ async function collectChannelEvents(state, relays, timeoutMs) {
         for (const ev of events) {
           try { cacheEvent(state, ev); } catch (_e) {}
         }
-        return events.filter(ev => ev && (ev.kind === 40 || ev.kind === 41));
+        return events.filter(ev => ev && (ev.kind === 40 || ev.kind === 41 || ev.kind === 42));
       }
     } catch (_e) {}
   }
@@ -156,8 +175,8 @@ async function collectChannelEvents(state, relays, timeoutMs) {
   return collectViaSubscribe(state, relays, filter, timeoutMs);
 }
 
-function assembleChannelRecords(events) {
-  const byRoot = new Map(); // rootId -> { rootEvent, metaEvent }
+async function assembleChannelRecords(state, events) {
+  const byRoot = new Map(); // rootId -> { rootEvent, metaEvent, lastMessageAt }
 
   for (const ev of events || []) {
     if (!ev) continue;
@@ -177,21 +196,54 @@ function assembleChannelRecords(events) {
         cur.metaEvent = ev;
       }
       byRoot.set(rootId, cur);
+    } else if (ev.kind === 42) {
+      const rootId = pickRootIdFromKind42(ev);
+      if (!rootId) continue;
+      const cur = byRoot.get(rootId) || {};
+      cur.lastMessageAt = Math.max(cur.lastMessageAt || 0, ev.created_at || 0);
+      byRoot.set(rootId, cur);
     }
+  }
+
+  // kind:42 メッセージはあるが kind:40/41 メタデータがまだないチャンネルを非同期で補完
+  const unresolvedRoots = [];
+  for (const [rootId, pair] of byRoot.entries()) {
+    if (!pair.rootEvent && !pair.metaEvent) {
+      unresolvedRoots.push(rootId);
+    }
+  }
+
+  if (unresolvedRoots.length > 0 && state) {
+    await Promise.allSettled(
+      unresolvedRoots.slice(0, 30).map(async (rootId) => {
+        try {
+          const meta = await fetchChannelMetadata(state, rootId);
+          if (meta) {
+            const cur = byRoot.get(rootId) || {};
+            if (meta.rootEvent) cur.rootEvent = meta.rootEvent;
+            if (meta.metaEvent) cur.metaEvent = meta.metaEvent;
+            byRoot.set(rootId, cur);
+          }
+        } catch (_e) {}
+      }),
+    );
   }
 
   const records = [];
   for (const [rootId, pair] of byRoot.entries()) {
-    // kind:41 だけのヒットでも候補にする（root 未取得でも参加可能）
-    if (!pair.rootEvent && !pair.metaEvent) continue;
-    records.push(buildChannelRecord(rootId, pair.rootEvent || null, pair.metaEvent || null));
+    records.push(buildChannelRecord(
+      rootId,
+      pair.rootEvent || null,
+      pair.metaEvent || null,
+      pair.lastMessageAt || 0,
+    ));
   }
   return records;
 }
 
 /**
  * キーワード / 空（直近一覧）でチャンネル候補を検索
- * ID・nevent の直接追加は「IDで追加」を使う
+ * 最新メッセージ (kind:42) またはメタデータが新しいチャンネル順にソート
  * @returns {Promise<{ results: Array, query: string, mode: 'browse'|'search' }>}
  */
 export async function searchChannels(state, query, options = {}) {
@@ -213,23 +265,27 @@ export async function searchChannels(state, query, options = {}) {
 
   const timeoutMs = typeof options.timeoutMs === 'number' ? options.timeoutMs : SEARCH_TIMEOUT_MS;
   const events = await collectChannelEvents(state, relays, timeoutMs);
-  const records = assembleChannelRecords(events);
+  const records = await assembleChannelRecords(state, events);
   const queryLower = q.toLowerCase();
   const mode = q ? 'search' : 'browse';
 
   const scored = records
     .filter(rec => matchesQuery(rec, queryLower))
     .map((rec) => {
-      let score = rec.created_at || 0;
+      let score = rec.last_active_at || 0;
       if (queryLower) {
         const nameLower = (rec.name || '').toLowerCase();
-        if (nameLower === queryLower) score += 1e9;
-        else if (nameLower.startsWith(queryLower)) score += 5e8;
-        else if (nameLower.includes(queryLower)) score += 1e8;
+        if (nameLower === queryLower) score += 1e11;
+        else if (nameLower.startsWith(queryLower)) score += 5e10;
+        else if (nameLower.includes(queryLower)) score += 1e10;
+        else {
+          const aboutLower = (rec.about || '').toLowerCase();
+          if (aboutLower.includes(queryLower)) score += 5e9;
+        }
       }
       return { ...rec, score, fromIdLookup: false };
     })
-    .sort((a, b) => (b.score - a.score) || ((b.created_at || 0) - (a.created_at || 0)));
+    .sort((a, b) => (b.score - a.score) || ((b.last_active_at || 0) - (a.last_active_at || 0)) || ((b.created_at || 0) - (a.created_at || 0)));
 
   for (const item of scored.slice(0, limit)) {
     pushResult(item);
@@ -237,3 +293,4 @@ export async function searchChannels(state, query, options = {}) {
 
   return { results: results.slice(0, limit), query: q, mode };
 }
+

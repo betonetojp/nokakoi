@@ -323,6 +323,22 @@
     </div>
   </div>
 
+  <!-- チャンネル新規作成 (kind:40) モーダル -->
+  <div id="channelCreateModal" class="modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-body modal-body--md panel">
+      <div class="modal-header-row">
+        <h2 class="modal-title" data-i18n="channel.create_title">チャンネル新規作成</h2>
+        <button id="channelCreateClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div id="channelCreateStatus" class="muted mb-12"></div>
+      <div id="channelCreateContent"></div>
+      <div class="row mt-16">
+        <button id="channelCreateSubmitBtn" type="button" data-i18n="channel.create_btn">作成</button>
+        <button id="channelCreateCancelBtn" class="secondary" type="button" data-i18n="editor.common.cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
   <!-- チャンネルメタデータ (kind:41) 編集モーダル -->
   <div id="channelMetaEditModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body modal-body--md panel">
