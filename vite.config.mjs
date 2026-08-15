@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
-import { readFile } from 'node:fs/promises';
+import { copyFile, readFile } from 'node:fs/promises';
+import path from 'node:path';
 
 const htmlPartials = {
   'partials/modals-main.html': new URL('./partials/modals-main.html', import.meta.url),
@@ -25,8 +26,21 @@ function htmlPartialsPlugin() {
   };
 }
 
+function githubPages404Plugin() {
+  let outDir = 'dist';
+  return {
+    name: 'nokakoi-github-pages-404',
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir);
+    },
+    async closeBundle() {
+      await copyFile(path.join(outDir, 'index.html'), path.join(outDir, '404.html'));
+    }
+  };
+}
+
 export default defineConfig({
-  plugins: [htmlPartialsPlugin()],
+  plugins: [htmlPartialsPlugin(), githubPages404Plugin()],
   base: './',
   root: '.',
   publicDir: 'public',

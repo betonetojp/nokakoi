@@ -334,6 +334,7 @@
   "postlink.saved": "Saved",
   "eventlink.saved": "Saved",
   "eventlink.confirm": "Open in {title}?",
+  "deeplink.event_not_found": "Could not load this post",
   "profile.open_eventlink": "Open in {title}",
   "postlink.auto_close": "Auto close after publish",
   "ehagaki.public_chats.button": "Channels",

@@ -62,6 +62,8 @@ import {
 } from '../features/timeline/feed-manager.js';
 
 import { consumeShareText } from '../features/post/share-text.js';
+import { openDeepLink, setupDeepLinkUrlCleanup } from '../features/deep-link.js';
+import { showEventModal } from '../ui/modals/event-modal.js';
 import { setupCustomEmojiSubscription, scheduleCustomEmojiSubscription, initCustomEmojiSub } from '../features/emoji/custom-emoji-sub.js';
 import { setupDelegatedFeedHandlers } from '../ui/feed-delegator.js';
 import { setupReloadHandler } from '../ui/reload-handler.js';
@@ -278,6 +280,7 @@ export async function initApp() {
 
   setupMediaViewerClose();
   setupProfileModalClose();
+  setupDeepLinkUrlCleanup();
   setupJsonModalClose();
   setupModalEscClose();
 
@@ -338,6 +341,33 @@ export async function initApp() {
 
   const SimplePool = SimplePoolProvider();
   relayConnect(state, SimplePool, restartFeeds);
+
+  try {
+    openDeepLink(state, {
+      nip19,
+      showProfileModal: showProfileModalProxy,
+      showEventModal: (event) => {
+        showEventModal(
+          event,
+          state,
+          nip19,
+          (ev, sym) => reactToEvent(state, ev, sym),
+          (ev) => {
+            const modal = document.getElementById('eventModal');
+            if (modal) modal.hidden = true;
+            setReplyTarget(state, ev, nip19);
+          },
+          (ev) => repostEvent(state, ev),
+          settings,
+          settingsManager
+        );
+      }
+    }).catch((e) => {
+      console.warn('[Main] openDeepLink に失敗', e);
+    });
+  } catch (e) {
+    console.warn('[Main] openDeepLink に失敗', e);
+  }
 
   refreshOmochatRelaysOnBoot(settingsManager, setupBitchatFeed);
 

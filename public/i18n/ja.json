@@ -332,6 +332,7 @@
   "postlink.saved": "保存しました",
   "eventlink.saved": "保存しました",
   "eventlink.confirm": "{title}で開きますか？",
+  "deeplink.event_not_found": "投稿を取得できませんでした",
   "profile.open_eventlink": "{title}で開く",
   "postlink.auto_close": "投稿後自動で閉じる",
   "ehagaki.public_chats.button": "チャンネル",
