@@ -4,6 +4,7 @@
 
 import { profileIndexerRelay } from '../../core/relay.js';
 import { truncateName, escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
+import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 
 import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
 import { evaluateMuteState, applyMutedToneToEvent, updateEventMuteDom } from '../../ui/renderers/render-helpers.js';
@@ -393,6 +394,84 @@ export function updateNameDom(state, pubkey, nip19) {
       try {
         updateEventMuteDom(eventEl, state);
       } catch (e) { }
+    }
+  });
+
+  try {
+    updateAvatarDom(state, pubkey);
+  } catch (e) { }
+}
+
+/**
+ * pubkeyのアバター画像をDOMに反映
+ */
+export function updateAvatarDom(state, pubkey) {
+  if (!pubkey) return;
+  let showAvatars = true;
+  try {
+    const saved = localStorage.getItem('appSettings');
+    if (saved) {
+      const s = JSON.parse(saved);
+      if (s.showAvatars === false) showAvatars = false;
+    }
+  } catch (e) { }
+
+  if (!showAvatars) return;
+
+  const prof = state && state.profiles ? state.profiles.get(pubkey) : null;
+  const avatarUrl = sanitizeUrlCandidate((prof && prof.picture) || '') || '';
+  if (!avatarUrl) return;
+
+  const nodes = document.querySelectorAll('.name[data-pubkey="' + pubkey + '"]');
+  nodes.forEach(function (el) {
+    // kind:20000(omochat) はアバター画像を表示しない
+    const eventEl = el.closest('.event[data-kind]');
+    if (eventEl && String(eventEl.dataset.kind || '') === '20000') {
+      return;
+    }
+
+    const eventNameEl = el.closest('.event-name');
+    if (eventNameEl) {
+      let avatarImg = eventNameEl.querySelector(':scope > .avatar');
+      if (avatarImg) {
+        if (avatarImg.src !== avatarUrl) {
+          avatarImg.src = avatarUrl;
+        }
+        avatarImg.classList.remove('d-none');
+      } else {
+        avatarImg = document.createElement('img');
+        avatarImg.src = avatarUrl;
+        avatarImg.alt = 'avatar';
+        avatarImg.className = 'avatar';
+        avatarImg.loading = 'lazy';
+        avatarImg.onerror = function () {
+          this.classList.add('d-none');
+        };
+        eventNameEl.insertBefore(avatarImg, eventNameEl.firstChild);
+      }
+    }
+
+    // イベントモーダルの作者欄 (#eventModalAuthorWrap) のアバター更新
+    const authorWrap = el.closest('#eventModalAuthorWrap');
+    if (authorWrap) {
+      let avatarImg = authorWrap.querySelector('.avatar');
+      if (avatarImg) {
+        if (avatarImg.src !== avatarUrl) {
+          avatarImg.src = avatarUrl;
+        }
+        avatarImg.style.display = '';
+      } else {
+        avatarImg = document.createElement('img');
+        avatarImg.src = avatarUrl;
+        avatarImg.alt = 'avatar';
+        avatarImg.className = 'avatar';
+        avatarImg.loading = 'lazy';
+        avatarImg.style.cssText = 'width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--border);margin-right:6px;';
+        avatarImg.onerror = function () {
+          this.style.display = 'none';
+        };
+        authorWrap.insertBefore(avatarImg, authorWrap.firstChild);
+      }
     }
   });
 }
