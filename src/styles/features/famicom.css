@@ -1,0 +1,466 @@
+/* ==========================================================================
+   Famicom / NES 8-bit Retro Mode
+   ========================================================================== */
+
+body.famicom-mode {
+  --fc-black: #000000;
+  --fc-white: #ffffff;
+  --fc-red: #c41e3a;
+  --fc-gold: #e6b422;
+  --fc-blue: #0070ec;
+  --fc-dark-red: #821124;
+  --fc-cream: #f2ece1;
+  --fc-cream-panel: #fcfaf6;
+  --fc-gray: #7c7c7c;
+
+  font-family: 'DotGothic16', monospace, sans-serif !important;
+  letter-spacing: 0.05em;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+/* 全要素のフォント統一 */
+body.famicom-mode,
+body.famicom-mode * {
+  font-family: 'DotGothic16', monospace, sans-serif !important;
+}
+
+/* --------------------------------------------------------------------------
+   ライトテーマ時のベース背景・テキスト
+   -------------------------------------------------------------------------- */
+body.famicom-mode.theme-light {
+  background-color: var(--fc-cream) !important;
+  color: #1a1a1a !important;
+}
+
+/* --------------------------------------------------------------------------
+   ウィンドウ・パネル・モーダル（レトロRPGメッセージウィンドウ風・角1ドットへこみ）
+   -------------------------------------------------------------------------- */
+body.famicom-mode .panel,
+body.famicom-mode .modal-content,
+body.famicom-mode .composer-container,
+body.famicom-mode .reaction-picker-modal-content,
+body.famicom-mode .info-hub-modal,
+body.famicom-mode .account-modal-content,
+body.famicom-mode .debug-modal-content {
+  border: 3px double var(--fc-white) !important;
+  border-radius: 4px !important;
+  box-shadow: 3px 3px 0 var(--fc-black) !important;
+  background-color: var(--fc-black) !important;
+  color: var(--fc-white) !important;
+}
+
+body.famicom-mode.theme-light .panel,
+body.famicom-mode.theme-light .modal-content,
+body.famicom-mode.theme-light .composer-container,
+body.famicom-mode.theme-light .reaction-picker-modal-content,
+body.famicom-mode.theme-light .info-hub-modal,
+body.famicom-mode.theme-light .account-modal-content,
+body.famicom-mode.theme-light .debug-modal-content {
+  border: 3px double var(--fc-dark-red) !important;
+  border-radius: 4px !important;
+  box-shadow: 3px 3px 0 rgba(130, 17, 36, 0.25) !important;
+  background-color: var(--fc-cream-panel) !important;
+  color: #1a1a1a !important;
+}
+
+/* --------------------------------------------------------------------------
+   イベントカード（タイムライン投稿・角1ドットへこみ）
+   -------------------------------------------------------------------------- */
+body.famicom-mode .event-card {
+  border: 2px solid rgba(255, 255, 255, 0.35) !important;
+  border-radius: 3px !important;
+  box-shadow: 2px 2px 0 var(--fc-black) !important;
+  margin-bottom: 8px !important;
+  background: rgba(0, 0, 0, 0.6) !important;
+  transition: transform 0.08s ease, border-color 0.08s ease;
+}
+
+body.famicom-mode .event-card:hover {
+  border-color: var(--fc-gold) !important;
+}
+
+body.famicom-mode.theme-light .event-card {
+  border: 2px solid rgba(130, 17, 36, 0.3) !important;
+  border-radius: 3px !important;
+  box-shadow: 2px 2px 0 rgba(130, 17, 36, 0.15) !important;
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+}
+
+body.famicom-mode.theme-light .event-card:hover {
+  border-color: var(--fc-dark-red) !important;
+  box-shadow: 2px 2px 0 rgba(130, 17, 36, 0.3) !important;
+}
+
+/* 引用・返信・リポスト枠 */
+body.famicom-mode .reply-preview-container,
+body.famicom-mode .event-quote-wrap,
+body.famicom-mode .repost-indicator {
+  border: 1px dashed var(--fc-white) !important;
+  border-radius: 2px !important;
+  background: rgba(0, 0, 0, 0.4) !important;
+}
+
+body.famicom-mode.theme-light .reply-preview-container,
+body.famicom-mode.theme-light .event-quote-wrap,
+body.famicom-mode.theme-light .repost-indicator {
+  border: 1px dashed var(--fc-dark-red) !important;
+  border-radius: 2px !important;
+  background: rgba(130, 17, 36, 0.04) !important;
+  color: #1a1a1a !important;
+}
+
+/* --------------------------------------------------------------------------
+   ボタン・タブ（カクカクした立体ピクセルボタン）
+   -------------------------------------------------------------------------- */
+body.famicom-mode button,
+body.famicom-mode .btn,
+body.famicom-mode a.secondary,
+body.famicom-mode .tab,
+body.famicom-mode .btn-react,
+body.famicom-mode .quick-reaction {
+  border: 2px solid var(--fc-white) !important;
+  border-radius: 2px !important;
+  box-shadow: 2px 2px 0 var(--fc-black) !important;
+  background-color: #1a1a1a !important;
+  color: var(--fc-white) !important;
+  font-weight: bold;
+  cursor: pointer;
+  transform: none;
+  transition: none !important;
+}
+
+body.famicom-mode button:hover,
+body.famicom-mode .btn:hover,
+body.famicom-mode a.secondary:hover,
+body.famicom-mode .tab:hover {
+  background-color: #333333 !important;
+  border-color: var(--fc-gold) !important;
+  color: var(--fc-gold) !important;
+}
+
+body.famicom-mode button:active,
+body.famicom-mode .btn:active,
+body.famicom-mode a.secondary:active,
+body.famicom-mode .tab.active,
+body.famicom-mode .btn-react:active {
+  box-shadow: 0 0 0 var(--fc-black) !important;
+  transform: translate(2px, 2px) !important;
+  background-color: var(--fc-red) !important;
+  color: var(--fc-white) !important;
+}
+
+/* ライトテーマ時のボタン */
+body.famicom-mode.theme-light button,
+body.famicom-mode.theme-light .btn,
+body.famicom-mode.theme-light a.secondary,
+body.famicom-mode.theme-light .tab,
+body.famicom-mode.theme-light .btn-react,
+body.famicom-mode.theme-light .quick-reaction {
+  border: 2px solid var(--fc-dark-red) !important;
+  border-radius: 2px !important;
+  box-shadow: 2px 2px 0 rgba(130, 17, 36, 0.3) !important;
+  background-color: var(--fc-cream-panel) !important;
+  color: var(--fc-dark-red) !important;
+}
+
+body.famicom-mode.theme-light button:hover,
+body.famicom-mode.theme-light .btn:hover,
+body.famicom-mode.theme-light a.secondary:hover,
+body.famicom-mode.theme-light .tab:hover {
+  background-color: #fff0f3 !important;
+  border-color: var(--fc-red) !important;
+  color: var(--fc-red) !important;
+}
+
+body.famicom-mode.theme-light button:active,
+body.famicom-mode.theme-light .btn:active,
+body.famicom-mode.theme-light a.secondary:active,
+body.famicom-mode.theme-light .tab.active,
+body.famicom-mode.theme-light .btn-react:active {
+  box-shadow: 0 0 0 transparent !important;
+  transform: translate(2px, 2px) !important;
+  background-color: var(--fc-dark-red) !important;
+  color: var(--fc-white) !important;
+}
+
+/* アクティブタブ */
+body.famicom-mode .tab.active {
+  border-color: var(--fc-gold) !important;
+  background-color: var(--fc-dark-red) !important;
+  color: var(--fc-white) !important;
+  box-shadow: inset 1px 1px 0 var(--fc-white) !important;
+}
+
+body.famicom-mode.theme-light .tab.active {
+  border-color: var(--fc-dark-red) !important;
+  background-color: var(--fc-dark-red) !important;
+  color: var(--fc-white) !important;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+/* プライマリボタン（投稿ボタンなど） */
+body.famicom-mode button.primary,
+body.famicom-mode #publishPostBtn,
+body.famicom-mode #loginSubmitBtn {
+  background-color: var(--fc-red) !important;
+  border-color: var(--fc-white) !important;
+  border-radius: 2px !important;
+  color: var(--fc-white) !important;
+}
+
+body.famicom-mode button.primary:hover,
+body.famicom-mode #publishPostBtn:hover,
+body.famicom-mode #loginSubmitBtn:hover {
+  background-color: #e02b48 !important;
+  border-color: var(--fc-gold) !important;
+}
+
+body.famicom-mode.theme-light button.primary,
+body.famicom-mode.theme-light #publishPostBtn,
+body.famicom-mode.theme-light #loginSubmitBtn {
+  background-color: var(--fc-dark-red) !important;
+  border-color: var(--fc-dark-red) !important;
+  color: var(--fc-white) !important;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.25) !important;
+}
+
+body.famicom-mode.theme-light button.primary:hover,
+body.famicom-mode.theme-light #publishPostBtn:hover,
+body.famicom-mode.theme-light #loginSubmitBtn:hover {
+  background-color: var(--fc-red) !important;
+  border-color: var(--fc-red) !important;
+  color: var(--fc-white) !important;
+}
+
+/* --------------------------------------------------------------------------
+   入力フォーム（テキスト入力、セレクトボックス、チェックボックス）
+   -------------------------------------------------------------------------- */
+body.famicom-mode input[type="text"],
+body.famicom-mode input[type="password"],
+body.famicom-mode input[type="number"],
+body.famicom-mode textarea,
+body.famicom-mode select {
+  border: 2px solid var(--fc-white) !important;
+  border-radius: 2px !important;
+  background-color: var(--fc-black) !important;
+  color: var(--fc-white) !important;
+  box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.8) !important;
+}
+
+body.famicom-mode.theme-light input[type="text"],
+body.famicom-mode.theme-light input[type="password"],
+body.famicom-mode.theme-light input[type="number"],
+body.famicom-mode.theme-light textarea,
+body.famicom-mode.theme-light select {
+  border: 2px solid var(--fc-dark-red) !important;
+  border-radius: 2px !important;
+  background-color: #ffffff !important;
+  color: #111111 !important;
+  box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.08) !important;
+}
+
+body.famicom-mode input[type="checkbox"],
+body.famicom-mode input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--fc-white) !important;
+  background: var(--fc-black) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+body.famicom-mode.theme-light input[type="checkbox"],
+body.famicom-mode.theme-light input[type="radio"] {
+  border: 2px solid var(--fc-dark-red) !important;
+  background: #ffffff !important;
+}
+
+body.famicom-mode input[type="checkbox"]:checked::after {
+  content: '■';
+  font-size: 11px;
+  color: var(--fc-gold);
+  line-height: 1;
+}
+
+body.famicom-mode.theme-light input[type="checkbox"]:checked::after {
+  content: '■';
+  font-size: 11px;
+  color: var(--fc-dark-red);
+  line-height: 1;
+}
+
+body.famicom-mode input[type="radio"]:checked::after {
+  content: '●';
+  font-size: 10px;
+  color: var(--fc-red);
+  line-height: 1;
+}
+
+body.famicom-mode.theme-light input[type="radio"]:checked::after {
+  content: '●';
+  font-size: 10px;
+  color: var(--fc-dark-red);
+  line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   画像・アバターの 8-bit ドット絵ポスタライズフィルタ
+   -------------------------------------------------------------------------- */
+body.famicom-mode img,
+body.famicom-mode .avatar,
+body.famicom-mode .profile-avatar,
+body.famicom-mode .event-media-img,
+body.famicom-mode .event-media-video,
+body.famicom-mode .custom-emoji,
+body.famicom-mode .composer-preview-media img {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  filter: url(#fc-3color-filter) contrast(115%) brightness(102%);
+  transition: filter 0.12s steps(2, start), transform 0.12s ease;
+}
+
+/* ホバー・タップ時は元画像をクリアに表示（親切設計） */
+body.famicom-mode img:hover,
+body.famicom-mode img:active,
+body.famicom-mode .avatar:hover,
+body.famicom-mode .profile-avatar:hover,
+body.famicom-mode .event-media-img:hover,
+body.famicom-mode .custom-emoji:hover {
+  filter: none !important;
+}
+
+/* ブランドアイコンとシステムアイコンの調整 */
+body.famicom-mode .brand-icon {
+  image-rendering: pixelated;
+  filter: contrast(110%);
+}
+
+body.famicom-mode .icon-btn {
+  image-rendering: pixelated;
+}
+
+/* --------------------------------------------------------------------------
+   トップバー & ヘッダー
+   -------------------------------------------------------------------------- */
+body.famicom-mode .topbar {
+  border-bottom: 3px double var(--fc-white) !important;
+  background-color: var(--fc-black) !important;
+  box-shadow: 0 4px 0 var(--fc-black) !important;
+}
+
+body.famicom-mode.theme-light .topbar {
+  border-bottom: 3px double var(--fc-dark-red) !important;
+  background-color: var(--fc-cream) !important;
+  box-shadow: 0 3px 0 rgba(130, 17, 36, 0.15) !important;
+}
+
+body.famicom-mode .brand-text {
+  text-shadow: 2px 2px 0 var(--fc-red);
+  letter-spacing: 0.1em;
+}
+
+body.famicom-mode.theme-light .brand-text {
+  color: var(--fc-dark-red) !important;
+  text-shadow: 2px 2px 0 rgba(130, 17, 36, 0.2);
+}
+
+/* --------------------------------------------------------------------------
+   タブバー（タブが並んでる部分）
+   -------------------------------------------------------------------------- */
+body.famicom-mode .tabs {
+  background-color: var(--fc-black) !important;
+  border-bottom: 2px solid var(--fc-white) !important;
+}
+
+body.famicom-mode.theme-light .tabs {
+  background-color: var(--fc-cream) !important;
+  border-bottom: 2px solid var(--fc-dark-red) !important;
+}
+
+body.famicom-mode.theme-light .tabs-scroller {
+  background-color: transparent !important;
+}
+
+/* --------------------------------------------------------------------------
+   スクロールバー
+   -------------------------------------------------------------------------- */
+body.famicom-mode ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body.famicom-mode ::-webkit-scrollbar-track {
+  background: var(--fc-black);
+  border: 1px solid #333333;
+}
+
+body.famicom-mode.theme-light ::-webkit-scrollbar-track {
+  background: var(--fc-cream);
+  border: 1px solid rgba(130, 17, 36, 0.2);
+}
+
+body.famicom-mode ::-webkit-scrollbar-thumb {
+  background: var(--fc-gray);
+  border: 2px solid var(--fc-white);
+  border-radius: 0 !important;
+}
+
+body.famicom-mode.theme-light ::-webkit-scrollbar-thumb {
+  background: var(--fc-dark-red);
+  border: 2px solid var(--fc-cream);
+  border-radius: 0 !important;
+}
+
+body.famicom-mode ::-webkit-scrollbar-thumb:hover {
+  background: var(--fc-gold);
+}
+
+body.famicom-mode.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: var(--fc-red);
+}
+
+/* --------------------------------------------------------------------------
+   トースト通知 & バッジ
+   -------------------------------------------------------------------------- */
+body.famicom-mode .toast,
+body.famicom-mode .toast-container > div {
+  border: 2px solid var(--fc-white) !important;
+  border-radius: 2px !important;
+  background: var(--fc-black) !important;
+  box-shadow: 4px 4px 0 var(--fc-red) !important;
+  color: var(--fc-white) !important;
+}
+
+body.famicom-mode.theme-light .toast,
+body.famicom-mode.theme-light .toast-container > div {
+  border: 2px solid var(--fc-dark-red) !important;
+  border-radius: 2px !important;
+  background: var(--fc-cream-panel) !important;
+  box-shadow: 3px 3px 0 var(--fc-dark-red) !important;
+  color: var(--fc-dark-red) !important;
+}
+
+body.famicom-mode .petname-badge,
+body.famicom-mode .reaction-badge {
+  border: 1px solid var(--fc-white) !important;
+  border-radius: 2px !important;
+  background: #222222 !important;
+  color: var(--fc-gold) !important;
+}
+
+body.famicom-mode.theme-light .petname-badge,
+body.famicom-mode.theme-light .reaction-badge {
+  border: 1px solid var(--fc-dark-red) !important;
+  border-radius: 2px !important;
+  background: #fff0f3 !important;
+  color: var(--fc-dark-red) !important;
+}

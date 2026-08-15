@@ -41,6 +41,7 @@
   "colorTheme.orange": "Orange",
   "colorTheme.gray": "Monochrome",
   "bgBrightness.label": "Background Brightness",
+  "famicomMode": "Famicom Mode (8-bit)",
   "simpleDisplayMode": "Compact view",
   "homeDisplayQuick.title": "Quick display settings",
   "showAvatars": "Show avatars",

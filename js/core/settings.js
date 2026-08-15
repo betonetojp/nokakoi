@@ -27,6 +27,7 @@ export class SettingsManager {
       globalRelay: getDefaultGlobalRelayByLang(),
       globalMergeHome: false,
       simpleDisplayMode: true,
+      famicomMode: false,
       showAvatars: true,
       showTimelineMedia: false,
       showClientName: true,

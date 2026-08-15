@@ -31,6 +31,9 @@ function isLight(theme) {
 function updateThemeColor() {
   try {
     const settings = readSettings();
+    if (settings.famicomMode && document.body) {
+      document.body.classList.add('famicom-mode');
+    }
     const theme = settings.theme || 'system';
     const colorTheme = settings.colorTheme || 'pink';
     const color = isLight(theme) ? (LIGHT_COLORS[colorTheme] || '#ffffff') : DARK_COLOR;

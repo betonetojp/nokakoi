@@ -19,6 +19,13 @@ export function applySimpleDisplayMode(enabled) {
   } catch (e) { }
 }
 
+export function applyFamicomMode(enabled) {
+  try {
+    if (enabled) document.body.classList.add('famicom-mode');
+    else document.body.classList.remove('famicom-mode');
+  } catch (e) { }
+}
+
 export function syncDisplayCheckbox(id, checked) {
   try {
     const el = document.getElementById(id);
@@ -31,6 +38,12 @@ export function setSimpleDisplayModeEnabled(settingsManager, enabled) {
   applySimpleDisplayMode(enabled);
   syncDisplayCheckbox('simpleDisplayModeCheck', enabled);
   syncDisplayCheckbox('homeDisplayQuickCompactCheck', enabled);
+}
+
+export function setFamicomModeEnabled(settingsManager, enabled) {
+  settingsManager.set('famicomMode', enabled);
+  applyFamicomMode(enabled);
+  syncDisplayCheckbox('famicomModeCheck', enabled);
 }
 
 export function setShowTimelineMediaEnabled(settingsManager, enabled, restartFeeds) {
@@ -163,6 +176,15 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
     applySimpleDisplayMode(simpleDisplayModeCheck.checked);
     simpleDisplayModeCheck.onchange = function () {
       setSimpleDisplayModeEnabled(settingsManager, simpleDisplayModeCheck.checked);
+    };
+  }
+
+  const famicomModeCheck = $('famicomModeCheck');
+  if (famicomModeCheck) {
+    famicomModeCheck.checked = settingsManager.settings.famicomMode === true;
+    applyFamicomMode(famicomModeCheck.checked);
+    famicomModeCheck.onchange = function () {
+      setFamicomModeEnabled(settingsManager, famicomModeCheck.checked);
     };
   }
 
@@ -592,6 +614,11 @@ export function refreshAllDisplaySettingsUI(settingsManager) {
     applySimpleDisplayMode(compact);
     syncDisplayCheckbox('simpleDisplayModeCheck', compact);
     syncDisplayCheckbox('homeDisplayQuickCompactCheck', compact);
+
+    // 1-2. ファミコンモード
+    const famicom = s.famicomMode === true;
+    applyFamicomMode(famicom);
+    syncDisplayCheckbox('famicomModeCheck', famicom);
 
     // 2. タイムラインメディア
     const media = s.showTimelineMedia === true;
