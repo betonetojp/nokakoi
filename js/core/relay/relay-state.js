@@ -48,9 +48,29 @@ export function updateRelayState(url, connected) {
 }
 
 /**
+ * 単一リレーへの接続を再試行する（フィード全体は再起動しない）
+ */
+export async function reconnectSingleRelay(state, url) {
+  if (!state || !state.pool || !url) return false;
+  try {
+    debugRelay(`[Relay] 単一リレー ${url} への再接続を試行`);
+    if (typeof state.pool.ensureRelay === 'function') {
+      const relay = await state.pool.ensureRelay(url);
+      const isConnected = relay && relay.ws && relay.ws.readyState === WebSocket.OPEN;
+      updateRelayState(url, !!isConnected);
+      return !!isConnected;
+    }
+  } catch (e) {
+    debugRelay(`[Relay] ${url} の再接続に失敗:`, e);
+    updateRelayState(url, false);
+  }
+  return false;
+}
+
+/**
  * リレーの再接続をスケジュール（指数バックオフ、上限なし）
  */
-export function scheduleReconnect(state, url, restartFeedsCallback) {
+export function scheduleReconnect(state, url, restartFeedsCallback = null) {
   try {
     const relayState = relayStates.get(url);
     if (!relayState) return;
@@ -65,10 +85,7 @@ export function scheduleReconnect(state, url, restartFeedsCallback) {
       try {
         relayState.reconnectTimer = null;
         debugRelay(`[Relay] ${url} へ再接続を試行中`);
-
-        if (restartFeedsCallback) {
-          restartFeedsCallback(false);
-        }
+        reconnectSingleRelay(state, url).catch(() => {});
       } catch (e) {
         console.warn(`[Relay] ${url} の再接続タイマー処理に失敗しました:`, e);
       }
@@ -134,7 +151,6 @@ export function setupVisibilityHandler(state, restartFeedsCallback) {
       if (!state.pool || !state.pool.relays) return;
 
       const allRelays = getAllRelayUrls(state.relays);
-      let anyDisconnected = false;
 
       allRelays.forEach(url => {
         try {
@@ -142,21 +158,21 @@ export function setupVisibilityHandler(state, restartFeedsCallback) {
           const ws = relay && relay.ws;
           const isConnected = ws && ws.readyState === WebSocket.OPEN;
           if (!isConnected) {
-            anyDisconnected = true;
             const rs = relayStates.get(url);
             if (rs) {
               rs.reconnectAttempts = 0;
               rs.lastSeenDown = null;
               relayStates.set(url, rs);
             }
+            reconnectSingleRelay(state, url).catch(() => {});
           }
           updateRelayState(url, !!isConnected);
         } catch (e) { }
       });
 
       const forceRestart = hiddenFor >= RESUME_RESTART_MS;
-      if (anyDisconnected || forceRestart) {
-        debugRelay('[Relay] フィード再起動をトリガー', { anyDisconnected, forceRestart, hiddenFor });
+      if (forceRestart) {
+        debugRelay('[Relay] 長時間離脱後のフィード再起動をトリガー', { forceRestart, hiddenFor });
         setTimeout(() => {
           try { if (restartFeedsCallback) restartFeedsCallback(false); } catch (e) { }
         }, 500);
