@@ -43,7 +43,9 @@ body.famicom-mode .composer-container,
 body.famicom-mode .reaction-picker-modal-content,
 body.famicom-mode .info-hub-modal,
 body.famicom-mode .account-modal-content,
-body.famicom-mode .debug-modal-content {
+body.famicom-mode .debug-modal-content,
+body.famicom-mode .channel-sidebar,
+body.famicom-mode .channel-main-view {
   border: 3px double var(--fc-white) !important;
   border-radius: 4px !important;
   box-shadow: 3px 3px 0 var(--fc-black) !important;
@@ -57,11 +59,44 @@ body.famicom-mode.theme-light .composer-container,
 body.famicom-mode.theme-light .reaction-picker-modal-content,
 body.famicom-mode.theme-light .info-hub-modal,
 body.famicom-mode.theme-light .account-modal-content,
-body.famicom-mode.theme-light .debug-modal-content {
+body.famicom-mode.theme-light .debug-modal-content,
+body.famicom-mode.theme-light .channel-sidebar,
+body.famicom-mode.theme-light .channel-main-view {
   border: 3px double var(--fc-dark-red) !important;
   border-radius: 4px !important;
   box-shadow: 3px 3px 0 rgba(130, 17, 36, 0.25) !important;
   background-color: var(--fc-cream-panel) !important;
+  color: #1a1a1a !important;
+}
+
+/* チャンネル内ヘッダー・詳細情報・検索結果のダーク/ライト調整 */
+body.famicom-mode .channel-chat-header,
+body.famicom-mode .channel-search-results {
+  background-color: var(--fc-black) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+body.famicom-mode.theme-light .channel-chat-header,
+body.famicom-mode.theme-light .channel-search-results {
+  background-color: var(--fc-cream-panel) !important;
+  border-color: rgba(130, 17, 36, 0.2) !important;
+}
+
+body.famicom-mode .channel-info-id,
+body.famicom-mode .channel-info-local-notice,
+body.famicom-mode .channel-info-creator-row {
+  background-color: #111111 !important;
+  border: 1px solid var(--fc-white) !important;
+  border-radius: 2px !important;
+  color: var(--fc-white) !important;
+}
+
+body.famicom-mode.theme-light .channel-info-id,
+body.famicom-mode.theme-light .channel-info-local-notice,
+body.famicom-mode.theme-light .channel-info-creator-row {
+  background-color: #ffffff !important;
+  border: 1px solid var(--fc-dark-red) !important;
+  border-radius: 2px !important;
   color: #1a1a1a !important;
 }
 
