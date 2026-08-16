@@ -72,14 +72,15 @@ import {
   restartFeeds,
   setupBitchatFeed,
   setupGlobalFeed,
-  setupSingleFeed
+  setupSingleFeed,
+  getRenderSettingsWithUiState
 } from './feed-manager.js';
 
 function createSettings(values) {
   return {
     settings: values,
     get: vi.fn((key) => values[key]),
-    set: vi.fn(),
+    set: vi.fn((key, val) => { values[key] = val; }),
     saveUserReaction: vi.fn()
   };
 }
@@ -258,5 +259,28 @@ describe('feed manager startup lifecycle', () => {
     const homeOptions = mocks.setupFeedFetcher.mock.calls.find(([opts]) => opts.feedId === 'home')[0];
     expect(homeOptions.relays).toEqual([relayJp, relayUs]);
     expect(homeOptions.liveRelays).toEqual([relayUs]);
+  });
+
+  it('reflects updated settings in getRenderSettingsWithUiState even if settingsManager.settings object is replaced', () => {
+    const state = {
+      pool: {},
+      relays: ['wss://relay.example'],
+      subs: new Map(),
+      feeds: { home: createFeed(), global: createFeed() }
+    };
+    const settingsObj = createSettings({
+      showTimelineMedia: false
+    });
+    initFeedManager(state, settingsObj);
+
+    let renderSettings = getRenderSettingsWithUiState('home');
+    expect(renderSettings.showTimelineMedia).toBe(false);
+
+    // settingsManager.settings オブジェクト自体が loadForAccount 等で置換されたケース
+    settingsObj.settings = {
+      showTimelineMedia: true
+    };
+    renderSettings = getRenderSettingsWithUiState('home');
+    expect(renderSettings.showTimelineMedia).toBe(true);
   });
 });

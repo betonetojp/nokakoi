@@ -2,7 +2,7 @@ import { t, applyTranslations } from '../../utils/i18n.js';
 import { showToast, debounce } from '../../utils/utils.js';
 import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, EVENTLINK_DEFAULT_TITLE, EVENTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH, EVENTS_MAX, setEventsMax } from '../../config/constants.js';
 import { ensureNotificationPermission } from '../../utils/notification.js';
-import { teardownDomPurge } from '../../features/timeline/feed-renderer.js';
+import { renderFeed, teardownDomPurge } from '../../features/timeline/feed-renderer.js';
 import { applyTheme, applyColorTheme, applyBgBrightness, getBrightnessForCurrentTheme, getCurrentThemeMode } from './theme-manager.js';
 import { setMentionBlink, checkMentionBlink } from './mention-blink.js';
 import { renderTabSettingsUI, setupTabs } from './tab-manager.js';
@@ -50,8 +50,26 @@ export function setShowTimelineMediaEnabled(settingsManager, enabled, restartFee
   settingsManager.set('showTimelineMedia', enabled);
   syncDisplayCheckbox('showTimelineMediaCheck', enabled);
   syncDisplayCheckbox('homeDisplayQuickMediaCheck', enabled);
-  const fn = restartFeeds || _restartFeedsRef;
-  try { if (typeof fn === 'function') fn(true); } catch (e) { }
+  try {
+    const feedIds = ['home', 'global', 'mentions', 'me', 'bitchat'];
+    let renderedAny = false;
+    feedIds.forEach(id => {
+      try {
+        const el = document.getElementById('feed-' + id);
+        if (el && el.children.length > 0) {
+          renderFeed(id, true);
+          renderedAny = true;
+        }
+      } catch (e) { }
+    });
+    if (!renderedAny) {
+      const fn = restartFeeds || _restartFeedsRef;
+      try { if (typeof fn === 'function') fn(true); } catch (e) { }
+    }
+  } catch (e) {
+    const fn = restartFeeds || _restartFeedsRef;
+    try { if (typeof fn === 'function') fn(true); } catch (ee) { }
+  }
 }
 
 export function setShowHomeReactionsEnabled(settingsManager, enabled, restartFeeds) {

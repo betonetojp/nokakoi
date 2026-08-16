@@ -142,8 +142,9 @@ export function markFeedEventExpanded(feedId, eventId, type, expanded) {
  */
 export function getRenderSettingsWithUiState(feedId) {
   const uiState = ensureFeedUiState(feedId);
+  const currentSettings = (settingsManager && settingsManager.settings) || settings || {};
   return {
-    ...(settings || {}),
+    ...currentSettings,
     __timelineUiState: uiState,
     __timelineMarkMutedExpanded: (eventId, expanded) => markFeedEventExpanded(feedId, eventId, 'muted', expanded),
     __timelineMarkCwExpanded: (eventId, expanded) => markFeedEventExpanded(feedId, eventId, 'cw', expanded)
@@ -1184,6 +1185,7 @@ export function restartFeeds(fullReset = false) {
     showHomeChannel: settingsManager && settingsManager.get('showHomeChannel'),
     showHomeRepost16: settingsManager && settingsManager.get('showHomeRepost16'),
     showMusicStatus: settingsManager && settingsManager.get('showMusicStatus'),
+    showTimelineMedia: settingsManager && settingsManager.get('showTimelineMedia'),
     showOmochat: settingsManager && settingsManager.get('showOmochat'),
     omochatRelays: getOmochatRelays()
   });
