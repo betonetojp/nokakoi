@@ -373,14 +373,24 @@ body.famicom-mode .custom-emoji:hover {
   filter: none !important;
 }
 
-/* ブランドアイコンとシステムアイコンの調整 */
+/* アイコン類 */
 body.famicom-mode .brand-icon {
   image-rendering: pixelated;
   filter: contrast(110%);
 }
 
-body.famicom-mode .icon-btn {
+body.famicom-mode .icon-btn,
+body.famicom-mode .editor-petname-badge {
   image-rendering: pixelated;
+  filter: none;
+}
+
+body.famicom-mode .petname-badge {
+  background-color: var(--fc-gold) !important;
+}
+
+body.famicom-mode.theme-light .petname-badge {
+  background-color: var(--fc-dark-red) !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -484,7 +494,6 @@ body.famicom-mode.theme-light .toast-container > div {
   color: var(--fc-dark-red) !important;
 }
 
-body.famicom-mode .petname-badge,
 body.famicom-mode .reaction-badge {
   border: 1px solid var(--fc-white) !important;
   border-radius: 2px !important;
@@ -492,7 +501,6 @@ body.famicom-mode .reaction-badge {
   color: var(--fc-gold) !important;
 }
 
-body.famicom-mode.theme-light .petname-badge,
 body.famicom-mode.theme-light .reaction-badge {
   border: 1px solid var(--fc-dark-red) !important;
   border-radius: 2px !important;
