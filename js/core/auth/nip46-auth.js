@@ -1,9 +1,10 @@
 import { $ } from '../../utils/utils.js';
 import { t } from '../../utils/i18n.js';
 import { Nip46Client, DEFAULT_NIP46_RELAYS, generateQRCodeSVG } from '../nip46.js';
-import { setNip46LocalSecretKey } from './nip46-session.js';
+import { setNip46LocalSecretKey, setNip46ProtectedSession } from './nip46-session.js';
 import { getActiveSwitchSessionId } from '../account-manager.js';
 import { signer } from '../signer.js';
+import { authenticateWithPasskey, encryptNip46SessionWithPasskey, isUserVerifyingPlatformAvailable, registerPasskey } from '../webauthn.js';
 
 function showModal(modalId) {
   const modal = $(modalId);
@@ -13,6 +14,26 @@ function showModal(modalId) {
 function hideModal(modalId) {
   const modal = $(modalId);
   if (modal) modal.hidden = true;
+}
+
+function chooseNip46Protection() {
+  const modal = $('#nip46ProtectionModal');
+  const protectBtn = $('#nip46ProtectWithPasskey');
+  const unprotectedBtn = $('#nip46KeepUnprotected');
+  if (!modal || !protectBtn || !unprotectedBtn) {
+    return Promise.resolve('unprotected');
+  }
+
+  return new Promise(resolve => {
+    const close = choice => {
+      modal.hidden = true;
+      resolve(choice);
+    };
+    protectBtn.onclick = () => close('protected');
+    unprotectedBtn.onclick = () => close('unprotected');
+    modal.hidden = false;
+    protectBtn.focus();
+  });
 }
 
 export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
@@ -45,8 +66,70 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
       if (statusEl) statusEl.textContent = message;
     }
   });
+  let connectionAttempt = 0;
 
   client.initLocalKey();
+
+  async function persistConnectedClient(connectedClient, targetPk, attempt) {
+    let protection = 'unprotected';
+    try {
+      if (await isUserVerifyingPlatformAvailable()) {
+        protection = await chooseNip46Protection();
+      }
+    } catch (e) { }
+    if (attempt !== connectionAttempt) return false;
+
+    const updatedSettings = {
+      ...(settingsManager.settings || {}),
+      nip46RemotePubkey: connectedClient.remotePubkey,
+      nip46UserPubkey: connectedClient.userPubkey || null,
+      nip46Relays: connectedClient.relays,
+      preferredSigner: 'nip46'
+    };
+
+    if (protection === 'protected') {
+      try {
+        if (statusEl) statusEl.textContent = t('auth.passkey_register_prompt');
+        const passkeyData = await registerPasskey('nip46-user');
+        if (statusEl) statusEl.textContent = t('auth.pending');
+        const authResult = await authenticateWithPasskey(passkeyData.credentialId);
+        if (!authResult.success || !authResult.prfKey) throw new Error(t('webauthn.prf_not_supported'));
+
+        const encryptedSession = await encryptNip46SessionWithPasskey({
+          localSecretKey: connectedClient.localSecretKey,
+          secret: connectedClient.secret || null
+        }, authResult.prfKey);
+        setNip46ProtectedSession(encryptedSession, targetPk);
+        updatedSettings.nip46Secret = null;
+        updatedSettings.nip46PasskeyCredentialId = passkeyData.credentialId;
+        updatedSettings.nip46PasskeyDeviceInfo = passkeyData.deviceInfo;
+      } catch (e) {
+        console.warn('[NIP-46] パスキー保護の設定に失敗:', e);
+        if (statusEl) statusEl.textContent = t('auth.passkey_register_failed', { msg: e && e.message });
+        protection = 'unprotected';
+      }
+    }
+    if (attempt !== connectionAttempt) return false;
+
+    if (protection === 'unprotected') {
+      updatedSettings.nip46Secret = connectedClient.secret || null;
+      updatedSettings.nip46PasskeyCredentialId = null;
+      updatedSettings.nip46PasskeyDeviceInfo = null;
+      setNip46LocalSecretKey(connectedClient.localSecretKey, targetPk);
+    }
+
+    settingsManager.settings = updatedSettings;
+    if (typeof settingsManager.save === 'function') {
+      settingsManager.save();
+    }
+    try {
+      localStorage.setItem(`appSettings.${targetPk}`, JSON.stringify(updatedSettings));
+    } catch (e) {
+      console.warn('[NIP-46] 接続設定の保存に失敗:', e);
+    }
+    try { localStorage.setItem('lastLoginMethod', 'nip46'); } catch (e) { }
+    return true;
+  }
 
   function switchTab(tabName) {
     if (tabName === 'qr') {
@@ -185,6 +268,7 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
 
   if (bunkerConnectBtn) {
     bunkerConnectBtn.onclick = async () => {
+      const attempt = ++connectionAttempt;
       const bunkerUri = bunkerInput ? bunkerInput.value.trim() : '';
       if (!bunkerUri) {
         if (statusEl) statusEl.textContent = t('nip46.enter_bunker_uri');
@@ -209,13 +293,19 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
 
         // サイナーが保持する実際のユーザー公開鍵 (NIP-46 get_public_key) を問い合わせて確定させる
         try {
-          const userPubkey = await bunkerClient.getPublicKey();
+          const userPubkey = await bunkerClient.resolveUserPubkey(5000);
           if (userPubkey && /^[0-9a-f]{64}$/i.test(userPubkey)) {
             bunkerClient.userPubkey = userPubkey.toLowerCase();
           }
         } catch (e) {
           console.warn('[NIP-46] get_public_key 取得スキップ:', e);
         }
+        if (!bunkerClient.userPubkey) {
+          if (statusEl) statusEl.textContent = t('nip46.user_pubkey_unavailable');
+          bunkerConnectBtn.disabled = false;
+          return;
+        }
+        if (attempt !== connectionAttempt || !bunkerClient.remotePubkey) return;
 
         client = bunkerClient;
         state.nip46.client = bunkerClient;
@@ -224,26 +314,12 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         state.signer = 'nip46';
         try { bunkerClient.setupResumeHandler(); } catch (e) { }
 
-        const targetPk = (bunkerClient.userPubkey || bunkerClient.remotePubkey).toLowerCase();
+        const targetPk = bunkerClient.userPubkey.toLowerCase();
         if (settingsManager && typeof settingsManager.loadForAccount === 'function') {
           settingsManager.loadForAccount(targetPk);
         }
 
-        settingsManager.set('nip46RemotePubkey', bunkerClient.remotePubkey);
-        if (bunkerClient.userPubkey) {
-          settingsManager.set('nip46UserPubkey', bunkerClient.userPubkey);
-        }
-        settingsManager.set('nip46Secret', bunkerClient.secret);
-        settingsManager.set('nip46Relays', bunkerClient.relays);
-        settingsManager.set('preferredSigner', 'nip46');
-        if (typeof settingsManager.saveForAccount === 'function') {
-          settingsManager.saveForAccount(targetPk);
-        }
-        setNip46LocalSecretKey(bunkerClient.localSecretKey, targetPk);
-        try {
-          localStorage.setItem(`nokakoi.nip46.localSecretKey.${targetPk}`, bunkerClient.localSecretKey);
-          localStorage.setItem('lastLoginMethod', 'nip46');
-        } catch (e) { }
+        if (!await persistConnectedClient(bunkerClient, targetPk, attempt)) return;
 
         try { signer.clearKey(); } catch (e) {}
         hideModal('#nip46Modal');
@@ -258,6 +334,7 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
 
   if (cancelBtn) {
     cancelBtn.onclick = () => {
+      connectionAttempt++;
       if (client) {
         try { client.disconnect(); } catch (e) { }
       }
@@ -277,10 +354,11 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
     try {
       if (statusEl) statusEl.textContent = t('nip46.waiting_for_connection');
       const startSessionId = getActiveSwitchSessionId();
+      const attempt = ++connectionAttempt;
       const result = await client.waitForConnection();
 
       // 接続待ち中に他アカウントへの切替や操作が行われた場合は遅延接続を安全にキャンセル
-      if (startSessionId !== getActiveSwitchSessionId()) {
+      if (attempt !== connectionAttempt || startSessionId !== getActiveSwitchSessionId()) {
         console.warn('[NIP-46] 他操作が実行されたため遅延レスポンスを破棄しました');
         try { client.disconnect(); } catch (e) {}
         return;
@@ -289,13 +367,18 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
       if (result.connected) {
         // サイナーが保持する実際のユーザー公開鍵 (NIP-46 get_public_key) を問い合わせて確定させる
         try {
-          const userPubkey = await client.getPublicKey();
+          const userPubkey = await client.resolveUserPubkey(5000);
           if (userPubkey && /^[0-9a-f]{64}$/i.test(userPubkey)) {
             client.userPubkey = userPubkey.toLowerCase();
           }
         } catch (e) {
           console.warn('[NIP-46] get_public_key 取得スキップ:', e);
         }
+        if (!client.userPubkey) {
+          if (statusEl) statusEl.textContent = t('nip46.user_pubkey_unavailable');
+          return;
+        }
+        if (attempt !== connectionAttempt || !client.remotePubkey) return;
 
         state.nip46.client = client;
         state.nip46.remotePubkey = client.remotePubkey;
@@ -303,26 +386,12 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
         state.signer = 'nip46';
         try { client.setupResumeHandler(); } catch (e) { }
 
-        const targetPk = (client.userPubkey || result.remotePubkey).toLowerCase();
+        const targetPk = client.userPubkey.toLowerCase();
         if (settingsManager && typeof settingsManager.loadForAccount === 'function') {
           settingsManager.loadForAccount(targetPk);
         }
 
-        settingsManager.set('nip46RemotePubkey', client.remotePubkey);
-        if (client.userPubkey) {
-          settingsManager.set('nip46UserPubkey', client.userPubkey);
-        }
-        settingsManager.set('nip46Secret', client.secret);
-        settingsManager.set('nip46Relays', nip46Relays);
-        settingsManager.set('preferredSigner', 'nip46');
-        if (typeof settingsManager.saveForAccount === 'function') {
-          settingsManager.saveForAccount(targetPk);
-        }
-        setNip46LocalSecretKey(client.localSecretKey, targetPk);
-        try {
-          localStorage.setItem(`nokakoi.nip46.localSecretKey.${targetPk}`, client.localSecretKey);
-          localStorage.setItem('lastLoginMethod', 'nip46');
-        } catch (e) { }
+        if (!await persistConnectedClient(client, targetPk, attempt)) return;
 
         try { signer.clearKey(); } catch (e) {}
         hideModal('#nip46Modal');

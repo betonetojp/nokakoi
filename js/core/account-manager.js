@@ -1,9 +1,9 @@
 import { signer } from './signer.js';
 import { decryptNsec } from './crypto.js';
 import { showPasswordModal, nsecLoginPrompt } from './auth/nsec-auth.js';
-import { authenticateWithPasskey, decryptNsecWithPasskey } from './webauthn.js';
+import { authenticateWithPasskey, decryptNip46SessionWithPasskey, decryptNsecWithPasskey } from './webauthn.js';
 import { Nip46Client, DEFAULT_NIP46_RELAYS } from './nip46.js';
-import { getNip46LocalSecretKey, setNip46LocalSecretKey } from './auth/nip46-session.js';
+import { getNip46LocalSecretKey, getNip46ProtectedSession, setNip46LocalSecretKey } from './auth/nip46-session.js';
 import { t } from '../utils/i18n.js';
 import { closePoolAndWait, saveRelaysForAccount, loadRelaysForAccount } from './relay.js';
 import { invalidateMuteWork, saveMuteListForAccount, loadMuteListForAccount } from '../features/mute/mute.js';
@@ -125,6 +125,7 @@ export function removeAccount(pubkey) {
     localStorage.removeItem(`relay_list_snapshots.${targetId}`);
     localStorage.removeItem(`profile_snapshots.${targetId}`);
     localStorage.removeItem(`nokakoi.nip46.localSecretKey.${targetId}`);
+    localStorage.removeItem(`nokakoi.nip46.protectedSession.${targetId}`);
   } catch (e) {
     console.warn('[AccountManager] アカウント固有データの削除失敗:', e);
   }
@@ -221,7 +222,7 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
   invalidateMuteWork(targetId);
 
   // 切り替え前のバックアップ
-  const prevSk = signer.hasKey() ? signer.getKey() : null;
+  const prevRollbackHandle = signer.createRollbackHandle();
   const prevSigner = state.signer;
   const prevPubkey = state.pubkey || currentPubkey;
   const prevNip46 = state.nip46 ? {
@@ -232,9 +233,7 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
 
   // ロールバック共通処理
   const performRollback = async () => {
-    if (prevSk) {
-      signer.setKey(prevSk);
-    }
+    signer.restoreRollbackHandle(prevRollbackHandle);
     state.signer = prevSigner;
     state.pubkey = prevPubkey;
     if (prevNip46) {
@@ -363,7 +362,27 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
       );
     });
   } else if (method === 'nip46' && settings && settings.nip46RemotePubkey) {
-    const nip46Key = getNip46LocalSecretKey(targetId);
+    const protectedSession = getNip46ProtectedSession(targetId);
+    let nip46Key = null;
+    let nip46Secret = settings.nip46Secret;
+    if (protectedSession) {
+      try {
+        if (!settings.nip46PasskeyCredentialId) throw new Error(t('webauthn.not_supported'));
+        const authResult = await authenticateWithPasskey(settings.nip46PasskeyCredentialId);
+        const session = authResult && authResult.success
+          ? await decryptNip46SessionWithPasskey(protectedSession, authResult.prfKey)
+          : null;
+        if (!session || !/^[0-9a-f]{64}$/i.test(session.localSecretKey)) {
+          throw new Error(t('nip46.reconnect_failed'));
+        }
+        nip46Key = session.localSecretKey;
+        nip46Secret = session.secret;
+      } catch (e) {
+        console.error('[AccountManager] NIP-46 保護済みセッションの復元に失敗:', e);
+      }
+    } else {
+      nip46Key = getNip46LocalSecretKey(targetId);
+    }
     if (nip46Key) {
       try {
         setNip46LocalSecretKey(nip46Key, targetId);
@@ -374,10 +393,11 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
         await client.restoreConnection({
           localSecretKey: nip46Key,
           remotePubkey: settings.nip46RemotePubkey,
-          userPubkey: settings.nip46UserPubkey || null,
+          userPubkey: settings.nip46UserPubkey || targetId,
           relays: settings.nip46Relays,
-          secret: settings.nip46Secret
+          secret: nip46Secret
         });
+        client.userPubkey = (client.userPubkey || targetId).toLowerCase();
         state.nip46.client = client;
         state.nip46.remotePubkey = settings.nip46RemotePubkey;
         state.nip46.connected = true;
@@ -457,6 +477,7 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
   // now owns state, so do not roll it back or start subscriptions for this one.
   if (sessionId !== activeSwitchSessionId) {
     console.warn(`[AccountManager] 切替セッション ${sessionId} はリレープール終了待機中に競合キャンセルされました`);
+    signer.discardRollbackHandle(prevRollbackHandle);
     return;
   }
 
@@ -475,6 +496,8 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
   if (settingsManager) {
     settingsManager.set('preferredSigner', method);
   }
+
+  signer.discardRollbackHandle(prevRollbackHandle);
 
   // 5. 前のアカウントのメモリ状態（フィードキャッシュ・DOM描画・通知バッジ・点滅等）を完全にクリア
   // Account-scoped resets and loads must observe the authenticated target.

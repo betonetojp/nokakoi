@@ -4,6 +4,7 @@
 // ============================================================================
 
 const STORAGE_KEY = 'nokakoi.nip46.localSecretKey';
+const PROTECTED_SESSION_KEY = 'nokakoi.nip46.protectedSession';
 /** 旧 sessionStorage 限定実装からの移行用 */
 const LEGACY_SESSION_KEY = 'nip46LocalSecretKey';
 
@@ -57,6 +58,29 @@ export function setNip46LocalSecretKey(keyHex, pubkey = null) {
   }
 }
 
+export function getNip46ProtectedSession(pubkey = null) {
+  try {
+    if (pubkey && typeof pubkey === 'string') {
+      return localStorage.getItem(`${PROTECTED_SESSION_KEY}.${pubkey.toLowerCase()}`);
+    }
+    return localStorage.getItem(PROTECTED_SESSION_KEY);
+  } catch (e) { }
+  return null;
+}
+
+export function setNip46ProtectedSession(encryptedSession, pubkey) {
+  if (!encryptedSession || !pubkey || typeof pubkey !== 'string') return;
+  try {
+    const accountKey = `${PROTECTED_SESSION_KEY}.${pubkey.toLowerCase()}`;
+    localStorage.setItem(PROTECTED_SESSION_KEY, encryptedSession);
+    localStorage.setItem(accountKey, encryptedSession);
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(`${STORAGE_KEY}.${pubkey.toLowerCase()}`);
+  } catch (e) {
+    console.warn('[NIP-46] 保護済みセッションの保存に失敗:', e);
+  }
+}
+
 /**
  * NIP-46 ローカル秘密鍵を消去
  * @param {string} [pubkey]
@@ -64,8 +88,10 @@ export function setNip46LocalSecretKey(keyHex, pubkey = null) {
 export function clearNip46LocalSecretKey(pubkey = null) {
   try {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(PROTECTED_SESSION_KEY);
     if (pubkey && typeof pubkey === 'string') {
       localStorage.removeItem(`${STORAGE_KEY}.${pubkey.toLowerCase()}`);
+      localStorage.removeItem(`${PROTECTED_SESSION_KEY}.${pubkey.toLowerCase()}`);
     }
   } catch (e) { }
   try { sessionStorage.removeItem(LEGACY_SESSION_KEY); } catch (e) { }

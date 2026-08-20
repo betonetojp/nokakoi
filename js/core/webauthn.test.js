@@ -6,7 +6,9 @@ vi.mock('../utils/i18n.js', () => ({
 
 import {
   authenticateWithPasskey,
+  decryptNip46SessionWithPasskey,
   decryptNsecWithPasskey,
+  encryptNip46SessionWithPasskey,
   encryptNsecWithPasskey,
   isWebAuthnSupported,
   registerPasskey
@@ -56,6 +58,19 @@ describe('WebAuthn passkey encryption', () => {
     expect(encrypted).toMatch(/^prf1:/);
     expect(await decryptNsecWithPasskey(encrypted, prfKey)).toBe(nsec);
     expect(await decryptNsecWithPasskey(encrypted)).toBeNull();
+  });
+
+  it('round-trips NIP-46 session data with a distinct encrypted format', async () => {
+    const prfKey = toBase64Url(new Uint8Array(32).fill(9));
+    const session = { localSecretKey: 'ab'.repeat(32), secret: 'connect-secret' };
+
+    const encrypted = await encryptNip46SessionWithPasskey(session, prfKey);
+
+    expect(encrypted).toMatch(/^nip46prf1:/);
+    expect(encrypted).not.toContain(session.localSecretKey);
+    expect(encrypted).not.toContain(session.secret);
+    expect(await decryptNip46SessionWithPasskey(encrypted, prfKey)).toEqual(session);
+    expect(await decryptNip46SessionWithPasskey(encrypted, toBase64Url(new Uint8Array(32).fill(8)))).toBeNull();
   });
 
   it('returns a successful assertion even when PRF output is unavailable', async () => {

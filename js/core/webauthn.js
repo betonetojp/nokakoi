@@ -296,13 +296,13 @@ async function deriveDeviceKey() {
 /**
  * パスキー保護でnsec暗号化 (PRFベース、安全)
  */
-export async function encryptNsecWithPasskey(nsecHex, prfKeyBase64) {
+async function encryptWithPasskeyPrf(value, prfKeyBase64, prefix) {
   if (!prfKeyBase64) {
     throw new Error('PRF key is required for secure passkey encryption');
   }
 
   const encoder = new TextEncoder();
-  const data = encoder.encode(nsecHex);
+  const data = encoder.encode(value);
   const prfRawKey = base64ToBuffer(prfKeyBase64);
 
   // PRFの鍵をAES-GCMキーとしてインポート
@@ -325,50 +325,62 @@ export async function encryptNsecWithPasskey(nsecHex, prfKeyBase64) {
   combined.set(iv, 0);
   combined.set(new Uint8Array(encrypted), iv.length);
 
-  // 新方式であることを示す 'prf1:' プレフィックスを付けて保存
-  return 'prf1:' + bufferToBase64(combined);
+  return prefix + bufferToBase64(combined);
+}
+
+async function decryptWithPasskeyPrf(encryptedValue, prfKeyBase64, prefix) {
+  if (!prfKeyBase64 || !String(encryptedValue).startsWith(prefix)) {
+    return null;
+  }
+
+  try {
+    const rawEncrypted = String(encryptedValue).substring(prefix.length);
+    const combined = base64ToBuffer(rawEncrypted);
+    if (combined.length < 12) {
+      throw new Error('Invalid encrypted data');
+    }
+
+    const iv = combined.slice(0, 12);
+    const encrypted = combined.slice(12);
+
+    const prfRawKey = base64ToBuffer(prfKeyBase64);
+    const key = await crypto.subtle.importKey(
+      'raw',
+      prfRawKey,
+      { name: 'AES-GCM' },
+      false,
+      ['decrypt']
+    );
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: iv },
+      key,
+      encrypted
+    );
+
+    return new TextDecoder().decode(decrypted);
+  } catch (e) {
+    console.warn('[WebAuthn] 復号失敗:', e);
+    return null;
+  }
+}
+
+/**
+ * パスキー保護でnsec暗号化 (PRFベース、安全)
+ */
+export async function encryptNsecWithPasskey(nsecHex, prfKeyBase64) {
+  return encryptWithPasskeyPrf(nsecHex, prfKeyBase64, 'prf1:');
 }
 
 /**
  * パスキー保護でnsec復号 (新旧ハイブリッド)
  */
 export async function decryptNsecWithPasskey(encryptedBase64, prfKeyBase64 = null) {
+  if (String(encryptedBase64).startsWith('prf1:')) {
+    return decryptWithPasskeyPrf(encryptedBase64, prfKeyBase64, 'prf1:');
+  }
+
   try {
-    const isNewPrf = String(encryptedBase64).startsWith('prf1:');
-
-    if (isNewPrf) {
-      if (!prfKeyBase64) {
-        throw new Error('PRF key is required for decrypting secure passkey data');
-      }
-
-      const rawEncrypted = encryptedBase64.substring(5); // 'prf1:' を除去
-      const combined = base64ToBuffer(rawEncrypted);
-      if (combined.length < 12) {
-        throw new Error('Invalid encrypted data');
-      }
-
-      const iv = combined.slice(0, 12);
-      const encrypted = combined.slice(12);
-
-      const prfRawKey = base64ToBuffer(prfKeyBase64);
-      const key = await crypto.subtle.importKey(
-        'raw',
-        prfRawKey,
-        { name: 'AES-GCM' },
-        false,
-        ['decrypt']
-      );
-
-      const decrypted = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: iv },
-        key,
-        encrypted
-      );
-
-      const decoder = new TextDecoder();
-      return decoder.decode(decrypted);
-    }
-
     // 旧方式（`prf1:` なし）フォールバック
     console.info('[WebAuthn] 旧方式のパスキーデータを検知しました。デバイス鍵による復号を試みます。');
     const combined = base64ToBuffer(encryptedBase64);
@@ -392,6 +404,23 @@ export async function decryptNsecWithPasskey(encryptedBase64, prfKeyBase64 = nul
     return decoder.decode(decrypted);
   } catch (e) {
     console.warn('[WebAuthn] 復号失敗:', e);
+    return null;
+  }
+}
+
+export async function encryptNip46SessionWithPasskey(session, prfKeyBase64) {
+  return encryptWithPasskeyPrf(JSON.stringify(session), prfKeyBase64, 'nip46prf1:');
+}
+
+export async function decryptNip46SessionWithPasskey(encryptedSession, prfKeyBase64) {
+  const plaintext = await decryptWithPasskeyPrf(encryptedSession, prfKeyBase64, 'nip46prf1:');
+  if (!plaintext) return null;
+  try {
+    const session = JSON.parse(plaintext);
+    if (!session || typeof session.localSecretKey !== 'string') return null;
+    if (session.secret !== null && typeof session.secret !== 'string') return null;
+    return session;
+  } catch (e) {
     return null;
   }
 }

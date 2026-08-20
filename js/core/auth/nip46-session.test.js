@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearNip46LocalSecretKey,
+  getNip46ProtectedSession,
   getNip46LocalSecretKey,
+  setNip46ProtectedSession,
   setNip46LocalSecretKey
 } from './nip46-session.js';
 
@@ -43,5 +45,16 @@ describe('NIP-46 session storage', () => {
 
     expect(getNip46LocalSecretKey('ABC')).toBeNull();
     expect(sessionStorage.getItem('nip46LocalSecretKey')).toBeNull();
+  });
+
+  it('stores protected sessions separately and clears their plaintext key', () => {
+    setNip46LocalSecretKey('secret', 'ABC');
+    setNip46ProtectedSession('nip46prf1:encrypted', 'ABC');
+
+    expect(getNip46ProtectedSession('abc')).toBe('nip46prf1:encrypted');
+    expect(getNip46LocalSecretKey('abc')).toBeNull();
+
+    clearNip46LocalSecretKey('ABC');
+    expect(getNip46ProtectedSession('abc')).toBeNull();
   });
 });

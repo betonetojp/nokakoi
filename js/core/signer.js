@@ -20,6 +20,8 @@ function skBytes(skHex) {
 
 export const signer = (() => {
   let _sk = null;
+  const rollbackKeys = new Map();
+  let nextRollbackId = 0;
 
   return {
     /**
@@ -41,10 +43,36 @@ export const signer = (() => {
     },
 
     /**
-     * 保持している秘密鍵を取得 (ロールバック用)
+     * アカウント切替失敗時の復元用に現在の鍵を退避する。
+     * 鍵そのものは公開 API から返さない。
      */
-    getKey() {
-      return _sk;
+    createRollbackHandle() {
+      if (!_sk) return null;
+      const handle = `rollback-${++nextRollbackId}`;
+      rollbackKeys.set(handle, _sk);
+      return handle;
+    },
+
+    /**
+     * 退避した鍵を一度だけ復元する。
+     */
+    restoreRollbackHandle(handle) {
+      const key = rollbackKeys.get(handle);
+      if (!key) return false;
+      rollbackKeys.delete(handle);
+      _sk = key;
+      return true;
+    },
+
+    /**
+     * 使用しなかった退避鍵を破棄する。
+     */
+    discardRollbackHandle(handle) {
+      if (handle) rollbackKeys.delete(handle);
+    },
+
+    clearRollbackHandles() {
+      rollbackKeys.clear();
     },
 
     /**

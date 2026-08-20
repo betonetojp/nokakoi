@@ -30,4 +30,18 @@ describe('signer + nostr-compat secret key handling', () => {
     expect(ev.content).toBe('hello');
     signer.clearKey();
   });
+
+  it('restores a key through a one-time opaque rollback handle', () => {
+    signer.setKey(SK);
+    const handle = signer.createRollbackHandle();
+
+    expect(handle).toMatch(/^rollback-\d+$/);
+    expect(handle).not.toContain(SK);
+
+    signer.clearKey();
+    expect(signer.restoreRollbackHandle(handle)).toBe(true);
+    expect(signer.getPublicKey()).toBe(PK);
+    expect(signer.restoreRollbackHandle(handle)).toBe(false);
+    signer.clearKey();
+  });
 });

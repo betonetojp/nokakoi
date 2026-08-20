@@ -34,6 +34,6 @@
   Header set X-Content-Type-Options "nosniff"
   Header set X-Frame-Options "DENY"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
-  Header set Content-Security-Policy "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; connect-src 'self' wss: https: ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: https: blob:; media-src 'self' https: blob:; frame-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';"
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' wss: https: ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: https: blob:; media-src 'self' https: blob:; frame-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';"
 </IfModule>
 

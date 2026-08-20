@@ -74,7 +74,9 @@ export class SettingsManager {
       useDomPurge: false,
       maxEvents: 500,
       nip46RemotePubkey: null,
-      nip46Secret: null
+      nip46Secret: null,
+      nip46PasskeyCredentialId: null,
+      nip46PasskeyDeviceInfo: null
     };
   }
 

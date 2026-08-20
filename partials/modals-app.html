@@ -97,6 +97,17 @@
     </div>
   </div>
 
+  <div id="nip46ProtectionModal" class="modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-body modal-body--sm panel">
+      <h2 class="modal-title" data-i18n="nip46.protection.title">自動再接続の保護</h2>
+      <p class="muted" data-i18n="nip46.protection.message">この端末で次回以降も接続する方法を選んでください。</p>
+      <div class="row mt-12">
+        <button id="nip46ProtectWithPasskey" type="button" data-i18n="nip46.protection.passkey">パスキーで保護する（推奨）</button>
+        <button id="nip46KeepUnprotected" class="secondary" type="button" data-i18n="nip46.protection.unprotected">保護せず自動接続する</button>
+      </div>
+    </div>
+  </div>
+
   <!-- パスワード入力モーダル -->
   <div id="passwordModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body panel">

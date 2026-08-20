@@ -112,6 +112,30 @@ describe('NIP-46 client', () => {
     expect(client._subscribe).toHaveBeenCalled();
   });
 
+  it('forwards a public-key timeout to the NIP-46 request', async () => {
+    const client = new Nip46Client();
+    client.ensureConnected = vi.fn(async () => {});
+    client.connected = true;
+    client._sendRequest = vi.fn(async () => '03'.repeat(32));
+
+    await expect(client.getPublicKey(5000)).resolves.toBe('03'.repeat(32));
+    expect(client._sendRequest).toHaveBeenCalledWith('get_public_key', [], 5000);
+  });
+
+  it('uses a non-published signature result when get_public_key is unavailable', async () => {
+    const client = new Nip46Client();
+    client.getPublicKey = vi.fn(async () => { throw new Error('unknown method'); });
+    client.signEvent = vi.fn(async () => ({ pubkey: '04'.repeat(32) }));
+
+    await expect(client.resolveUserPubkey(5000)).resolves.toBe('04'.repeat(32));
+    expect(client.signEvent).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 1,
+      content: '',
+      tags: []
+    }), 5000);
+    expect(client.userPubkey).toBe('04'.repeat(32));
+  });
+
   it('uses independent default relay arrays', () => {
     const first = new Nip46Client();
     const second = new Nip46Client();

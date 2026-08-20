@@ -11,9 +11,11 @@ const mocks = vi.hoisted(() => ({
   syncAccountUI: vi.fn(),
   signer: {
     clearKey: vi.fn(),
-    getKey: vi.fn(),
+    createRollbackHandle: vi.fn(() => null),
+    discardRollbackHandle: vi.fn(),
     getPublicKey: vi.fn(),
     hasKey: vi.fn(() => false),
+    restoreRollbackHandle: vi.fn(),
     setKey: vi.fn()
   }
 }));
@@ -26,11 +28,14 @@ vi.mock('./auth/nsec-auth.js', () => ({
 }));
 vi.mock('./webauthn.js', () => ({
   authenticateWithPasskey: vi.fn(),
+  decryptNip46SessionWithPasskey: vi.fn(),
   decryptNsecWithPasskey: vi.fn()
 }));
 vi.mock('./nip46.js', () => ({ DEFAULT_NIP46_RELAYS: [], Nip46Client: vi.fn() }));
 vi.mock('./auth/nip46-session.js', () => ({
+  clearNip46LocalSecretKey: vi.fn(),
   getNip46LocalSecretKey: vi.fn(),
+  getNip46ProtectedSession: vi.fn(),
   setNip46LocalSecretKey: vi.fn()
 }));
 vi.mock('../utils/i18n.js', () => ({ t: key => key }));
@@ -346,5 +351,38 @@ describe('account manager', () => {
     expect(JSON.parse(localStorage.getItem(`appSettings.${targetPubkey}`))).toMatchObject({
       preferredSigner: 'nip07'
     });
+  });
+
+  it('uses the selected account as the NIP-46 user identity when legacy settings omit it', async () => {
+    const targetPubkey = 'b'.repeat(64);
+    addAccount({ id: targetPubkey, loginMethod: 'nip46' });
+    const restoreConnection = vi.fn(async info => {
+      expect(info.userPubkey).toBe(targetPubkey);
+    });
+    const client = { restoreConnection, setupResumeHandler: vi.fn(), userPubkey: null };
+    const { Nip46Client } = await import('./nip46.js');
+    Nip46Client.mockImplementation(() => client);
+    const { getNip46LocalSecretKey } = await import('./auth/nip46-session.js');
+    getNip46LocalSecretKey.mockReturnValue('01'.repeat(32));
+    const state = {
+      nip46: { client: null, connected: false, remotePubkey: null },
+      pubkey: 'a'.repeat(64),
+      relays: [],
+      signer: 'nsec'
+    };
+    const settingsManager = {
+      loadForAccount: vi.fn(function () {
+        this.settings = { nip46RemotePubkey: 'c'.repeat(64), preferredSigner: 'nip46' };
+      }),
+      saveForAccount: vi.fn(),
+      set: vi.fn(),
+      settings: {}
+    };
+
+    await switchAccount(targetPubkey, state, settingsManager, vi.fn());
+
+    expect(client.userPubkey).toBe(targetPubkey);
+    expect(state.pubkey).toBe(targetPubkey);
+    expect(state.signer).toBe('nip46');
   });
 });

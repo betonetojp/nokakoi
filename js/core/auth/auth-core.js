@@ -5,10 +5,10 @@ import { signer } from '../signer.js';
 import { displayNameWithUsername, loadProfile, updateNameDom } from '../../features/profile/profile.js';
 import { resolveLoginOrder } from '../../features/post/actions.js';
 import { t } from '../../utils/i18n.js';
-import { isWebAuthnSupported, authenticateWithPasskey, decryptNsecWithPasskey } from '../webauthn.js';
+import { isWebAuthnSupported, authenticateWithPasskey, decryptNip46SessionWithPasskey, decryptNsecWithPasskey } from '../webauthn.js';
 import { Nip46Client, DEFAULT_NIP46_RELAYS } from '../nip46.js';
 import { showPasswordModal } from './nsec-auth.js';
-import { getNip46LocalSecretKey, clearNip46LocalSecretKey } from './nip46-session.js';
+import { getNip46LocalSecretKey, getNip46ProtectedSession, clearNip46LocalSecretKey } from './nip46-session.js';
 import { addAccount, migrateFromSingleAccount } from '../account-manager.js';
 import { defaultJaRelayUrl, defaultIntlRelayUrl, saveRelaysForAccount, loadRelaysForAccount, getDefaultGlobalRelayByLang } from '../relay.js';
 import { detectBrowserLang } from '../../utils/i18n.js';
@@ -176,6 +176,9 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
         if (actualLoginMethod !== 'nip46') {
           settingsManager.set('nip46RemotePubkey', null);
           settingsManager.set('nip46Secret', null);
+          settingsManager.set('nip46PasskeyCredentialId', null);
+          settingsManager.set('nip46PasskeyDeviceInfo', null);
+          clearNip46LocalSecretKey(state.pubkey);
         }
         if (actualLoginMethod !== 'nsec') {
           settingsManager.set('encryptedNsec', null);
@@ -370,6 +373,7 @@ export function logout(state, settings, settingsManager, restartFeeds) {
   } catch (e) { }
 
   state.pubkey = null;
+  try { signer.clearRollbackHandles(); } catch (e) { }
   signer.clearKey();
   state.signer = 'auto';
 
@@ -397,6 +401,8 @@ export function logout(state, settings, settingsManager, restartFeeds) {
     settingsManager.set('nip46RemotePubkey', null);
     settingsManager.set('nip46Relays', null);
     settingsManager.set('nip46Secret', null);
+    settingsManager.set('nip46PasskeyCredentialId', null);
+    settingsManager.set('nip46PasskeyDeviceInfo', null);
     clearNip46LocalSecretKey(currentPk);
   } catch (e) { }
 
@@ -527,7 +533,29 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
     }
 
     const targetPubkey = settings.nip46UserPubkey || settings.nip46RemotePubkey;
-    const nip46LocalSecretKey = getNip46LocalSecretKey(targetPubkey);
+    const protectedNip46Session = getNip46ProtectedSession(targetPubkey);
+    let nip46LocalSecretKey = null;
+    let nip46Secret = settings.nip46Secret;
+    if (protectedNip46Session) {
+      try {
+        if (!webAuthnSupported || !settings.nip46PasskeyCredentialId) {
+          throw new Error(t('webauthn.not_supported'));
+        }
+        const result = await authenticateWithPasskey(settings.nip46PasskeyCredentialId);
+        const session = result && result.success
+          ? await decryptNip46SessionWithPasskey(protectedNip46Session, result.prfKey)
+          : null;
+        if (!session || !/^[0-9a-f]{64}$/i.test(session.localSecretKey)) {
+          throw new Error(t('nip46.reconnect_failed'));
+        }
+        nip46LocalSecretKey = session.localSecretKey;
+        nip46Secret = session.secret;
+      } catch (e) {
+        console.warn('[Auth] NIP-46 保護済みセッションの復元に失敗:', e);
+      }
+    } else {
+      nip46LocalSecretKey = getNip46LocalSecretKey(targetPubkey);
+    }
     if (!state.pubkey && settings.preferredSigner === 'nip46' && settings.nip46RemotePubkey && nip46LocalSecretKey) {
       try {
         const client = new Nip46Client({
@@ -538,10 +566,11 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
         await client.restoreConnection({
           localSecretKey: nip46LocalSecretKey,
           remotePubkey: settings.nip46RemotePubkey,
-          userPubkey: settings.nip46UserPubkey || null,
+          userPubkey: settings.nip46UserPubkey || targetPubkey,
           relays: settings.nip46Relays,
-          secret: settings.nip46Secret
+          secret: nip46Secret
         });
+        client.userPubkey = (client.userPubkey || targetPubkey).toLowerCase();
 
         state.nip46.client = client;
         state.nip46.remotePubkey = settings.nip46RemotePubkey;

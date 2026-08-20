@@ -5,11 +5,15 @@ const mocks = vi.hoisted(() => ({
   authenticateWithPasskey: vi.fn(),
   clearFullState: vi.fn(),
   clearNip46LocalSecretKey: vi.fn(),
+  decryptNip46SessionWithPasskey: vi.fn(),
   decryptNsecWithPasskey: vi.fn(),
   getNip46LocalSecretKey: vi.fn(),
+  getNip46ProtectedSession: vi.fn(),
   loadProfile: vi.fn(),
+  Nip46Client: vi.fn(),
   signer: {
     clearKey: vi.fn(),
+    clearRollbackHandles: vi.fn(),
     getPublicKey: vi.fn(),
     hasKey: vi.fn(),
     setKey: vi.fn()
@@ -41,17 +45,19 @@ vi.mock('../../utils/i18n.js', () => ({
 }));
 vi.mock('../webauthn.js', () => ({
   authenticateWithPasskey: mocks.authenticateWithPasskey,
+  decryptNip46SessionWithPasskey: mocks.decryptNip46SessionWithPasskey,
   decryptNsecWithPasskey: mocks.decryptNsecWithPasskey,
   isWebAuthnSupported: () => true
 }));
 vi.mock('../nip46.js', () => ({
   DEFAULT_NIP46_RELAYS: [],
-  Nip46Client: vi.fn()
+  Nip46Client: mocks.Nip46Client
 }));
 vi.mock('./nsec-auth.js', () => ({ showPasswordModal: vi.fn() }));
 vi.mock('./nip46-session.js', () => ({
   clearNip46LocalSecretKey: mocks.clearNip46LocalSecretKey,
-  getNip46LocalSecretKey: mocks.getNip46LocalSecretKey
+  getNip46LocalSecretKey: mocks.getNip46LocalSecretKey,
+  getNip46ProtectedSession: mocks.getNip46ProtectedSession
 }));
 vi.mock('../account-manager.js', () => ({
   addAccount: mocks.addAccount,
@@ -191,6 +197,42 @@ describe('auth core', () => {
     expect(state.signer).toBe('nsec');
     expect(loginFn).toHaveBeenCalled();
     expect(window.__nokakoiAuthPending).toBe(false);
+  });
+
+  it('restores a protected NIP-46 session through its dedicated passkey', async () => {
+    vi.useFakeTimers();
+    const localSecretKey = 'ab'.repeat(32);
+    const restoreConnection = vi.fn(async () => {});
+    const setupResumeHandler = vi.fn();
+    mocks.Nip46Client.mockImplementation(() => ({ restoreConnection, setupResumeHandler }));
+    mocks.getNip46ProtectedSession.mockReturnValue('nip46prf1:encrypted');
+    mocks.authenticateWithPasskey.mockResolvedValue({ prfKey: 'prf', success: true });
+    mocks.decryptNip46SessionWithPasskey.mockResolvedValue({ localSecretKey, secret: 'connect-secret' });
+    const settings = {
+      nip46PasskeyCredentialId: 'credential',
+      nip46RemotePubkey: 'b'.repeat(64),
+      nip46UserPubkey: 'c'.repeat(64),
+      nip46Relays: ['wss://relay.example'],
+      preferredSigner: 'nip46'
+    };
+    const state = { nip46: {}, pubkey: null, relays: [], signer: 'auto' };
+    const loginFn = vi.fn(async () => {});
+
+    const result = autoLogin(state, settings, createSettings(settings), loginFn);
+    await vi.advanceTimersByTimeAsync(350);
+    await result;
+
+    expect(mocks.getNip46LocalSecretKey).not.toHaveBeenCalled();
+    expect(mocks.authenticateWithPasskey).toHaveBeenCalledWith('credential');
+    expect(mocks.decryptNip46SessionWithPasskey).toHaveBeenCalledWith('nip46prf1:encrypted', 'prf');
+    expect(restoreConnection).toHaveBeenCalledWith({
+      localSecretKey,
+      remotePubkey: 'b'.repeat(64),
+      userPubkey: 'c'.repeat(64),
+      relays: ['wss://relay.example'],
+      secret: 'connect-secret'
+    });
+    expect(loginFn).toHaveBeenCalled();
   });
 
   it('logs out by clearing signer, NIP-46 session and feed state', async () => {

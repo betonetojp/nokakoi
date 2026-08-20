@@ -1044,13 +1044,13 @@ export class Nip46Client {
   /**
    * リモート公開鍵を取得
    */
-  async getPublicKey() {
+  async getPublicKey(timeoutMs) {
     await this.ensureConnected();
     if (!this.connected) {
       throw new Error(t('nip46.not_connected'));
     }
 
-    const result = await this._sendRequest(NIP46_METHODS.GET_PUBLIC_KEY, []);
+    const result = await this._sendRequest(NIP46_METHODS.GET_PUBLIC_KEY, [], timeoutMs);
     if (typeof result === 'string' && /^[0-9a-f]{64}$/i.test(result)) {
       this.userPubkey = result.toLowerCase();
     }
@@ -1058,22 +1058,47 @@ export class Nip46Client {
   }
 
   /**
+   * ユーザー公開鍵を取得する。get_public_key 非対応のサイナーでは、
+   * 未送信のイベントへの署名結果から公開鍵を確定する。
+   */
+  async resolveUserPubkey(timeoutMs = REQUEST_TIMEOUT) {
+    try {
+      const pubkey = await this.getPublicKey(timeoutMs);
+      if (typeof pubkey === 'string' && /^[0-9a-f]{64}$/i.test(pubkey)) {
+        return pubkey.toLowerCase();
+      }
+    } catch (e) {
+      debugLog('[NIP-46] get_public_key 非対応の可能性があるため署名結果で公開鍵を確認します');
+    }
+
+    const signed = await this.signEvent({
+      kind: 1,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [],
+      content: ''
+    }, timeoutMs);
+    if (!signed || typeof signed.pubkey !== 'string' || !/^[0-9a-f]{64}$/i.test(signed.pubkey)) {
+      throw new Error(t('nip46.user_pubkey_unavailable'));
+    }
+    this.userPubkey = signed.pubkey.toLowerCase();
+    return this.userPubkey;
+  }
+
+  /**
    * イベントに署名
    */
-  async signEvent(draft) {
+  async signEvent(draft, timeoutMs) {
     await this.ensureConnected();
     if (!this.connected) {
       throw new Error(t('nip46.not_connected'));
     }
 
     const eventDraft = { ...draft };
-    if (!eventDraft.pubkey) {
-      eventDraft.pubkey = this.userPubkey || this.remotePubkey;
-    }
+    if (!this.userPubkey) delete eventDraft.pubkey;
 
     // draftをJSON文字列として送信
     const eventJson = JSON.stringify(eventDraft);
-    const result = await this._sendRequest(NIP46_METHODS.SIGN_EVENT, [eventJson]);
+    const result = await this._sendRequest(NIP46_METHODS.SIGN_EVENT, [eventJson], timeoutMs);
 
     // 結果はJSON文字列なのでパース
     if (typeof result === 'string') {
