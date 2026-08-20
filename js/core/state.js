@@ -12,7 +12,11 @@ export function makeFeedState() {
   return {
     map: new Map(),
     list: [],
-    lastSeen: 0
+    lastSeen: 0,
+    follows: null,
+    followSet: null,
+    mergedPaginationUntil: undefined,
+    perFilterUntil: undefined
   };
 }
 

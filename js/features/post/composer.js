@@ -255,7 +255,7 @@ export function setChannelTarget(channelInfo) {
   if (labelEl) {
     labelEl.style.display = '';
     labelEl.removeAttribute('data-i18n');
-    labelEl.textContent = '投稿先:';
+    labelEl.textContent = t('composer.postTarget') || '投稿先:';
   }
 
   // チャンネル選択時は手動×ボタンを非表示にする（他タブ切替時にのみ解除）
@@ -270,12 +270,12 @@ export function setChannelTarget(channelInfo) {
   }
 
   replyContext.hidden = false;
-  const channelName = channelInfo.name || 'チャンネル';
+  const channelName = channelInfo.name || t('composer.channelFallback') || 'チャンネル';
   composerTitle.textContent = t('composer.title') || '投稿';
 
   replyContextContent.innerHTML = `<span class="font-bold"># ${escapeHtml(channelName)}</span>`;
 
-  try { noteInput.placeholder = `# ${channelName} に投稿...`; } catch (_e) {}
+  try { noteInput.placeholder = t('composer.channelPlaceholder', { name: channelName }) || `# ${channelName} に投稿...`; } catch (_e) {}
 }
 
 export function getChannelTarget() {
@@ -742,7 +742,7 @@ export function setupComposerUI(state, { getOmochatRelays, consumeShareText }) {
       } catch (err) {
         console.error('[composer] Failed to send channel message', err);
         const result = $('#publishResult');
-        if (result) result.textContent = '送信失敗: ' + (err.message || err);
+        if (result) result.textContent = t('publish.send_failed', { msg: err.message || err }) || ('送信失敗: ' + (err.message || err));
         success = false;
       }
       if (success) {
@@ -754,7 +754,7 @@ export function setupComposerUI(state, { getOmochatRelays, consumeShareText }) {
           noteInput.dispatchEvent(new Event('input'));
         }
         const result = $('#publishResult');
-        if (result) result.textContent = '送信しました';
+        if (result) result.textContent = t('publish.sent') || '送信しました';
         blurComposerAfterPublish();
       }
     } else if (replyTarget) {

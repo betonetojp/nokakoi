@@ -516,6 +516,9 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
   }, 50);
 }
 
+// 前回の確認モーダルの keydown ハンドラ参照
+let _prevConfirmKeyHandler = null;
+
 /**
  * 確認ダイアログモーダルを表示
  */
@@ -527,6 +530,12 @@ export function showConfirmModal(title, message, onYes, onNo) {
   const noBtn = $('#confirmNo');
 
   if (!modal || !titleEl || !messageEl || !yesBtn || !noBtn) return;
+
+  // 前回のリスナーが残っていれば除去
+  if (_prevConfirmKeyHandler) {
+    document.removeEventListener('keydown', _prevConfirmKeyHandler);
+    _prevConfirmKeyHandler = null;
+  }
 
   // 内容セット（改行保持）
   titleEl.textContent = title || t('confirm.title');
@@ -559,7 +568,13 @@ export function showConfirmModal(title, message, onYes, onNo) {
     }
   };
   document.addEventListener('keydown', _confirmKeyHandler);
-  const cleanupKey = () => { document.removeEventListener('keydown', _confirmKeyHandler); };
+  _prevConfirmKeyHandler = _confirmKeyHandler;
+  const cleanupKey = () => {
+    document.removeEventListener('keydown', _confirmKeyHandler);
+    if (_prevConfirmKeyHandler === _confirmKeyHandler) {
+      _prevConfirmKeyHandler = null;
+    }
+  };
 
   // はいボタン
   yesBtn.onclick = () => {
@@ -622,7 +637,7 @@ export function showAlertModal(title, message, onOk) {
   const handleOk = () => {
     modal.hidden = true;
     if (noBtn) noBtn.hidden = false;
-    yesBtn.removeEventListener('click', handleOk);
+    yesBtn.onclick = null;
     if (typeof onOk === 'function') onOk();
   };
 

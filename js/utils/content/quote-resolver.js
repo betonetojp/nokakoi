@@ -29,21 +29,24 @@ export function relaySetKey(relays) {
 }
 
 export function resolveQuoteRelays(quoteEl, state) {
-  const defaultRelays = sanitizeRelays(getReadRelays(state.relays));
+  const defaultRelays = sanitizeRelays(getReadRelays(state?.relays));
+  const hints = [];
   if (quoteEl && quoteEl.dataset) {
     if (quoteEl.dataset.relays) {
       try {
         const relayHints = JSON.parse(quoteEl.dataset.relays);
         if (Array.isArray(relayHints) && relayHints.length > 0) {
-          const sanitizedHints = sanitizeRelays(relayHints);
-          if (sanitizedHints.length > 0) return sanitizedHints;
+          hints.push(...relayHints);
         }
       } catch (e) { }
     }
     if (quoteEl.dataset.relayHint) {
-      const sanitized = sanitizeRelays([quoteEl.dataset.relayHint]);
-      if (sanitized.length > 0) return sanitized;
+      hints.push(quoteEl.dataset.relayHint);
     }
+  }
+  const sanitizedHints = sanitizeRelays(hints);
+  if (sanitizedHints.length > 0) {
+    return Array.from(new Set([...sanitizedHints, ...defaultRelays]));
   }
   return defaultRelays;
 }

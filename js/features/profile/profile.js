@@ -108,13 +108,18 @@ export function initializeProfileCache(state) {
 
   // キャッシュをstateにマージ
   for (const [pubkey, profile] of cached.entries()) {
+    const entry = {
+      ...profile,
+      loaded: true,
+      loading: false,
+      fromCache: true
+    };
     if (!state.profiles.has(pubkey)) {
-      state.profiles.set(pubkey, {
-        ...profile,
-        loaded: true,
-        loading: false,
-        fromCache: true
-      });
+      state.profiles.set(pubkey, entry);
+    }
+    const lowerPk = typeof pubkey === 'string' ? pubkey.toLowerCase() : null;
+    if (lowerPk && lowerPk !== pubkey && !state.profiles.has(lowerPk)) {
+      state.profiles.set(lowerPk, entry);
     }
   }
 
@@ -179,7 +184,8 @@ export async function loadProfile(state, pubkey) {
   // pubkeyが未指定ならlocalStorageから取得
   if (!pubkey) pubkey = localStorage.getItem('pubkey');
   if (!pubkey) return null;
-  const cached = state.profiles.get(pubkey);
+  const lowerPk = typeof pubkey === 'string' ? pubkey.toLowerCase() : null;
+  const cached = (state && state.profiles) ? (state.profiles.get(pubkey) || (lowerPk ? state.profiles.get(lowerPk) : null)) : null;
 
   // 新鮮なキャッシュ（localStorage由来でない）は再ロードしない
   if (cached && cached.loaded && !cached.fromCache) return cached;
@@ -188,10 +194,14 @@ export async function loadProfile(state, pubkey) {
   if (!state.pool) return null;
 
   // ロード中マーク
-  state.profiles.set(pubkey, Object.assign({}, cached || {}, {
+  const updatedEntry = Object.assign({}, cached || {}, {
     loading: true,
     lastAttempt: Date.now()
-  }));
+  });
+  state.profiles.set(pubkey, updatedEntry);
+  if (lowerPk && lowerPk !== pubkey) {
+    state.profiles.set(lowerPk, updatedEntry);
+  }
 
   // キュー投入できるようネットワーク取得処理を関数化
   const doFetch = async () => {
@@ -477,7 +487,8 @@ export function updateAvatarDom(state, pubkey) {
 }
 
 export function displayNameWithUsername(state, pubkey, nip19, options = {}) {
-  const prof = state.profiles.get(pubkey);
+  const lowerPk = typeof pubkey === 'string' ? pubkey.toLowerCase() : null;
+  const prof = (state && state.profiles) ? (state.profiles.get(pubkey) || (lowerPk ? state.profiles.get(lowerPk) : null)) : null;
   const names = getNamesFromMeta(prof);
   const usePetname = options.usePetname !== false;
   const noTruncate = options.noTruncate === true;

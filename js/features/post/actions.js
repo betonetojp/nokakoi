@@ -641,7 +641,7 @@ export async function replyToEvent(state, targetEv, text) {
       const { sendChannelMessage } = await import('../channel/channel-feed.js');
       const rootId = pickChannelRootId(targetEv);
       if (!rootId) {
-        alert(t('publish.failed', { msg: 'チャンネル root を解決できませんでした' }));
+        alert(t('publish.failed', { msg: t('channel.resolve_root_failed') || 'チャンネル root を解決できませんでした' }));
         return false;
       }
       const quoteMode = window && window.getQuoteMode ? window.getQuoteMode() : (window.__nokakoiQuoteMode || false);

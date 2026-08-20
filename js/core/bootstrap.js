@@ -8,7 +8,7 @@ import { createState, clearFeed, findEventById } from './state.js';
 import { initializeProfileCache } from '../features/profile/profile.js';
 import { reactToEvent, repostEvent } from '../features/post/actions.js';
 import { setupModalEscClose } from '../ui/modals/modals.js';
-import { login, autoLogin, setupAuthUI } from './auth.js';
+import { login, autoLogin, setupAuthUI, updateHeaderName } from './auth.js';
 import {
   revealComposer,
   setupComposerScrollBehavior,
@@ -226,6 +226,11 @@ export async function initApp() {
   } catch (e) { }
 
   nip19 = getNip19();
+  try {
+    if (localStorage.getItem('pubkey')) {
+      updateHeaderName(state, nip19);
+    }
+  } catch (e) { }
 
   try {
     await initI18n();
@@ -407,6 +412,19 @@ export async function initApp() {
   } catch (e) { }
 
   try {
+    setupMuteListUI(state, SimplePoolProvider, renderFeed, restartFeeds);
+  } catch (e) {
+    console.warn('[Main] setupMuteListUI に失敗', e);
+  }
+
+  autoLogin(
+    state,
+    settings,
+    settingsManager,
+    () => login(state, settings, settingsManager, restartFeeds, enableComposerScroll)
+  );
+
+  try {
     setupOmochatTabListener(state, { handleTabChange, setupBitchatFeed });
   } catch (e) { }
 
@@ -415,15 +433,6 @@ export async function initApp() {
   try {
     import('../utils/i18n.js').then(m => { try { if (m && m.applyTranslations) m.applyTranslations(document); } catch (e) { } }).catch(() => { });
   } catch (e) { }
-
-  try { setupMuteListUI(state, SimplePoolProvider, renderFeed, restartFeeds); } catch (e) { console.warn('[Main] setupMuteListUI に失敗', e); }
-
-  autoLogin(
-    state,
-    settings,
-    settingsManager,
-    () => login(state, settings, settingsManager, restartFeeds, enableComposerScroll)
-  );
 
   try {
     initializeMentionLastViewed(localStorage.getItem('pubkey'));

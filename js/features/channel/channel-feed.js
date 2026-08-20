@@ -33,7 +33,7 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
     containerEl.dataset.channelRootId !== rootId || containerEl.__channelFeedGen !== myGen
   );
 
-  containerEl.innerHTML = '<div class="muted p-12 text-center">メッセージを取得中...</div>';
+  containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.fetching') || 'メッセージを取得中...'}</div>`;
 
   // メインの Read Relays + チャンネルの推奨リレーを取得
   const mainRelays = (state && state.relays) ? getReadRelays(state.relays) : [];
@@ -50,7 +50,7 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
 
   const targetRelays = Array.from(new Set([...mainRelays, ...metaRelays])).slice(0, 10);
   if (!targetRelays.length) {
-    containerEl.innerHTML = '<div class="text-danger p-12 text-center">接続可能なリレーがありません</div>';
+    containerEl.innerHTML = `<div class="text-danger p-12 text-center">${t('channel.no_relay') || '接続可能なリレーがありません'}</div>`;
     return;
   }
 
@@ -108,7 +108,7 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
     const sorted = Array.from(eventsMap.values()).sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
 
     if (!sorted.length) {
-      containerEl.innerHTML = '<div class="muted p-12 text-center">まだメッセージはありません。</div>';
+      containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.no_messages') || 'まだメッセージはありません。'}</div>`;
       return;
     }
 
@@ -165,10 +165,10 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
       _channelSubs.set(rootId, sub);
     } catch (e) {
       console.error('[channel-feed] Subscription failed', e);
-      containerEl.innerHTML = '<div class="text-danger p-12 text-center">メッセージの取得に失敗しました</div>';
+      containerEl.innerHTML = `<div class="text-danger p-12 text-center">${t('channel.fetch_failed') || 'メッセージの取得に失敗しました'}</div>`;
     }
   } else {
-    containerEl.innerHTML = '<div class="muted p-12 text-center">リレープールが利用できません</div>';
+    containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.pool_unavailable') || 'リレープールが利用できません'}</div>`;
   }
 }
 
@@ -236,7 +236,7 @@ function createChannelMessageElement(ev, state, settingsManager) {
 }
 
 export async function sendChannelMessage(rootId, content, state, options = {}) {
-  if (!rootId || !content) throw new Error('メッセージ内容またはチャンネルIDがありません');
+  if (!rootId || !content) throw new Error(t('channel.no_content_or_id') || 'メッセージ内容またはチャンネルIDがありません');
 
   const writeRelays = (state && state.relays) ? getWriteRelays(state.relays) : [];
   const readRelays = (state && state.relays) ? getReadRelays(state.relays) : [];
@@ -296,11 +296,11 @@ export async function sendChannelMessage(rootId, content, state, options = {}) {
   // イベントの署名 (NIP-07 / NIP-46 / nsec 共通モード)
   const signedEv = await signEventWithMode(state, unsignedEv);
 
-  if (!signedEv) throw new Error('署名イベントの生成に失敗しました');
+  if (!signedEv) throw new Error(t('channel.sign_failed') || '署名イベントの生成に失敗しました');
 
   const targetRelays = Array.from(new Set([...writeRelays, ...optionRelays]));
   if (!targetRelays.length) {
-    throw new Error('書き込み可能なリレーがありません');
+    throw new Error(t('channel.no_writable_relay') || '書き込み可能なリレーがありません');
   }
 
   // リレーへパブリッシュし、少なくとも1件の受理を待つ
@@ -308,7 +308,7 @@ export async function sendChannelMessage(rootId, content, state, options = {}) {
     const pubs = await state.pool.publish(targetRelays, signedEv);
     await awaitAny(pubs);
   } else {
-    throw new Error('リレープールが利用できません');
+    throw new Error(t('channel.pool_unavailable') || 'リレープールが利用できません');
   }
 
   cacheEvent(state, signedEv);
