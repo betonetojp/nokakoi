@@ -516,7 +516,7 @@ export async function setupPostLinkUI(settingsManager) {
           if (nevent) {
             payload.quotes = [nevent];
           } else if (extractedQuoteRefs && extractedQuoteRefs.length > 0) {
-            payload.quotes = extractedQuoteRefs.map((ref) => enrichQuoteRef(ref));
+            payload.quotes = extractedQuoteRefs.map((ref) => enrichQuoteRef(ref)).filter(Boolean);
           }
           return payload;
         }
@@ -590,7 +590,8 @@ export async function setupPostLinkUI(settingsManager) {
           }
           if (extractedQuoteRefs && extractedQuoteRefs.length > 0) {
             for (const ref of extractedQuoteRefs) {
-              try { urlObj.searchParams.append('quote', enrichQuoteRef(ref)); } catch (e) { }
+              const enriched = enrichQuoteRef(ref);
+              if (enriched) try { urlObj.searchParams.append('quote', enriched); } catch (e) { }
             }
           }
           return;
@@ -654,7 +655,8 @@ export async function setupPostLinkUI(settingsManager) {
         try { if (state) ev = findEventById(state, eventId); } catch (e) { }
         const relays = collectRelayHintsForEvent(ev || { id: eventId });
         if (!author && ev && typeof ev.pubkey === 'string') author = ev.pubkey;
-        return encodeNeventForEmbed(eventId, { relays, author });
+        const reencoded = encodeNeventForEmbed(eventId, { relays, author });
+        return reencoded !== null ? reencoded : raw;
       } catch (e) {
         return String(ref || '').replace(/^nostr:/i, '');
       }
