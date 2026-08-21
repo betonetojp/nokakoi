@@ -253,6 +253,8 @@ export async function setupPostLinkUI(settingsManager) {
     let delayedAuthSyncTimer = null;
     let embedAuthEstablished = false;
     let pendingSettingsAfterAuth = false;
+    let settingsConfirmed = false;
+    let isModalMode = false;
     let pendingComposerContextPayload = null;
     let composerContextSyncTimers = [];
     let clearDelayedAuthSync = () => {
@@ -312,6 +314,8 @@ export async function setupPostLinkUI(settingsManager) {
       try { clearComposerContextSyncTimers(); } catch (e) { }
       embedAuthEstablished = false;
       pendingSettingsAfterAuth = false;
+      settingsConfirmed = false;
+      isModalMode = false;
       pendingComposerContextPayload = null;
       clearEhagakiModalZIndex();
       closePublicChatsPanel();
@@ -994,6 +998,7 @@ export async function setupPostLinkUI(settingsManager) {
     }
 
     startDelayedAuthAndSettingsSync = function () {
+      if (!isModalMode) return;
       clearDelayedAuthSync();
       let attempts = 0;
       const maxAttempts = 15; // 15s 程度、親ログイン初期化の遅延を待つ
@@ -1007,6 +1012,11 @@ export async function setupPostLinkUI(settingsManager) {
           }
           const modalEl = document.getElementById('ehagakiModal');
           if (!modalEl || modalEl.hidden) {
+            clearDelayedAuthSync();
+            return;
+          }
+
+          if (settingsConfirmed) {
             clearDelayedAuthSync();
             return;
           }
@@ -1157,14 +1167,6 @@ export async function setupPostLinkUI(settingsManager) {
                 });
                 embedAuthEstablished = true;
                 flushSettingsAfterAuth();
-                // 念のため短時間後にもう1回だけ再送
-                setTimeout(() => {
-                  try {
-                    if (!embedAuthEstablished) return;
-                    queueSettingsAfterAuth();
-                    flushSettingsAfterAuth();
-                  } catch (e) { }
-                }, 500);
               } else {
                 postToEhagakiIframe({
                   namespace: EMBED_NS,
@@ -1189,6 +1191,14 @@ export async function setupPostLinkUI(settingsManager) {
                 },
               });
             }
+            return;
+          }
+
+          // settings.result: 設定受信確認応答
+          if (data.type === 'settings.result') {
+            settingsConfirmed = true;
+            pendingSettingsAfterAuth = false;
+            clearDelayedAuthSync();
             return;
           }
 
@@ -1316,6 +1326,8 @@ export async function setupPostLinkUI(settingsManager) {
 
       if (iframe) {
         embedAuthEstablished = false;
+        settingsConfirmed = false;
+        isModalMode = true;
         try { clearComposerContextSyncTimers(); } catch (e) { }
         queueSettingsAfterAuth();
         let safeTarget = sanitizePostLinkTarget(targetUrl) || DEFAULT_URL;
@@ -1394,17 +1406,6 @@ export async function setupPostLinkUI(settingsManager) {
           safeTarget = u.toString();
         } catch (e) { /* URL操作エラーは無視 */ }
         iframe.src = safeTarget;
-        try {
-          [300, 900, 1600].forEach((delay) => {
-            setTimeout(() => {
-              try {
-                if (!iframe || !iframe.contentWindow) return;
-                const themeForEmbed = resolveVisualThemeForEmbed();
-                postToEhagakiIframe({ namespace: 'ehagaki.embed', version: 1, type: 'embed.theme', payload: { theme: themeForEmbed } });
-              } catch (e) { }
-            }, delay);
-          });
-        } catch (e) { }
       }
 
       let autoCloseController = null;
