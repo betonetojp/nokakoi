@@ -373,5 +373,35 @@ describe('channel feed reload', () => {
     expect(resultsEl.classList.contains('d-none')).toBe(true);
     expect(resultsEl.innerHTML).toBe('');
   });
+
+  it('hides create, edit list and refresh buttons and avoids loading text when unauthenticated', async () => {
+    const container = setupView(null);
+    await flushPromises();
+
+    const createBtn = container.querySelector('#channelCreateBtn');
+    const editListBtn = container.querySelector('#channelEditListBtn');
+    const refreshBtn = container.querySelector('#channelRefreshBtn');
+    const statusEl = container.querySelector('#channelListStatus');
+
+    expect(createBtn.classList.contains('d-none')).toBe(true);
+    expect(editListBtn.classList.contains('d-none')).toBe(true);
+    expect(refreshBtn.classList.contains('d-none')).toBe(true);
+    expect(statusEl.textContent).toBe('');
+  });
+
+  it('shows create, edit list and refresh buttons when authenticated', async () => {
+    localStorage.setItem('pubkey', ACCOUNT_A);
+    const container = setupView({ pubkey: ACCOUNT_A });
+    await flushPromises();
+
+    const createBtn = container.querySelector('#channelCreateBtn');
+    const editListBtn = container.querySelector('#channelEditListBtn');
+    const refreshBtn = container.querySelector('#channelRefreshBtn');
+
+    expect(createBtn.classList.contains('d-none')).toBe(false);
+    expect(editListBtn.classList.contains('d-none')).toBe(false);
+    expect(refreshBtn.classList.contains('d-none')).toBe(false);
+  });
 });
+
 

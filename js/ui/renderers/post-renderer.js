@@ -80,7 +80,9 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
   };
 
   const restoreReactionUI = function () {
-    const stored = settingsManager.getUserReaction(ev.id);
+    const stored = (settingsManager && typeof settingsManager.getUserReaction === 'function')
+      ? settingsManager.getUserReaction(ev.id)
+      : null;
     if (stored) {
       applyReactionUI(stored);
       return;
@@ -93,7 +95,9 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
 
   try { installReactionDefaultListener(settingsManager); } catch (e) { }
 
-  const userReaction = settingsManager.getUserReaction(ev.id);
+  const userReaction = (settingsManager && typeof settingsManager.getUserReaction === 'function')
+    ? settingsManager.getUserReaction(ev.id)
+    : null;
   if (userReaction) {
     applyReactionUI(userReaction);
   }
@@ -122,11 +126,15 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
         restoreReactionUI();
         throw new Error('react_failed');
       }
-      settingsManager.saveUserReaction(ev.id, symbol);
+      if (settingsManager && typeof settingsManager.saveUserReaction === 'function') {
+        settingsManager.saveUserReaction(ev.id, symbol);
+      }
       applyReactionUI(symbol);
     };
     showReactionModal(nowDefault, (symbol) => {
-      settingsManager.set('reactionDefault', symbol);
+      if (settingsManager && typeof settingsManager.set === 'function') {
+        settingsManager.set('reactionDefault', symbol);
+      }
       const display = formatReactionForTitle(symbol);
       reactBtn.title = t('reaction.button.title_with_default', { display: display });
     }, settingsManager, {
@@ -176,12 +184,16 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
           restoreReactionUI();
           throw new Error('react_failed');
         }
-        settingsManager.saveUserReaction(ev.id, symbol);
+        if (settingsManager && typeof settingsManager.saveUserReaction === 'function') {
+          settingsManager.saveUserReaction(ev.id, symbol);
+        }
         applyReactionUI(symbol);
       };
 
       showReactionModal(nowDefault, (symbol) => {
-        settingsManager.set('reactionDefault', symbol);
+        if (settingsManager && typeof settingsManager.set === 'function') {
+          settingsManager.set('reactionDefault', symbol);
+        }
         const display = formatReactionForTitle(symbol);
         reactBtn.title = t('reaction.button.title_with_default', { display: display });
       }, settingsManager, {
@@ -196,7 +208,9 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
         restoreReactionUI();
         return;
       }
-      settingsManager.saveUserReaction(ev.id, reactionSym);
+      if (settingsManager && typeof settingsManager.saveUserReaction === 'function') {
+        settingsManager.saveUserReaction(ev.id, reactionSym);
+      }
       applyReactionUI(reactionSym);
     }
   };
@@ -207,11 +221,15 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
     const runReactOnce = async (symbol) => {
       const ok = await callReact(symbol);
       if (!ok) throw new Error('react_failed');
-      settingsManager.saveUserReaction(ev.id, symbol);
+      if (settingsManager && typeof settingsManager.saveUserReaction === 'function') {
+        settingsManager.saveUserReaction(ev.id, symbol);
+      }
       applyReactionUI(symbol);
     };
     showReactionModal(nowDefault, (symbol) => {
-      settingsManager.set('reactionDefault', symbol);
+      if (settingsManager && typeof settingsManager.set === 'function') {
+        settingsManager.set('reactionDefault', symbol);
+      }
       const display = formatReactionForTitle(symbol);
       reactBtn.title = t('reaction.button.title_with_default', { display: display });
       try { reactBtn.dataset.reactionDisplay = display; } catch (e) { }

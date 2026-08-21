@@ -19,6 +19,7 @@ import { showMediaViewer } from '../../ui/media-viewer.js';
 import { displayNameWithUsername, loadProfile } from '../profile/profile.js';
 import { getNip19 } from '../../core/nostr-compat.js';
 import { linkifyText } from '../../utils/content/linkifier.js';
+import { getSettingsManager } from '../../core/app-context.js';
 
 const CHANNEL_LIST_CACHE_KEY = 'nokakoi_public_chats_cache_v1';
 const LAST_ACTIVE_CHANNEL_KEY = 'last_active_channel_root_id';
@@ -63,9 +64,17 @@ let _publicChatsListenerBound = false;
  */
 export function initChannelView(container, state, settingsManager = null) {
   if (!container) return;
+  const sm = settingsManager || (typeof getSettingsManager === 'function' ? getSettingsManager() : null);
+  if (container.dataset && container.dataset.initialized === 'true' && container.querySelector('.channel-portal-wrapper')) {
+    _containerEl = container;
+    if (state) _stateRef = state;
+    if (sm) _settingsManagerRef = sm;
+    return;
+  }
+  if (container.dataset) container.dataset.initialized = 'true';
   _containerEl = container;
   _stateRef = state;
-  _settingsManagerRef = settingsManager;
+  _settingsManagerRef = sm;
 
   container.innerHTML = `
     <div class="channel-portal-wrapper">
@@ -78,7 +87,7 @@ export function initChannelView(container, state, settingsManager = null) {
           </div>
         </div>
         <div class="channel-list-status-row">
-          <div class="channel-list-status muted text-sm" id="channelListStatus">${t('channel.loading') || '読み込み中...'}</div>
+          <div class="channel-list-status muted text-sm" id="channelListStatus">${getPubkey() ? (t('channel.loading') || '読み込み中...') : ''}</div>
           <button type="button" id="channelRefreshBtn" class="secondary micro-btn" title="${t('channel.fetch') || '再読込'}">${t('channel.fetch') || '再読込'}</button>
         </div>
         <div class="channel-list" id="channelList"></div>
@@ -215,7 +224,13 @@ export function initChannelView(container, state, settingsManager = null) {
   const joinBtn = container.querySelector('#channelJoinBtn');
   if (joinBtn) joinBtn.onclick = handleJoinChannelById;
 
-  loadChannelList();
+  updateSidebarAuthUI(container);
+
+  if (_activeRootId) {
+    selectChannel(_activeRootId);
+  } else {
+    loadChannelList();
+  }
 }
 
 function bindChannelInfoModal() {
@@ -445,6 +460,23 @@ function getCachedChannelEntries(pubkey) {
   } catch (_e) { return null; }
 }
 
+function updateSidebarAuthUI(container = _containerEl) {
+  if (!container) return;
+  const isLogged = !!normalizePubkey(getPubkey());
+
+  const createBtn = container.querySelector('#channelCreateBtn');
+  const editListBtn = container.querySelector('#channelEditListBtn');
+  const refreshBtn = container.querySelector('#channelRefreshBtn');
+  const statusEl = container.querySelector('#channelListStatus');
+
+  if (createBtn) createBtn.classList.toggle('d-none', !isLogged);
+  if (editListBtn) editListBtn.classList.toggle('d-none', !isLogged);
+  if (refreshBtn) refreshBtn.classList.toggle('d-none', !isLogged);
+  if (!isLogged && statusEl && (statusEl.textContent === (t('channel.loading') || '読み込み中...') || statusEl.textContent === (t('channel.loading_list') || 'チャンネル一覧を読み込み中...'))) {
+    statusEl.textContent = '';
+  }
+}
+
 function rememberPublicRootIds(entries, options = {}) {
   _lastPublicRootIds = (entries || [])
     .map(e => (e && e.rootId ? String(e.rootId).toLowerCase() : null))
@@ -593,6 +625,9 @@ export function reloadChannelView(state = null) {
   if (isChatOpen) {
     refreshActiveChannelFeed();
     loadChannelList().catch(() => {});
+  } else if (_activeRootId) {
+    selectChannel(_activeRootId);
+    loadChannelList().catch(() => {});
   } else {
     _channelListLoadGen += 1;
     loadChannelList().catch(() => {});
@@ -610,7 +645,7 @@ export function refreshActiveChannelFeed() {
   msgsEl.__channelFeedGen = (msgsEl.__channelFeedGen || 0) + 1;
   msgsEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.loading_messages') || 'メッセージを読み込み中...'}</div>`;
   if (!_feedPaused) {
-    subscribeChannelFeed(_activeRootId, getState(), msgsEl, _settingsManagerRef);
+    subscribeChannelFeed(_activeRootId, getState(), msgsEl, _settingsManagerRef || (typeof getSettingsManager === 'function' ? getSettingsManager() : null));
   }
 }
 
@@ -627,7 +662,10 @@ export function resetChannelViewForAccount(state = null) {
     const listEl = _containerEl.querySelector('#channelList');
     const statusEl = _containerEl.querySelector('#channelListStatus');
     if (listEl) listEl.innerHTML = '';
-    if (statusEl) statusEl.textContent = t('channel.loading_list') || 'チャンネル一覧を読み込み中...';
+    const pubkey = normalizePubkey(getPubkey());
+    if (statusEl) {
+      statusEl.textContent = pubkey ? (t('channel.loading_list') || 'チャンネル一覧を読み込み中...') : '';
+    }
     loadChannelList().catch(() => {});
   }
 }
@@ -690,10 +728,13 @@ export function resumeChannelSubscriptions() {
   _feedPaused = false;
   if (!_activeRootId || !_containerEl) return;
   const wrapper = _containerEl.querySelector('.channel-portal-wrapper');
-  if (!wrapper || !wrapper.classList.contains('show-chat')) return;
+  if (!wrapper || !wrapper.classList.contains('show-chat')) {
+    selectChannel(_activeRootId);
+    return;
+  }
   const msgsEl = _containerEl.querySelector('#channelMessages');
   if (msgsEl) {
-    subscribeChannelFeed(_activeRootId, getState(), msgsEl, _settingsManagerRef);
+    subscribeChannelFeed(_activeRootId, getState(), msgsEl, _settingsManagerRef || (typeof getSettingsManager === 'function' ? getSettingsManager() : null));
   }
 }
 
@@ -702,6 +743,8 @@ export function resumeChannelSubscriptions() {
  */
 export async function loadChannelList() {
   if (!_containerEl) return;
+  updateSidebarAuthUI(_containerEl);
+
   const listEl = _containerEl.querySelector('#channelList');
   const statusEl = _containerEl.querySelector('#channelListStatus');
   if (!listEl) return;
@@ -714,6 +757,22 @@ export async function loadChannelList() {
   );
   const cacheKey = scopedUiKey(CHANNEL_LIST_CACHE_KEY, pubkey);
   const cached = getCachedChannelEntries(pubkey);
+
+  if (!pubkey) {
+    const items = renderChannelListItems(listEl, statusEl, [], {
+      prune: false,
+      updateStatus: false,
+    });
+    if (statusEl) {
+      if (items.length) {
+        statusEl.textContent = (t('channel.joined_count') || '参加中: {count}件').replace('{count}', String(items.length));
+      } else {
+        statusEl.textContent = '';
+      }
+    }
+    return;
+  }
+
   if (statusEl) statusEl.textContent = t('channel.loading_list') || 'チャンネル一覧を読み込み中...';
 
   const usableEntryCount = (cached && Array.isArray(cached) && cached.length)
@@ -880,8 +939,26 @@ export async function openChannelFromExternal(rootId, state = null) {
 
   if (state) _stateRef = state;
 
+  if (typeof document !== 'undefined') {
+    const eventModal = document.getElementById('eventModal');
+    if (eventModal && !eventModal.hidden) {
+      try { window.__nokakoiEventModalEvent = null; } catch (_e) { }
+      eventModal.hidden = true;
+    }
+    const profileModal = document.getElementById('profileModal');
+    if (profileModal && !profileModal.hidden) {
+      const profileClose = document.getElementById('profileClose');
+      if (profileClose && typeof profileClose.onclick === 'function') {
+        try { profileClose.onclick(); } catch (_e) { profileModal.hidden = true; }
+      } else {
+        profileModal.hidden = true;
+      }
+    }
+  }
+
   const feedChan = document.getElementById('feed-channels');
-  if (!_containerEl && feedChan) {
+  if (feedChan) {
+    _containerEl = feedChan;
     initChannelView(feedChan, getState(), _settingsManagerRef);
   }
   if (!_containerEl) return false;
@@ -954,7 +1031,7 @@ export async function selectChannel(rootId) {
   }).catch(() => {});
 
   if (!_feedPaused) {
-    subscribeChannelFeed(rootId, getState(), msgsEl, _settingsManagerRef);
+    subscribeChannelFeed(rootId, getState(), msgsEl, _settingsManagerRef || (typeof getSettingsManager === 'function' ? getSettingsManager() : null));
   }
 }
 

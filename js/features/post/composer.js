@@ -27,11 +27,22 @@ let currentChannelTarget = null;
 let currentQuoteMode = false;
 let __composerLastState = null;
 let __composerLastNip19 = null;
-const COMPOSER_AUTHOR_LIMIT = 16;
+function isUserLoggedIn() {
+  try {
+    const pk = (typeof localStorage !== 'undefined') ? localStorage.getItem('pubkey') : null;
+    return !!(pk || (__composerLastState && __composerLastState.pubkey));
+  } catch (_e) {
+    return false;
+  }
+}
 
 function showComposerAndEnsureScroll() {
   const composer = $('#composer');
   if (!composer) return null;
+  if (!isUserLoggedIn()) {
+    composer.hidden = true;
+    return null;
+  }
   composer.hidden = false;
   ensureComposerScrollBehavior();
   return composer;

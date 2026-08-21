@@ -46,9 +46,30 @@ export function bindChannelLabelClickHandler(root, ev, state) {
     try {
       labelEl.classList.add('is-busy');
 
+      const { activateTab, getSettingsManager } = await import('../setup/tab-manager.js').catch(() => ({}));
       const channelsTabBtn = document.querySelector('.tabs .tab[data-tab="channels"]');
-      if (channelsTabBtn) {
-        channelsTabBtn.click();
+      if (channelsTabBtn || typeof activateTab === 'function') {
+        const eventModal = document.getElementById('eventModal');
+        if (eventModal && !eventModal.hidden) {
+          try { window.__nokakoiEventModalEvent = null; } catch (_e) { }
+          eventModal.hidden = true;
+        }
+        const profileModal = document.getElementById('profileModal');
+        if (profileModal && !profileModal.hidden) {
+          const profileClose = document.getElementById('profileClose');
+          if (profileClose && typeof profileClose.onclick === 'function') {
+            try { profileClose.onclick(); } catch (_e) { profileModal.hidden = true; }
+          } else {
+            profileModal.hidden = true;
+          }
+        }
+
+        if (typeof activateTab === 'function') {
+          const sm = (typeof getSettingsManager === 'function') ? getSettingsManager() : null;
+          activateTab('channels', sm, { skipFeedLifecycle: true });
+        } else if (channelsTabBtn) {
+          channelsTabBtn.click();
+        }
         const mod = await import('../../features/channel/channel-ui.js');
         if (mod && typeof mod.openChannelFromExternal === 'function') {
           await mod.openChannelFromExternal(rootId, state);

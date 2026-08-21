@@ -351,6 +351,25 @@ export async function initApp() {
     openDeepLink(state, {
       nip19,
       showProfileModal: showProfileModalProxy,
+      openChannel: async (rootId) => {
+        try {
+          const { activateTab } = await import('../ui/setup/tab-manager.js');
+          const mod = await import('../features/channel/channel-ui.js');
+          if (typeof activateTab === 'function') {
+            activateTab('channels', settingsManager, { skipFeedLifecycle: true });
+          } else {
+            const channelsTabBtn = document.querySelector('.tabs .tab[data-tab="channels"]');
+            if (channelsTabBtn) channelsTabBtn.click();
+          }
+          if (mod && typeof mod.openChannelFromExternal === 'function') {
+            await mod.openChannelFromExternal(rootId, state);
+          }
+          return true;
+        } catch (e) {
+          console.warn('[Main] チャンネルオープンに失敗', e);
+          return false;
+        }
+      },
       showEventModal: (event) => {
         showEventModal(
           event,
@@ -382,17 +401,20 @@ export async function initApp() {
       const tabs = document.querySelectorAll('.tabs .tab');
       tabs.forEach(tab => {
         const tabName = tab.dataset ? tab.dataset.tab : null;
-        if (tabName === 'global') {
+        if (tabName === 'global' || tabName === 'channels') {
           tab.style.display = '';
         } else {
           tab.style.display = isLoggedIn ? '' : 'none';
         }
       });
       if (!isLoggedIn) {
+        const currentActive = document.querySelector('.tabs .tab.active');
+        const currentTabName = currentActive && currentActive.dataset ? currentActive.dataset.tab : null;
+        const targetTabName = (currentTabName === 'channels') ? 'channels' : 'global';
         const tabs = document.querySelectorAll('.tabs .tab');
-        tabs.forEach(t => t.classList.toggle('active', t.dataset && t.dataset.tab === 'global'));
+        tabs.forEach(t => t.classList.toggle('active', t.dataset && t.dataset.tab === targetTabName));
         const feeds = document.querySelectorAll('.feed');
-        feeds.forEach(f => f.classList.toggle('active', f.id === 'feed-global'));
+        feeds.forEach(f => f.classList.toggle('active', f.id === `feed-${targetTabName}`));
       }
     } catch (e) { }
   }

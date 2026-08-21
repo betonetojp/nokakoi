@@ -14,6 +14,7 @@ import { awaitAny } from '../../utils/utils.js';
 import { EVENTS_FETCH_LIMIT } from '../../config/constants.js';
 import { t } from '../../utils/i18n.js';
 import { getInfiniteScrollObserver } from '../../boot/infinite-scroll.js';
+import { getSettingsManager } from '../../core/app-context.js';
 
 const _channelSubs = new Map(); // rootId -> sub/unsub object
 const _observedLoadMoreBtns = new WeakMap(); // containerEl -> loadMoreBtn
@@ -210,7 +211,8 @@ export function unsubscribeAllChannelFeeds() {
  */
 function createChannelMessageElement(ev, state, settingsManager) {
   const nip19 = getNip19 ? getNip19() : null;
-  const settings = (settingsManager && typeof settingsManager.getAll === 'function') ? settingsManager.getAll() : {};
+  const sm = settingsManager || (typeof getSettingsManager === 'function' ? getSettingsManager() : null);
+  const settings = (sm && typeof sm.getAll === 'function') ? sm.getAll() : {};
 
   try {
     // post-renderer は (ev, sym) / (ev) 形式のコールバックを期待する（feed-renderer と同じ）
@@ -219,7 +221,7 @@ function createChannelMessageElement(ev, state, settingsManager) {
       ev,
       nip19,
       settings,
-      settingsManager,
+      sm,
       (targetEv, sym) => reactToEvent(state, targetEv, sym),
       (targetEv) => { setReplyTarget(state, targetEv, nip19); },
       (targetEv) => repostEvent(state, targetEv),

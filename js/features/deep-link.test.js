@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { nip19 } from 'nostr-tools';
 import { extractDeepLinkBech32, parseDeepLinkBech32, parseDeepLinkFromPathname, appRootPathFromDeepLink } from './deep-link.js';
 
@@ -99,5 +99,142 @@ describe('appRootPathFromDeepLink', () => {
   it('returns null when the path is not a deep link', () => {
     expect(appRootPathFromDeepLink('/app/')).toBeNull();
     expect(appRootPathFromDeepLink('/app/gyouza/')).toBeNull();
+  });
+});
+
+describe('extractChannelRootIdFromEvent', () => {
+  it('extracts event.id for kind:40', async () => {
+    const { extractChannelRootIdFromEvent } = await import('./deep-link.js');
+    expect(extractChannelRootIdFromEvent({ id: 'channel_root_123', kind: 40 })).toBe('channel_root_123');
+  });
+
+  it('extracts root e-tag for kind:41', async () => {
+    const { extractChannelRootIdFromEvent } = await import('./deep-link.js');
+    const evWithRoot = {
+      id: 'meta_41',
+      kind: 41,
+      tags: [['e', 'other_id', '', 'mention'], ['e', 'channel_root_456', '', 'root']]
+    };
+    expect(extractChannelRootIdFromEvent(evWithRoot)).toBe('channel_root_456');
+
+    const evFirstTag = {
+      id: 'meta_41_b',
+      kind: 41,
+      tags: [['e', 'channel_root_789']]
+    };
+    expect(extractChannelRootIdFromEvent(evFirstTag)).toBe('channel_root_789');
+  });
+
+  it('returns null for non-channel kinds or missing tags', async () => {
+    const { extractChannelRootIdFromEvent } = await import('./deep-link.js');
+    expect(extractChannelRootIdFromEvent({ id: 'note_1', kind: 1 })).toBeNull();
+    expect(extractChannelRootIdFromEvent({ id: 'msg_42', kind: 42 })).toBeNull();
+    expect(extractChannelRootIdFromEvent(null)).toBeNull();
+  });
+});
+
+describe('openDeepLink routing', () => {
+  it('calls openChannel for kind:40 event', async () => {
+    const { openDeepLink } = await import('./deep-link.js');
+    const rootId = '11'.repeat(32);
+    const nevent = nip19.neventEncode({ id: rootId });
+    const fakeState = {
+      feeds: { home: { events: [], map: new Map([[rootId, { id: rootId, kind: 40 }]]) } }
+    };
+    const openChannel = vi.fn().mockResolvedValue(true);
+    const showEventModal = vi.fn();
+
+    const handled = await openDeepLink(fakeState, {
+      pathname: '/app/' + nevent,
+      nip19,
+      openChannel,
+      showEventModal
+    });
+
+    expect(handled).toBe(true);
+    expect(openChannel).toHaveBeenCalledWith(rootId, expect.objectContaining({ id: rootId, kind: 40 }));
+    expect(showEventModal).not.toHaveBeenCalled();
+  });
+
+  it('calls openChannel for kind:41 event with root e-tag', async () => {
+    const { openDeepLink } = await import('./deep-link.js');
+    const metaId = '22'.repeat(32);
+    const rootId = '33'.repeat(32);
+    const nevent = nip19.neventEncode({ id: metaId });
+    const fakeState = {
+      feeds: {
+        home: {
+          events: [],
+          map: new Map([[metaId, { id: metaId, kind: 41, tags: [['e', rootId, '', 'root']] }]])
+        }
+      }
+    };
+    const openChannel = vi.fn().mockResolvedValue(true);
+    const showEventModal = vi.fn();
+
+    const handled = await openDeepLink(fakeState, {
+      pathname: '/app/' + nevent,
+      nip19,
+      openChannel,
+      showEventModal
+    });
+
+    expect(handled).toBe(true);
+    expect(openChannel).toHaveBeenCalledWith(rootId, expect.objectContaining({ id: metaId, kind: 41 }));
+    expect(showEventModal).not.toHaveBeenCalled();
+  });
+
+  it('calls showEventModal for kind:42 message event', async () => {
+    const { openDeepLink } = await import('./deep-link.js');
+    const msgId = '44'.repeat(32);
+    const nevent = nip19.neventEncode({ id: msgId });
+    const fakeState = {
+      feeds: {
+        home: {
+          events: [],
+          map: new Map([[msgId, { id: msgId, kind: 42, content: 'hello' }]])
+        }
+      }
+    };
+    const openChannel = vi.fn();
+    const showEventModal = vi.fn();
+
+    const handled = await openDeepLink(fakeState, {
+      pathname: '/app/' + nevent,
+      nip19,
+      openChannel,
+      showEventModal
+    });
+
+    expect(handled).toBe(true);
+    expect(openChannel).not.toHaveBeenCalled();
+    expect(showEventModal).toHaveBeenCalledWith(expect.objectContaining({ id: msgId, kind: 42 }));
+  });
+
+  it('calls showEventModal for standard kind:1 post', async () => {
+    const { openDeepLink } = await import('./deep-link.js');
+    const noteId = '55'.repeat(32);
+    const nevent = nip19.neventEncode({ id: noteId });
+    const fakeState = {
+      feeds: {
+        home: {
+          events: [],
+          map: new Map([[noteId, { id: noteId, kind: 1, content: 'standard note' }]])
+        }
+      }
+    };
+    const openChannel = vi.fn();
+    const showEventModal = vi.fn();
+
+    const handled = await openDeepLink(fakeState, {
+      pathname: '/app/' + nevent,
+      nip19,
+      openChannel,
+      showEventModal
+    });
+
+    expect(handled).toBe(true);
+    expect(openChannel).not.toHaveBeenCalled();
+    expect(showEventModal).toHaveBeenCalledWith(expect.objectContaining({ id: noteId, kind: 1 }));
   });
 });

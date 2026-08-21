@@ -140,6 +140,21 @@ export async function fetchDeepLinkEvent(state, parsed) {
 }
 
 /**
+ * イベントからチャンネル rootId を抽出する（kind:40 は自身の id、kind:41 は e タグ）
+ */
+export function extractChannelRootIdFromEvent(event) {
+  if (!event) return null;
+  if (event.kind === 40) return event.id || null;
+  if (event.kind === 41 && Array.isArray(event.tags)) {
+    const eTags = event.tags.filter(t => Array.isArray(t) && t[0] === 'e' && t[1]);
+    const rootTag = eTags.find(t => (t[3] || '').toString().toLowerCase() === 'root');
+    if (rootTag) return rootTag[1];
+    if (eTags.length > 0) return eTags[0][1];
+  }
+  return null;
+}
+
+/**
  * 現在の URL パスからイベント詳細またはプロフィールモーダルを開く。
  * @returns {Promise<boolean>} ディープリンクを処理したら true
  */
@@ -163,6 +178,17 @@ export async function openDeepLink(state, options = {}) {
 
   const event = await fetchDeepLinkEvent(state, parsed);
   if (event) {
+    if (event.kind === 40 || event.kind === 41) {
+      const rootId = extractChannelRootIdFromEvent(event);
+      if (rootId && typeof options.openChannel === 'function') {
+        const handled = await options.openChannel(rootId, event);
+        if (handled !== false) {
+          clearDeepLinkFromUrlIfIdle();
+          return true;
+        }
+      }
+    }
+
     if (typeof options.showEventModal === 'function') {
       options.showEventModal(event);
     }
