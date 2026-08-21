@@ -1503,6 +1503,36 @@ export async function setupPostLinkUI(settingsManager) {
       }
     }
 
+    function canReuseActiveEhagaki(targetUrl) {
+      if (!isEhagakiModalActive()) return false;
+      try {
+        const currentSrc = iframe ? (iframe.getAttribute('src') || iframe.src || '') : '';
+        if (!currentSrc) return false;
+        const currentOrigin = new URL(currentSrc, window.location.href).origin;
+        const nextOrigin = new URL(targetUrl, window.location.href).origin;
+        return currentOrigin === nextOrigin;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function applyComposerContextToActiveEhagaki(reason, targetUrl) {
+      if (!pendingComposerContextPayload) return false;
+      if (!canReuseActiveEhagaki(targetUrl)) return false;
+      try {
+        if (modal) {
+          modal.hidden = false;
+          bringEhagakiModalToFront();
+        }
+        postEmbedComposerContext(pendingComposerContextPayload, reason);
+        scheduleComposerContextSync();
+        return true;
+      } catch (e) {
+        console.warn('[PostLink] composer.setContext 再送に失敗', e);
+        return false;
+      }
+    }
+
     __openEhagakiWithChannel = async function (channelContext) {
       const baseStr = resolvePostLinkBaseStr();
       let targetUrl;
@@ -1613,7 +1643,9 @@ export async function setupPostLinkUI(settingsManager) {
             }
           } catch (e) { }
 
-          await launchEhagakiAt(targetUrl);
+          if (!applyComposerContextToActiveEhagaki('composer-refresh', targetUrl)) {
+            await launchEhagakiAt(targetUrl);
+          }
         } catch (e) { }
       };
     }
