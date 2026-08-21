@@ -428,15 +428,25 @@ export async function setupPostLinkUI(settingsManager) {
     function collectRelayHintsForEvent(ev) {
       const hints = [];
       const seen = new Set();
+      const normalizeRelayHint = (value) => {
+        if (typeof value !== 'string') return null;
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+        try {
+          const parsed = new URL(trimmed);
+          if (parsed.protocol !== 'ws:' && parsed.protocol !== 'wss:') return null;
+          return parsed.toString();
+        } catch (e) {
+          return null;
+        }
+      };
       const add = (url) => {
-        if (typeof url !== 'string') return;
-        const trimmed = url.trim();
-        if (!trimmed) return;
-        if (!/^wss?:\/\//i.test(trimmed)) return;
-        const key = trimmed.replace(/\/+$/, '').toLowerCase();
+        const normalized = normalizeRelayHint(url);
+        if (!normalized) return;
+        const key = normalized.replace(/\/+$/, '').toLowerCase();
         if (seen.has(key)) return;
         seen.add(key);
-        hints.push(trimmed);
+        hints.push(normalized);
       };
 
       try {
@@ -459,9 +469,11 @@ export async function setupPostLinkUI(settingsManager) {
     }
 
     function encodeNeventForEmbed(eventId, options = {}) {
+      const normalizedEventId = (typeof eventId === 'string') ? eventId.trim().toLowerCase() : '';
+      if (!/^[0-9a-f]{64}$/.test(normalizedEventId)) return null;
       let nevent = null;
       const relays = Array.isArray(options.relays) ? options.relays : [];
-      const payload = { id: eventId, relays };
+      const payload = { id: normalizedEventId, relays };
       if (options.author && typeof options.author === 'string') payload.author = options.author;
       try {
         const nip19local = getNip19 && getNip19();
@@ -478,7 +490,7 @@ export async function setupPostLinkUI(settingsManager) {
           } catch (e) { }
         }
       } catch (e) { }
-      if (!nevent) nevent = 'nevent1' + eventId;
+      if (!nevent) return null;
       return String(nevent).replace(/^nostr:/i, '');
     }
 
