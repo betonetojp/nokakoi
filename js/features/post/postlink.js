@@ -498,26 +498,43 @@ export async function setupPostLinkUI(settingsManager) {
       return null;
     }
 
-    function buildComposerContextPayload(extractedQuoteRefs, content) {
+    function buildComposerContextPayload(extractedQuoteRefs, content, channelContext = null) {
       const payload = {};
       if (typeof content === 'string') payload.content = content;
 
+      // 1. チャンネルコンテキスト（渡された場合）
+      if (channelContext) {
+        payload.channel = channelContext;
+      }
+
+      // 2. 返信先（通常返信時）
       try {
         const isQuoteMode = (typeof getQuoteMode === 'function') && getQuoteMode();
         const rt = (typeof getReplyTarget === 'function') ? getReplyTarget() : null;
-
-        if (isQuoteMode) {
-          const nevent = encodeTargetNevent(rt);
-          if (nevent) {
-            payload.quotes = [nevent];
-          } else if (extractedQuoteRefs && extractedQuoteRefs.length > 0) {
-            payload.quotes = extractedQuoteRefs.map((ref) => enrichQuoteRef(ref)).filter(Boolean);
-          }
-          return payload;
+        if (!isQuoteMode && rt) {
+          const replyNevent = encodeTargetNevent(rt);
+          if (replyNevent) payload.reply = replyNevent;
         }
+      } catch (e) { }
 
-        const replyNevent = encodeTargetNevent(rt);
-        if (replyNevent) payload.reply = replyNevent;
+      // 3. 引用先（引用ターゲットおよび本文抽出）
+      try {
+        const isQuoteMode = (typeof getQuoteMode === 'function') && getQuoteMode();
+        const rt = (typeof getReplyTarget === 'function') ? getReplyTarget() : null;
+        const quotes = [];
+        if (isQuoteMode && rt) {
+          const nevent = encodeTargetNevent(rt);
+          if (nevent) quotes.push(nevent);
+        }
+        if (extractedQuoteRefs && extractedQuoteRefs.length > 0) {
+          for (const ref of extractedQuoteRefs) {
+            const enriched = enrichQuoteRef(ref);
+            if (enriched && !quotes.includes(enriched)) quotes.push(enriched);
+          }
+        }
+        if (quotes.length > 0) {
+          payload.quotes = quotes;
+        }
       } catch (e) { }
 
       return payload;
@@ -579,26 +596,26 @@ export async function setupPostLinkUI(settingsManager) {
         const isQuoteMode = (typeof getQuoteMode === 'function') && getQuoteMode();
         const rt = (typeof getReplyTarget === 'function') ? getReplyTarget() : null;
 
-        if (isQuoteMode) {
-          // 引用: composer 内の nevent は hint 無しのことが多いので、
-          // setQuoteTarget で保持しているイベントから hint 付きで再エンコードする
+        // 引用先を URL にセット
+        if (isQuoteMode && rt) {
           const nevent = encodeTargetNevent(rt);
           if (nevent) {
             try { urlObj.searchParams.append('quote', nevent); } catch (e) { }
-            return;
           }
-          if (extractedQuoteRefs && extractedQuoteRefs.length > 0) {
-            for (const ref of extractedQuoteRefs) {
-              const enriched = enrichQuoteRef(ref);
-              if (enriched) try { urlObj.searchParams.append('quote', enriched); } catch (e) { }
-            }
+        }
+        if (extractedQuoteRefs && extractedQuoteRefs.length > 0) {
+          for (const ref of extractedQuoteRefs) {
+            const enriched = enrichQuoteRef(ref);
+            if (enriched) try { urlObj.searchParams.append('quote', enriched); } catch (e) { }
           }
-          return;
         }
 
-        const replyNevent = encodeTargetNevent(rt);
-        if (replyNevent) {
-          try { urlObj.searchParams.set('reply', replyNevent); } catch (e) { }
+        // 通常返信先を URL にセット
+        if (!isQuoteMode && rt) {
+          const replyNevent = encodeTargetNevent(rt);
+          if (replyNevent) {
+            try { urlObj.searchParams.set('reply', replyNevent); } catch (e) { }
+          }
         }
       } catch (e) { }
     }
@@ -1448,28 +1465,49 @@ export async function setupPostLinkUI(settingsManager) {
       }
     }
 
+    function extractNostrQuoteRefsFromText(rawText) {
+      let text = typeof rawText === 'string' ? rawText : '';
+      const refs = [];
+      try {
+        const nostrRefPattern = /nostr:(nevent1[a-z0-9]+|note1[a-z0-9]+|naddr1[a-z0-9]+)/gi;
+        const matches = text.match(nostrRefPattern);
+        if (matches && matches.length > 0) {
+          for (const m of matches) {
+            const clean = m.replace(/^nostr:/i, '').trim();
+            if (clean && !refs.includes(clean)) refs.push(clean);
+          }
+          text = text.replace(nostrRefPattern, '').trim();
+        }
+      } catch (e) { }
+      return { text, refs };
+    }
+
     __openEhagakiWithChannel = async function (channelContext) {
       const baseStr = resolvePostLinkBaseStr();
+      const noteEl = document.getElementById('noteInput');
+      const rawComposerText = noteEl ? (noteEl.value || '') : '';
+      const { text: composerText, refs: extractedQuoteRefs } = extractNostrQuoteRefsFromText(rawComposerText);
+
       let targetUrl;
       try {
         const safeBase = sanitizeUrlCandidate(baseStr) || DEFAULT_URL;
         let urlObj = null;
         try { urlObj = new URL(safeBase); } catch (e) { urlObj = new URL(safeBase, window.location.href); }
+        urlObj.searchParams.set('content', composerText);
         applyChannelParams(urlObj, channelContext);
+        applyReplyQuoteParams(urlObj, extractedQuoteRefs);
         targetUrl = urlObj.toString();
       } catch (e) {
         const base = (sanitizeUrlCandidate(baseStr) || DEFAULT_URL).replace(/\?.*$/, '');
         const urlObj = new URL(base, window.location.href);
+        urlObj.searchParams.set('content', composerText);
         applyChannelParams(urlObj, channelContext);
+        applyReplyQuoteParams(urlObj, extractedQuoteRefs);
         targetUrl = urlObj.toString();
       }
 
-      // reply/quote は明示クリア（patch で前回の context が残らないようにする）
-      pendingComposerContextPayload = {
-        channel: channelContext,
-        reply: null,
-        quotes: [],
-      };
+      // チャンネル・返信・引用をすべて統合して context を構築
+      pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText, channelContext);
 
       await launchEhagakiAt(targetUrl);
       return true;
@@ -1480,11 +1518,11 @@ export async function setupPostLinkUI(settingsManager) {
         return __openEhagakiWithChannel(channelContext);
       }
 
-      pendingComposerContextPayload = {
-        channel: channelContext,
-        reply: null,
-        quotes: [],
-      };
+      const noteEl = document.getElementById('noteInput');
+      const rawComposerText = noteEl ? (noteEl.value || '') : '';
+      const { text: composerText, refs: extractedQuoteRefs } = extractNostrQuoteRefsFromText(rawComposerText);
+
+      pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText, channelContext);
       try {
         postEmbedComposerContext(pendingComposerContextPayload, 'public-chats-pick');
         scheduleComposerContextSync();
@@ -1502,17 +1540,22 @@ export async function setupPostLinkUI(settingsManager) {
           const noteEl = document.getElementById('noteInput');
           const rawComposerText = noteEl ? (noteEl.value || '') : '';
 
-          // 引用モード時: content 内の nostr:nevent1.../nostr:note1... 参照を抽出して quote パラメータに分離
-          let composerText = rawComposerText;
-          let extractedQuoteRefs = [];
+          // タブ切り替え等で isQuoteMode がリセットされていても、テキスト内の nostr: 参照を確実に抽出して quote に分離
+          const { text: composerText, refs: extractedQuoteRefs } = extractNostrQuoteRefsFromText(rawComposerText);
+
+          // チャンネルタブがアクティブな場合のみチャンネルコンテキストを取得
+          let channelContext = null;
           try {
-            const isQuoteMode = (typeof getQuoteMode === 'function') && getQuoteMode();
-            if (isQuoteMode) {
-              const nostrRefPattern = /nostr:(nevent1[a-z0-9]+|note1[a-z0-9]+)/gi;
-              const matches = rawComposerText.match(nostrRefPattern);
-              if (matches) {
-                extractedQuoteRefs = matches.map(m => m.replace(/^nostr:/i, ''));
-                composerText = rawComposerText.replace(nostrRefPattern, '').replace(/^\s+|\s+$/g, '');
+            const activeTabBtn = document.querySelector('.tabs .tab.active');
+            const isChannelTabActive = activeTabBtn && activeTabBtn.dataset.tab === 'channels';
+            if (isChannelTabActive) {
+              const channelTarget = (typeof getChannelTarget === 'function') ? getChannelTarget() : null;
+              const rootId = (typeof channelTarget === 'string') ? channelTarget : (channelTarget && (channelTarget.rootId || channelTarget.id || channelTarget.eventId));
+              if (rootId) {
+                const state = getNostrState && getNostrState();
+                if (state) {
+                  channelContext = await buildChannelEmbedContext(state, rootId);
+                }
               }
             }
           } catch (e) { }
@@ -1523,21 +1566,23 @@ export async function setupPostLinkUI(settingsManager) {
             let urlObj = null;
             try { urlObj = new URL(safeBase); } catch (e) { urlObj = new URL(safeBase, window.location.href); }
             urlObj.searchParams.set('content', composerText);
+            if (channelContext) applyChannelParams(urlObj, channelContext);
             applyReplyQuoteParams(urlObj, extractedQuoteRefs);
             targetUrl = urlObj.toString();
-            pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText);
+            pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText, channelContext);
           } catch (e) {
             try {
               const base = (sanitizeUrlCandidate(baseStr) || DEFAULT_URL).replace(/\?.*$/, '');
               const urlObj = new URL(base, window.location.href);
               urlObj.searchParams.set('content', composerText);
+              if (channelContext) applyChannelParams(urlObj, channelContext);
               applyReplyQuoteParams(urlObj, extractedQuoteRefs);
               targetUrl = urlObj.toString();
-              pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText);
+              pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText, channelContext);
             } catch (ee) {
               const base = (sanitizeUrlCandidate(baseStr) || DEFAULT_URL).replace(/\?.*$/, '');
               targetUrl = base + '?content=' + encodeURIComponent(composerText);
-              pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText);
+              pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText, channelContext);
             }
           }
 

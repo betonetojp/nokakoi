@@ -636,20 +636,30 @@ export async function replyToEvent(state, targetEv, text) {
         tags.push(['n', name]);
       }
     } else if (targetEv.kind === 42) {
-      // NIP-28 チャンネルメッセージへの返信は kind:42 で送信
-      const { pickChannelRootId } = await import('../channel/channel.js');
-      const { sendChannelMessage } = await import('../channel/channel-feed.js');
-      const rootId = pickChannelRootId(targetEv);
-      if (!rootId) {
-        alert(t('publish.failed', { msg: t('channel.resolve_root_failed') || 'チャンネル root を解決できませんでした' }));
-        return false;
-      }
       const quoteMode = window && window.getQuoteMode ? window.getQuoteMode() : (window.__nokakoiQuoteMode || false);
-      await sendChannelMessage(rootId, text, effectiveState, {
-        replyToEvent: targetEv,
-        isQuote: !!quoteMode
-      });
-      return true;
+      const isChannelChatOpen = typeof window !== 'undefined' && typeof window.isChannelChatOpen === 'function' ? window.isChannelChatOpen() : (() => {
+        try {
+          const wrapper = document.querySelector('.channel-portal-wrapper');
+          return !!(wrapper && wrapper.classList.contains('show-chat'));
+        } catch (_e) { return false; }
+      })();
+      // チャンネル画面が開いている場合、または通常返信の場合は kind:42 で送信
+      if (isChannelChatOpen || !quoteMode) {
+        // NIP-28 チャンネルメッセージへの返信は kind:42 で送信
+        const { pickChannelRootId } = await import('../channel/channel.js');
+        const { sendChannelMessage } = await import('../channel/channel-feed.js');
+        const rootId = pickChannelRootId(targetEv);
+        if (!rootId) {
+          alert(t('publish.failed', { msg: t('channel.resolve_root_failed') || 'チャンネル root を解決できませんでした' }));
+          return false;
+        }
+        await sendChannelMessage(rootId, text, effectiveState, {
+          replyToEvent: targetEv,
+          isQuote: !!quoteMode
+        });
+        return true;
+      }
+      // チャンネル画面外での引用投稿は通常の kind:1 引用ポストとしてフォールスルー
     } else if (alwaysUseComment || targetEv.kind === 1111) {
       // NIP-22 (kind: 1111) コメント送信
       replyKind = 1111;

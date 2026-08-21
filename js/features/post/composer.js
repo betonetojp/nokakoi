@@ -287,7 +287,7 @@ export function clearChannelTarget() {
   clearReplyTarget();
 }
 
-function isChannelChatOpen() {
+export function isChannelChatOpen() {
   try {
     const wrapper = document.querySelector('.channel-portal-wrapper');
     return !!(wrapper && wrapper.classList.contains('show-chat'));
@@ -725,11 +725,16 @@ export function setupComposerUI(state, { getOmochatRelays, consumeShareText }) {
 
     const replyTarget = currentReplyTarget;
     const geohashTarget = currentGeohashTarget;
-    const channelTarget = (currentChannelTarget && isChannelChatOpen()) ? currentChannelTarget : null;
+    const isChannelOpen = isChannelChatOpen();
+    const channelTarget = (currentChannelTarget && isChannelOpen) ? currentChannelTarget : null;
     const channelRootFromReply = (replyTarget && replyTarget.kind === 42) ? pickChannelRootId(replyTarget) : null;
+    // チャンネル外（他タブ）での引用投稿は kind:1（通常引用ポスト）として扱う。通常返信は kind:42 を維持
+    const shouldSendAsChannel = isChannelOpen
+      ? (channelTarget || channelRootFromReply)
+      : (!currentQuoteMode && channelRootFromReply);
     let success;
 
-    if (channelTarget || channelRootFromReply) {
+    if (shouldSendAsChannel) {
       // チャンネル投稿として送信 (kind:42, 返信・引用含む)
       const rootId = (channelTarget && channelTarget.rootId) || channelRootFromReply;
       try {
