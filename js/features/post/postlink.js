@@ -256,7 +256,6 @@ export async function setupPostLinkUI(settingsManager) {
     let settingsSentForSession = false;
     let isModalMode = false;
     let pendingComposerContextPayload = null;
-    let composerContextSyncTimers = [];
     let clearDelayedAuthSync = () => {
       try {
         if (delayedAuthSyncTimer) clearInterval(delayedAuthSyncTimer);
@@ -265,17 +264,26 @@ export async function setupPostLinkUI(settingsManager) {
     };
     let startDelayedAuthAndSettingsSync = () => { };
 
-    function clearComposerContextSyncTimers() {
-      for (const timerId of composerContextSyncTimers) {
-        try { clearTimeout(timerId); } catch (e) { }
-      }
-      composerContextSyncTimers = [];
-    }
-
+    let authContextSyncTimer = null;
     function flushSettingsAfterAuth() {
-      // URL 起動時の参照イベント取得は auth/relay 復元前に走り失敗しやすいため
-      // 認証後に composer.setContext で再ハイドレートして content を取る。
-      try { scheduleComposerContextSync(); } catch (e) { }
+      if (authContextSyncTimer) {
+        try { clearTimeout(authContextSyncTimer); } catch (e) { }
+        authContextSyncTimer = null;
+      }
+      // auth.result 受信後、eHagaki が保存リレーへの WebSocket 接続を確立・完了する
+      // タイミング（約250-300ms）で 1 回だけ composer context を送信
+      authContextSyncTimer = setTimeout(() => {
+        try {
+          if (!pendingComposerContextPayload) return;
+          const modalEl = document.getElementById('ehagakiModal');
+          if (!modalEl || modalEl.hidden) return;
+          const refOnlyPayload = {};
+          if (pendingComposerContextPayload.reply !== undefined) refOnlyPayload.reply = pendingComposerContextPayload.reply;
+          if (pendingComposerContextPayload.quotes !== undefined) refOnlyPayload.quotes = pendingComposerContextPayload.quotes;
+          if (pendingComposerContextPayload.channel !== undefined) refOnlyPayload.channel = pendingComposerContextPayload.channel;
+          postEmbedComposerContext(refOnlyPayload, 'auth-established@300ms');
+        } catch (e) { }
+      }, 300);
     }
 
     let iframeTeardownTimer = null;
@@ -304,7 +312,10 @@ export async function setupPostLinkUI(settingsManager) {
     }
     function teardownEhagakiIframe(delayMs = 240) {
       try { clearDelayedAuthSync(); } catch (e) { }
-      try { clearComposerContextSyncTimers(); } catch (e) { }
+      if (authContextSyncTimer) {
+        try { clearTimeout(authContextSyncTimer); } catch (e) { }
+        authContextSyncTimer = null;
+      }
       embedAuthEstablished = false;
       settingsConfirmed = false;
       settingsSentForSession = false;
@@ -568,27 +579,6 @@ export async function setupPostLinkUI(settingsManager) {
         requestId,
         payload,
       });
-    }
-
-    function scheduleComposerContextSync() {
-      clearComposerContextSyncTimers();
-      if (!pendingComposerContextPayload) return;
-
-      // eHagaki のリレー接続・ログイン初期化完了のタイミング（500ms余裕設定）に 1 回だけ送信
-      // 複数回送信を完全撤廃し、ユーザーの入力や設定変更を一切上書きしない
-      const timerId = setTimeout(() => {
-        try {
-          if (!pendingComposerContextPayload) return;
-          const modalEl = document.getElementById('ehagakiModal');
-          if (!modalEl || modalEl.hidden) return;
-          const refOnlyPayload = {};
-          if (pendingComposerContextPayload.reply !== undefined) refOnlyPayload.reply = pendingComposerContextPayload.reply;
-          if (pendingComposerContextPayload.quotes !== undefined) refOnlyPayload.quotes = pendingComposerContextPayload.quotes;
-          if (pendingComposerContextPayload.channel !== undefined) refOnlyPayload.channel = pendingComposerContextPayload.channel;
-          postEmbedComposerContext(refOnlyPayload, 'single-sync@500ms');
-        } catch (e) { }
-      }, 500);
-      composerContextSyncTimers.push(timerId);
     }
 
     function applyReplyQuoteParams(urlObj, extractedQuoteRefs) {
@@ -1314,7 +1304,6 @@ export async function setupPostLinkUI(settingsManager) {
         settingsConfirmed = false;
         settingsSentForSession = false;
         isModalMode = true;
-        try { clearComposerContextSyncTimers(); } catch (e) { }
         let safeTarget = sanitizePostLinkTarget(targetUrl) || DEFAULT_URL;
         try {
           const u = new URL(safeTarget, window.location.href);
@@ -1457,7 +1446,6 @@ export async function setupPostLinkUI(settingsManager) {
           bringEhagakiModalToFront();
         }
         postEmbedComposerContext(pendingComposerContextPayload, reason);
-        scheduleComposerContextSync();
         return true;
       } catch (e) {
         console.warn('[PostLink] composer.setContext 再送に失敗', e);
@@ -1525,7 +1513,6 @@ export async function setupPostLinkUI(settingsManager) {
       pendingComposerContextPayload = buildComposerContextPayload(extractedQuoteRefs, composerText, channelContext);
       try {
         postEmbedComposerContext(pendingComposerContextPayload, 'public-chats-pick');
-        scheduleComposerContextSync();
       } catch (e) {
         console.warn('[PostLink] channel setContext に失敗', e);
         return false;
