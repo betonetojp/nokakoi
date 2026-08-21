@@ -252,8 +252,8 @@ export async function setupPostLinkUI(settingsManager) {
 
     let delayedAuthSyncTimer = null;
     let embedAuthEstablished = false;
-    let pendingSettingsAfterAuth = false;
     let settingsConfirmed = false;
+    let settingsSentForSession = false;
     let isModalMode = false;
     let pendingComposerContextPayload = null;
     let composerContextSyncTimers = [];
@@ -272,15 +272,8 @@ export async function setupPostLinkUI(settingsManager) {
       composerContextSyncTimers = [];
     }
 
-    function queueSettingsAfterAuth() {
-      pendingSettingsAfterAuth = true;
-    }
-
     function flushSettingsAfterAuth() {
-      if (!pendingSettingsAfterAuth) return;
-      try { postEmbedSettings(); } catch (e) { }
-      pendingSettingsAfterAuth = false;
-      // URL 起動時の参照イベント取得は auth/relay 復元前に走り失敗しやすい。
+      // URL 起動時の参照イベント取得は auth/relay 復元前に走り失敗しやすいため
       // 認証後に composer.setContext で再ハイドレートして content を取る。
       try { scheduleComposerContextSync(); } catch (e) { }
     }
@@ -313,8 +306,8 @@ export async function setupPostLinkUI(settingsManager) {
       try { clearDelayedAuthSync(); } catch (e) { }
       try { clearComposerContextSyncTimers(); } catch (e) { }
       embedAuthEstablished = false;
-      pendingSettingsAfterAuth = false;
       settingsConfirmed = false;
+      settingsSentForSession = false;
       isModalMode = false;
       pendingComposerContextPayload = null;
       clearEhagakiModalZIndex();
@@ -454,18 +447,12 @@ export async function setupPostLinkUI(settingsManager) {
         if (state && ev) {
           for (const r of getEventSeenOn(state, ev)) add(r);
         }
+        if (state && state.relays) {
+          for (const r of getReadRelays(state.relays)) add(r);
+        }
       } catch (e) { }
 
-      if (hints.length === 0) {
-        try {
-          const state = getNostrState();
-          if (state && state.relays) {
-            for (const r of getReadRelays(state.relays)) add(r);
-          }
-        } catch (e) { }
-      }
-
-      return hints.slice(0, 3);
+      return hints.slice(0, 4);
     }
 
     function encodeNeventForEmbed(eventId, options = {}) {
@@ -497,10 +484,18 @@ export async function setupPostLinkUI(settingsManager) {
     function encodeTargetNevent(rt) {
       const targetId = rt && (rt.id || rt.eventId) ? (rt.id || rt.eventId) : null;
       if (!targetId) return null;
-      return encodeNeventForEmbed(targetId, {
+      const encoded = encodeNeventForEmbed(targetId, {
         relays: collectRelayHintsForEvent(rt),
         author: (rt && typeof rt.pubkey === 'string') ? rt.pubkey : undefined,
       });
+      if (encoded) return encoded;
+      try {
+        const nip19local = getNip19 && getNip19();
+        if (nip19local && typeof nip19local.noteEncode === 'function') {
+          return nip19local.noteEncode(targetId);
+        }
+      } catch (e) { }
+      return null;
     }
 
     function buildComposerContextPayload(extractedQuoteRefs, content) {
@@ -561,18 +556,22 @@ export async function setupPostLinkUI(settingsManager) {
     function scheduleComposerContextSync() {
       clearComposerContextSyncTimers();
       if (!pendingComposerContextPayload) return;
-      // auth 直後・リレー復元後に再送（URL 起動時の早すぎる取得失敗をリカバリ）
-      [0, 900, 2200].forEach((delay) => {
-        const timerId = setTimeout(() => {
-          try {
-            if (!pendingComposerContextPayload) return;
-            const modalEl = document.getElementById('ehagakiModal');
-            if (!modalEl || modalEl.hidden) return;
-            postEmbedComposerContext(pendingComposerContextPayload, 'hydrate@' + delay + 'ms');
-          } catch (e) { }
-        }, delay);
-        composerContextSyncTimers.push(timerId);
-      });
+
+      // eHagaki のリレー接続・ログイン初期化完了のタイミング（500ms余裕設定）に 1 回だけ送信
+      // 複数回送信を完全撤廃し、ユーザーの入力や設定変更を一切上書きしない
+      const timerId = setTimeout(() => {
+        try {
+          if (!pendingComposerContextPayload) return;
+          const modalEl = document.getElementById('ehagakiModal');
+          if (!modalEl || modalEl.hidden) return;
+          const refOnlyPayload = {};
+          if (pendingComposerContextPayload.reply !== undefined) refOnlyPayload.reply = pendingComposerContextPayload.reply;
+          if (pendingComposerContextPayload.quotes !== undefined) refOnlyPayload.quotes = pendingComposerContextPayload.quotes;
+          if (pendingComposerContextPayload.channel !== undefined) refOnlyPayload.channel = pendingComposerContextPayload.channel;
+          postEmbedComposerContext(refOnlyPayload, 'single-sync@500ms');
+        } catch (e) { }
+      }, 500);
+      composerContextSyncTimers.push(timerId);
     }
 
     function applyReplyQuoteParams(urlObj, extractedQuoteRefs) {
@@ -1030,13 +1029,7 @@ export async function setupPostLinkUI(settingsManager) {
             return;
           }
 
-          if (settingsConfirmed) {
-            clearDelayedAuthSync();
-            return;
-          }
-
-          if (embedAuthEstablished) {
-            flushSettingsAfterAuth();
+          if (settingsConfirmed || embedAuthEstablished) {
             clearDelayedAuthSync();
             return;
           }
@@ -1133,8 +1126,6 @@ export async function setupPostLinkUI(settingsManager) {
           // ready: ログイン済みなら auth.login を送信
           if (data.type === 'ready') {
             try {
-              embedAuthEstablished = false;
-              queueSettingsAfterAuth();
               const pubkeyHex = await getCurrentPubkey();
               if (pubkeyHex) {
                 postToEhagakiIframe({
@@ -1144,22 +1135,6 @@ export async function setupPostLinkUI(settingsManager) {
                   payload: { pubkeyHex },
                 });
               }
-              // 親ページのテーマを iframe に通知（受け取って適用するかは iframe 側次第）
-              try {
-                const themeForEmbed = resolveVisualThemeForEmbed();
-                postToEhagakiIframe({ namespace: 'ehagaki.embed', version: 1, type: 'embed.theme', payload: { theme: themeForEmbed } });
-              } catch (e) { }
-              // 都度生成 iframe パターンでは ready 受信後に settings.set を再送する
-              // ここで送ったので pendingSettingsAfterAuth をクリアして auth 後の重複送信を防ぐ
-              try { postEmbedSettings(); } catch (e) { }
-              pendingSettingsAfterAuth = false;
-              // URL 起動の参照イベント取得が auth 前に失敗しても、ready 時点で setContext を送っておく
-              // （pending auth 中は eHagaki 側で queue → auth 後に flush される）
-              try {
-                if (pendingComposerContextPayload) {
-                  postEmbedComposerContext(pendingComposerContextPayload, 'ready');
-                }
-              } catch (e) { }
               // iPhone PWA などで親ログイン初期化が遅れる場合に備えて後追い同期
               startDelayedAuthAndSettingsSync();
             } catch (ee) { console.warn('[PostLink] ready 処理に失敗', ee); }
@@ -1210,10 +1185,9 @@ export async function setupPostLinkUI(settingsManager) {
             return;
           }
 
-          // settings.result: 設定受信確認応答
-          if (data.type === 'settings.result') {
+          // settings.applied / settings.result: 設定受信確認応答
+          if (data.type === 'settings.applied' || data.type === 'settings.result') {
             settingsConfirmed = true;
-            pendingSettingsAfterAuth = false;
             clearDelayedAuthSync();
             return;
           }
@@ -1343,9 +1317,9 @@ export async function setupPostLinkUI(settingsManager) {
       if (iframe) {
         embedAuthEstablished = false;
         settingsConfirmed = false;
+        settingsSentForSession = false;
         isModalMode = true;
         try { clearComposerContextSyncTimers(); } catch (e) { }
-        queueSettingsAfterAuth();
         let safeTarget = sanitizePostLinkTarget(targetUrl) || DEFAULT_URL;
         try {
           const u = new URL(safeTarget, window.location.href);
@@ -1353,70 +1327,31 @@ export async function setupPostLinkUI(settingsManager) {
           if (!u.searchParams.has('parentOrigin')) {
             try { u.searchParams.set('parentOrigin', window.location.origin); } catch (e) { }
           }
+          // iframe 埋め込み時は 250ms 時点の single-sync で確実にコンテキストを渡すため、
+          // URL クエリによる未認証時の早期フェッチ失敗（「イベントの取得に失敗しました」チラつき）を防止
+          try { u.searchParams.delete('quote'); } catch (e) { }
+          try { u.searchParams.delete('reply'); } catch (e) { }
           try {
             const themeForEmbed = resolveEmbedTheme();
-            try { u.searchParams.set('embedTheme', themeForEmbed); } catch (e) { }
+            try { u.searchParams.set('defaultTheme', themeForEmbed); } catch (e) { }
           } catch (e) { }
 
           try {
             const localeForEmbed = resolveEmbedLocale();
-            try { u.searchParams.set('embedLocale', localeForEmbed); } catch (e) { }
+            try { u.searchParams.set('defaultLocale', localeForEmbed); } catch (e) { }
           } catch (e) { }
 
           try {
-            const uploadEndpointForEmbed = readDelegatedSetting('uploadEndpoint');
-            if (typeof uploadEndpointForEmbed === 'string' && uploadEndpointForEmbed) {
-              try { u.searchParams.set('embedUploadEndpoint', uploadEndpointForEmbed); } catch (e) { }
-            }
-          } catch (e) { }
-
-          try {
-            const imageQualityLevel = readDelegatedSetting('imageQualityLevel');
-            if (typeof imageQualityLevel === 'string' && imageQualityLevel) {
-              try { u.searchParams.set('embedImageQuality', imageQualityLevel); } catch (e) { }
-            }
-          } catch (e) { }
-          try {
-            const videoQualityLevel = readDelegatedSetting('videoQualityLevel');
-            if (typeof videoQualityLevel === 'string' && videoQualityLevel) {
-              try { u.searchParams.set('embedVideoQuality', videoQualityLevel); } catch (e) { }
+            const quoteNotification = parseStoredBool(readDelegatedSetting('quoteNotificationEnabled'));
+            if (quoteNotification !== null) {
+              try { u.searchParams.set('defaultQuoteNotification', quoteNotification ? 'true' : 'false'); } catch (e) { }
             }
           } catch (e) { }
 
           try {
-            const clientTagEnabled = parseStoredBool(readDelegatedSetting('clientTagEnabled'));
-            if (clientTagEnabled !== null) {
-              try { u.searchParams.set('embedClientTag', clientTagEnabled ? 'true' : 'false'); } catch (e) { }
-            }
-          } catch (e) { }
-          try {
-            const quoteNotificationEnabled = parseStoredBool(readDelegatedSetting('quoteNotificationEnabled'));
-            if (quoteNotificationEnabled !== null) {
-              try { u.searchParams.set('embedQuoteNotification', quoteNotificationEnabled ? 'true' : 'false'); } catch (e) { }
-            }
-          } catch (e) { }
-          try {
-            const replyNotificationEnabled = parseStoredBool(readDelegatedSetting('replyNotificationEnabled'));
-            if (replyNotificationEnabled !== null) {
-              try { u.searchParams.set('embedReplyNotification', replyNotificationEnabled ? 'true' : 'false'); } catch (e) { }
-            }
-          } catch (e) { }
-          try {
-            const mediaFreePlacement = parseStoredBool(readDelegatedSetting('mediaFreePlacement'));
-            if (mediaFreePlacement !== null) {
-              try { u.searchParams.set('embedMediaFreePlacement', mediaFreePlacement ? 'true' : 'false'); } catch (e) { }
-            }
-          } catch (e) { }
-          try {
-            const showMascot = parseStoredBool(readDelegatedSetting('showMascot'));
-            if (showMascot !== null) {
-              try { u.searchParams.set('embedShowMascot', showMascot ? 'true' : 'false'); } catch (e) { }
-            }
-          } catch (e) { }
-          try {
-            const showFlavorText = parseStoredBool(readDelegatedSetting('showFlavorText'));
-            if (showFlavorText !== null) {
-              try { u.searchParams.set('embedShowFlavorText', showFlavorText ? 'true' : 'false'); } catch (e) { }
+            const replyNotification = parseStoredBool(readDelegatedSetting('replyNotificationEnabled'));
+            if (replyNotification !== null) {
+              try { u.searchParams.set('defaultReplyNotification', replyNotification ? 'true' : 'false'); } catch (e) { }
             }
           } catch (e) { }
           safeTarget = u.toString();

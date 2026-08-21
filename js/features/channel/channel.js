@@ -193,6 +193,14 @@ export function encodeChannelNevent(eventId, options = {}) {
       } catch (e) { }
     }
   } catch (e) { }
+  if (!nevent) {
+    try {
+      const nip19local = getNip19 && getNip19();
+      if (nip19local && typeof nip19local.noteEncode === 'function') {
+        nevent = nip19local.noteEncode(normalizedEventId);
+      }
+    } catch (e) { }
+  }
   if (!nevent) return null;
   return String(nevent).replace(/^nostr:/i, '');
 }
