@@ -720,39 +720,12 @@ export async function setupPostLinkUI(settingsManager) {
     }
 
     function buildEmbedSettingsPayload() {
-      const payload = {
+      // nokakoi から連動させるのはテーマと言語のみに限定
+      // （画像品質や通知トグル等の eHagaki 独自設定は storage 委譲に任せて上書きを防ぐ）
+      return {
         locale: resolveEmbedLocale(),
         themeMode: resolveEmbedTheme(),
       };
-
-      const uploadEndpoint = readDelegatedSetting('uploadEndpoint');
-      if (typeof uploadEndpoint === 'string' && uploadEndpoint) payload.uploadEndpoint = uploadEndpoint;
-
-      const imageQualityLevel = readDelegatedSetting('imageQualityLevel');
-      if (typeof imageQualityLevel === 'string' && imageQualityLevel) payload.imageQualityLevel = imageQualityLevel;
-
-      const videoQualityLevel = readDelegatedSetting('videoQualityLevel');
-      if (typeof videoQualityLevel === 'string' && videoQualityLevel) payload.videoQualityLevel = videoQualityLevel;
-
-      const clientTagEnabled = parseStoredBool(readDelegatedSetting('clientTagEnabled'));
-      if (clientTagEnabled !== null) payload.clientTagEnabled = clientTagEnabled;
-
-      const quoteNotificationEnabled = parseStoredBool(readDelegatedSetting('quoteNotificationEnabled'));
-      if (quoteNotificationEnabled !== null) payload.quoteNotificationEnabled = quoteNotificationEnabled;
-
-      const replyNotificationEnabled = parseStoredBool(readDelegatedSetting('replyNotificationEnabled'));
-      if (replyNotificationEnabled !== null) payload.replyNotificationEnabled = replyNotificationEnabled;
-
-      const mediaFreePlacement = parseStoredBool(readDelegatedSetting('mediaFreePlacement'));
-      if (mediaFreePlacement !== null) payload.mediaFreePlacement = mediaFreePlacement;
-
-      const showMascot = parseStoredBool(readDelegatedSetting('showMascot'));
-      if (showMascot !== null) payload.showMascot = showMascot;
-
-      const showFlavorText = parseStoredBool(readDelegatedSetting('showFlavorText'));
-      if (showFlavorText !== null) payload.showFlavorText = showFlavorText;
-
-      return payload;
     }
 
     function postEmbedSettings() {
@@ -1135,6 +1108,11 @@ export async function setupPostLinkUI(settingsManager) {
                   payload: { pubkeyHex },
                 });
               }
+              // テーマと言語設定をポストメッセージで同期（通知や品質などの独自設定は含まないため安全）
+              if (!settingsSentForSession) {
+                settingsSentForSession = true;
+                try { postEmbedSettings(); } catch (e) { }
+              }
               // iPhone PWA などで親ログイン初期化が遅れる場合に備えて後追い同期
               startDelayedAuthAndSettingsSync();
             } catch (ee) { console.warn('[PostLink] ready 処理に失敗', ee); }
@@ -1333,12 +1311,12 @@ export async function setupPostLinkUI(settingsManager) {
           try { u.searchParams.delete('reply'); } catch (e) { }
           try {
             const themeForEmbed = resolveEmbedTheme();
-            try { u.searchParams.set('defaultTheme', themeForEmbed); } catch (e) { }
+            try { u.searchParams.set('embedTheme', themeForEmbed); } catch (e) { }
           } catch (e) { }
 
           try {
             const localeForEmbed = resolveEmbedLocale();
-            try { u.searchParams.set('defaultLocale', localeForEmbed); } catch (e) { }
+            try { u.searchParams.set('embedLocale', localeForEmbed); } catch (e) { }
           } catch (e) { }
 
           try {
