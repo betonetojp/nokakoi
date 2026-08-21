@@ -1136,7 +1136,9 @@ export async function setupPostLinkUI(settingsManager) {
                 postToEhagakiIframe({ namespace: 'ehagaki.embed', version: 1, type: 'embed.theme', payload: { theme: themeForEmbed } });
               } catch (e) { }
               // 都度生成 iframe パターンでは ready 受信後に settings.set を再送する
+              // ここで送ったので pendingSettingsAfterAuth をクリアして auth 後の重複送信を防ぐ
               try { postEmbedSettings(); } catch (e) { }
+              pendingSettingsAfterAuth = false;
               // URL 起動の参照イベント取得が auth 前に失敗しても、ready 時点で setContext を送っておく
               // （pending auth 中は eHagaki 側で queue → auth 後に flush される）
               try {
