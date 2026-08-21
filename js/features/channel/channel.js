@@ -10,6 +10,19 @@ import { getNip19 } from '../../core/nostr-compat.js';
 const __labelCache = new Map();
 const __inflight = new Map();
 
+function normalizeRelayUrl(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'ws:' && parsed.protocol !== 'wss:') return null;
+    return parsed.toString();
+  } catch (e) {
+    return null;
+  }
+}
+
 export function shortenChannelEventId(id) {
   if (!id) return '';
   if (id.length < 12) return id;
@@ -62,13 +75,12 @@ function parseChannelContentFields(content) {
       const relays = [];
       const seen = new Set();
       for (const r of parsed.relays) {
-        if (typeof r !== 'string') continue;
-        const trimmedRelay = r.trim();
-        if (!trimmedRelay || !/^wss?:\/\//i.test(trimmedRelay)) continue;
-        const key = trimmedRelay.replace(/\/+$/, '').toLowerCase();
+        const normalizedRelay = normalizeRelayUrl(r);
+        if (!normalizedRelay) continue;
+        const key = normalizedRelay.replace(/\/+$/, '').toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
-        relays.push(trimmedRelay);
+        relays.push(normalizedRelay);
       }
       if (relays.length) out.relays = relays;
     }
@@ -93,13 +105,12 @@ function mergeRelayLists(...lists) {
   for (const list of lists) {
     if (!Array.isArray(list)) continue;
     for (const r of list) {
-      if (typeof r !== 'string') continue;
-      const trimmed = r.trim();
-      if (!trimmed || !/^wss?:\/\//i.test(trimmed)) continue;
-      const key = trimmed.replace(/\/+$/, '').toLowerCase();
+      const normalizedRelay = normalizeRelayUrl(r);
+      if (!normalizedRelay) continue;
+      const key = normalizedRelay.replace(/\/+$/, '').toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push(trimmed);
+      out.push(normalizedRelay);
       if (out.length >= 3) return out;
     }
   }
@@ -115,8 +126,8 @@ export function pickChannelRootRelayHints(ev, rootId) {
   const seen = new Set();
   for (const tag of ev.tags) {
     if (!tag || tag[0] !== 'e' || tag[1] !== rootId) continue;
-    const relay = typeof tag[2] === 'string' ? tag[2].trim() : '';
-    if (!relay || !/^wss?:\/\//i.test(relay)) continue;
+    const relay = normalizeRelayUrl(tag[2]);
+    if (!relay) continue;
     const key = relay.replace(/\/+$/, '').toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -161,9 +172,11 @@ export function extractChannelProfileFields(rootEvent, metaEvent) {
 }
 
 export function encodeChannelNevent(eventId, options = {}) {
+  const normalizedEventId = (typeof eventId === 'string') ? eventId.trim().toLowerCase() : '';
+  if (!/^[0-9a-f]{64}$/.test(normalizedEventId)) return null;
   let nevent = null;
   const relays = Array.isArray(options.relays) ? options.relays : [];
-  const payload = { id: eventId, relays };
+  const payload = { id: normalizedEventId, relays };
   if (options.author && typeof options.author === 'string') payload.author = options.author;
   try {
     const nip19local = getNip19 && getNip19();
@@ -180,7 +193,7 @@ export function encodeChannelNevent(eventId, options = {}) {
       } catch (e) { }
     }
   } catch (e) { }
-  if (!nevent) nevent = 'nevent1' + eventId;
+  if (!nevent) return null;
   return String(nevent).replace(/^nostr:/i, '');
 }
 
