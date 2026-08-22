@@ -3,7 +3,7 @@ import { showOmochatSettingsModal } from '../modals/modals.js';
 import { clearReplyTarget } from '../../features/post/composer.js';
 import { setMentionBlink } from './mention-blink.js';
 import { showHomeDisplayQuickModal } from './display-settings.js';
-import { getAppState } from '../../core/app-context.js';
+import { getAppState, updateTabVisibility } from '../../core/app-context.js';
 import { writeMentionLastViewed } from '../../utils/mention-last-viewed.js';
 import {
   initChannelView,
@@ -422,6 +422,14 @@ export function setupTabs(settingsManager, preserveActive = false, options = {})
       ...options
     });
   }
+
+  try {
+    const currentState = getAppState();
+    const pubkey = (currentState && currentState.pubkey) || (typeof localStorage !== 'undefined' ? localStorage.getItem('pubkey') : null);
+    if (typeof updateTabVisibility === 'function') {
+      updateTabVisibility(!!pubkey);
+    }
+  } catch (e) {}
 }
 
 export function renderTabSettingsUI(settingsManager, container) {

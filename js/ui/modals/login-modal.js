@@ -96,7 +96,7 @@ async function renderMethodSelection(state, settings, settingsManager, onLoginSu
         id: 'saved_accounts',
         icon: '👥',
         titleKey: 'account.modal.title',
-        descKey: 'account.modal.switch',
+        descKey: 'login.modal.saved_accounts_desc',
         action: () => {
           closeModal();
           openAccountModal(state, settings, settingsManager, onLoginSuccess);

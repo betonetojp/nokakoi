@@ -587,6 +587,7 @@
   "login.modal.nip07_desc": "nos2x等の拡張機能で認証します",
   "login.modal.keygen": "新しい秘密鍵を作成",
   "login.modal.keygen_desc": "新規アカウントを生成します",
+  "login.modal.saved_accounts_desc": "保存済みアカウントはこちら",
   "account.modal.title": "アカウント管理",
   "account.modal.active": "アクティブ",
   "account.modal.switch": "切り替え",

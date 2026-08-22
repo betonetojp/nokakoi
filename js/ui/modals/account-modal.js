@@ -43,10 +43,11 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
   if (!content) return;
 
   const accountData = getAccountList();
-  const activeId = accountData.activeAccountId || state.pubkey || localStorage.getItem('pubkey');
+  const currentPubkey = (state && state.pubkey) || localStorage.getItem('pubkey');
+  const activeId = currentPubkey ? (accountData.activeAccountId || currentPubkey).toLowerCase() : null;
   const nip19 = getNip19();
 
-  content.innerHTML = `
+  const topActionsHtml = activeId ? `
     <!-- 最上部アクション: プロフィール編集・ログアウト -->
     <div class="account-modal-top-actions">
       <button type="button" class="secondary" id="accountEditProfileBtn">
@@ -58,7 +59,10 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
     </div>
 
     <hr class="account-modal-divider">
+  ` : '';
 
+  content.innerHTML = `
+    ${topActionsHtml}
     <!-- アカウント一覧 -->
     <div class="account-list" id="accountListContainer"></div>
 

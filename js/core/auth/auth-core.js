@@ -9,11 +9,12 @@ import { isWebAuthnSupported, authenticateWithPasskey, decryptNip46SessionWithPa
 import { Nip46Client, DEFAULT_NIP46_RELAYS } from '../nip46.js';
 import { showPasswordModal } from './nsec-auth.js';
 import { getNip46LocalSecretKey, getNip46ProtectedSession, clearNip46LocalSecretKey } from './nip46-session.js';
-import { addAccount, migrateFromSingleAccount } from '../account-manager.js';
+import { addAccount, migrateFromSingleAccount, setActiveAccountId } from '../account-manager.js';
 import { defaultJaRelayUrl, defaultIntlRelayUrl, saveRelaysForAccount, loadRelaysForAccount, getDefaultGlobalRelayByLang } from '../relay.js';
 import { detectBrowserLang } from '../../utils/i18n.js';
 import { updateGlobalButtonLabel } from '../../features/relay/global-relay.js';
 import { invalidateMuteWork, saveMuteListForAccount, loadMuteListForAccount, clearMuteListState } from '../../features/mute/mute.js';
+import { setupTabs } from '../../ui/setup/tab-manager.js';
 import {
   getSettingsManager,
   updateTabVisibility as invokeTabVisibilityUpdate
@@ -366,6 +367,8 @@ export function logout(state, settings, settingsManager, restartFeeds) {
     saveMuteListForAccount(currentPk);
   }
 
+  setActiveAccountId(null);
+
   try {
     localStorage.setItem('skipAutoLogin', '1');
     localStorage.removeItem('pubkey');
@@ -442,7 +445,14 @@ export function logout(state, settings, settingsManager, restartFeeds) {
   if (openLoginModalBtn) openLoginModalBtn.hidden = false;
   if (composer) composer.hidden = true;
 
-  // タブの表示更新（未ログイン時制限）
+  // デフォルトタブ構成でタブバーを再構築
+  try {
+    if (typeof setupTabs === 'function') {
+      setupTabs(settingsManager, false);
+    }
+  } catch (e) { }
+
+  // タブの表示更新（未ログイン時制限: global と channels のみ）
   invokeTabVisibilityUpdate(false);
 
   syncAccountUI(state, settingsManager);

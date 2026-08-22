@@ -599,6 +599,7 @@
   "login.modal.nip07_desc": "Authenticate via extensions like Alby or nos2x",
   "login.modal.keygen": "Create New Secret Key",
   "login.modal.keygen_desc": "Generate a brand new Nostr account",
+  "login.modal.saved_accounts_desc": "Select from saved accounts",
   "account.modal.nip07_mismatch": "The account in your browser extension does not match this account. Please switch accounts in your extension and try again.",
   "account.modal.unsaved_prompt": "This account's secret key is not saved. Please enter your secret key (nsec) to log in.",
   "account.modal.delete_confirm": "Are you sure you want to remove this account from the list? (Only local settings will be removed)",

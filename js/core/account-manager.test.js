@@ -68,6 +68,7 @@ import {
   getAccountList,
   migrateFromSingleAccount,
   removeAccount,
+  setActiveAccountId,
   switchAccount
 } from './account-manager.js';
 
@@ -384,5 +385,39 @@ describe('account manager', () => {
     expect(client.userPubkey).toBe(targetPubkey);
     expect(state.pubkey).toBe(targetPubkey);
     expect(state.signer).toBe('nip46');
+  });
+
+  it('allows clearing activeAccountId to null on logout and logging back in from logged out state', async () => {
+    const pubkey = 'd'.repeat(64);
+    addAccount({ id: pubkey, loginMethod: 'nip07' });
+    expect(getAccountList().activeAccountId).toBe(pubkey);
+
+    setActiveAccountId(null);
+    expect(getAccountList().activeAccountId).toBeNull();
+
+    globalThis.window.nostr = {
+      getPublicKey: vi.fn(async () => pubkey)
+    };
+
+    const state = {
+      nip46: null,
+      pubkey: null,
+      relays: [],
+      signer: 'auto'
+    };
+    const settingsManager = {
+      loadForAccount: vi.fn(),
+      saveForAccount: vi.fn(),
+      set: vi.fn(),
+      settings: {}
+    };
+    const loginFn = vi.fn(async () => {});
+
+    await switchAccount(pubkey, state, settingsManager, loginFn);
+
+    expect(state.pubkey).toBe(pubkey);
+    expect(state.signer).toBe('nip07');
+    expect(getAccountList().activeAccountId).toBe(pubkey);
+    expect(loginFn).toHaveBeenCalled();
   });
 });

@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   getNip46ProtectedSession: vi.fn(),
   loadProfile: vi.fn(),
   Nip46Client: vi.fn(),
+  setActiveAccountId: vi.fn(),
+  setupTabs: vi.fn(),
   signer: {
     clearKey: vi.fn(),
     clearRollbackHandles: vi.fn(),
@@ -61,7 +63,11 @@ vi.mock('./nip46-session.js', () => ({
 }));
 vi.mock('../account-manager.js', () => ({
   addAccount: mocks.addAccount,
-  migrateFromSingleAccount: vi.fn()
+  migrateFromSingleAccount: vi.fn(),
+  setActiveAccountId: mocks.setActiveAccountId
+}));
+vi.mock('../../ui/setup/tab-manager.js', () => ({
+  setupTabs: mocks.setupTabs
 }));
 vi.mock('../relay.js', () => ({
   defaultIntlRelayUrl: 'wss://intl',
@@ -253,6 +259,8 @@ describe('auth core', () => {
 
     expect(state.pubkey).toBeNull();
     expect(state.signer).toBe('auto');
+    expect(mocks.setActiveAccountId).toHaveBeenCalledWith(null);
+    expect(mocks.setupTabs).toHaveBeenCalledWith(settingsManager, false);
     expect(mocks.signer.clearKey).toHaveBeenCalled();
     expect(disconnect).toHaveBeenCalled();
     expect(mocks.clearNip46LocalSecretKey).toHaveBeenCalledWith(pubkey);
