@@ -22,19 +22,28 @@ const _observedLoadMoreBtns = new WeakMap(); // containerEl -> loadMoreBtn
 /**
  * 特定チャンネルのメッセージ (kind:42) をサブスクライブしてタイムライン描画
  */
-export async function subscribeChannelFeed(rootId, state, containerEl, settingsManager = null) {
+export async function subscribeChannelFeed(rootId, state, containerEl, settingsManager = null, options = {}) {
   if (!rootId || !containerEl) return;
 
   unsubscribeAllChannelFeeds();
   unobserveLoadMore(containerEl);
 
-  const myGen = (containerEl.__channelFeedGen = (containerEl.__channelFeedGen || 0) + 1);
+  const isResume = options.resume === true && containerEl.dataset.channelRootId === rootId;
+  const myGen = isResume
+    ? (containerEl.__channelFeedGen || 1)
+    : (containerEl.__channelFeedGen = (containerEl.__channelFeedGen || 0) + 1);
   containerEl.dataset.channelRootId = rootId;
   const isStale = () => (
     containerEl.dataset.channelRootId !== rootId || containerEl.__channelFeedGen !== myGen
   );
 
-  containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.fetching') || 'メッセージを取得中...'}</div>`;
+  const eventsMap = (isResume && containerEl.__channelEventsMap) ? containerEl.__channelEventsMap : new Map();
+  containerEl.__channelEventsMap = eventsMap;
+
+  if (!isResume) {
+    eventsMap.clear();
+    containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.fetching') || 'メッセージを取得中...'}</div>`;
+  }
 
   // メインの Read Relays + チャンネルの推奨リレーを取得
   const mainRelays = (state && state.relays) ? getReadRelays(state.relays) : [];
@@ -51,13 +60,114 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
 
   const targetRelays = Array.from(new Set([...mainRelays, ...metaRelays])).slice(0, 10);
   if (!targetRelays.length) {
-    containerEl.innerHTML = `<div class="text-danger p-12 text-center">${t('channel.no_relay') || '接続可能なリレーがありません'}</div>`;
+    if (!isResume || !eventsMap.size) {
+      containerEl.innerHTML = `<div class="text-danger p-12 text-center">${t('channel.no_relay') || '接続可能なリレーがありません'}</div>`;
+    }
     return;
   }
 
-  const eventsMap = new Map();
   let isLoadingMore = false;
   let noMoreEvents = false;
+
+  function removeStatusPlaceholder() {
+    if (!containerEl) return;
+    const placeholders = containerEl.querySelectorAll('.muted.text-center, .text-danger.text-center');
+    placeholders.forEach(p => {
+      if (!p.classList.contains('load-more-btn')) {
+        p.remove();
+      }
+    });
+  }
+
+  function updateLoadMoreButton() {
+    if (!containerEl || isStale()) return;
+    unobserveLoadMore(containerEl);
+
+    let loadMoreBtn = containerEl.querySelector('.load-more-btn');
+    if (noMoreEvents) {
+      if (loadMoreBtn) loadMoreBtn.remove();
+      return;
+    }
+
+    if (!eventsMap.size) return;
+
+    if (!loadMoreBtn) {
+      loadMoreBtn = document.createElement('button');
+      loadMoreBtn.type = 'button';
+      loadMoreBtn.className = 'feed-bar feed-bar-bottom accent-center load-more-btn' + (isLoadingMore ? ' is-loading-auto' : '');
+      loadMoreBtn.style.marginTop = '12px';
+      loadMoreBtn.style.width = '100%';
+      loadMoreBtn.textContent = isLoadingMore ? (t('loading') || '読み込み中...') : (t('feed.load_more') || 'もっと読む');
+      loadMoreBtn.onclick = () => {
+        if (isLoadingMore) return;
+        loadMoreHistory();
+      };
+      containerEl.appendChild(loadMoreBtn);
+    } else {
+      loadMoreBtn.className = 'feed-bar feed-bar-bottom accent-center load-more-btn' + (isLoadingMore ? ' is-loading-auto' : '');
+      loadMoreBtn.textContent = isLoadingMore ? (t('loading') || '読み込み中...') : (t('feed.load_more') || 'もっと読む');
+    }
+
+    try {
+      const observer = getInfiniteScrollObserver();
+      if (observer && loadMoreBtn) {
+        observer.observe(loadMoreBtn);
+        _observedLoadMoreBtns.set(containerEl, loadMoreBtn);
+      }
+    } catch (_e) {}
+  }
+
+  function addEventToDom(ev, isHistory = false) {
+    if (!containerEl || isStale() || !ev || !ev.id) return;
+
+    if (containerEl.querySelector(`.event[data-event-id="${ev.id}"]`)) {
+      return;
+    }
+
+    removeStatusPlaceholder();
+
+    const msgEl = createChannelMessageElement(ev, state, settingsManager);
+    if (!msgEl) return;
+
+    const loadMoreBtn = containerEl.querySelector('.load-more-btn');
+
+    if (isHistory) {
+      if (loadMoreBtn) {
+        containerEl.insertBefore(msgEl, loadMoreBtn);
+      } else {
+        containerEl.appendChild(msgEl);
+      }
+    } else {
+      const eventEls = Array.from(containerEl.querySelectorAll('.event:not(.feed-bar)'));
+      if (!eventEls.length) {
+        if (loadMoreBtn) {
+          containerEl.insertBefore(msgEl, loadMoreBtn);
+        } else {
+          containerEl.appendChild(msgEl);
+        }
+      } else {
+        const evTs = ev.created_at || 0;
+        let inserted = false;
+        for (const el of eventEls) {
+          const curId = el.dataset.eventId;
+          const curEv = eventsMap.get(curId);
+          const curTs = curEv ? (curEv.created_at || 0) : 0;
+          if (evTs >= curTs) {
+            containerEl.insertBefore(msgEl, el);
+            inserted = true;
+            break;
+          }
+        }
+        if (!inserted) {
+          if (loadMoreBtn) {
+            containerEl.insertBefore(msgEl, loadMoreBtn);
+          } else {
+            containerEl.appendChild(msgEl);
+          }
+        }
+      }
+    }
+  }
 
   async function loadMoreHistory() {
     if (isLoadingMore || noMoreEvents) return;
@@ -68,7 +178,7 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
     if (until <= 0) return;
 
     isLoadingMore = true;
-    renderEvents();
+    updateLoadMoreButton();
 
     try {
       const loadFilter = { kinds: [42], '#e': [rootId], limit: EVENTS_FETCH_LIMIT, until };
@@ -81,65 +191,24 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
             if (!eventsMap.has(ev.id)) {
               eventsMap.set(ev.id, ev);
               fetchedCount++;
+              addEventToDom(ev, true);
             }
           },
           oneose() {
             try { if (typeof sub.close === 'function') sub.close(); } catch (_e) {}
             isLoadingMore = false;
             if (fetchedCount === 0) noMoreEvents = true;
-            renderEvents();
+            updateLoadMoreButton();
           },
           eoseTimeout: 4000,
         });
       } else {
         isLoadingMore = false;
-        renderEvents();
+        updateLoadMoreButton();
       }
     } catch (_e) {
       isLoadingMore = false;
-      renderEvents();
-    }
-  }
-
-  function renderEvents() {
-    if (!containerEl || isStale()) return;
-    unobserveLoadMore(containerEl);
-
-    // 最新が上になるよう降順 (新しい順) でソート
-    const sorted = Array.from(eventsMap.values()).sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
-
-    if (!sorted.length) {
-      containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.no_messages') || 'まだメッセージはありません。'}</div>`;
-      return;
-    }
-
-    containerEl.innerHTML = '';
-    sorted.forEach(ev => {
-      const msgEl = createChannelMessageElement(ev, state, settingsManager);
-      containerEl.appendChild(msgEl);
-    });
-
-    // 「もっと読む」ボタンの描画
-    if (!noMoreEvents) {
-      const loadMoreBtn = document.createElement('button');
-      loadMoreBtn.type = 'button';
-      loadMoreBtn.className = 'feed-bar feed-bar-bottom accent-center load-more-btn' + (isLoadingMore ? ' is-loading-auto' : '');
-      loadMoreBtn.style.marginTop = '12px';
-      loadMoreBtn.style.width = '100%';
-      loadMoreBtn.textContent = isLoadingMore ? (t('loading') || '読み込み中...') : (t('feed.load_more') || 'もっと読む');
-      loadMoreBtn.onclick = () => {
-        if (isLoadingMore) return;
-        loadMoreHistory();
-      };
-      containerEl.appendChild(loadMoreBtn);
-
-      try {
-        const observer = getInfiniteScrollObserver();
-        if (observer) {
-          observer.observe(loadMoreBtn);
-          _observedLoadMoreBtns.set(containerEl, loadMoreBtn);
-        }
-      } catch (_e) {}
+      updateLoadMoreButton();
     }
   }
 
@@ -153,12 +222,17 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
           cacheEvent(state, ev);
           if (!eventsMap.has(ev.id)) {
             eventsMap.set(ev.id, ev);
-            renderEvents();
+            addEventToDom(ev, false);
+            updateLoadMoreButton();
           }
         },
         oneose() {
           if (isStale()) return;
-          if (!eventsMap.size) renderEvents();
+          if (!eventsMap.size) {
+            containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.no_messages') || 'まだメッセージはありません。'}</div>`;
+          } else {
+            updateLoadMoreButton();
+          }
         },
         eoseTimeout: 5000,
       });
@@ -166,10 +240,14 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
       _channelSubs.set(rootId, sub);
     } catch (e) {
       console.error('[channel-feed] Subscription failed', e);
-      containerEl.innerHTML = `<div class="text-danger p-12 text-center">${t('channel.fetch_failed') || 'メッセージの取得に失敗しました'}</div>`;
+      if (!eventsMap.size) {
+        containerEl.innerHTML = `<div class="text-danger p-12 text-center">${t('channel.fetch_failed') || 'メッセージの取得に失敗しました'}</div>`;
+      }
     }
   } else {
-    containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.pool_unavailable') || 'リレープールが利用できません'}</div>`;
+    if (!eventsMap.size) {
+      containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.pool_unavailable') || 'リレープールが利用できません'}</div>`;
+    }
   }
 }
 
@@ -212,7 +290,7 @@ export function unsubscribeAllChannelFeeds() {
 function createChannelMessageElement(ev, state, settingsManager) {
   const nip19 = getNip19 ? getNip19() : null;
   const sm = settingsManager || (typeof getSettingsManager === 'function' ? getSettingsManager() : null);
-  const settings = (sm && typeof sm.getAll === 'function') ? sm.getAll() : {};
+  const settings = (sm && sm.settings) || (sm && typeof sm.getAll === 'function' ? sm.getAll() : {});
 
   try {
     // post-renderer は (ev, sym) / (ev) 形式のコールバックを期待する（feed-renderer と同じ）

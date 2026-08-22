@@ -734,7 +734,7 @@ export function resumeChannelSubscriptions() {
   }
   const msgsEl = _containerEl.querySelector('#channelMessages');
   if (msgsEl) {
-    subscribeChannelFeed(_activeRootId, getState(), msgsEl, _settingsManagerRef || (typeof getSettingsManager === 'function' ? getSettingsManager() : null));
+    subscribeChannelFeed(_activeRootId, getState(), msgsEl, _settingsManagerRef || (typeof getSettingsManager === 'function' ? getSettingsManager() : null), { resume: true });
   }
 }
 
