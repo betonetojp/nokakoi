@@ -56,6 +56,7 @@ let _ehagakiBound = false;
 let _feedPaused = false;
 let _lastPublicRootIds = [];
 let _searchSeq = 0;
+let _channelNeedsReload = false;
 let _channelListLoadGen = 0;
 let _publicChatsListenerBound = false;
 
@@ -565,6 +566,7 @@ function returnToChannelList(options = {}) {
   _activeChannelContext = null;
   _activeChannelProfile = null;
   _activeRootEvent = null;
+  _channelNeedsReload = false;
   if (options.forgetLast) {
     try { localStorage.removeItem(scopedUiKey(LAST_ACTIVE_CHANNEL_KEY)); } catch (_e) {}
   }
@@ -584,6 +586,7 @@ function returnToChannelList(options = {}) {
   if (msgsEl) {
     msgsEl.dataset.channelRootId = '';
     msgsEl.__channelFeedGen = (msgsEl.__channelFeedGen || 0) + 1;
+    delete msgsEl.__channelEventsMap;
     msgsEl.innerHTML = '';
   }
 
@@ -643,9 +646,13 @@ export function refreshActiveChannelFeed() {
   if (!msgsEl) return;
   msgsEl.dataset.channelRootId = _activeRootId;
   msgsEl.__channelFeedGen = (msgsEl.__channelFeedGen || 0) + 1;
+  delete msgsEl.__channelEventsMap;
   msgsEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.loading_messages') || 'メッセージを読み込み中...'}</div>`;
   if (!_feedPaused) {
+    _channelNeedsReload = false;
     subscribeChannelFeed(_activeRootId, getState(), msgsEl, _settingsManagerRef || (typeof getSettingsManager === 'function' ? getSettingsManager() : null));
+  } else {
+    _channelNeedsReload = true;
   }
 }
 
@@ -729,12 +736,21 @@ export function resumeChannelSubscriptions() {
   if (!_activeRootId || !_containerEl) return;
   const wrapper = _containerEl.querySelector('.channel-portal-wrapper');
   if (!wrapper || !wrapper.classList.contains('show-chat')) {
+    _channelNeedsReload = false;
     selectChannel(_activeRootId);
     return;
   }
   const msgsEl = _containerEl.querySelector('#channelMessages');
   if (msgsEl) {
-    subscribeChannelFeed(_activeRootId, getState(), msgsEl, _settingsManagerRef || (typeof getSettingsManager === 'function' ? getSettingsManager() : null), { resume: true });
+    const shouldResume = !_channelNeedsReload;
+    _channelNeedsReload = false;
+    subscribeChannelFeed(
+      _activeRootId,
+      getState(),
+      msgsEl,
+      _settingsManagerRef || (typeof getSettingsManager === 'function' ? getSettingsManager() : null),
+      { resume: shouldResume }
+    );
   }
 }
 
@@ -989,6 +1005,7 @@ export async function selectChannel(rootId) {
   _activeChannelContext = null;
   _activeChannelProfile = null;
   _activeRootEvent = null;
+  _channelNeedsReload = false;
   try { localStorage.setItem(scopedUiKey(LAST_ACTIVE_CHANNEL_KEY), rootId); } catch (_e) {}
 
   buildChannelEmbedContext(getState(), rootId).then(ctx => {
@@ -1014,6 +1031,7 @@ export async function selectChannel(rootId) {
   if (msgsEl) {
     msgsEl.dataset.channelRootId = rootId;
     msgsEl.__channelFeedGen = (msgsEl.__channelFeedGen || 0) + 1;
+    delete msgsEl.__channelEventsMap;
     msgsEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.loading_messages') || 'メッセージを読み込み中...'}</div>`;
   }
 

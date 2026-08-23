@@ -28,7 +28,11 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
   unsubscribeAllChannelFeeds();
   unobserveLoadMore(containerEl);
 
-  const isResume = options.resume === true && containerEl.dataset.channelRootId === rootId;
+  const hasExistingDomEvents = !!(containerEl.querySelector && containerEl.querySelector('.event:not(.feed-bar)'));
+  const isResume = options.resume === true
+    && containerEl.dataset.channelRootId === rootId
+    && hasExistingDomEvents
+    && !!(containerEl.__channelEventsMap && containerEl.__channelEventsMap.size > 0);
   const myGen = isResume
     ? (containerEl.__channelFeedGen || 1)
     : (containerEl.__channelFeedGen = (containerEl.__channelFeedGen || 0) + 1);

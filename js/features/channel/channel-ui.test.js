@@ -402,6 +402,40 @@ describe('channel feed reload', () => {
     expect(editListBtn.classList.contains('d-none')).toBe(false);
     expect(refreshBtn.classList.contains('d-none')).toBe(false);
   });
+
+  it('triggers a full non-resume reload when reloadChannelView is called while channel subscriptions are paused', async () => {
+    localStorage.setItem('pubkey', ACCOUNT_A);
+    const state = { pubkey: ACCOUNT_A };
+    const container = setupView(state);
+    await flushPromises();
+    await selectChannel(OLD_CHANNEL);
+    await flushPromises();
+
+    // User navigates away to another tab
+    pauseChannelSubscriptions();
+    mocks.subscribeChannelFeed.mockClear();
+
+    // User triggers soft reload while on the other tab
+    reloadChannelView(state);
+    await flushPromises();
+
+    // Since paused, subscribeChannelFeed should not be called immediately during soft reload
+    expect(mocks.subscribeChannelFeed).not.toHaveBeenCalled();
+
+    // User navigates back to channels tab
+    resumeChannelSubscriptions();
+    await flushPromises();
+
+    // Must be called with resume: false so it fetches fresh from latest posts
+    expect(mocks.subscribeChannelFeed).toHaveBeenCalledTimes(1);
+    expect(mocks.subscribeChannelFeed).toHaveBeenCalledWith(
+      OLD_CHANNEL,
+      state,
+      container.querySelector('#channelMessages'),
+      null,
+      { resume: false }
+    );
+  });
 });
 
 

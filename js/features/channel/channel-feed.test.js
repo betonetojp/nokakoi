@@ -131,4 +131,45 @@ describe('channel-feed', () => {
     const stillPresentEl = containerEl.querySelector('.event[data-event-id="ev-1"]');
     expect(stillPresentEl).toBe(originalEl);
   });
+
+  it('falls back to fresh subscription if resume: true is passed but DOM has no event elements', async () => {
+    let oneventCallback;
+    mockState.pool.subscribeMany = vi.fn((relays, filters, handlers) => {
+      oneventCallback = handlers.onevent;
+      return { close: vi.fn() };
+    });
+
+    await subscribeChannelFeed('chan-root-1', mockState, containerEl, mockSettingsManager);
+
+    oneventCallback({
+      id: 'ev-1',
+      kind: 42,
+      pubkey: 'u1',
+      created_at: 1000,
+      content: 'First msg',
+      tags: [['e', 'chan-root-1', '', 'root']]
+    });
+
+    expect(containerEl.querySelector('.event[data-event-id="ev-1"]')).toBeTruthy();
+
+    // DOM is wiped (e.g. by soft reload placeholder)
+    containerEl.innerHTML = '<div class="muted">Loading...</div>';
+
+    // resume: true is called
+    await subscribeChannelFeed('chan-root-1', mockState, containerEl, mockSettingsManager, { resume: true });
+
+    // New event arrives with same ID (re-delivered by relay)
+    oneventCallback({
+      id: 'ev-1',
+      kind: 42,
+      pubkey: 'u1',
+      created_at: 1000,
+      content: 'First msg',
+      tags: [['e', 'chan-root-1', '', 'root']]
+    });
+
+    // Should be successfully added to DOM because fresh subscription cleared eventsMap
+    expect(containerEl.querySelector('.event[data-event-id="ev-1"]')).toBeTruthy();
+  });
 });
+
