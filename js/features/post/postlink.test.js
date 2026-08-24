@@ -87,6 +87,29 @@ describe('postlink context aggregation', () => {
     expect(iframe.src).not.toContain('quote=');
   });
 
+  it('includes valid Nostr event in preloadedEvents for instant hydration', async () => {
+    setupPostLinkUI(mocks.settingsManager);
+    const validEvent = {
+      id: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      pubkey: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
+      created_at: 1740000000,
+      kind: 1,
+      tags: [],
+      content: 'Hello Nostr',
+      sig: 'abcdefabcdefabcdef',
+    };
+    mocks.replyTarget = validEvent;
+    mocks.quoteMode = true;
+
+    const channelContext = {
+      reference: 'nevent1channel123',
+      name: 'Test Channel',
+    };
+
+    const result = await openEhagakiWithChannel(channelContext);
+    expect(result).toBe(true);
+  });
+
   it('supports channel context with quoting', async () => {
     setupPostLinkUI(mocks.settingsManager);
     mocks.replyTarget = { id: 'quoteTarget456', kind: 42, pubkey: 'pk456' };

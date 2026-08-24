@@ -270,9 +270,12 @@ export async function setupPostLinkUI(settingsManager) {
         try { clearTimeout(authContextSyncTimer); } catch (e) { }
         authContextSyncTimer = null;
       }
-      // auth.result 受信後、eHagaki が保存リレーへの WebSocket 接続を確立・完了する
-      // タイミング（約250-300ms）で 1 回だけ composer context を送信
-      authContextSyncTimer = setTimeout(() => {
+      if (!pendingComposerContextPayload) return;
+
+      const hasPreloaded = !!(pendingComposerContextPayload.preloadedEvents
+        && Object.keys(pendingComposerContextPayload.preloadedEvents).length > 0);
+
+      const dispatchContext = () => {
         try {
           if (!pendingComposerContextPayload) return;
           const modalEl = document.getElementById('ehagakiModal');
@@ -281,9 +284,18 @@ export async function setupPostLinkUI(settingsManager) {
           if (pendingComposerContextPayload.reply !== undefined) refOnlyPayload.reply = pendingComposerContextPayload.reply;
           if (pendingComposerContextPayload.quotes !== undefined) refOnlyPayload.quotes = pendingComposerContextPayload.quotes;
           if (pendingComposerContextPayload.channel !== undefined) refOnlyPayload.channel = pendingComposerContextPayload.channel;
-          postEmbedComposerContext(refOnlyPayload, 'auth-established@300ms');
+          if (pendingComposerContextPayload.preloadedEvents !== undefined) refOnlyPayload.preloadedEvents = pendingComposerContextPayload.preloadedEvents;
+          postEmbedComposerContext(refOnlyPayload, hasPreloaded ? 'auth-established@0ms(preloaded)' : 'auth-established@300ms');
         } catch (e) { }
-      }, 300);
+      };
+
+      // preloadedEvents がある場合はリレー接続を待たずに即時（0ms）展開
+      // ない場合のみ、保存リレー接続確立を待って 300ms 送信
+      if (hasPreloaded) {
+        dispatchContext();
+      } else {
+        authContextSyncTimer = setTimeout(dispatchContext, 300);
+      }
     }
 
     let iframeTeardownTimer = null;
@@ -509,6 +521,19 @@ export async function setupPostLinkUI(settingsManager) {
       return null;
     }
 
+    function isValidNostrEvent(ev) {
+      return !!(
+        ev && typeof ev === 'object' &&
+        typeof ev.id === 'string' && /^[0-9a-f]{64}$/i.test(ev.id) &&
+        typeof ev.pubkey === 'string' && /^[0-9a-f]{64}$/i.test(ev.pubkey) &&
+        typeof ev.created_at === 'number' &&
+        typeof ev.kind === 'number' &&
+        Array.isArray(ev.tags) &&
+        typeof ev.content === 'string' &&
+        typeof ev.sig === 'string'
+      );
+    }
+
     function buildComposerContextPayload(extractedQuoteRefs, content, channelContext = null) {
       const payload = {};
       if (typeof content === 'string') payload.content = content;
@@ -545,6 +570,48 @@ export async function setupPostLinkUI(settingsManager) {
         }
         if (quotes.length > 0) {
           payload.quotes = quotes;
+        }
+      } catch (e) { }
+
+      // 4. preloadedEvents（返信先・引用元の完全な Nostr イベントを渡して 0ms 即時展開）
+      try {
+        const preloadedEvents = {};
+        const isQuoteMode = (typeof getQuoteMode === 'function') && getQuoteMode();
+        const rt = (typeof getReplyTarget === 'function') ? getReplyTarget() : null;
+
+        // 返信先または引用ターゲットのイベント
+        if (rt && isValidNostrEvent(rt)) {
+          preloadedEvents[rt.id] = rt;
+        }
+
+        // 本文から抽出された引用参照（note1... / nevent1... / hex）のキャッシュ検索
+        if (extractedQuoteRefs && extractedQuoteRefs.length > 0) {
+          const state = getNostrState && getNostrState();
+          const nip19local = getNip19 && getNip19();
+          for (const ref of extractedQuoteRefs) {
+            try {
+              let eventId = null;
+              if (ref.startsWith('note1') && nip19local && typeof nip19local.decode === 'function') {
+                const dec = nip19local.decode(ref);
+                if (dec && dec.type === 'note' && dec.data) eventId = dec.data;
+              } else if (ref.startsWith('nevent1') && nip19local && typeof nip19local.decode === 'function') {
+                const dec = nip19local.decode(ref);
+                if (dec && dec.type === 'nevent' && dec.data && dec.data.id) eventId = dec.data.id;
+              } else if (/^[0-9a-f]{64}$/i.test(ref)) {
+                eventId = ref;
+              }
+              if (eventId && !preloadedEvents[eventId] && state) {
+                const cachedEv = findEventById(state, eventId);
+                if (cachedEv && isValidNostrEvent(cachedEv)) {
+                  preloadedEvents[cachedEv.id] = cachedEv;
+                }
+              }
+            } catch (e) { }
+          }
+        }
+
+        if (Object.keys(preloadedEvents).length > 0) {
+          payload.preloadedEvents = preloadedEvents;
         }
       } catch (e) { }
 
