@@ -264,38 +264,18 @@ export async function setupPostLinkUI(settingsManager) {
     };
     let startDelayedAuthAndSettingsSync = () => { };
 
-    let authContextSyncTimer = null;
     function flushSettingsAfterAuth() {
-      if (authContextSyncTimer) {
-        try { clearTimeout(authContextSyncTimer); } catch (e) { }
-        authContextSyncTimer = null;
-      }
       if (!pendingComposerContextPayload) return;
-
-      const hasPreloaded = !!(pendingComposerContextPayload.preloadedEvents
-        && Object.keys(pendingComposerContextPayload.preloadedEvents).length > 0);
-
-      const dispatchContext = () => {
-        try {
-          if (!pendingComposerContextPayload) return;
-          const modalEl = document.getElementById('ehagakiModal');
-          if (!modalEl || modalEl.hidden) return;
-          const refOnlyPayload = {};
-          if (pendingComposerContextPayload.reply !== undefined) refOnlyPayload.reply = pendingComposerContextPayload.reply;
-          if (pendingComposerContextPayload.quotes !== undefined) refOnlyPayload.quotes = pendingComposerContextPayload.quotes;
-          if (pendingComposerContextPayload.channel !== undefined) refOnlyPayload.channel = pendingComposerContextPayload.channel;
-          if (pendingComposerContextPayload.preloadedEvents !== undefined) refOnlyPayload.preloadedEvents = pendingComposerContextPayload.preloadedEvents;
-          postEmbedComposerContext(refOnlyPayload, hasPreloaded ? 'auth-established@0ms(preloaded)' : 'auth-established@300ms');
-        } catch (e) { }
-      };
-
-      // preloadedEvents がある場合はリレー接続を待たずに即時（0ms）展開
-      // ない場合のみ、保存リレー接続確立を待って 300ms 送信
-      if (hasPreloaded) {
-        dispatchContext();
-      } else {
-        authContextSyncTimer = setTimeout(dispatchContext, 300);
-      }
+      try {
+        const modalEl = document.getElementById('ehagakiModal');
+        if (!modalEl || modalEl.hidden) return;
+        const refOnlyPayload = {};
+        if (pendingComposerContextPayload.reply !== undefined) refOnlyPayload.reply = pendingComposerContextPayload.reply;
+        if (pendingComposerContextPayload.quotes !== undefined) refOnlyPayload.quotes = pendingComposerContextPayload.quotes;
+        if (pendingComposerContextPayload.channel !== undefined) refOnlyPayload.channel = pendingComposerContextPayload.channel;
+        if (pendingComposerContextPayload.preloadedEvents !== undefined) refOnlyPayload.preloadedEvents = pendingComposerContextPayload.preloadedEvents;
+        postEmbedComposerContext(refOnlyPayload, 'auth-established');
+      } catch (e) { }
     }
 
     let iframeTeardownTimer = null;
@@ -324,10 +304,6 @@ export async function setupPostLinkUI(settingsManager) {
     }
     function teardownEhagakiIframe(delayMs = 240) {
       try { clearDelayedAuthSync(); } catch (e) { }
-      if (authContextSyncTimer) {
-        try { clearTimeout(authContextSyncTimer); } catch (e) { }
-        authContextSyncTimer = null;
-      }
       embedAuthEstablished = false;
       settingsConfirmed = false;
       settingsSentForSession = false;
