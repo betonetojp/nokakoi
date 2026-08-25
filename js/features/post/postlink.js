@@ -14,6 +14,25 @@ const DEFAULT_TITLE = POSTLINK_DEFAULT_TITLE;
 const DEFAULT_URL = POSTLINK_DEFAULT_URL;
 const EMBED_STORAGE_PREFIX = 'ehagaki.embed.storage.v1:';
 
+export const NOKAKOI_THEME_ACCENT_COLORS = {
+  dark: {
+    pink: '#e287b2',
+    blue: '#7ca5d8',
+    purple: '#aa96da',
+    green: '#98b0a1',
+    orange: '#e09f67',
+    gray: '#94a3b8',
+  },
+  light: {
+    pink: '#c24172',
+    blue: '#3b629b',
+    purple: '#6b4c9a',
+    green: '#2e6b54',
+    orange: '#c45b28',
+    gray: '#475569',
+  },
+};
+
 /** setupPostLinkUI 内で代入。チャンネル名クリックから eHagaki を開く */
 let __openEhagakiWithChannel = null;
 /** setupPostLinkUI 内で代入。開いていれば setContext のみ */
@@ -76,6 +95,8 @@ const EMBED_ALLOWED_STORAGE_KEYS = new Set([
   'settingsPreferenceMetadata',
   'firstVisit',
   'sharedMediaProcessed',
+  'accentColor',
+  'baseColor',
 ]);
 
 // 信頼できる静的ホワイトリスト（自身のオリジン）
@@ -732,6 +753,20 @@ export async function setupPostLinkUI(settingsManager) {
       return 'light';
     }
 
+    function resolveEmbedAccentColor() {
+      try {
+        const visualMode = resolveVisualThemeForEmbed();
+        const isLight = visualMode === 'light';
+        const colorTheme = (settingsManager && typeof settingsManager.get === 'function')
+          ? (settingsManager.get('colorTheme') || 'gray')
+          : 'gray';
+        const palette = isLight ? NOKAKOI_THEME_ACCENT_COLORS.light : NOKAKOI_THEME_ACCENT_COLORS.dark;
+        return palette[colorTheme] || (isLight ? '#475569' : '#94a3b8');
+      } catch (e) {
+        return '#94a3b8';
+      }
+    }
+
     function resolveEmbedLocale() {
       try {
         const stored = localStorage.getItem('lang');
@@ -770,11 +805,14 @@ export async function setupPostLinkUI(settingsManager) {
     }
 
     function buildEmbedSettingsPayload() {
-      // nokakoi から連動させるのはテーマと言語のみに限定
+      // nokakoi から連動させるのはテーマ・言語・アクセントカラー
       // （画像品質や通知トグル等の eHagaki 独自設定は storage 委譲に任せて上書きを防ぐ）
+      const accentColor = resolveEmbedAccentColor();
       return {
         locale: resolveEmbedLocale(),
         themeMode: resolveEmbedTheme(),
+        accentColor,
+        embedAccentColor: accentColor,
       };
     }
 
@@ -1281,6 +1319,29 @@ export async function setupPostLinkUI(settingsManager) {
       window.__ehagakiPostMessageListenerInstalled = true;
     }
 
+    if (window && !window.__ehagakiThemeListenerInstalled) {
+      const handleThemeChange = () => {
+        try {
+          if (isEhagakiModalActive()) {
+            postEmbedSettings();
+          }
+        } catch (e) { }
+      };
+      window.addEventListener('nokakoi:themechange', handleThemeChange);
+
+      try {
+        if (window.matchMedia) {
+          const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
+          if (typeof darkMq.addEventListener === 'function') {
+            darkMq.addEventListener('change', handleThemeChange);
+          } else if (typeof darkMq.addListener === 'function') {
+            darkMq.addListener(handleThemeChange);
+          }
+        }
+      } catch (e) { }
+      window.__ehagakiThemeListenerInstalled = true;
+    }
+
     // eHagaki 起動（ボタン / チャンネル名クリック共通）
     let overlayClickHandler = null;
 
@@ -1361,6 +1422,13 @@ export async function setupPostLinkUI(settingsManager) {
           try {
             const themeForEmbed = resolveEmbedTheme();
             try { u.searchParams.set('embedTheme', themeForEmbed); } catch (e) { }
+          } catch (e) { }
+
+          try {
+            const accentColorForEmbed = resolveEmbedAccentColor();
+            if (accentColorForEmbed) {
+              try { u.searchParams.set('embedAccentColor', accentColorForEmbed); } catch (e) { }
+            }
           } catch (e) { }
 
           try {

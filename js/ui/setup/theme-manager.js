@@ -36,6 +36,11 @@ export function applyTheme(theme) {
     applyBgBrightness(currentBrightness);
     const input = document.getElementById('bgBrightnessInput');
     if (input) input.value = currentBrightness;
+    try {
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('nokakoi:themechange', { detail: { theme } }));
+      }
+    } catch (e) { }
   } catch (e) { }
 }
 
@@ -52,6 +57,11 @@ export function applyColorTheme(colorTheme) {
     list.forEach(c => document.body.classList.remove(c));
     document.body.classList.add(`color-theme-${colorTheme || 'pink'}`);
     updateMetaThemeColor();
+    try {
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('nokakoi:themechange', { detail: { colorTheme } }));
+      }
+    } catch (e) { }
   } catch (e) { }
 }
 
