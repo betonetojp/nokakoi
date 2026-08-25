@@ -22,5 +22,6 @@ export {
   unsubscribeAll,
   closePoolAndWait,
   getEventSeenOn,
-  getBestRelayHint
+  getBestRelayHint,
+  normalizeRelayUrl
 } from './relay/index.js';

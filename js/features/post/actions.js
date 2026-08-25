@@ -510,7 +510,7 @@ export async function reactToEvent(state, targetEv, sym = '+') {
       return false;
     }
 
-    const { getWriteRelays } = await import('../../core/relay.js');
+    const { getWriteRelays, getBestRelayHint } = await import('../../core/relay.js');
     const writeRelays = getWriteRelays(effectiveState.relays);
 
     if (!writeRelays.length) {
@@ -518,7 +518,8 @@ export async function reactToEvent(state, targetEv, sym = '+') {
       return false;
     }
 
-    const tags = [['e', targetEv.id], ['p', targetEv.pubkey]];
+    const targetRelayHint = getBestRelayHint(effectiveState, targetEv);
+    const tags = [['e', targetEv.id, targetRelayHint], ['p', targetEv.pubkey, targetRelayHint]];
 
     // 対象イベントの kind を表す 'k' タグを追加（取得不可時は付与しない）
     try {
@@ -664,7 +665,7 @@ export async function replyToEvent(state, targetEv, text) {
       // NIP-22 (kind: 1111) コメント送信
       replyKind = 1111;
       try {
-        const { getBestRelayHint } = await import('../../core/relay.js');
+        const { getBestRelayHint, normalizeRelayUrl } = await import('../../core/relay.js');
         const { findEventById } = await import('../../core/state.js');
         const targetRelayHint = getBestRelayHint(effectiveState, targetEv);
 
@@ -678,7 +679,7 @@ export async function replyToEvent(state, targetEv, text) {
           const ETag = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'E' && t[1]);
           if (ETag) {
             rootId = ETag[1];
-            if (ETag[2]) rootRelayHint = ETag[2];
+            if (ETag[2]) rootRelayHint = normalizeRelayUrl(ETag[2]);
             if (ETag[3]) rootPubkey = ETag[3];
             const KTag = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'K' && t[1]);
             if (KTag) rootKind = KTag[1];
@@ -687,12 +688,12 @@ export async function replyToEvent(state, targetEv, text) {
             const rootETag = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'e' && t[1] && t[3] === 'root');
             if (rootETag) {
               rootId = rootETag[1];
-              if (rootETag[2]) rootRelayHint = rootETag[2];
+              if (rootETag[2]) rootRelayHint = normalizeRelayUrl(rootETag[2]);
             } else {
               const firste = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'e' && t[1]);
               if (firste && firste[1] !== targetEv.id) {
                 rootId = firste[1];
-                if (firste[2]) rootRelayHint = firste[2];
+                if (firste[2]) rootRelayHint = normalizeRelayUrl(firste[2]);
               }
             }
           }
@@ -709,30 +710,31 @@ export async function replyToEvent(state, targetEv, text) {
             if (!rootRelayHint) rootRelayHint = getBestRelayHint(effectiveState, rootEv);
           }
 
-          tags.push(['E', rootId, rootRelayHint || targetRelayHint, rootPubkey || '']);
+          const effectiveRootRelayHint = rootRelayHint || targetRelayHint;
+          tags.push(['E', rootId, effectiveRootRelayHint, rootPubkey || '']);
           if (rootKind) tags.push(['K', String(rootKind)]);
-          if (rootPubkey && rootPubkey !== targetEv.pubkey) tags.push(['P', rootPubkey]);
+          if (rootPubkey && rootPubkey !== targetEv.pubkey) tags.push(['P', rootPubkey, effectiveRootRelayHint]);
 
-          tags.push(['e', targetEv.id, targetRelayHint]);
+          tags.push(['e', targetEv.id, targetRelayHint, targetEv.pubkey]);
           tags.push(['k', String(targetEv.kind)]);
-          tags.push(['p', targetEv.pubkey]);
+          tags.push(['p', targetEv.pubkey, targetRelayHint]);
         } else {
           // 親自体がルート（トップレベルノート）
           tags.push(['E', targetEv.id, targetRelayHint, targetEv.pubkey]);
           tags.push(['K', String(targetEv.kind)]);
-          tags.push(['P', targetEv.pubkey]);
-          tags.push(['e', targetEv.id, targetRelayHint]);
+          tags.push(['P', targetEv.pubkey, targetRelayHint]);
+          tags.push(['e', targetEv.id, targetRelayHint, targetEv.pubkey]);
           tags.push(['k', String(targetEv.kind)]);
-          tags.push(['p', targetEv.pubkey]);
+          tags.push(['p', targetEv.pubkey, targetRelayHint]);
         }
       } catch (e) {
         tags = [
           ['E', targetEv.id, '', targetEv.pubkey],
           ['K', String(targetEv.kind)],
-          ['P', targetEv.pubkey],
-          ['e', targetEv.id, ''],
+          ['P', targetEv.pubkey, ''],
+          ['e', targetEv.id, '', targetEv.pubkey],
           ['k', String(targetEv.kind)],
-          ['p', targetEv.pubkey]
+          ['p', targetEv.pubkey, '']
         ];
       }
     } else {
@@ -764,19 +766,19 @@ export async function replyToEvent(state, targetEv, text) {
             tags = [
               ['e', rootId, rootRelayHint, 'root'],
               ['e', targetEv.id, targetRelayHint, 'reply'],
-              ['p', targetEv.pubkey]
+              ['p', targetEv.pubkey, targetRelayHint]
             ];
           } else {
             tags = [
               ['e', targetEv.id, targetRelayHint, 'root'],
-              ['p', targetEv.pubkey]
+              ['p', targetEv.pubkey, targetRelayHint]
             ];
           }
         }
       } catch (e) {
         tags = [
           ['e', targetEv.id, '', 'root'],
-          ['p', targetEv.pubkey]
+          ['p', targetEv.pubkey, '']
         ];
       }
     }
@@ -902,7 +904,7 @@ export async function repostEvent(state, targetEv) {
     // タグは'e'（イベントID）と'p'（投稿者pubkey）
     const tags = [
       ['e', targetEv.id, targetRelayHint],
-      ['p', targetEv.pubkey]
+      ['p', targetEv.pubkey, targetRelayHint]
     ];
 
     // kind:16（Generic Repost）では 'k' タグが必須

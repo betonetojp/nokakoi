@@ -240,6 +240,27 @@ export function getEventSeenOn(state, ev) {
   return merged;
 }
 
+/**
+ * nostr-tools互換のRelay URL正規化関数
+ * - ルートURL (wss://yabu.me) -> 末尾スラッシュあり (wss://yabu.me/)
+ * - パス付きURL (wss://relay.damus.io/path/) -> 末尾スラッシュなし (wss://relay.damus.io/path)
+ */
+export function normalizeRelayUrl(u) {
+  if (!u || typeof u !== 'string') return '';
+  const trimmed = u.trim();
+  if (!trimmed) return '';
+  try {
+    const url = new URL(trimmed);
+    url.pathname = url.pathname.replace(/\/+$/, '');
+    if (url.pathname === '') {
+      url.pathname = '/';
+    }
+    return url.toString();
+  } catch (e) {
+    return trimmed;
+  }
+}
+
 export function getBestRelayHint(state, ev) {
   if (!ev) return '';
 
@@ -254,7 +275,7 @@ export function getBestRelayHint(state, ev) {
     for (const r of writeRelays) {
       const normalizedR = normalizeUrl(r);
       const found = seenOn.find(s => normalizeUrl(s) === normalizedR);
-      if (found) return found;
+      if (found) return normalizeRelayUrl(found);
     }
   } catch (e) { }
 
@@ -263,9 +284,9 @@ export function getBestRelayHint(state, ev) {
     for (const r of readRelays) {
       const normalizedR = normalizeUrl(r);
       const found = seenOn.find(s => normalizeUrl(s) === normalizedR);
-      if (found) return found;
+      if (found) return normalizeRelayUrl(found);
     }
   } catch (e) { }
 
-  return seenOn[0] || '';
+  return normalizeRelayUrl(seenOn[0]) || '';
 }

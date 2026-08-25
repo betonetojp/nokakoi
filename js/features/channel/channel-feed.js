@@ -337,7 +337,7 @@ export async function sendChannelMessage(rootId, content, state, options = {}) {
   if (!isQuote && replyEv && replyEv.id) {
     tags.push(['e', replyEv.id, relayHint, 'reply']);
     if (replyEv.pubkey) {
-      tags.push(['p', replyEv.pubkey]);
+      tags.push(['p', replyEv.pubkey, relayHint]);
     }
   }
 
