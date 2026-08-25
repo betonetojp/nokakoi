@@ -7,7 +7,7 @@ import {
   fetchChannelMetadata,
   invalidateChannelLabelCache,
 } from './channel.js';
-import { getReadRelays, getWriteRelays } from '../../core/relay.js';
+import { getReadRelays, getWriteRelays, normalizeRelayUrl } from '../../core/relay.js';
 import { signEventWithMode } from '../post/actions.js';
 import { awaitAny } from '../../utils/utils.js';
 import { cacheEvent } from '../../core/state.js';
@@ -77,16 +77,17 @@ function parseRelaysText(raw) {
 }
 
 function pickRelayHint(state, relays) {
+  let chosen = 'wss://yabu.me/';
   try {
     const write = getWriteRelays(state && state.relays) || [];
-    if (write[0]) return write[0];
+    if (write[0]) chosen = write[0];
+    else {
+      const read = getReadRelays(state && state.relays) || [];
+      if (read[0]) chosen = read[0];
+      else if (Array.isArray(relays) && relays[0]) chosen = relays[0];
+    }
   } catch (_e) { }
-  try {
-    const read = getReadRelays(state && state.relays) || [];
-    if (read[0]) return read[0];
-  } catch (_e) { }
-  if (Array.isArray(relays) && relays[0]) return relays[0];
-  return 'wss://yabu.me/';
+  return normalizeRelayUrl(chosen);
 }
 
 /**

@@ -325,7 +325,9 @@ export async function sendChannelMessage(rootId, content, state, options = {}) {
   const writeRelays = (state && state.relays) ? getWriteRelays(state.relays) : [];
   const readRelays = (state && state.relays) ? getReadRelays(state.relays) : [];
   const optionRelays = Array.isArray(options.relays) ? options.relays.filter(r => typeof r === 'string' && r.trim()) : [];
-  const relayHint = (writeRelays[0] || readRelays[0] || optionRelays[0] || 'wss://yabu.me/');
+  const { normalizeRelayUrl } = await import('../../core/relay.js');
+  const rawRelayHint = (writeRelays[0] || readRelays[0] || optionRelays[0] || 'wss://yabu.me/');
+  const relayHint = normalizeRelayUrl(rawRelayHint);
   const isQuote = !!options.isQuote;
   const replyEv = options.replyToEvent;
 
