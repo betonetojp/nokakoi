@@ -40,6 +40,14 @@ export function pickETagEventId(ev) {
     return eTags[eTags.length - 1][1];
   }
 
+  if (ev.kind === 1111) {
+    const parentTag = eTags.filter(t => t[0] === 'e').pop();
+    if (parentTag) return parentTag[1];
+    const rootTag = eTags.find(t => t[0] === 'E');
+    if (rootTag) return rootTag[1];
+    return eTags[eTags.length - 1][1];
+  }
+
   if (ev.kind === 42) {
     for (const t of eTags) {
       if ((t[3] || '').toString().toLowerCase() === 'reply') return t[1];
@@ -60,9 +68,10 @@ export function pickETagEventId(ev) {
   const unmarked = [];
   for (const t of eTags) {
     try {
-      const marker = (t[3] || '').toString().toLowerCase();
-      if (marker === 'root' || t[0] === 'E') rootId = t[1];
-      if (!marker && t[0] === 'e') unmarked.push(t[1]);
+      const rawMarker = (t[3] || '').toString().toLowerCase();
+      const isKnownMarker = rawMarker === 'root' || rawMarker === 'reply' || rawMarker === 'mention';
+      if (rawMarker === 'root' || t[0] === 'E') rootId = t[1];
+      if (!isKnownMarker && t[0] === 'e') unmarked.push(t[1]);
     } catch (e) { }
   }
 
@@ -79,6 +88,19 @@ export function pickETagWithHint(ev) {
   if (ev.kind === 7) {
     const tag = eTags[eTags.length - 1];
     return { eventId: tag[1], relayHint: tag[2] || '' };
+  }
+
+  if (ev.kind === 1111) {
+    const parentTag = eTags.filter(t => t[0] === 'e').pop();
+    if (parentTag) {
+      return { eventId: parentTag[1], relayHint: parentTag[2] || '' };
+    }
+    const rootTag = eTags.find(t => t[0] === 'E');
+    if (rootTag) {
+      return { eventId: rootTag[1], relayHint: rootTag[2] || '' };
+    }
+    const fallbackTag = eTags[eTags.length - 1];
+    return { eventId: fallbackTag[1], relayHint: fallbackTag[2] || '' };
   }
 
   if (ev.kind === 42) {
@@ -102,9 +124,10 @@ export function pickETagWithHint(ev) {
   const unmarked = [];
   for (const t of eTags) {
     try {
-      const marker = (t[3] || '').toString().toLowerCase();
-      if (marker === 'root' || t[0] === 'E') rootTag = t;
-      if (!marker && t[0] === 'e') unmarked.push(t);
+      const rawMarker = (t[3] || '').toString().toLowerCase();
+      const isKnownMarker = rawMarker === 'root' || rawMarker === 'reply' || rawMarker === 'mention';
+      if (rawMarker === 'root' || t[0] === 'E') rootTag = t;
+      if (!isKnownMarker && t[0] === 'e') unmarked.push(t);
     } catch (e) { }
   }
 
