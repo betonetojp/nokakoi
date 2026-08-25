@@ -1,4 +1,4 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest';
 import { pickETagEventId, pickETagWithHint } from './render-helpers.js';
@@ -85,6 +85,74 @@ describe('render-helpers pickETag functions', () => {
 
       expect(pickETagEventId(ev)).toBe('replyId456');
       expect(pickETagWithHint(ev).eventId).toBe('replyId456');
+    });
+  });
+
+  describe('kind: 42 (NIP-28 channel messages)', () => {
+    it('returns null for top-level channel message with root tag', () => {
+      const ev = {
+        kind: 42,
+        content: 'hello channel',
+        tags: [
+          ['e', 'channelId123', 'wss://yabu.me/', 'root']
+        ]
+      };
+      expect(pickETagEventId(ev)).toBeNull();
+      expect(pickETagWithHint(ev).eventId).toBeNull();
+    });
+
+    it('returns null for top-level channel message with single unmarked tag', () => {
+      const ev = {
+        kind: 42,
+        content: 'hello channel',
+        tags: [
+          ['e', 'channelId123', 'wss://yabu.me/']
+        ]
+      };
+      expect(pickETagEventId(ev)).toBeNull();
+      expect(pickETagWithHint(ev).eventId).toBeNull();
+    });
+
+    it('picks reply marked tag when reply marker is present', () => {
+      const ev = {
+        kind: 42,
+        content: 'reply in channel',
+        tags: [
+          ['e', 'channelId123', 'wss://yabu.me/', 'root'],
+          ['e', 'replyMsgId456', 'wss://yabu.me/', 'reply']
+        ]
+      };
+      expect(pickETagEventId(ev)).toBe('replyMsgId456');
+      expect(pickETagWithHint(ev).eventId).toBe('replyMsgId456');
+      expect(pickETagWithHint(ev).relayHint).toBe('wss://yabu.me/');
+    });
+
+    it('picks unmarked message tag as reply when root tag is present (reversed tag order without reply marker)', () => {
+      const ev = {
+        kind: 42,
+        content: 'ギョウジャニンニクはアブラナ科じゃないよ',
+        tags: [
+          ['e', 'b25c97bcb2a482e9eb34f7b3b3a60024eae9eeb5aaf3e7310e218a6449e91463'],
+          ['p', '21ac29561b5de90cdc21995fc0707525cd78c8a52d87721ab681d3d609d1e2df'],
+          ['e', '7f5475b40ce3350e161c24d7cea37ffd2c291c71e9118df5ec7395822c1f6302', 'wss://yabu.me/', 'root']
+        ]
+      };
+      expect(pickETagEventId(ev)).toBe('b25c97bcb2a482e9eb34f7b3b3a60024eae9eeb5aaf3e7310e218a6449e91463');
+      expect(pickETagWithHint(ev).eventId).toBe('b25c97bcb2a482e9eb34f7b3b3a60024eae9eeb5aaf3e7310e218a6449e91463');
+    });
+
+    it('picks positional 2nd e tag when both are unmarked', () => {
+      const ev = {
+        kind: 42,
+        content: 'positional reply',
+        tags: [
+          ['e', 'channelId123', 'wss://yabu.me/'],
+          ['e', 'replyMsgId456', 'wss://yabu.me/']
+        ]
+      };
+      expect(pickETagEventId(ev)).toBe('replyMsgId456');
+      expect(pickETagWithHint(ev).eventId).toBe('replyMsgId456');
+      expect(pickETagWithHint(ev).relayHint).toBe('wss://yabu.me/');
     });
   });
 });

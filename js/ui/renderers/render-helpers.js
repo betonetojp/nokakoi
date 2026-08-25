@@ -52,8 +52,17 @@ export function pickETagEventId(ev) {
     for (const t of eTags) {
       if ((t[3] || '').toString().toLowerCase() === 'reply') return t[1];
     }
-    if (eTags.length >= 2) {
-      return eTags[1][1];
+    const rootTag = eTags.find(t => (t[3] || '').toString().toLowerCase() === 'root');
+    const unmarked = eTags.filter(t => {
+      const rawMarker = (t[3] || '').toString().toLowerCase();
+      return rawMarker !== 'root' && rawMarker !== 'reply' && rawMarker !== 'mention';
+    });
+    if (rootTag) {
+      if (unmarked.length > 0) return unmarked[unmarked.length - 1][1];
+      return null;
+    }
+    if (unmarked.length >= 2) {
+      return unmarked[unmarked.length - 1][1];
     }
     return null;
   }
@@ -107,9 +116,21 @@ export function pickETagWithHint(ev) {
     for (const t of eTags) {
       if ((t[3] || '').toString().toLowerCase() === 'reply') return { eventId: t[1], relayHint: t[2] || '' };
     }
-    if (eTags.length >= 2) {
-      const replyTag = eTags[1];
-      return { eventId: replyTag[1], relayHint: replyTag[2] || '' };
+    const rootTag = eTags.find(t => (t[3] || '').toString().toLowerCase() === 'root');
+    const unmarked = eTags.filter(t => {
+      const rawMarker = (t[3] || '').toString().toLowerCase();
+      return rawMarker !== 'root' && rawMarker !== 'reply' && rawMarker !== 'mention';
+    });
+    if (rootTag) {
+      if (unmarked.length > 0) {
+        const tag = unmarked[unmarked.length - 1];
+        return { eventId: tag[1], relayHint: tag[2] || '' };
+      }
+      return { eventId: null, relayHint: '' };
+    }
+    if (unmarked.length >= 2) {
+      const tag = unmarked[unmarked.length - 1];
+      return { eventId: tag[1], relayHint: tag[2] || '' };
     }
     return { eventId: null, relayHint: '' };
   }
