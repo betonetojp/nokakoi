@@ -118,13 +118,38 @@ export function clearMentionBlinkState() {
   setMentionBlink(false);
 }
 
+export function ensureTabVisible(tabId, settingsManager) {
+  if (!tabId || !settingsManager) return false;
+  const currentTabs = loadTabSettings(settingsManager);
+  const target = currentTabs.find(t => t.id === tabId);
+  if (!target) return false;
+  if (target.visible === false) {
+    target.visible = true;
+    saveTabSettings(settingsManager, currentTabs);
+    setupTabs(settingsManager, true);
+    try { window.dispatchEvent(new CustomEvent('tabsRebuilt')); } catch (e) { }
+    return true;
+  }
+  return false;
+}
+
 export function activateTab(tabOrId, settingsManager, options = {}) {
-  const tabsContainer = document.querySelector('.tabs');
+  let tabsContainer = document.querySelector('.tabs');
   if (!tabsContainer) return false;
-  const targetTab = typeof tabOrId === 'string'
+  let targetTab = typeof tabOrId === 'string'
     ? Array.from(tabsContainer.querySelectorAll('.tab')).find(tab => tab.dataset.tab === tabOrId)
     : tabOrId;
-  if (!targetTab || !tabsContainer.contains(targetTab)) return false;
+
+  if (!targetTab && typeof tabOrId === 'string' && settingsManager) {
+    if (ensureTabVisible(tabOrId, settingsManager)) {
+      tabsContainer = document.querySelector('.tabs');
+      if (tabsContainer) {
+        targetTab = Array.from(tabsContainer.querySelectorAll('.tab')).find(tab => tab.dataset.tab === tabOrId);
+      }
+    }
+  }
+
+  if (!targetTab || !tabsContainer || !tabsContainer.contains(targetTab)) return false;
 
   const tabId = targetTab.dataset.tab;
   const {

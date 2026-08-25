@@ -234,4 +234,15 @@ export function setupDelegatedFeedHandlers(state, settingsManager, feedsContaine
     document.addEventListener('touchend', clearLongpress, { passive: true });
     document.addEventListener('touchcancel', clearLongpress, { passive: true });
     document.addEventListener('touchmove', clearLongpress, { passive: true });
+
+    // 画像読み込みエラー時に非表示にする（CSP に準拠した安全なイベント委譲）
+    document.addEventListener('error', (e) => {
+      const target = e.target;
+      if (target && target.tagName === 'IMG') {
+        if (target.classList.contains('avatar') || target.classList.contains('account-user-avatar')) {
+          target.classList.add('d-none');
+          target.style.display = 'none';
+        }
+      }
+    }, true);
 }

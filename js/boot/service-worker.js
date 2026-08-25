@@ -8,6 +8,8 @@ const swLog = (...args) => {
 const swWarn = (...args) => console.warn('[SW]', ...args);
 const swError = (...args) => console.error('[SW]', ...args);
 
+let refreshing = false;
+
 function showUpdateModal(registration, worker, delay) {
   setTimeout(() => {
     const modal = document.getElementById('swUpdateModal');
@@ -17,12 +19,19 @@ function showUpdateModal(registration, worker, delay) {
 
     modal.hidden = false;
     yesButton.onclick = () => {
+      modal.hidden = true;
       const workerToNotify = registration.waiting || worker;
       try {
         workerToNotify?.postMessage({ type: 'SKIP_WAITING' });
       } catch (error) {
         swWarn('postMessage to worker failed', error);
       }
+      setTimeout(() => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      }, 1000);
     };
     noButton.onclick = () => {
       modal.hidden = true;
@@ -43,6 +52,7 @@ if (isLocal) {
     });
   }
 } else if ('serviceWorker' in navigator) {
+  const hadController = Boolean(navigator.serviceWorker.controller);
   window.addEventListener('load', () => {
     setTimeout(() => {
       const basePath = location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
@@ -51,7 +61,7 @@ if (isLocal) {
           swLog('Registered:', registration.scope);
 
           try {
-            if (registration.waiting) {
+            if (hadController && registration.waiting) {
               swLog('registration.waiting present on register');
               showUpdateModal(registration, registration.waiting, 1000);
             }
@@ -69,7 +79,7 @@ if (isLocal) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state !== 'installed') return;
 
-              const isUpdate = Boolean(navigator.serviceWorker.controller || registration.waiting);
+              const isUpdate = Boolean(hadController && (navigator.serviceWorker.controller || registration.waiting));
               swLog('installing state=installed, isUpdate=', isUpdate);
               if (isUpdate) {
                 showUpdateModal(registration, newWorker, 2000);
@@ -84,6 +94,12 @@ if (isLocal) {
         });
 
       navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController) {
+          swLog('First install controller change; skipping reload');
+          return;
+        }
+        if (refreshing) return;
+        refreshing = true;
         swLog('Controller changed, reloading...');
         window.location.reload();
       });

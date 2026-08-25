@@ -28,7 +28,7 @@ vi.mock('../../features/channel/channel-ui.js', () => ({
   syncChannelComposerState: mocks.syncChannelComposerState,
 }));
 
-import { setupTabs } from './tab-manager.js';
+import { setupTabs, activateTab, ensureTabVisible } from './tab-manager.js';
 
 function settingsManagerFor(ids) {
   return {
@@ -156,4 +156,34 @@ describe('channel tab activation', () => {
       { tab: 'bitchat' }
     ]);
   });
+
+  it('automatically enables and activates a hidden tab when requested by id', async () => {
+    let savedTabs = null;
+    const settingsManager = {
+      settings: {},
+      get: vi.fn(key => key === 'tabs_v2' ? (savedTabs || [
+        { id: 'home', visible: true },
+        { id: 'channels', visible: false }
+      ]) : null),
+      set: vi.fn((key, val) => {
+        if (key === 'tabs_v2') savedTabs = val;
+      })
+    };
+
+    setupTabs(settingsManager);
+    expect(document.querySelector('.tab[data-tab="channels"]')).toBeNull();
+
+    const success = activateTab('channels', settingsManager);
+    expect(success).toBe(true);
+
+    const channelTab = document.querySelector('.tab[data-tab="channels"]');
+    expect(channelTab).not.toBeNull();
+    expect(channelTab?.classList.contains('active')).toBe(true);
+    expect(document.querySelector('#feed-channels')?.classList.contains('active')).toBe(true);
+    expect(settingsManager.set).toHaveBeenCalledWith(
+      'tabs_v2',
+      expect.arrayContaining([expect.objectContaining({ id: 'channels', visible: true })])
+    );
+  });
 });
+

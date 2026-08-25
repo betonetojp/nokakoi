@@ -161,7 +161,7 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
       const nameHtml = replaceBadgeEmoji(escapeHtml(formattedName));
       const pictureUrl = (prof && prof.picture) ? String(prof.picture).trim() : '';
       const avatarHtml = pictureUrl
-        ? `<img src="${escapeHtml(pictureUrl)}" alt="avatar" class="account-user-avatar" loading="lazy" onerror="this.style.display='none'">`
+        ? `<img src="${escapeHtml(pictureUrl)}" alt="avatar" class="account-user-avatar" loading="lazy">`
         : '';
 
       const methodMap = {

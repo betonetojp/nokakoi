@@ -303,7 +303,7 @@ function buildEventNameBlockHtml(state, ev, settings, names, statusHtml) {
     const profile = state.profiles.get(pk);
     const avatarUrl = sanitizeUrlCandidate((profile && profile.picture) || '') || '';
     if (avatarUrl) {
-      avatarHtml = '<img src="' + escapeHtml(avatarUrl) + '" alt="avatar" class="avatar" loading="lazy" onerror="this.classList.add(\'d-none\')">';
+      avatarHtml = '<img src="' + escapeHtml(avatarUrl) + '" alt="avatar" class="avatar" loading="lazy">';
     }
   }
 
