@@ -1,3 +1,7 @@
+.nwc-uri-input {
+  -webkit-text-security: disc;
+}
+
 .tab-order-row {
   display: flex;
   align-items: center;

@@ -620,6 +620,14 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
   const nwcUriInput = $('nwcUriInput');
   const saveNwcBtn = $('saveNwcBtn');
   const deleteNwcBtn = $('deleteNwcBtn');
+  const nwcSettingsForm = $('nwcSettingsForm');
+
+  if (nwcSettingsForm) {
+    nwcSettingsForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (saveNwcBtn) saveNwcBtn.click();
+    });
+  }
 
   if (nwcUriInput && saveNwcBtn && deleteNwcBtn) {
     nwcUriInput.value = settingsManager.settings.nwcUri || '';

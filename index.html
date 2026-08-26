@@ -282,11 +282,11 @@
         </div>
         <div class="mt-12">
           <label for="postLinkTitleInput" class="text-sm mr-8" data-i18n="postLinkTitleLabel">投稿連携アプリ名</label>
-          <input type="text" id="postLinkTitleInput" maxlength="32">
+          <input type="text" id="postLinkTitleInput" name="post-link-title" maxlength="32" autocomplete="off">
         </div>
         <div class="mt-12">
           <label for="postLinkUrlInput" class="text-sm mr-8" data-i18n="postLinkUrlLabel">投稿連携URL</label>
-          <input type="text" id="postLinkUrlInput" maxlength="128">
+          <input type="text" id="postLinkUrlInput" name="post-link-url" maxlength="128" autocomplete="url" spellcheck="false">
           <span id="postLinkSaveStatus" class="muted"></span>
         </div>
         <div class="mt-8 setting-row settings-indent">
@@ -301,11 +301,11 @@
         </div>
         <div class="mt-12">
           <label for="eventLinkTitleInput" class="text-sm mr-8" data-i18n="eventLinkTitleLabel">イベント表示連携アプリ名</label>
-          <input type="text" id="eventLinkTitleInput" maxlength="32">
+          <input type="text" id="eventLinkTitleInput" name="event-link-title" maxlength="32" autocomplete="off">
         </div>
         <div class="mt-12">
           <label for="eventLinkUrlInput" class="text-sm mr-8" data-i18n="eventLinkUrlLabel">イベント表示連携URL</label>
-          <input type="text" id="eventLinkUrlInput" maxlength="128">
+          <input type="text" id="eventLinkUrlInput" name="event-link-url" maxlength="128" autocomplete="url" spellcheck="false">
           <span id="eventLinkSaveStatus" class="muted"></span>
         </div>
         <div class="mt-16">
@@ -322,19 +322,21 @@
             <div><span data-i18n="mute.private_label">非公開ミュート：</span> <span id="mutePubPrivateCount">0</span> users / <span id="muteWordPrivateCount">0</span> words</div>
           </div>
         </div>
-        <!-- NWC設定 -->
-        <fieldset class="settings-fieldset mt-12">
-          <legend data-i18n="nwc.title">NWC (Nostr Wallet Connect)</legend>
-          <p class="muted text-sm" data-i18n="nwc.summary">NWC接続URI (nostr+walletconnect://...) を設定すると、投稿から直接Zapを送れるようになります。</p>
-          <div class="flex-col gap-8">
-            <input type="password" id="nwcUriInput" data-i18n-placeholder="nwc.placeholder" placeholder="nostr+walletconnect://..." class="settings-input-wide" style="width: 100%; box-sizing: border-box; padding: 6px;">
-            <div class="row gap-8">
-              <button id="saveNwcBtn" type="button" class="secondary" data-i18n="save">保存</button>
-              <button id="deleteNwcBtn" class="secondary btn-danger" type="button" data-i18n="delete">削除</button>
+        <!-- NWC設定。type=password だと Chrome が直前のURL欄をユーザー名として保存しようとする -->
+        <form id="nwcSettingsForm" class="mt-12" autocomplete="off">
+          <fieldset class="settings-fieldset">
+            <legend data-i18n="nwc.title">NWC (Nostr Wallet Connect)</legend>
+            <p class="muted text-sm" data-i18n="nwc.summary">NWC接続URI (nostr+walletconnect://...) を設定すると、投稿から直接Zapを送れるようになります。</p>
+            <div class="flex-col gap-8">
+              <input type="text" id="nwcUriInput" name="nwc-uri" autocomplete="off" spellcheck="false" autocapitalize="none" autocorrect="off" data-lpignore="true" data-1p-ignore data-form-type="other" data-i18n-placeholder="nwc.placeholder" placeholder="nostr+walletconnect://..." class="settings-input-wide nwc-uri-input" style="width: 100%; box-sizing: border-box; padding: 6px;">
+              <div class="row gap-8">
+                <button id="saveNwcBtn" type="button" class="secondary" data-i18n="save">保存</button>
+                <button id="deleteNwcBtn" class="secondary btn-danger" type="button" data-i18n="delete">削除</button>
+              </div>
+              <div id="nwcStatus" class="muted text-sm"></div>
             </div>
-            <div id="nwcStatus" class="muted text-sm"></div>
-          </div>
-        </fieldset>
+          </fieldset>
+        </form>
 
         <div class="mt-24">
           <button id="clearCacheBtn" class="secondary" type="button" data-i18n="clearCache">キャッシュをクリア</button>
