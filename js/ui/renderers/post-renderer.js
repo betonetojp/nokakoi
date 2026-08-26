@@ -374,7 +374,10 @@ function buildEventNameBlockHtml(state, ev, settings, names, statusHtml) {
 function renderEventContent(state, ev, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent, contentEl, allowInlineMedia) {
   if (!contentEl) return;
   const content = ev.content || '';
-  if (ev.kind !== 7 && ev.kind !== 6 && ev.kind !== 16) {
+  if (ev.kind === 9735 || ev.kind === 7 || ev.kind === 6 || ev.kind === 16) {
+    contentEl.classList.add('d-none');
+    return;
+  }
     const previewMaxLength = (settingsManager && typeof settingsManager.get === 'function' && settingsManager.get('previewMaxLength')) ? parseInt(settingsManager.get('previewMaxLength'), 10) : MAX_PREVIEW_LENGTH;
     if (getEffectiveTextLength(content) > previewMaxLength || content.split('\n').length > MAX_PREVIEW_LINES) {
       const previewText = getPreviewWithFullLinksAndEmojis(content, previewMaxLength, MAX_PREVIEW_LINES);
@@ -418,9 +421,6 @@ function renderEventContent(state, ev, nip19, settings, settingsManager, reactTo
       );
       try { processHiddenTagChars(contentEl); } catch (e) { }
     }
-  } else {
-    contentEl.classList.add('d-none');
-  }
 }
 
 function setupContentWarning(div, ev, contentEl, isCwExpanded, markCwExpanded) {
@@ -1252,6 +1252,9 @@ try {
             const nameEl = el.querySelector('.reply-author-name');
             const name = nameEl ? nameEl.textContent : el.textContent || '';
             const parent = el.closest('.reply-to');
+            if (parent && parent.classList.contains('zap')) {
+              return;
+            }
             if (parent && parent.classList.contains('repost')) {
               el.innerHTML = '<span class="reply-author-name">' + replaceBadgeEmoji(escapeHtml(name)) + '</span> ' + '<span>' + t('repost') + '</span>';
             } else if (parent && parent.querySelector('.reply-marker') && parent.querySelector('.reply-marker').innerText.trim()) {

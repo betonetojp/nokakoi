@@ -8,15 +8,58 @@ import { MAX_PREVIEW_LINES } from '../../config/constants.js';
 import { pickETagEventId, pickETagWithHint, resolvePreviewMaxLength, evaluateMuteState } from './render-helpers.js';
 import { formatReaction } from './reaction-renderer.js';
 
+function getZapRequestComment(ev) {
+  try {
+    const descTag = (ev.tags || []).find((t) => Array.isArray(t) && t[0] === 'description' && t[1]);
+    if (descTag) {
+      const zapReq = JSON.parse(descTag[1]);
+      if (zapReq && zapReq.content) return String(zapReq.content);
+    }
+  } catch (_e) {}
+  return (ev && ev.content) ? String(ev.content) : '';
+}
+
+function isOpaqueDisplayName(name, pubkey) {
+  try {
+    if (!name) return true;
+    if (pubkey && typeof pubkey === 'string' && /^[0-9a-f]{64}$/i.test(pubkey) && typeof name === 'string' && name.toLowerCase() === pubkey.toLowerCase()) return true;
+    if (typeof name === 'string' && /^[0-9a-f]{64}$/i.test(name) && (!pubkey || name.toLowerCase() === pubkey.toLowerCase())) return true;
+    return false;
+  } catch (_e) {
+    return false;
+  }
+}
+
+export function formatZapReceiptLabel(state, ev, nip19) {
+  const senderPubkey = getZapReceiptSenderPubkey(ev) || (ev && ev.pubkey) || '';
+  const comment = getZapRequestComment(ev);
+  const sats = getZapReceiptAmountSats(ev);
+  const zapSenderName = displayName(state, senderPubkey, nip19);
+  const displayAuthorName = isOpaqueDisplayName(zapSenderName, senderPubkey) ? '誰か' : zapSenderName;
+  const zapLabel = comment ? `${sats} sat (${escapeHtml(comment)})` : `${sats} sat`;
+  return {
+    senderPubkey,
+    label: `Zap from ${escapeHtml(displayAuthorName)}: ${zapLabel}`
+  };
+}
+
+function renderZapReceiptBannerHtml(state, ev, nip19, extraAttrs, extraInner) {
+  const { senderPubkey, label } = formatZapReceiptLabel(state, ev, nip19);
+  const attrs = extraAttrs ? extraAttrs : '';
+  const extra = extraInner || '';
+  return '<div class="reply-to zap"' + attrs + '><span class="reply-marker"><img src="icon/zap.svg" alt="" class="icon"/></span><span class="reply-to-author" data-pubkey="' + escapeHtml(senderPubkey) + '"><span>' + replaceBadgeEmoji(label) + '</span></span>' + extra + '</div>';
+}
+
 export function renderReplyContext(state, ev, nip19, settings) {
   const isModal = !!settings && settings.isModal === true;
   const inlineMedia = settings && settings.showTimelineMedia === true;
   if (ev.kind !== 1 && ev.kind !== 42 && ev.kind !== 1111 && ev.kind !== 7 && ev.kind !== 6 && ev.kind !== 16 && ev.kind !== 9735) return '';
 
-
-
   const eTags = (ev.tags || []).filter(t => t && (t[0] === 'e' || t[0] === 'E') && t[1]);
-  if (eTags.length === 0) return '';
+  if (eTags.length === 0) {
+    if (Number(ev.kind) === 9735) return renderZapReceiptBannerHtml(state, ev, nip19);
+    return '';
+  }
 
   const { eventId: replyToEventId, relayHint: replyToRelayHint } = pickETagWithHint(ev);
   if (!replyToEventId) return '';
@@ -26,9 +69,13 @@ export function renderReplyContext(state, ev, nip19, settings) {
   if (!replyToEvent) {
     const ownerAttr = ' data-owner-event-id="' + escapeHtml(ev.id || '') + '"';
     if (ev.kind === 9735) {
-      const sats = getZapReceiptAmountSats(ev);
-      const label = `Zap! ${sats} sat`;
-      return '<div class="reply-to zap"' + ownerAttr + '><span class="reply-marker">⚡</span><span class="reply-to-author" data-event-id="' + replyToEventId + '" data-relay-hint="' + escapeHtml(replyToRelayHint) + '"><span>' + label + '</span></span></div>';
+      return renderZapReceiptBannerHtml(
+        state,
+        ev,
+        nip19,
+        ownerAttr,
+        '<span class="reply-to-author" data-event-id="' + replyToEventId + '" data-relay-hint="' + escapeHtml(replyToRelayHint) + '" hidden></span>'
+      );
     } else if (ev.kind === 7) {
       const reactionDisplay = formatReaction(ev.content, ev.tags || []);
       const label = t('reaction.button.title');
@@ -94,43 +141,13 @@ export function renderReplyContext(state, ev, nip19, settings) {
     const label = t('repost.label', { author: escapeHtml(replyToAuthor) });
     return '<div class="reply-to repost"><span class="reply-marker"><img src="icon/repost.png" alt="' + escapeHtml(t('repost')) + '" class="icon"/></span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + replaceBadgeEmoji(label) + '</span></span><div class="reply-to-content" data-event-id="' + (replyToEvent.id || '') + '">' + replyContentHtml + '</div></div>';
   } else if (ev.kind === 9735) {
-    let senderPubkey = getZapReceiptSenderPubkey(ev) || ev.pubkey;
-    let comment = '';
-    
-    try {
-      const descTag = ev.tags.find(t => t[0] === 'description');
-      if (descTag && descTag[1]) {
-        const zapReq = JSON.parse(descTag[1]);
-        if (zapReq) {
-          if (zapReq.content) comment = zapReq.content;
-        }
-      }
-    } catch (e) {
-      console.warn('[ReplyRenderer] Failed to parse Zap Request from description:', e);
-    }
-
-    if (!comment && ev.content) {
-      comment = ev.content;
-    }
-
-    const sats = getZapReceiptAmountSats(ev);
-    const zapSenderName = displayName(state, senderPubkey, nip19);
-    
-    const zapLabel = comment ? `${sats} sat (${comment})` : `${sats} sat`;
-    
-    const isOpaqueAuthor = (function (a, pk) {
-      try {
-        if (!a) return true;
-        if (pk && typeof pk === 'string' && /^[0-9a-f]{64}$/i.test(pk) && typeof a === 'string' && a.toLowerCase() === pk.toLowerCase()) return true;
-        if (typeof a === 'string' && /^[0-9a-f]{64}$/i.test(a) && (!pk || a.toLowerCase() === pk.toLowerCase())) return true;
-        return false;
-      } catch (e) { return false; }
-    })(zapSenderName, senderPubkey);
-
-    const displayAuthorName = isOpaqueAuthor ? '誰か' : zapSenderName;
-    const label = `Zap from ${escapeHtml(displayAuthorName)}: ${zapLabel}`;
-
-    return '<div class="reply-to zap"><span class="reply-marker">⚡</span><span class="reply-to-author" data-pubkey="' + senderPubkey + '"><span>' + replaceBadgeEmoji(label) + '</span></span><div class="reply-to-content" data-event-id="' + (replyToEvent.id || '') + '">' + replyContentHtml + '</div></div>';
+    return renderZapReceiptBannerHtml(
+      state,
+      ev,
+      nip19,
+      '',
+      '<div class="reply-to-content" data-event-id="' + (replyToEvent.id || '') + '">' + replyContentHtml + '</div>'
+    );
   } else {
     if (isOpaqueAuthor) {
       const label = t('reply');

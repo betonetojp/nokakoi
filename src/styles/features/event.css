@@ -382,6 +382,11 @@ body.theme-light img.icon-btn {
 .channel .reply-marker {
   color: var(--channel-border);
 }
+.reply-to.zap .reply-marker img,
+body:not(.theme-light) .reply-to.zap .reply-marker img.icon,
+body.theme-light .reply-to.zap .reply-marker img.icon {
+  filter: none;
+}
 .event[data-kind="7"] .reply-marker {
   font-size: 1.5em;
 }

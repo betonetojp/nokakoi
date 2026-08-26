@@ -10,6 +10,9 @@ import { renderEvent } from '../../ui/renderer.js';
 import { showJsonModal } from '../../ui/modals/json-modal.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { EVENTS_TIMEOUT, EVENTS_FETCH_LIMIT, EVENTS_MAX } from '../../config/constants.js';
+import { getProfileLightningAddress } from './profile.js';
+import { showZapModal } from '../../ui/modals/zap-modal.js';
+import { sendZap } from '../zap/zap.js';
 
 let currentModalPubkey = null;
 
@@ -321,14 +324,13 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
           isNip05: true
         });
       }
-      const lud = profile.lud16 || profile.lud06;
-      if (lud && String(lud).trim()) {
-        const strVal = String(lud).trim();
+      const lud = getProfileLightningAddress(profile);
+      if (lud) {
         metadataItems.push({
           label: t('profile.lightning') || 'Lightning',
-          html: escapeHtml(strVal),
-          rawVal: strVal,
-          hasCopyBtn: true
+          html: escapeHtml(lud),
+          rawVal: lud,
+          hasZapBtn: true
         });
       }
       if (profile.website && String(profile.website).trim()) {
@@ -388,24 +390,28 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
         itemDiv.appendChild(labelSpan);
         itemDiv.appendChild(valSpan);
 
-        if (item.hasCopyBtn && item.rawVal) {
-          const copyBtn = document.createElement('button');
-          copyBtn.type = 'button';
-          copyBtn.className = 'btn-kind btn-copy-metadata';
-          copyBtn.textContent = '📋';
-          copyBtn.title = t('json.copy') || 'コピー';
-          copyBtn.onclick = async (e) => {
+        if (item.hasZapBtn && item.rawVal) {
+          const zapWrap = document.createElement('div');
+          zapWrap.className = 'event-actions-react';
+          const zapBtn = document.createElement('button');
+          zapBtn.type = 'button';
+          zapBtn.className = 'btn-zap';
+          zapBtn.title = t('zap.button.title') || 'Zapを送信';
+          zapBtn.setAttribute('aria-label', zapBtn.title);
+          const zapIcon = document.createElement('img');
+          zapIcon.src = 'icon/zap.svg';
+          zapIcon.alt = '';
+          zapIcon.className = 'icon-btn';
+          zapBtn.appendChild(zapIcon);
+          zapBtn.onclick = function (e) {
             e.stopPropagation();
-            try {
-              await navigator.clipboard.writeText(item.rawVal);
-              const orig = copyBtn.textContent;
-              copyBtn.textContent = '✓';
-              setTimeout(() => { copyBtn.textContent = orig; }, 1200);
-            } catch (err) {
-              console.error('Failed to copy metadata:', err);
-            }
+            const recipientName = (profile && (profile.display_name || profile.name)) || pubkey.slice(0, 8) + '...';
+            showZapModal(recipientName, item.rawVal, async function (amount, comment, opts) {
+              return sendZap(state, settingsManager, { pubkey: pubkey }, amount, comment, opts);
+            });
           };
-          itemDiv.appendChild(copyBtn);
+          zapWrap.appendChild(zapBtn);
+          itemDiv.appendChild(zapWrap);
         }
 
         metadataEl.appendChild(itemDiv);

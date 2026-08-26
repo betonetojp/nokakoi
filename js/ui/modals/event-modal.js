@@ -185,7 +185,9 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
   if (contentEl) {
     // 返信イベント/リアクション/リポストなら参照先を表示
     let replyHtml = '';
-    if ((event.kind === 1 || event.kind === 1111 || event.kind === 7 || event.kind === 6 || event.kind === 16) && Array.isArray(event.tags)) {
+    if (event.kind === 9735 && typeof renderReplyContext === 'function') {
+      replyHtml = renderReplyContext(state, event, nip19, { isModal: true });
+    } else if ((event.kind === 1 || event.kind === 1111 || event.kind === 7 || event.kind === 6 || event.kind === 16) && Array.isArray(event.tags)) {
       const hasReplyTag = event.tags.some(t => t && (t[0] === 'e' || t[0] === 'E') && t[1]);
       if (hasReplyTag && typeof renderReplyContext === 'function') {
         replyHtml = renderReplyContext(state, event, nip19, { isModal: true });

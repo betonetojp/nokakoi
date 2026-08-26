@@ -235,26 +235,9 @@
   color: #f59e0b;
   background: rgba(245, 158, 11, 0.12);
 }
-.btn-copy-metadata {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 4px;
-  padding: 1px 6px;
-  font-size: 0.82em;
-  line-height: 1.2;
-  opacity: 0.8;
-  cursor: pointer;
-  border-radius: 4px;
-  background: rgba(124, 147, 255, 0.1);
-  border: 1px solid var(--border);
-  color: var(--text);
+.profile-metadata-item .event-actions-react {
   flex-shrink: 0;
-  transition: opacity 0.15s ease, background 0.15s ease;
-  user-select: none;
-}
-.btn-copy-metadata:hover {
-  opacity: 1;
-  background: rgba(124, 147, 255, 0.2);
+  margin-left: 2px;
 }
 #profileStats { padding-top: 12px; border-top: 1px solid var(--border); }
 #profileEvents {
