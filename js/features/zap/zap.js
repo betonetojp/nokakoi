@@ -6,6 +6,7 @@ import { signEventWithMode } from '../post/actions.js';
 import { NwcClient } from '../../core/nwc.js';
 import { getWriteRelays } from '../../core/relay.js';
 import { getNip19, getVerifyEvent, getNip57 } from '../../core/nostr-compat.js';
+import { getProfileLightningAddress } from '../profile/profile.js';
 
 // 簡易 bech32 デコーダー
 const ALPHABET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
@@ -64,6 +65,204 @@ function decodeLnurl(lnurl) {
   }
 }
 
+function allowsNostrZaps(lnurlData) {
+  if (!lnurlData) return false;
+  const allows = lnurlData.allowsNostr === true || lnurlData.allowsNostr === 'true';
+  return allows && typeof lnurlData.nostrPubkey === 'string' && /^[0-9a-f]{64}$/i.test(lnurlData.nostrPubkey);
+}
+
+const ZAP_RECEIPT_RELAYS = [
+  'wss://yabu.me',
+  'wss://r.kojira.io',
+  'wss://nos.lol',
+  'wss://relay.damus.io',
+  'wss://relay-jp.nostr.wirednet.jp'
+];
+
+const ZAP_REQUEST_TAG_NAMES = new Set(['p', 'e', 'a', 'relays', 'amount', 'lnurl']);
+
+export function buildZapReceiptRelays(userRelays) {
+  const urls = [...ZAP_RECEIPT_RELAYS, ...(Array.isArray(userRelays) ? userRelays : [])]
+    .map((u) => String(u || '').trim().replace(/\/+$/, ''))
+    .filter((u) => /^wss:\/\//i.test(u));
+  return Array.from(new Set(urls)).slice(0, 8);
+}
+
+/**
+ * BOLT11 が description_hash (tag 23 / h) を持つか。
+ * Zap 用インボイスは Zap Request JSON の SHA256 を h に載せる。通常 LNURL は description (d) のみ。
+ */
+export function bolt11HasDescriptionHash(pr) {
+  if (!pr || typeof pr !== 'string') return false;
+  const s = pr.trim().toLowerCase();
+  const pos = s.lastIndexOf('1');
+  if (pos < 1) return false;
+  const data = [];
+  for (let i = pos + 1; i < s.length; i++) {
+    const v = ALPHABET.indexOf(s[i]);
+    if (v === -1) return false;
+    data.push(v);
+  }
+  if (data.length < 6 + 7 + 104) return false;
+  data.length -= 6;
+  const sigStart = data.length - 104;
+  let i = 7;
+  while (i + 3 <= sigStart) {
+    const type = data[i];
+    const len = (data[i + 1] << 5) | data[i + 2];
+    i += 3;
+    if (len < 0 || i + len > sigStart) return false;
+    if (type === 23) return true;
+    i += len;
+  }
+  return false;
+}
+
+function countTags(tags, name) {
+  return (tags || []).filter((t) => Array.isArray(t) && t[0] === name).length;
+}
+
+/**
+ * NIP-07 等が付けた余分なプロパティを除き、署名検証に使う 7 フィールドだけ残す
+ */
+export function toCanonicalZapRequest(ev) {
+  if (!ev || typeof ev !== 'object') return ev;
+  return {
+    kind: Number(ev.kind),
+    created_at: Number(ev.created_at),
+    content: String(ev.content || ''),
+    tags: Array.isArray(ev.tags) ? ev.tags : [],
+    pubkey: String(ev.pubkey || ''),
+    id: String(ev.id || ''),
+    sig: String(ev.sig || ev.signature || '')
+  };
+}
+
+export function getZapReceiptSenderPubkey(ev) {
+  const pTag = (ev && ev.tags || []).find((t) => Array.isArray(t) && t[0] === 'P' && t[1]);
+  if (pTag) return pTag[1];
+  try {
+    const desc = (ev && ev.tags || []).find((t) => Array.isArray(t) && t[0] === 'description' && t[1]);
+    if (desc) {
+      const req = JSON.parse(desc[1]);
+      if (req && req.pubkey) return req.pubkey;
+    }
+  } catch (_e) {}
+  return (ev && ev.pubkey) || '';
+}
+
+/** タイムライン上の作者表示に使う pubkey。9735 は LN サーバーではなく Zap 送信者 */
+export function getEventDisplayPubkey(ev) {
+  if (!ev) return '';
+  if (Number(ev.kind) === 9735) return getZapReceiptSenderPubkey(ev) || ev.pubkey || '';
+  return ev.pubkey || '';
+}
+
+export function getZapReceiptTargetEventId(ev) {
+  const eTags = ((ev && ev.tags) || []).filter((t) => Array.isArray(t) && (t[0] === 'e' || t[0] === 'E') && t[1]);
+  if (!eTags.length) return '';
+  return eTags[eTags.length - 1][1];
+}
+
+export function isIncomingZapReceiptFor(ev, pubkey) {
+  if (!ev || ev.kind !== 9735 || !pubkey) return false;
+  const want = String(pubkey).toLowerCase();
+  return ((ev.tags || []).some((t) => Array.isArray(t) && t[0] === 'p' && t[1] && String(t[1]).toLowerCase() === want));
+}
+
+function applyZappedStyleToDom(eventId) {
+  if (typeof document === 'undefined' || !eventId) return;
+  try {
+    document.querySelectorAll('.event[data-event-id="' + eventId + '"] .btn-zap').forEach((btn) => {
+      btn.classList.add('zapped');
+      btn.dataset.zapped = 'true';
+    });
+  } catch (_e) {}
+}
+
+/**
+ * 自分が送った kind:9735 なら対象ノートを Zap 済みにする
+ */
+export function applyZapReceiptToZappedState(state, ev) {
+  if (!state || !ev || ev.kind !== 9735) return false;
+  let myPub = '';
+  try { myPub = (localStorage.getItem('pubkey') || '').toLowerCase(); } catch (_e) {}
+  if (!myPub) return false;
+  const sender = (getZapReceiptSenderPubkey(ev) || '').toLowerCase();
+  if (sender !== myPub) return false;
+  const sats = getZapReceiptAmountSats(ev);
+  if (sats > 0) rememberZapAmount(sats, { asLast: false });
+  const targetId = getZapReceiptTargetEventId(ev);
+  if (!targetId) return false;
+  markEventZapped(state, targetId);
+  return true;
+}
+
+export function markEventZapped(state, eventId) {
+  if (!state || !eventId) return;
+  if (!state.zappedEventIds) {
+    state.zappedEventIds = new Set();
+  }
+  const isNew = !state.zappedEventIds.has(eventId);
+  state.zappedEventIds.add(eventId);
+  if (isNew) saveZappedEvent(eventId);
+  applyZappedStyleToDom(eventId);
+}
+
+function msatsToSats(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round(n / 1000);
+}
+
+/**
+ * kind:9735 の金額 (sat)。Coinos 等は receipt に amount タグを付けず、
+ * description 内の Zap Request か bolt11 にだけ金額がある。
+ */
+export function getZapReceiptAmountSats(ev) {
+  const tags = (ev && ev.tags) || [];
+  const receiptAmount = tags.find((t) => Array.isArray(t) && t[0] === 'amount' && t[1]);
+  const fromReceipt = receiptAmount ? msatsToSats(receiptAmount[1]) : 0;
+  if (fromReceipt > 0) return fromReceipt;
+
+  try {
+    const desc = tags.find((t) => Array.isArray(t) && t[0] === 'description' && t[1]);
+    if (desc) {
+      const req = JSON.parse(desc[1]);
+      const amt = (req.tags || []).find((t) => Array.isArray(t) && t[0] === 'amount' && t[1]);
+      const fromReq = amt ? msatsToSats(amt[1]) : 0;
+      if (fromReq > 0) return fromReq;
+    }
+  } catch (_e) {}
+
+  const bolt11 = tags.find((t) => Array.isArray(t) && t[0] === 'bolt11' && t[1]);
+  if (bolt11) {
+    try {
+      const nip57Obj = getNip57();
+      if (nip57Obj && typeof nip57Obj.getSatoshisAmountFromBolt11 === 'function') {
+        const sats = Number(nip57Obj.getSatoshisAmountFromBolt11(bolt11[1]));
+        if (Number.isFinite(sats) && sats > 0) return Math.round(sats);
+      }
+    } catch (_e) {}
+  }
+  return 0;
+}
+
+/**
+ * LNURL callback URL に amount / nostr を付与する。
+ * nostr は NIP-57 例示・nostter と同じ encodeURI（URLSearchParams は使わない）。
+ * URLSearchParams は `:` `,` を %3A/%2C にし、decodeURI する LNURL 実装で JSON が壊れる。
+ */
+export function buildZapCallbackUrl(callbackUrl, amountMsat, zapRequestEvent, comment = '', commentAllowed = 0) {
+  const url = new URL(callbackUrl);
+  url.hash = '';
+  url.searchParams.set('amount', String(amountMsat));
+  url.searchParams.delete('nostr');
+  url.searchParams.delete('comment');
+  const encodedNostr = encodeURI(JSON.stringify(toCanonicalZapRequest(zapRequestEvent)));
+  return `${url.toString()}&nostr=${encodedNostr}`;
+}
+
 /**
  * Lightning Address または LNURL からエンドポイントURLを取得
  */
@@ -99,8 +298,9 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
 
   // 1. 受信者のプロフィール情報と Lightning アドレスを確認
   const recipientPubkey = targetEvent.pubkey;
-  const prof = state.profiles.get(recipientPubkey);
-  const lud = (prof && (prof.lud16 || prof.lud06)) || '';
+  const prof = (state.profiles && (state.profiles.get(recipientPubkey)
+    || state.profiles.get(String(recipientPubkey || '').toLowerCase()))) || null;
+  const lud = getProfileLightningAddress(prof);
   if (!lud) {
     throw new Error('受信者のLightningアドレスが見つかりません');
   }
@@ -111,14 +311,15 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
   }
 
   // 2. LNURL-pay 情報の取得
+  const fetchOpts = { cache: 'no-store' };
   let lnurlRes;
   try {
-    lnurlRes = await fetch(endpoint);
+    lnurlRes = await fetch(endpoint, fetchOpts);
     if (!lnurlRes.ok) throw new Error();
   } catch (e) {
     console.warn('[Zap] Direct fetch failed, trying CORS proxy for:', endpoint);
     try {
-      lnurlRes = await fetch(`https://corsproxy.io/?${encodeURIComponent(endpoint)}`);
+      lnurlRes = await fetch(`https://corsproxy.io/?${encodeURIComponent(endpoint)}`, fetchOpts);
     } catch (err) {
       throw new Error('Lightningサービスへの接続に失敗しました (CORS/Network Error)');
     }
@@ -131,6 +332,9 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
   if (!callbackUrl) {
     throw new Error('インボイス生成エンドポイントが見つかりません');
   }
+  if (!allowsNostrZaps(lnurlData)) {
+    throw new Error('受信者のLightningアドレスはZapレシートに対応していません');
+  }
 
   const amountMsat = amountSats * 1000;
   if (lnurlData.minSendable && amountMsat < lnurlData.minSendable) {
@@ -141,19 +345,14 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
   }
 
   // 3. Zap Request (kind:9734) 作成
+  // zapline-jp が見るリレー (yabu.me / nos.lol / damus) を先頭に置く。
+  // 一部 LNURL 実装は relays タグの先頭数件にしかレシートを送らない。
   const userRelays = (state && state.relays) ? getWriteRelays(state.relays) : [];
-  const defaultRelays = [
-    'wss://yabu.me',
-    'wss://relay-jp.nostr.wirednet.jp',
-    'wss://nos.lol',
-    'wss://relay.damus.io'
-  ];
-  const writeRelays = Array.from(new Set([...userRelays, ...defaultRelays]));
+  const writeRelays = buildZapReceiptRelays(userRelays);
 
   const nip57Obj = getNip57();
   const userPubkey = ensureHexPubkey(state.pubkey || localStorage.getItem('pubkey') || '');
-  
-  // makeZapRequest の引数を構築
+
   const zapParams = {
     amount: amountMsat,
     relays: writeRelays,
@@ -161,70 +360,83 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
   };
 
   if (targetEvent && targetEvent.id) {
-    // 投稿宛てZap: event にターゲットイベントオブジェクト（NostrEvent）を指定
-    zapParams.event = targetEvent;
+    zapParams.event = {
+      id: targetEvent.id,
+      pubkey: targetEvent.pubkey,
+      kind: targetEvent.kind,
+      tags: Array.isArray(targetEvent.tags) ? targetEvent.tags : []
+    };
   } else {
-    // プロフィール宛てZap: pubkey に受信者の公開鍵を指定
     zapParams.pubkey = recipientPubkey;
   }
 
   const draft = nip57Obj.makeZapRequest(zapParams);
 
-  // NIP-57 ドラフトのメタデータを補正 (pubkey と created_at を設定)
   draft.pubkey = userPubkey;
   draft.created_at = Math.floor(Date.now() / 1000);
 
-  // lud が最初から bech32（lnurl1...）形式なら、互換性のために lnurl タグも付与
+  // 古い LNURL 実装は k などの追加タグで nostr を捨てて通常インボイスを返す
+  draft.tags = (draft.tags || []).filter((t) => Array.isArray(t) && ZAP_REQUEST_TAG_NAMES.has(t[0]));
+
   if (lud.toLowerCase().startsWith('lnurl1')) {
     if (!draft.tags.some(t => t[0] === 'lnurl')) {
       draft.tags.push(['lnurl', lud]);
     }
   }
 
-  // ログイン中アカウントで署名
   const signedZapRequest = await signEventWithMode(state, draft);
+  const canonicalZapRequest = toCanonicalZapRequest(signedZapRequest);
 
-  // 相手サーバーでのデシリアライズ再シリアライズによる description_hash の不一致を防ぐため、
-  // JSONのキー順序をアルファベット順にソートしてシリアライズする
-  const sortedZapRequest = {};
-  Object.keys(signedZapRequest).sort().forEach(key => {
-    sortedZapRequest[key] = signedZapRequest[key];
-  });
+  const pCount = countTags(canonicalZapRequest.tags, 'p');
+  const eCount = countTags(canonicalZapRequest.tags, 'e');
+  if (pCount !== 1 || eCount > 1) {
+    console.error('[Zap] Invalid tag counts after signing', { pCount, eCount, tags: canonicalZapRequest.tags });
+    throw new Error('Zapリクエストのタグが不正です。署名拡張が余分な p/e タグを付けていないか確認してください。');
+  }
 
-  // ローカルでの署名検証（デバッグ用）
   try {
     const verifyEvent = getVerifyEvent();
     if (verifyEvent) {
-      const isValid = verifyEvent(signedZapRequest);
+      const isValid = verifyEvent(canonicalZapRequest);
       console.log('[Zap] Local signature verification result:', isValid);
-      console.log('[Zap] JSON serialized Zap Request:', JSON.stringify(sortedZapRequest));
       if (!isValid) {
-        console.error('[Zap] Signed event is invalid!', signedZapRequest);
+        console.error('[Zap] Signed event is invalid!', canonicalZapRequest);
+        throw new Error('Zapリクエストの署名検証に失敗しました');
+      }
+    }
+    if (typeof nip57Obj.validateZapRequest === 'function') {
+      const invalid = nip57Obj.validateZapRequest(JSON.stringify(canonicalZapRequest));
+      if (invalid) {
+        console.error('[Zap] validateZapRequest:', invalid, canonicalZapRequest);
+        throw new Error(invalid);
       }
     }
   } catch (e) {
+    if (e && e.message && /署名|タグ|invalid|Zap/i.test(e.message)) throw e;
     console.error('[Zap] Failed to verify signed event locally:', e);
   }
 
+  console.log('[Zap] Request tags:', canonicalZapRequest.tags);
+  console.log('[Zap] Receipt relays:', writeRelays);
+  console.log('[Zap] LNURL callback host:', (() => { try { return new URL(callbackUrl).host; } catch (_e) { return callbackUrl; } })());
+
   // 4. コールバックへ送信してインボイス（pr）を取得
-
-  const callbackUrlObj = new URL(callbackUrl);
-  callbackUrlObj.searchParams.set('amount', String(amountMsat));
-  callbackUrlObj.searchParams.set('nostr', JSON.stringify(sortedZapRequest));
-  if (lnurlData.commentAllowed && comment.length <= lnurlData.commentAllowed) {
-    // 互換性のためコメントパラメータも付加
-    callbackUrlObj.searchParams.set('comment', comment);
-  }
-
-  const targetUrl = callbackUrlObj.toString();
+  // nostter / NIP-57 と同じ encodeURI で nostr を付与する
+  const targetUrl = buildZapCallbackUrl(
+    callbackUrl,
+    amountMsat,
+    canonicalZapRequest,
+    comment,
+    lnurlData.commentAllowed || 0
+  );
   let invoiceRes;
   try {
-    invoiceRes = await fetch(targetUrl);
+    invoiceRes = await fetch(targetUrl, fetchOpts);
     if (!invoiceRes.ok) throw new Error();
   } catch (e) {
     console.warn('[Zap] Direct invoice fetch failed, trying CORS proxy...');
     try {
-      invoiceRes = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
+      invoiceRes = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, fetchOpts);
     } catch (err) {
       throw new Error('インボイスの取得に失敗しました (CORS/Network Error)');
     }
@@ -237,6 +449,9 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
   if (!pr) {
     throw new Error('インボイスの生成に失敗しました (' + (invoiceData.reason || '原因不明') + ')');
   }
+  if (!bolt11HasDescriptionHash(pr)) {
+    console.warn('[Zap] Invoice has no description_hash (some providers still publish receipts)');
+  }
 
   // 5. NWC での支払い実行
   const nwcClient = new NwcClient(nwcUri);
@@ -244,12 +459,9 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
 
   // 6. 成功時のローカル状態の更新
   if (targetEvent.id) {
-    saveZappedEvent(targetEvent.id);
-    if (!state.zappedEventIds) {
-      state.zappedEventIds = new Set();
-    }
-    state.zappedEventIds.add(targetEvent.id);
+    markEventZapped(state, targetEvent.id);
   }
+  rememberZapAmount(amountSats, { asLast: true });
 
   return preimage;
 }
@@ -290,4 +502,86 @@ export function loadZappedEvents(state) {
   } catch (e) {
     console.warn('[Zap] Failed to load zapped events from cache:', e);
   }
+}
+
+function zapAmountHistoryKey() {
+  const pk = localStorage.getItem('pubkey') || 'anonymous';
+  return `nokakoi.zapAmounts.${String(pk).toLowerCase()}`;
+}
+
+function normalizeZapAmounts(list) {
+  const set = new Set();
+  (Array.isArray(list) ? list : []).forEach((n) => {
+    const v = Math.round(Number(n));
+    if (Number.isFinite(v) && v > 0) set.add(v);
+  });
+  return Array.from(set).sort((a, b) => a - b);
+}
+
+function readZapAmountHistory() {
+  try {
+    const raw = localStorage.getItem(zapAmountHistoryKey());
+    if (!raw) return { amounts: [], last: null };
+    const data = JSON.parse(raw);
+    if (Array.isArray(data)) {
+      return { amounts: normalizeZapAmounts(data), last: null };
+    }
+    const last = Math.round(Number(data && data.last));
+    return {
+      amounts: normalizeZapAmounts(data && data.amounts),
+      last: Number.isFinite(last) && last > 0 ? last : null
+    };
+  } catch (e) {
+    return { amounts: [], last: null };
+  }
+}
+
+function writeZapAmountHistory(data) {
+  localStorage.setItem(zapAmountHistoryKey(), JSON.stringify({
+    amounts: normalizeZapAmounts(data && data.amounts),
+    last: data && data.last > 0 ? data.last : null
+  }));
+}
+
+/**
+ * 送信済み Zap 金額履歴（重複なし・小さい順）
+ */
+export function loadZapAmountHistory() {
+  return readZapAmountHistory().amounts;
+}
+
+export function getLastZapAmount() {
+  return readZapAmountHistory().last;
+}
+
+export function rememberZapAmount(amountSats, options = {}) {
+  const amount = Math.round(Number(amountSats));
+  if (!Number.isFinite(amount) || amount <= 0) return loadZapAmountHistory();
+  const asLast = options.asLast !== false;
+  const data = readZapAmountHistory();
+  const amounts = normalizeZapAmounts(data.amounts.concat(amount));
+  try {
+    writeZapAmountHistory({
+      amounts,
+      last: asLast ? amount : data.last
+    });
+  } catch (e) {
+    console.warn('[Zap] Failed to save amount history:', e);
+  }
+  return amounts;
+}
+
+export function removeZapAmount(amountSats) {
+  const amount = Math.round(Number(amountSats));
+  const data = readZapAmountHistory();
+  const amounts = data.amounts.filter((n) => n !== amount);
+  try {
+    writeZapAmountHistory({
+      amounts,
+      last: data.last === amount ? null : data.last
+    });
+  } catch (e) {
+    console.warn('[Zap] Failed to remove amount history:', e);
+  }
+  return amounts;
 }

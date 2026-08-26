@@ -1,9 +1,9 @@
 import { escapeHtml, fmtTime, processHiddenTagChars, buildReactionEmojiTags, replaceBadgeEmoji } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { showZapModal } from '../modals/zap-modal.js';
-import { sendZap } from '../../features/zap/zap.js';
+import { sendZap, getEventDisplayPubkey } from '../../features/zap/zap.js';
 import { findEventById } from '../../core/state.js';
-import { displayNameWithUsername } from '../../features/profile/profile.js';
+import { displayNameWithUsername, getProfileLightningAddress } from '../../features/profile/profile.js';
 import { showReactionModal, showConfirmModal } from '../modals/modals.js';
 import { linkifyText, updateNostrNpubLinks, updateNostrNoteLinks, fitCustomEmoji, getPreviewWithFullLinksAndEmojis, getEffectiveTextLength } from '../../utils/url-parser.js';
 import { setReplyTarget, setGeohashTarget, setQuoteTarget } from '../../features/post/composer.js';
@@ -257,16 +257,24 @@ export function setupZapButton(div, ev, state, settings, settingsManager) {
   const zapBtn = div.querySelector('.btn-zap');
   if (!zapBtn) return;
 
-  const pubkey = ev.pubkey;
-  const prof = state && state.profiles ? state.profiles.get(pubkey) : null;
-  const lud = (prof && (prof.lud16 || prof.lud06)) || '';
-
-  if (lud) {
-    zapBtn.style.display = '';
-  }
+  const pubkey = getEventDisplayPubkey(ev) || ev.pubkey;
+  const lookupProf = () => {
+    if (!state || !state.profiles || !pubkey) return null;
+    return state.profiles.get(pubkey) || state.profiles.get(String(pubkey).toLowerCase()) || null;
+  };
+  const syncVisibility = () => {
+    const lud = getProfileLightningAddress(lookupProf());
+    if (lud) zapBtn.classList.remove('d-none');
+    else zapBtn.classList.add('d-none');
+    return lud;
+  };
+  syncVisibility();
 
   zapBtn.onclick = async function (e) {
     e.stopPropagation();
+    const prof = lookupProf();
+    const lud = syncVisibility();
+    if (!lud) return;
     const recipientName = (prof && (prof.display_name || prof.name)) || pubkey.slice(0, 8) + '...';
 
     if (!settingsManager || !settingsManager.settings || !settingsManager.settings.nwcUri) {
@@ -321,13 +329,14 @@ function buildEventContainer(ev) {
   div.className = 'event';
   div.dataset.eventId = ev.id;
   div.dataset.kind = ev.kind;
-  if (ev.pubkey) div.dataset.pubkey = ev.pubkey;
+  const displayPk = getEventDisplayPubkey(ev);
+  if (displayPk) div.dataset.pubkey = displayPk;
   if (ev.kind === 42) div.classList.add('event-channel');
   return div;
 }
 
 function buildEventNameBlockHtml(state, ev, settings, names, statusHtml) {
-  const pk = ev.pubkey;
+  const pk = getEventDisplayPubkey(ev);
   const showAvatars = settings.showAvatars !== false;
   let avatarHtml = '';
   if (showAvatars) {
@@ -542,7 +551,7 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
 }
 
 function bindProfileClickHandlers(div, ev, state, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent) {
-  const pk = ev.pubkey;
+  const pk = getEventDisplayPubkey(ev);
 
   const profileEls = div.querySelectorAll('.name, .avatar, .username');
   profileEls.forEach(el => {
@@ -1026,7 +1035,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
   const isMutedExpanded = !!(timelineUiState && timelineUiState.expandedMutedEventIds && timelineUiState.expandedMutedEventIds.has && timelineUiState.expandedMutedEventIds.has(ev.id));
   const isCwExpanded = !!(timelineUiState && timelineUiState.expandedCwEventIds && timelineUiState.expandedCwEventIds.has && timelineUiState.expandedCwEventIds.has(ev.id));
   const content = ev.content || '';
-  const pk = ev.pubkey;
+  const pk = getEventDisplayPubkey(ev) || ev.pubkey;
   const muteState = evaluateMuteState(state, pk, content, settings, ev);
   const allowInlineMedia = (settings && settings.showTimelineMedia === true) && !muteState.isMuted;
 
@@ -1051,6 +1060,8 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
     } else {
       names = { main: hash, sub: '' };
     }
+  } else if (ev.kind === 9735) {
+    names = displayNameWithUsername(state, pk, nip19, { noTruncate: true });
   } else {
     names = displayNameWithUsername(state, pk, nip19, { noTruncate: true });
   }
@@ -1068,13 +1079,13 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
   const nameBlockHtml = buildEventNameBlockHtml(state, ev, settings, names, statusHtml);
 
   const isZapped = !!(state.zappedEventIds && state.zappedEventIds.has(ev.id));
-  const zappedAttr = isZapped ? ' class="btn-zap zapped" data-zapped="true"' : ' class="btn-zap"';
+  const zappedAttr = isZapped ? ' class="btn-zap d-none zapped" data-zapped="true"' : ' class="btn-zap d-none"';
 
   const topRowHtml = '<div class="event-top-row">' +
     nameBlockHtml +
     (localStorage.getItem('pubkey') && ev.kind !== 20000 ?
       '<div class="event-actions-react">' +
-      '<button' + zappedAttr + ' type="button" style="display:none;" data-i18n-title="zap.button.title"><img src="icon/zap.svg" alt="" class="icon-btn" data-i18n-alt="zap.button.title"></button>' +
+      '<button' + zappedAttr + ' type="button" data-i18n-title="zap.button.title"><img src="icon/zap.svg" alt="" class="icon-btn" data-i18n-alt="zap.button.title"></button>' +
       '<button class="btn-react" type="button" data-i18n-title="reaction.button.title"><img src="icon/star.png" alt="" class="icon-btn" data-i18n-alt="reaction.button.title"></button>' +
       '</div>' : '') +
     '</div>';

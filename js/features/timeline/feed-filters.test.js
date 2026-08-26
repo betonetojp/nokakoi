@@ -26,6 +26,7 @@ describe('feed filters', () => {
         limit: EVENTS_FETCH_LIMIT
       },
       { kinds: [1, 6, 7, 1111, 9735], '#p': ['me'], limit: EVENTS_FETCH_LIMIT },
+      { kinds: [9735], '#P': ['me'], limit: EVENTS_FETCH_LIMIT },
       { kinds: [7, 42, 16], authors: ['me'], limit: EVENTS_FETCH_LIMIT }
     ]);
   });
@@ -51,8 +52,9 @@ describe('feed filters', () => {
     const settings = { get: vi.fn(key => key === 'showHomeRepost16') };
     const filters = buildHomeLoadMoreFilters(state, settings, 123);
 
-    expect(filters).toHaveLength(4);
+    expect(filters).toHaveLength(5);
     expect(filters.every(filter => filter.until === 123)).toBe(true);
-    expect(filters[3].kinds).toEqual([16]);
+    expect(filters[2]).toEqual({ kinds: [9735], '#P': ['me'], limit: EVENTS_FETCH_LIMIT, until: 123 });
+    expect(filters[4].kinds).toEqual([16]);
   });
 });

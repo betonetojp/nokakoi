@@ -19,7 +19,7 @@ vi.mock('../../ui/renderers/render-helpers.js', () => ({
   updateEventMuteDom: vi.fn()
 }));
 
-import { updateAvatarDom, updateNameDom } from './profile.js';
+import { updateAvatarDom, updateNameDom, updateZapButtonDom, getProfileLightningAddress } from './profile.js';
 
 describe('updateAvatarDom and updateNameDom', () => {
   beforeEach(() => {
@@ -161,5 +161,52 @@ describe('updateAvatarDom and updateNameDom', () => {
     const avatar = document.querySelector('.event-name .avatar');
     expect(avatar).not.toBeNull();
     expect(avatar.src).toBe('https://example.com/alice.png');
+  });
+});
+
+describe('getProfileLightningAddress', () => {
+  it('trims lud16 and ignores empty strings', () => {
+    expect(getProfileLightningAddress({ lud16: '  a@b.com  ' })).toBe('a@b.com');
+    expect(getProfileLightningAddress({ lud16: '  ', lud06: 'lnurl1abc' })).toBe('lnurl1abc');
+    expect(getProfileLightningAddress({ lud16: '', lud06: '' })).toBe('');
+    expect(getProfileLightningAddress(null)).toBe('');
+  });
+});
+
+describe('updateZapButtonDom', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('shows zap button only on posts authored by the pubkey with lightning', () => {
+    document.body.innerHTML = `
+      <div class="event" data-kind="1" data-pubkey="alice">
+        <div class="event-top-row">
+          <span class="name" data-pubkey="alice">Alice</span>
+          <button class="btn-zap d-none"></button>
+        </div>
+        <div class="content">
+          <a class="nostr-link nostr-npub name" data-pubkey="bob">@bob</a>
+        </div>
+      </div>
+      <div class="event" data-kind="1" data-pubkey="bob">
+        <div class="event-top-row">
+          <span class="name" data-pubkey="bob">Bob</span>
+          <button class="btn-zap d-none"></button>
+        </div>
+      </div>
+    `;
+
+    const state = {
+      profiles: new Map([
+        ['alice', { name: 'Alice', loaded: true }],
+        ['bob', { name: 'Bob', lud16: 'bob@coinos.io', loaded: true }]
+      ])
+    };
+
+    updateZapButtonDom(state, 'bob');
+
+    expect(document.querySelector('.event[data-pubkey="alice"] .btn-zap').classList.contains('d-none')).toBe(true);
+    expect(document.querySelector('.event[data-pubkey="bob"] .btn-zap').classList.contains('d-none')).toBe(false);
   });
 });

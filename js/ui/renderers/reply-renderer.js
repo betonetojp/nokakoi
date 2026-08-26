@@ -1,3 +1,4 @@
+import { getZapReceiptAmountSats, getZapReceiptSenderPubkey } from '../../features/zap/zap.js';
 import { findEventById } from '../../core/state.js';
 import { displayName } from '../../features/profile/profile.js';
 import { escapeHtml, truncateName, replaceBadgeEmoji } from '../../utils/utils.js';
@@ -25,9 +26,8 @@ export function renderReplyContext(state, ev, nip19, settings) {
   if (!replyToEvent) {
     const ownerAttr = ' data-owner-event-id="' + escapeHtml(ev.id || '') + '"';
     if (ev.kind === 9735) {
-      const amountMsat = (ev.tags.find(t => t[0] === 'amount') || [])[1];
-      const sats = amountMsat ? Math.round(Number(amountMsat) / 1000) : 0;
-      const label = `Zap! ⚡ ${sats} sat`;
+      const sats = getZapReceiptAmountSats(ev);
+      const label = `Zap! ${sats} sat`;
       return '<div class="reply-to zap"' + ownerAttr + '><span class="reply-marker">⚡</span><span class="reply-to-author" data-event-id="' + replyToEventId + '" data-relay-hint="' + escapeHtml(replyToRelayHint) + '"><span>' + label + '</span></span></div>';
     } else if (ev.kind === 7) {
       const reactionDisplay = formatReaction(ev.content, ev.tags || []);
@@ -94,7 +94,7 @@ export function renderReplyContext(state, ev, nip19, settings) {
     const label = t('repost.label', { author: escapeHtml(replyToAuthor) });
     return '<div class="reply-to repost"><span class="reply-marker"><img src="icon/repost.png" alt="' + escapeHtml(t('repost')) + '" class="icon"/></span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + replaceBadgeEmoji(label) + '</span></span><div class="reply-to-content" data-event-id="' + (replyToEvent.id || '') + '">' + replyContentHtml + '</div></div>';
   } else if (ev.kind === 9735) {
-    let senderPubkey = ev.pubkey;
+    let senderPubkey = getZapReceiptSenderPubkey(ev) || ev.pubkey;
     let comment = '';
     
     try {
@@ -102,7 +102,6 @@ export function renderReplyContext(state, ev, nip19, settings) {
       if (descTag && descTag[1]) {
         const zapReq = JSON.parse(descTag[1]);
         if (zapReq) {
-          if (zapReq.pubkey) senderPubkey = zapReq.pubkey;
           if (zapReq.content) comment = zapReq.content;
         }
       }
@@ -114,11 +113,10 @@ export function renderReplyContext(state, ev, nip19, settings) {
       comment = ev.content;
     }
 
-    const amountMsat = (ev.tags.find(t => t[0] === 'amount') || [])[1];
-    const sats = amountMsat ? Math.round(Number(amountMsat) / 1000) : 0;
+    const sats = getZapReceiptAmountSats(ev);
     const zapSenderName = displayName(state, senderPubkey, nip19);
     
-    const zapLabel = comment ? `⚡ ${sats} sat (${comment})` : `⚡ ${sats} sat`;
+    const zapLabel = comment ? `${sats} sat (${comment})` : `${sats} sat`;
     
     const isOpaqueAuthor = (function (a, pk) {
       try {

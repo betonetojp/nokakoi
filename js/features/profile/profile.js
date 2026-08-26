@@ -416,25 +416,42 @@ export function updateNameDom(state, pubkey, nip19) {
 }
 
 /**
+ * プロフィールの Lightning Address / LNURL
+ */
+export function getProfileLightningAddress(prof) {
+  if (!prof) return '';
+  const lud16 = typeof prof.lud16 === 'string' ? prof.lud16.trim() : '';
+  const lud06 = typeof prof.lud06 === 'string' ? prof.lud06.trim() : '';
+  return lud16 || lud06;
+}
+
+function lookupProfile(state, pubkey) {
+  if (!state || !state.profiles || !pubkey) return null;
+  const lowerPk = typeof pubkey === 'string' ? pubkey.toLowerCase() : '';
+  return state.profiles.get(pubkey) || (lowerPk ? state.profiles.get(lowerPk) : null) || null;
+}
+
+/**
  * 対象pubkeyの投稿のZapボタン表示を更新
+ * 本文中の npub メンション (.name) ではなく、投稿作者 (.event[data-pubkey]) だけを見る
  */
 export function updateZapButtonDom(state, pubkey) {
   if (!pubkey) return;
-  const prof = state && state.profiles ? state.profiles.get(pubkey) : null;
-  const lud = (prof && (prof.lud16 || prof.lud06)) || '';
-  
-  const nameNodes = document.querySelectorAll('.name[data-pubkey="' + pubkey + '"]');
-  nameNodes.forEach(function (el) {
-    const eventEl = el.closest('.event');
-    if (!eventEl) return;
-    const zapBtn = eventEl.querySelector('.btn-zap');
-    if (zapBtn) {
+  const lud = getProfileLightningAddress(lookupProfile(state, pubkey));
+  const keys = new Set([pubkey]);
+  if (typeof pubkey === 'string') keys.add(pubkey.toLowerCase());
+
+  keys.forEach(function (pk) {
+    const eventEls = document.querySelectorAll('.event[data-pubkey="' + pk + '"]');
+    eventEls.forEach(function (eventEl) {
+      const zapBtn = eventEl.querySelector(':scope > .event-top-row .btn-zap');
+      if (!zapBtn) return;
       if (lud) {
-        zapBtn.style.display = '';
+        zapBtn.classList.remove('d-none');
       } else {
-        zapBtn.style.display = 'none';
+        zapBtn.classList.add('d-none');
       }
-    }
+    });
   });
 }
 

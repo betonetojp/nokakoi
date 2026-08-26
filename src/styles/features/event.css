@@ -121,6 +121,10 @@ body.theme-light .event-actions-react .btn-react[data-reacted="true"] {
   filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.95)) !important;
   opacity: 1 !important;
 }
+/* .event-actions-react button の display:inline-flex !important より強く隠す */
+.event-actions-react button.btn-zap.d-none {
+  display: none !important;
+}
 .event-bottom-row {
   display: flex;
   align-items: center;
@@ -606,7 +610,7 @@ button.btn-kind:hover {
 }
 
 .btn-react,
-.event-actions-react button {
+.event-actions-react button:not(.d-none) {
   font-size: inherit !important;
   display: inline-flex !important;
   align-items: center !important;

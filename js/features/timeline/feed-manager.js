@@ -6,6 +6,7 @@ import { setupCustomEmojiSubscription, scheduleCustomEmojiSubscription } from '.
 import { renderFeed, scheduleRender, userKind7Memory, feedLoadState, ensureEventRestored } from '../../features/timeline/feed-renderer.js';
 import { pickChannelRootId, prefetchChannelMetadata } from '../../features/channel/channel.js';
 import { updateUserStatusDom, updateNameDom, loadProfile } from '../../features/profile/profile.js';
+import { applyZapReceiptToZappedState, isIncomingZapReceiptFor } from '../../features/zap/zap.js';
 import { applyReactionToButton } from '../../ui/renderer.js';
 import { showFeedNotification, sanitizeNotificationBody, ensureNotificationPermission, shouldShowBrowserNotification, normalizeMentionNotificationMode, _notifiedEventIds } from '../../utils/notification.js';
 import { t } from '../../utils/i18n.js';
@@ -21,7 +22,8 @@ import {
 import {
   buildHomeLoadMoreFiltersForGlobalMerge as buildHomeLoadMoreFiltersForGlobalMergeImpl,
   getFeedBaseFilters as getFeedBaseFiltersImpl,
-  buildHomeLoadMoreFilters as buildHomeLoadMoreFiltersImpl
+  buildHomeLoadMoreFilters as buildHomeLoadMoreFiltersImpl,
+  buildOutgoingZapReceiptFilter
 } from './feed-filters.js';
 
 // モジュール内の状態管理用変数
@@ -76,6 +78,17 @@ function feedConfigKey(config) {
 
 function sameFetcherConfig(fetcher, configKey) {
   return !!(fetcher && fetcher.__configKey === configKey);
+}
+
+function shouldMulticastToMentions(ev, pubkey) {
+  if (!ev || !pubkey) return false;
+  if (ev.kind !== 1 && ev.kind !== 6 && ev.kind !== 7 && ev.kind !== 1111 && ev.kind !== 9735) return false;
+  const tags = Array.isArray(ev.tags) ? ev.tags : [];
+  // kind:1111 (NIP-22) は親作者が P。9735 の P は送信者なので通知に使わない
+  if (ev.kind === 1111) {
+    return tags.some((t) => (t[0] === 'p' || t[0] === 'P') && t[1] === pubkey);
+  }
+  return tags.some((t) => t[0] === 'p' && t[1] === pubkey);
 }
 
 function markFetcherConfig(fetcher, configKey) {
@@ -493,6 +506,15 @@ export function addToFeed(feedId, ev, keepLatestCount = null, relay = null) {
         }
       }
       return;
+    }
+
+    if (ev.kind === 9735) {
+      try { applyZapReceiptToZappedState(state, ev); } catch (e) { }
+      let myPub = '';
+      try { myPub = localStorage.getItem('pubkey') || ''; } catch (e) { }
+      if (!isIncomingZapReceiptFor(ev, myPub)) {
+        return;
+      }
     }
 
     const feed = state.feeds[feedId];
@@ -968,15 +990,17 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
       const shouldFetchHomeHist = isHomeActive || (mergeHome && activeTab === 'global');
       const homeHist = shouldFetchHomeHist ? [
         { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
         { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
-      ] : [];
+      ].filter(Boolean) : [];
       const sinceLive = Math.floor(Date.now() / 1000);
       const homeLive = [
         { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, since: sinceLive },
-        { kinds: [1, 6, 7, 1111], '#p': [pubkey], since: sinceLive },
+        { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], since: sinceLive },
+        buildOutgoingZapReceiptFilter(pubkey, { since: sinceLive }),
         { kinds: [7, 42, 16, 1111], authors: [pubkey], since: sinceLive }
-      ];
+      ].filter(Boolean);
       try {
         if (settingsManager.get('showMusicStatus') !== false) {
           homeLive.push({ kinds: [30315], authors: follows, '#d': ['music'], since: sinceLive });
@@ -999,11 +1023,8 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
           const multicastAddToFeed = (fid, ev, keepCount, relay) => {
             addToFeed('home', ev, keepCount, relay);
             if (ev && typeof ev === 'object') {
-              if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 1111) {
-                const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => t[0] === 'p' || t[0] === 'P') : [];
-                if (pTags.some(t => t[1] === pubkey)) {
-                  addToFeed('mentions', ev, keepCount, relay);
-                }
+              if (shouldMulticastToMentions(ev, pubkey)) {
+                addToFeed('mentions', ev, keepCount, relay);
               }
               if (ev.pubkey === pubkey && [1, 6, 7, 42, 16, 1111, 30315].includes(ev.kind)) {
                 addToFeed('me', ev, keepCount, relay);
@@ -1043,7 +1064,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
         try { window.__mentionsInitialLoading = true; } catch (e) { }
         const isMentionsActive = activeTab === 'mentions';
         const mentionsHist = isMentionsActive ? [
-          { kinds: [1, 6, 7, 42, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+          { kinds: [1, 6, 7, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
           { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
         ] : [];
         stopFetcherSlot('_mentionsFetcher');
@@ -1067,7 +1088,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
         // 例外時のフォールバック処理
         try {
           subOnce(state, 'mentions_hist', [
-            { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+            { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
             { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
           ], (ev2, relay, done) => {
             if (ev2) addToFeed('mentions', ev2);
@@ -1352,15 +1373,17 @@ export function setupSingleFeed(feedId) {
 
       const homeHist = [
         { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
         { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
-      ];
+      ].filter(Boolean);
       const sinceLive = Math.floor(Date.now() / 1000);
       const homeLive = [
         { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, since: sinceLive },
-        { kinds: [1, 6, 7, 1111], '#p': [pubkey], since: sinceLive },
+        { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], since: sinceLive },
+        buildOutgoingZapReceiptFilter(pubkey, { since: sinceLive }),
         { kinds: [7, 42, 16, 1111], authors: [pubkey], since: sinceLive }
-      ];
+      ].filter(Boolean);
       try {
         if (settingsManager.get('showMusicStatus') !== false) {
           homeLive.push({ kinds: [30315], authors: follows, '#d': ['music'], since: sinceLive });
@@ -1370,11 +1393,8 @@ export function setupSingleFeed(feedId) {
       const multicastAddToFeed = (fid, ev, keepCount, relay) => {
         addToFeed('home', ev, keepCount, relay);
         if (ev && typeof ev === 'object') {
-          if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 1111) {
-            const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => t[0] === 'p' || t[0] === 'P') : [];
-            if (pTags.some(t => t[1] === pubkey)) {
-              addToFeed('mentions', ev, keepCount, relay);
-            }
+          if (shouldMulticastToMentions(ev, pubkey)) {
+            addToFeed('mentions', ev, keepCount, relay);
           }
           if (ev.pubkey === pubkey && [1, 6, 7, 42, 16, 1111, 30315].includes(ev.kind)) {
             addToFeed('me', ev, keepCount, relay);
@@ -1424,7 +1444,7 @@ export function setupSingleFeed(feedId) {
       }
     } else if (feedId === 'mentions') {
       const mentionsHist = [
-        { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
         { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
       ];
       stopFetcherSlot('_mentionsFetcher');

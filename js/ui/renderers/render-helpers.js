@@ -36,7 +36,7 @@ export function pickETagEventId(ev) {
   const eTags = (ev.tags || []).filter(t => t && (t[0] === 'e' || t[0] === 'E') && t[1]);
   if (!eTags || eTags.length === 0) return null;
 
-  if (ev.kind === 7) {
+  if (ev.kind === 7 || ev.kind === 9735) {
     return eTags[eTags.length - 1][1];
   }
 

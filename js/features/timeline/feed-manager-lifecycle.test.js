@@ -64,7 +64,14 @@ vi.mock('./omochat-lifecycle.js', () => ({
 vi.mock('./feed-filters.js', () => ({
   buildHomeLoadMoreFiltersForGlobalMerge: vi.fn(() => []),
   getFeedBaseFilters: vi.fn(() => []),
-  buildHomeLoadMoreFilters: vi.fn(() => [])
+  buildHomeLoadMoreFilters: vi.fn(() => []),
+  buildOutgoingZapReceiptFilter: vi.fn((pubkey, extra = {}) => (
+    pubkey ? { kinds: [9735], '#P': [pubkey], ...extra } : null
+  ))
+}));
+vi.mock('../zap/zap.js', () => ({
+  applyZapReceiptToZappedState: vi.fn(),
+  isIncomingZapReceiptFor: vi.fn(() => false)
 }));
 
 import {

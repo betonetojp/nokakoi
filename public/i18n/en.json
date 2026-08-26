@@ -619,6 +619,7 @@
   "zap.button.title": "Send Zap",
   "zap.modal.title": "Send Zap",
   "zap.amount_label": "Amount (Sats)",
+  "zap.amount_history.remove": "Remove from history",
   "zap.comment_label": "Comment (Optional)",
   "zap.comment_placeholder": "Zap! ⚡",
   "settings.nwc.saved": "Saved NWC settings",

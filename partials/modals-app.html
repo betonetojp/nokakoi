@@ -456,15 +456,10 @@
         <span id="zapRecipientName" class="font-bold" style="font-weight:bold;"></span>
         <span class="muted text-sm ml-8" id="zapRecipientAddress" style="font-size:0.8rem; opacity:0.7; margin-left:8px;"></span>
       </div>
-      <div class="zap-amount-options flex-row gap-8 mb-12" style="display:flex; gap:8px; margin-bottom:12px;">
-        <button type="button" class="zap-amount-btn secondary" data-amount="50" style="padding:6px 12px;">50</button>
-        <button type="button" class="zap-amount-btn secondary" data-amount="100" style="padding:6px 12px;">100</button>
-        <button type="button" class="zap-amount-btn secondary" data-amount="500" style="padding:6px 12px;">500</button>
-        <button type="button" class="zap-amount-btn secondary" data-amount="1000" style="padding:6px 12px;">1000</button>
-      </div>
+      <div id="zapAmountHistory" class="zap-amount-history" hidden></div>
       <div style="margin-bottom:12px;">
         <label for="zapAmountInput" class="modal-field-label" data-i18n="zap.amount_label" style="display:block; font-size:0.85rem; margin-bottom:4px;">金額 (Sats)</label>
-        <input type="number" id="zapAmountInput" min="1" step="1" value="50" style="width:100%; box-sizing:border-box; padding:6px;">
+        <input type="number" id="zapAmountInput" min="1" step="1" inputmode="numeric" style="width:100%; box-sizing:border-box; padding:6px;">
       </div>
       <div style="margin-bottom:12px;">
         <label for="zapCommentInput" class="modal-field-label" data-i18n="zap.comment_label" style="display:block; font-size:0.85rem; margin-bottom:4px;">コメント (オプション)</label>

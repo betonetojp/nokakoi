@@ -9,6 +9,7 @@ import { getReadRelays } from '../../core/relay.js';
 import { fetchMore, applyPerFilterUntil } from './feed-fetcher.js';
 import { canStartMore, markMoreFinished, markMoreStarted } from './feed-more-policy.js';
 import { EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT, EVENTS_MAX } from '../../config/constants.js';
+import { buildOutgoingZapReceiptFilter } from './feed-filters.js';
 import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } from '../../utils/url-parser.js';
 import { t } from '../../utils/i18n.js';
 import { $ } from '../../utils/utils.js';
@@ -818,14 +819,15 @@ export function renderFeed(id = 'global', force = false) {
               // 1. フォロイーの全対象投稿（基本の1,6,1111 ＋ オンになっているオプション）を1つに統合
               { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
               // 2. 自分宛ての投稿
-              { kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+              { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+              buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
               // 3. 自分自身の投稿
               { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
-            ];
+            ].filter(Boolean);
           } catch (e) { console.error('[FeedRenderer] home filter err:', e); baseFilters = []; }
         } else if (id === 'mentions') {
           const pubkey = localStorage.getItem('pubkey');
-          baseFilters = [{ kinds: [1, 6, 7, 1111], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }];
+          baseFilters = [{ kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }];
         } else if (id === 'me') {
           const pubkey = localStorage.getItem('pubkey');
           baseFilters = [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];

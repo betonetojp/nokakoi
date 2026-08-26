@@ -5,6 +5,7 @@
 import { escapeHtml, fmtTime, processHiddenTagChars, replaceBadgeEmoji } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { displayNameWithUsername } from '../../features/profile/profile.js';
+import { getEventDisplayPubkey } from '../../features/zap/zap.js';
 import { showJsonModal } from './json-modal.js';
 import { linkifyText, fitCustomEmoji, updateNostrNpubLinks, updateNostrNoteLinks, linkifyNostrUri } from '../../utils/url-parser.js';
 import { parseMarkdownSafe } from '../../utils/markdown.js';
@@ -132,15 +133,16 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
   const modal = document.getElementById('eventModal');
   if (!modal) return;
   try { modal.dataset.eventId = event && event.id ? event.id : ''; } catch (e) { }
-  try { modal.dataset.pubkey = event && event.pubkey ? event.pubkey : ''; } catch (e) { }
+  const displayPk = getEventDisplayPubkey(event) || (event && event.pubkey) || '';
+  try { modal.dataset.pubkey = displayPk; } catch (e) { }
 
   // アバター・名前・ユーザー名
   const authorWrap = modal.querySelector('#eventModalAuthorWrap');
   if (authorWrap) {
     authorWrap.innerHTML = '';
     let avatarHtml = '';
-    if (state && event.pubkey) {
-      const profile = state.profiles.get(event.pubkey);
+    if (state && displayPk) {
+      const profile = state.profiles.get(displayPk);
       const avatarUrl = sanitizeUrlCandidate((profile && profile.picture) || '') || '';
       if (avatarUrl) {
         avatarHtml = '<img src="' + escapeHtml(avatarUrl) + '" alt="avatar" class="avatar" loading="lazy" style="width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--border);margin-right:6px;">';
@@ -159,20 +161,20 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
         names = { main: hash, sub: '' };
       }
     } else {
-      names = event.pubkey && state ? displayNameWithUsername(state, event.pubkey, nip19, { noTruncate: true }) : { main: event.pubkey, sub: '' };
+      names = displayPk && state ? displayNameWithUsername(state, displayPk, nip19, { noTruncate: true }) : { main: displayPk, sub: '' };
     }
-    let nameHtml = '<span class="name" data-pubkey="' + escapeHtml(event.pubkey || '') + '" style="font-weight:600;font-size:0.95em;cursor:pointer;">' + replaceBadgeEmoji(escapeHtml(names.main)) + '</span>';
+    let nameHtml = '<span class="name" data-pubkey="' + escapeHtml(displayPk) + '" style="font-weight:600;font-size:0.95em;cursor:pointer;">' + replaceBadgeEmoji(escapeHtml(names.main)) + '</span>';
     if (names.sub) {
       nameHtml += '<span class="username" style="font-weight:400;font-size:0.85em;color:var(--muted);margin-left:4px;">@' + escapeHtml(names.sub) + '</span>';
     }
     authorWrap.innerHTML = avatarHtml + nameHtml;
     // 名前クリックでプロフィールモーダル
     const nameEl = authorWrap.querySelector('.name');
-    if (nameEl && event.pubkey) {
+    if (nameEl && displayPk) {
       nameEl.onclick = function () {
         try {
-          if (window && typeof window.showProfileModalProxy === 'function') window.showProfileModalProxy(event.pubkey);
-          else import('../../main.js').then(mod => { if (mod.showProfileModalProxy) mod.showProfileModalProxy(event.pubkey); }).catch(() => { });
+          if (window && typeof window.showProfileModalProxy === 'function') window.showProfileModalProxy(displayPk);
+          else import('../../main.js').then(mod => { if (mod.showProfileModalProxy) mod.showProfileModalProxy(displayPk); }).catch(() => { });
         } catch (e) { }
       };
     }

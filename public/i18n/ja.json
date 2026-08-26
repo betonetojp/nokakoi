@@ -619,6 +619,7 @@
   "zap.button.title": "Zapを送信",
   "zap.modal.title": "Zapを送信",
   "zap.amount_label": "金額 (Sats)",
+  "zap.amount_history.remove": "履歴から削除",
   "zap.comment_label": "コメント (オプション)",
   "zap.comment_placeholder": "Zap! ⚡",
   "settings.nwc.saved": "NWC設定を保存しました",

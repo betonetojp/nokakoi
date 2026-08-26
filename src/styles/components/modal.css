@@ -297,3 +297,49 @@ body.theme-light #eventModalContent::-webkit-scrollbar-thumb {
   user-select: text;
   overflow-wrap: anywhere;
 }
+
+.zap-amount-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.zap-amount-history[hidden] {
+  display: none;
+}
+.zap-amount-chip {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.zap-amount-chip .zap-amount-btn,
+.zap-amount-chip .zap-amount-remove {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+  margin: 0;
+}
+.zap-amount-chip .zap-amount-btn {
+  padding: 6px 10px;
+  font-weight: 600;
+}
+.zap-amount-chip .zap-amount-remove {
+  padding: 6px 8px;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 600;
+  line-height: 1;
+}
+.zap-amount-chip .zap-amount-btn:hover:not(:disabled),
+.zap-amount-chip .zap-amount-remove:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+.zap-amount-chip .zap-amount-remove:hover:not(:disabled) {
+  color: #ff4444;
+  background: var(--panel-hover);
+}

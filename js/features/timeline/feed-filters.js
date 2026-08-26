@@ -1,6 +1,15 @@
 import { EVENTS_FETCH_LIMIT } from '../../config/constants.js';
 
 /**
+ * 自分が送った Zap レシート (kind:9735 の P タグ)。
+ * フィード表示用ではなく Zap 済み判定用。addToFeed 側でタイムラインへは入れない。
+ */
+export function buildOutgoingZapReceiptFilter(pubkey, extra = {}) {
+  if (!pubkey) return null;
+  return Object.assign({ kinds: [9735], '#P': [pubkey] }, extra);
+}
+
+/**
  * グローバルマージが有効な場合のホーム追加取得用フィルターを構築する
  */
 export function buildHomeLoadMoreFiltersForGlobalMerge(state, until) {
@@ -30,8 +39,9 @@ export function getFeedBaseFilters(state, settingsManager, feedId) {
       return [
         { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
         { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
         { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
-      ];
+      ].filter(Boolean);
     } else if (feedId === 'mentions') {
       const pubkey = localStorage.getItem('pubkey');
       return [
@@ -61,8 +71,9 @@ export function buildHomeLoadMoreFilters(state, settingsManager, until) {
     const baseFilters = [
       { kinds: [1, 6, 1111], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
       { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+      buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
       { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
-    ];
+    ].filter(Boolean);
     const optionalHomeFollowKinds = [];
     if (settingsManager.get('showHomeReactions') === true) optionalHomeFollowKinds.push(7);
     if (settingsManager.get('showHomeChannel') === true) optionalHomeFollowKinds.push(42);

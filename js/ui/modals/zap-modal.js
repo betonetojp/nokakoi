@@ -2,11 +2,63 @@
 // Zap 入力モーダルの制御
 // ============================================================================
 
-import { $, escapeHtml } from '../../utils/utils.js';
+import { $ } from '../../utils/utils.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { bringModalToFront } from '../setup/modal-helper.js';
+import {
+  loadZapAmountHistory,
+  getLastZapAmount,
+  rememberZapAmount,
+  removeZapAmount
+} from '../../features/zap/zap.js';
 
 let _activeConfirmHandler = null;
+
+function renderZapAmountHistory(container, amountInput) {
+  if (!container) return;
+  const amounts = loadZapAmountHistory();
+  container.innerHTML = '';
+  if (!amounts.length) {
+    container.hidden = true;
+    return;
+  }
+  container.hidden = false;
+  const removeLabel = t('zap.amount_history.remove') || '履歴から削除';
+
+  amounts.forEach((amount) => {
+    const chip = document.createElement('span');
+    chip.className = 'zap-amount-chip';
+
+    const selectBtn = document.createElement('button');
+    selectBtn.type = 'button';
+    selectBtn.className = 'secondary zap-amount-btn';
+    selectBtn.dataset.amount = String(amount);
+    selectBtn.textContent = String(amount);
+    selectBtn.onclick = () => {
+      if (amountInput) {
+        amountInput.value = String(amount);
+        amountInput.focus();
+      }
+    };
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'secondary zap-amount-remove';
+    removeBtn.dataset.amount = String(amount);
+    removeBtn.title = removeLabel;
+    removeBtn.setAttribute('aria-label', removeLabel);
+    removeBtn.textContent = '×';
+    removeBtn.onclick = (e) => {
+      e.stopPropagation();
+      removeZapAmount(amount);
+      renderZapAmountHistory(container, amountInput);
+    };
+
+    chip.appendChild(selectBtn);
+    chip.appendChild(removeBtn);
+    container.appendChild(chip);
+  });
+}
 
 /**
  * Zap金額入力モーダルを開く
@@ -26,26 +78,21 @@ export function showZapModal(recipientName, recipientAddress, onConfirm) {
   const cancelBtn = $('#zapCancel');
   const closeBtn = $('#zapModalClose');
   const statusEl = $('#zapStatus');
+  const historyEl = $('#zapAmountHistory');
 
   if (nameEl) nameEl.textContent = recipientName || '';
   if (addrEl) addrEl.textContent = recipientAddress ? `(${recipientAddress})` : '';
-  if (amountInput) amountInput.value = '50';
+  if (amountInput) {
+    const last = getLastZapAmount();
+    amountInput.value = last ? String(last) : '';
+  }
   if (commentInput) commentInput.value = '';
   if (statusEl) {
     statusEl.textContent = '';
     statusEl.style.color = '';
   }
 
-  // プリセットボタンのバインド
-  const presetBtns = modal.querySelectorAll('.zap-amount-btn');
-  presetBtns.forEach(btn => {
-    btn.onclick = () => {
-      const amt = btn.getAttribute('data-amount');
-      if (amountInput && amt) {
-        amountInput.value = amt;
-      }
-    };
-  });
+  renderZapAmountHistory(historyEl, amountInput);
 
   const closeModal = () => {
     modal.hidden = true;
@@ -76,6 +123,8 @@ export function showZapModal(recipientName, recipientAddress, onConfirm) {
       if (typeof onConfirm === 'function') {
         await onConfirm(amount, comment);
       }
+      rememberZapAmount(amount, { asLast: true });
+      renderZapAmountHistory(historyEl, amountInput);
       statusEl.textContent = t('zap.modal.success');
       statusEl.style.color = 'var(--success, green)';
       setTimeout(() => {
@@ -94,4 +143,7 @@ export function showZapModal(recipientName, recipientAddress, onConfirm) {
 
   modal.hidden = false;
   bringModalToFront(modal);
+  if (amountInput && !amountInput.value) {
+    try { amountInput.focus(); } catch (e) {}
+  }
 }
