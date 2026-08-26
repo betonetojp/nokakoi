@@ -4,6 +4,7 @@ import { showZapModal } from '../modals/zap-modal.js';
 import { sendZap, getEventDisplayPubkey } from '../../features/zap/zap.js';
 import { findEventById } from '../../core/state.js';
 import { displayNameWithUsername, getProfileLightningAddress } from '../../features/profile/profile.js';
+import { hasConfiguredNwc } from '../../core/nwc.js';
 import { showReactionModal, showConfirmModal } from '../modals/modals.js';
 import { linkifyText, updateNostrNpubLinks, updateNostrNoteLinks, fitCustomEmoji, getPreviewWithFullLinksAndEmojis, getEffectiveTextLength } from '../../utils/url-parser.js';
 import { setReplyTarget, setGeohashTarget, setQuoteTarget } from '../../features/post/composer.js';
@@ -262,9 +263,10 @@ export function setupZapButton(div, ev, state, settings, settingsManager) {
     if (!state || !state.profiles || !pubkey) return null;
     return state.profiles.get(pubkey) || state.profiles.get(String(pubkey).toLowerCase()) || null;
   };
+  const nwcReady = () => hasConfiguredNwc(settingsManager);
   const syncVisibility = () => {
     const lud = getProfileLightningAddress(lookupProf());
-    if (lud) zapBtn.classList.remove('d-none');
+    if (nwcReady() && lud) zapBtn.classList.remove('d-none');
     else zapBtn.classList.add('d-none');
     return lud;
   };
@@ -274,13 +276,12 @@ export function setupZapButton(div, ev, state, settings, settingsManager) {
     e.stopPropagation();
     const prof = lookupProf();
     const lud = syncVisibility();
-    if (!lud) return;
-    const recipientName = (prof && (prof.display_name || prof.name)) || pubkey.slice(0, 8) + '...';
-
-    if (!settingsManager || !settingsManager.settings || !settingsManager.settings.nwcUri) {
-      alert(t('zap.modal.unconfigured'));
+    if (!nwcReady()) {
+      showConfirmModal(t('zap.modal.title'), t('zap.modal.unconfigured'));
       return;
     }
+    if (!lud) return;
+    const recipientName = (prof && (prof.display_name || prof.name)) || pubkey.slice(0, 8) + '...';
 
     showZapModal(recipientName, lud, async (amount, comment) => {
       await sendZap(state, settingsManager, ev, amount, comment);

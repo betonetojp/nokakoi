@@ -8,6 +8,7 @@ import {
   getZapReceiptAmountSats,
   getZapReceiptTargetEventId,
   getEventDisplayPubkey,
+  buildZapPaymentTarget,
   applyZapReceiptToZappedState,
   isIncomingZapReceiptFor,
   loadZapAmountHistory,
@@ -169,6 +170,27 @@ describe('Zap Service Helpers', () => {
       };
       expect(getEventDisplayPubkey(ev)).toBe('sender');
       expect(getEventDisplayPubkey({ kind: 1, pubkey: 'alice' })).toBe('alice');
+    });
+
+    it('pays the zap sender as a profile zap, not the LN server receipt', () => {
+      const receipt = {
+        kind: 9735,
+        id: 'receipt1',
+        pubkey: 'coinos-ln-server',
+        tags: [
+          ['p', 'recipient'],
+          ['P', 'sender'],
+          ['e', 'note1']
+        ]
+      };
+      expect(buildZapPaymentTarget(receipt)).toEqual({
+        recipientPubkey: 'sender',
+        event: null
+      });
+      expect(buildZapPaymentTarget({ kind: 1, id: 'note1', pubkey: 'alice', tags: [] })).toEqual({
+        recipientPubkey: 'alice',
+        event: { id: 'note1', pubkey: 'alice', kind: 1, tags: [] }
+      });
     });
 
     it('treats p tag as incoming receipt, not P', () => {

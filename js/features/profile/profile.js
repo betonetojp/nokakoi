@@ -7,6 +7,7 @@ import { truncateName, escapeHtml, replaceBadgeEmoji } from '../../utils/utils.j
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 
 import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
+import { hasConfiguredNwc } from '../../core/nwc.js';
 import { evaluateMuteState, applyMutedToneToEvent, updateEventMuteDom } from '../../ui/renderers/render-helpers.js';
 
 const PROFILE_CACHE_KEY = 'nostr_profiles_cache';
@@ -437,7 +438,7 @@ function lookupProfile(state, pubkey) {
  */
 export function updateZapButtonDom(state, pubkey) {
   if (!pubkey) return;
-  const lud = getProfileLightningAddress(lookupProfile(state, pubkey));
+  const show = hasConfiguredNwc() && !!getProfileLightningAddress(lookupProfile(state, pubkey));
   const keys = new Set([pubkey]);
   if (typeof pubkey === 'string') keys.add(pubkey.toLowerCase());
 
@@ -446,12 +447,30 @@ export function updateZapButtonDom(state, pubkey) {
     eventEls.forEach(function (eventEl) {
       const zapBtn = eventEl.querySelector(':scope > .event-top-row .btn-zap');
       if (!zapBtn) return;
-      if (lud) {
+      if (show) {
         zapBtn.classList.remove('d-none');
       } else {
         zapBtn.classList.add('d-none');
       }
     });
+  });
+}
+
+/**
+ * 画面上の Zap ボタン表示を NWC / Lightning アドレスに合わせて一括更新
+ */
+export function refreshAllZapButtons(state) {
+  if (!state) {
+    try { state = (typeof window !== 'undefined') ? window.__nostrState : null; } catch (e) { state = null; }
+  }
+  if (!state) return;
+  const nwcOk = hasConfiguredNwc();
+  document.querySelectorAll('.event[data-pubkey]').forEach(function (eventEl) {
+    const zapBtn = eventEl.querySelector(':scope > .event-top-row .btn-zap');
+    if (!zapBtn) return;
+    const lud = getProfileLightningAddress(lookupProfile(state, eventEl.dataset.pubkey));
+    if (nwcOk && lud) zapBtn.classList.remove('d-none');
+    else zapBtn.classList.add('d-none');
   });
 }
 

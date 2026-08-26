@@ -18,8 +18,12 @@ vi.mock('../../ui/renderers/render-helpers.js', () => ({
   applyMutedToneToEvent: vi.fn(),
   updateEventMuteDom: vi.fn()
 }));
+vi.mock('../../core/nwc.js', () => ({
+  hasConfiguredNwc: vi.fn(() => true)
+}));
 
 import { updateAvatarDom, updateNameDom, updateZapButtonDom, getProfileLightningAddress } from './profile.js';
+import { hasConfiguredNwc } from '../../core/nwc.js';
 
 describe('updateAvatarDom and updateNameDom', () => {
   beforeEach(() => {
@@ -176,6 +180,7 @@ describe('getProfileLightningAddress', () => {
 describe('updateZapButtonDom', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    hasConfiguredNwc.mockReturnValue(true);
   });
 
   it('shows zap button only on posts authored by the pubkey with lightning', () => {
@@ -208,5 +213,23 @@ describe('updateZapButtonDom', () => {
 
     expect(document.querySelector('.event[data-pubkey="alice"] .btn-zap').classList.contains('d-none')).toBe(true);
     expect(document.querySelector('.event[data-pubkey="bob"] .btn-zap').classList.contains('d-none')).toBe(false);
+  });
+
+  it('hides zap buttons when NWC is not configured', () => {
+    hasConfiguredNwc.mockReturnValueOnce(false);
+    document.body.innerHTML = `
+      <div class="event" data-kind="1" data-pubkey="bob">
+        <div class="event-top-row">
+          <button class="btn-zap d-none"></button>
+        </div>
+      </div>
+    `;
+    const state = {
+      profiles: new Map([
+        ['bob', { name: 'Bob', lud16: 'bob@coinos.io', loaded: true }]
+      ])
+    };
+    updateZapButtonDom(state, 'bob');
+    expect(document.querySelector('.btn-zap').classList.contains('d-none')).toBe(true);
   });
 });

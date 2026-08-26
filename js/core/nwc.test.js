@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseNwcUri } from './nwc.js';
+import { parseNwcUri, hasConfiguredNwc } from './nwc.js';
 
 describe('NWC URI Parser', () => {
   it('should parse valid NWC URI with nostr+walletconnect scheme', () => {
@@ -23,5 +23,21 @@ describe('NWC URI Parser', () => {
     expect(parseNwcUri('')).toBeNull();
     expect(parseNwcUri('invalid-uri')).toBeNull();
     expect(parseNwcUri('nostr+walletconnect://ab1234cd?relay=wss://relay.damus.io')).toBeNull(); // missing secret
+  });
+});
+
+describe('hasConfiguredNwc', () => {
+  const valid = 'nostr+walletconnect://ab1234567890abcdef01234567890abcdef01234567890abcdef01234567890abc?relay=wss://relay.damus.io&secret=ef567890ef567890ef567890ef567890ef567890ef567890ef567890ef567890';
+
+  it('accepts a valid URI string or settings object', () => {
+    expect(hasConfiguredNwc(valid)).toBe(true);
+    expect(hasConfiguredNwc({ nwcUri: valid })).toBe(true);
+    expect(hasConfiguredNwc({ settings: { nwcUri: valid } })).toBe(true);
+  });
+
+  it('rejects missing or invalid NWC', () => {
+    expect(hasConfiguredNwc('')).toBe(false);
+    expect(hasConfiguredNwc(null)).toBe(false);
+    expect(hasConfiguredNwc({ nwcUri: 'invalid' })).toBe(false);
   });
 });

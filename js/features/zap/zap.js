@@ -158,6 +158,26 @@ export function getEventDisplayPubkey(ev) {
   return ev.pubkey || '';
 }
 
+/**
+ * Zap の支払い先。9735 はレシート発行者 (LNサーバー) ではなく送信者へ送り、
+ * プロフィールZapにする（レシートイベント自体をZapしない）。
+ */
+export function buildZapPaymentTarget(ev) {
+  const recipientPubkey = getEventDisplayPubkey(ev) || (ev && ev.pubkey) || '';
+  if (!ev || !ev.id || Number(ev.kind) === 9735) {
+    return { recipientPubkey, event: null };
+  }
+  return {
+    recipientPubkey,
+    event: {
+      id: ev.id,
+      pubkey: recipientPubkey,
+      kind: ev.kind,
+      tags: Array.isArray(ev.tags) ? ev.tags : []
+    }
+  };
+}
+
 export function getZapReceiptTargetEventId(ev) {
   const eTags = ((ev && ev.tags) || []).filter((t) => Array.isArray(t) && (t[0] === 'e' || t[0] === 'E') && t[1]);
   if (!eTags.length) return '';
@@ -297,7 +317,7 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
   }
 
   // 1. 受信者のプロフィール情報と Lightning アドレスを確認
-  const recipientPubkey = targetEvent.pubkey;
+  const { recipientPubkey, event: zapTargetEvent } = buildZapPaymentTarget(targetEvent);
   const prof = (state.profiles && (state.profiles.get(recipientPubkey)
     || state.profiles.get(String(recipientPubkey || '').toLowerCase()))) || null;
   const lud = getProfileLightningAddress(prof);
@@ -359,13 +379,8 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
     comment: comment
   };
 
-  if (targetEvent && targetEvent.id) {
-    zapParams.event = {
-      id: targetEvent.id,
-      pubkey: targetEvent.pubkey,
-      kind: targetEvent.kind,
-      tags: Array.isArray(targetEvent.tags) ? targetEvent.tags : []
-    };
+  if (zapTargetEvent) {
+    zapParams.event = zapTargetEvent;
   } else {
     zapParams.pubkey = recipientPubkey;
   }

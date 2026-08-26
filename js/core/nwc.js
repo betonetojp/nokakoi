@@ -30,6 +30,21 @@ export function parseNwcUri(uri) {
   }
 }
 
+export function hasConfiguredNwc(settingsOrUri) {
+  let uri = '';
+  if (typeof settingsOrUri === 'string') {
+    uri = settingsOrUri;
+  } else if (settingsOrUri && typeof settingsOrUri === 'object') {
+    uri = (settingsOrUri.settings && settingsOrUri.settings.nwcUri) || settingsOrUri.nwcUri || '';
+  } else {
+    try {
+      const sm = (typeof window !== 'undefined') ? window.settingsManager : null;
+      uri = (sm && sm.settings && sm.settings.nwcUri) || '';
+    } catch (_e) {}
+  }
+  return !!parseNwcUri(uri);
+}
+
 /**
  * NWCクライアントクラス
  */
