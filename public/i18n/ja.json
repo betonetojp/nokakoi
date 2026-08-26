@@ -630,8 +630,15 @@
   "settings.nwc.status_invalid": "無効な接続URIです",
   "settings.nwc.status_unconfigured": "未設定",
   "zap.modal.error_amount": "有効な金額を入力してください",
-  "zap.modal.paying": "支払い要求を作成中...",
+  "zap.modal.paying": "インボイスを作成中...",
   "zap.modal.success": "支払い成功！",
   "zap.modal.failed": "支払いに失敗しました",
-  "zap.modal.unconfigured": "NWC (Nostr Wallet Connect) が設定されていません。表示設定のNWC設定からウォレットを接続してください。"
+  "zap.modal.unconfigured": "NWC (Nostr Wallet Connect) が設定されていません。表示設定のNWC設定からウォレットを接続してください。",
+  "zap.modal.invoice_hint": "Wallet of Satoshi などでQRを読み取るか、「ウォレットで開く」から支払ってください。支払いが確認されると完了します。",
+  "zap.modal.open_wallet": "ウォレットで開く",
+  "zap.modal.wallet_pay": "他のウォレット",
+  "zap.modal.copy_invoice": "インボイスをコピー",
+  "zap.modal.copied": "コピーしました",
+  "zap.modal.waiting": "支払いを待っています…",
+  "zap.modal.invoice_timeout": "支払いが確認できませんでした。ウォレットの履歴を確認してください。"
 }

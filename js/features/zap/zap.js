@@ -3,9 +3,9 @@
 // ============================================================================
 
 import { signEventWithMode } from '../post/actions.js';
-import { NwcClient } from '../../core/nwc.js';
+import { NwcClient, hasConfiguredNwc } from '../../core/nwc.js';
 import { getWriteRelays } from '../../core/relay.js';
-import { getNip19, getVerifyEvent, getNip57 } from '../../core/nostr-compat.js';
+import { getNip19, getVerifyEvent, getNip57, getSimplePool } from '../../core/nostr-compat.js';
 import { getProfileLightningAddress } from '../profile/profile.js';
 
 // 簡易 bech32 デコーダー
@@ -190,6 +190,105 @@ export function isIncomingZapReceiptFor(ev, pubkey) {
   return ((ev.tags || []).some((t) => Array.isArray(t) && t[0] === 'p' && t[1] && String(t[1]).toLowerCase() === want));
 }
 
+export function toLightningUri(pr) {
+  const inv = String(pr || '').replace(/\s/g, '');
+  if (!inv) return '';
+  if (/^lightning:/i.test(inv)) return inv;
+  return 'lightning:' + inv;
+}
+
+export function zapReceiptMatchesPayment(ev, payment) {
+  if (!ev || Number(ev.kind) !== 9735 || !payment) return false;
+  const sender = (getZapReceiptSenderPubkey(ev) || '').toLowerCase();
+  const wantSender = String(payment.senderPubkey || '').toLowerCase();
+  if (wantSender && sender !== wantSender) return false;
+  if (payment.eventId) {
+    return getZapReceiptTargetEventId(ev) === payment.eventId;
+  }
+  const wantP = String(payment.recipientPubkey || '').toLowerCase();
+  if (!wantP) return false;
+  return (ev.tags || []).some((t) => Array.isArray(t) && t[0] === 'p' && t[1] && String(t[1]).toLowerCase() === wantP);
+}
+
+/**
+ * 外部ウォレット支払い後の kind:9735 を待つ
+ */
+export function waitForZapReceipt(payment, options = {}) {
+  const timeoutMs = options.timeoutMs || 180000;
+  const extraRelays = options.relays || (payment && payment.relays) || [];
+  const relays = buildZapReceiptRelays(extraRelays);
+  const SimplePool = getSimplePool();
+  if (!SimplePool || !relays.length) {
+    return Promise.reject(new Error('レシート待ちのリレーがありません'));
+  }
+
+  const pool = new SimplePool();
+  const senderPubkey = String((payment && payment.senderPubkey) || '').toLowerCase();
+  const since = Math.floor(Date.now() / 1000) - 30;
+  const filters = [];
+  if (payment && payment.eventId) {
+    filters.push({ kinds: [9735], '#e': [payment.eventId], since });
+  } else if (payment && payment.recipientPubkey) {
+    filters.push({ kinds: [9735], '#p': [payment.recipientPubkey], since });
+  }
+  if (senderPubkey) {
+    filters.push({ kinds: [9735], '#P': [senderPubkey], since });
+  }
+  if (!filters.length) {
+    filters.push({ kinds: [9735], since });
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let sub = null;
+    const abort = options.signal;
+    const timer = setTimeout(() => finish(new Error('timeout')), timeoutMs);
+
+    function cleanup() {
+      clearTimeout(timer);
+      if (abort) {
+        try { abort.removeEventListener('abort', onAbort); } catch (_e) {}
+      }
+      try { if (sub) sub.close(); } catch (_e) {}
+      try { if (typeof pool.close === 'function') pool.close(relays); } catch (_e) {}
+    }
+
+    function finish(err, aborted) {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (aborted) resolve({ aborted: true });
+      else if (err) reject(err);
+    }
+
+    function onAbort() {
+      finish(null, true);
+    }
+
+    if (abort) {
+      if (abort.aborted) {
+        finish(null, true);
+        return;
+      }
+      abort.addEventListener('abort', onAbort);
+    }
+
+    try {
+      sub = pool.subscribeMany(relays, filters, {
+        onevent(ev) {
+          if (settled) return;
+          if (!zapReceiptMatchesPayment(ev, payment)) return;
+          settled = true;
+          cleanup();
+          resolve({ receipt: ev, aborted: false });
+        }
+      });
+    } catch (e) {
+      finish(e);
+    }
+  });
+}
+
 function applyZappedStyleToDom(eventId) {
   if (typeof document === 'undefined' || !eventId) return;
   try {
@@ -302,19 +401,11 @@ export function getLnurlEndpoint(address) {
 }
 
 /**
- * Zapを送信する
- * @param {object} state アプリの状態
- * @param {object} settingsManager 設定マネージャ
- * @param {object} targetEvent Zap対象のイベント (kind:1等)
- * @param {number} amountSats 金額 (Sats)
- * @param {string} comment コメント (オプション)
- * @returns {Promise<string>} preimage (支払い証明)
+ * Zapを送信する。NWC があれば支払いまで行い、なければインボイスを返す。
+ * @returns {Promise<{ paid: boolean, pr: string, preimage?: string, eventId: string, recipientPubkey: string, senderPubkey: string, amountSats: number, relays: string[] }>}
  */
-export async function sendZap(state, settingsManager, targetEvent, amountSats, comment = '') {
-  const nwcUri = settingsManager.settings.nwcUri;
-  if (!nwcUri) {
-    throw new Error('NWCが設定されていません。表示設定からウォレットを接続してください。');
-  }
+export async function sendZap(state, settingsManager, targetEvent, amountSats, comment = '', options = {}) {
+  const nwcUri = (settingsManager && settingsManager.settings && settingsManager.settings.nwcUri) || '';
 
   // 1. 受信者のプロフィール情報と Lightning アドレスを確認
   const { recipientPubkey, event: zapTargetEvent } = buildZapPaymentTarget(targetEvent);
@@ -341,7 +432,7 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
     try {
       lnurlRes = await fetch(`https://corsproxy.io/?${encodeURIComponent(endpoint)}`, fetchOpts);
     } catch (err) {
-      throw new Error('Lightningサービスへの接続に失敗しました (CORS/Network Error)');
+      throw new Error('Lightningサービスへの接続に失敗しました (CORS/Network Error)', { cause: err });
     }
   }
   if (!lnurlRes.ok) {
@@ -453,7 +544,7 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
     try {
       invoiceRes = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, fetchOpts);
     } catch (err) {
-      throw new Error('インボイスの取得に失敗しました (CORS/Network Error)');
+      throw new Error('インボイスの取得に失敗しました (CORS/Network Error)', { cause: err });
     }
   }
   if (!invoiceRes.ok) {
@@ -468,17 +559,33 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
     console.warn('[Zap] Invoice has no description_hash (some providers still publish receipts)');
   }
 
-  // 5. NWC での支払い実行
-  const nwcClient = new NwcClient(nwcUri);
-  const preimage = await nwcClient.payInvoice(pr);
+  const result = {
+    paid: false,
+    pr,
+    eventId: zapTargetEvent && zapTargetEvent.id ? zapTargetEvent.id : '',
+    recipientPubkey,
+    senderPubkey: userPubkey,
+    amountSats,
+    relays: writeRelays
+  };
 
-  // 6. 成功時のローカル状態の更新
-  if (targetEvent.id) {
-    markEventZapped(state, targetEvent.id);
-  }
   rememberZapAmount(amountSats, { asLast: true });
 
-  return preimage;
+  const invoiceOnly = !!(options && options.invoiceOnly);
+
+  // 5. NWC があれば支払い。invoiceOnly または未設定なら Wallet of Satoshi 等向けにインボイスを返す
+  if (!invoiceOnly && hasConfiguredNwc(nwcUri)) {
+    const nwcClient = new NwcClient(nwcUri);
+    const preimage = await nwcClient.payInvoice(pr);
+    if (result.eventId) {
+      markEventZapped(state, result.eventId);
+    }
+    result.paid = true;
+    result.preimage = preimage;
+    return result;
+  }
+
+  return result;
 }
 
 /**

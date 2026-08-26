@@ -343,3 +343,34 @@ body.theme-light #eventModalContent::-webkit-scrollbar-thumb {
   color: #ff4444;
   background: var(--panel-hover);
 }
+
+.zap-invoice-panel[hidden] {
+  display: none;
+}
+.zap-invoice-qr {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 12px 0;
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+}
+.zap-invoice-qr svg {
+  width: min(240px, 100%);
+  height: auto;
+}
+.zap-invoice-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #0b0c10;
+  text-decoration: none;
+  font-weight: 600;
+}
+body.theme-light .zap-invoice-open {
+  color: #fff;
+}

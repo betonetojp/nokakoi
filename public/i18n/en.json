@@ -630,8 +630,15 @@
   "settings.nwc.status_invalid": "Invalid connection URI",
   "settings.nwc.status_unconfigured": "Not configured",
   "zap.modal.error_amount": "Please enter a valid amount",
-  "zap.modal.paying": "Creating payment request...",
+  "zap.modal.paying": "Creating invoice...",
   "zap.modal.success": "Payment successful!",
   "zap.modal.failed": "Payment failed",
-  "zap.modal.unconfigured": "NWC (Nostr Wallet Connect) is not configured. Please connect a wallet from NWC Settings under Display Settings."
+  "zap.modal.unconfigured": "NWC (Nostr Wallet Connect) is not configured. Please connect a wallet from NWC Settings under Display Settings.",
+  "zap.modal.invoice_hint": "Scan the QR code in Wallet of Satoshi or tap Open wallet. This dialog closes when payment is confirmed.",
+  "zap.modal.open_wallet": "Open wallet",
+  "zap.modal.wallet_pay": "Other wallet",
+  "zap.modal.copy_invoice": "Copy invoice",
+  "zap.modal.copied": "Copied",
+  "zap.modal.waiting": "Waiting for payment…",
+  "zap.modal.invoice_timeout": "Payment was not confirmed. Check your wallet history."
 }

@@ -9,6 +9,8 @@ import {
   getZapReceiptTargetEventId,
   getEventDisplayPubkey,
   buildZapPaymentTarget,
+  toLightningUri,
+  zapReceiptMatchesPayment,
   applyZapReceiptToZappedState,
   isIncomingZapReceiptFor,
   loadZapAmountHistory,
@@ -191,6 +193,39 @@ describe('Zap Service Helpers', () => {
         recipientPubkey: 'alice',
         event: { id: 'note1', pubkey: 'alice', kind: 1, tags: [] }
       });
+    });
+
+    it('builds a lightning: URI for Wallet of Satoshi and other wallets', () => {
+      expect(toLightningUri('lnbc1abc')).toBe('lightning:lnbc1abc');
+      expect(toLightningUri('lightning:lnbc1abc')).toBe('lightning:lnbc1abc');
+      expect(toLightningUri('')).toBe('');
+    });
+
+    it('matches an outgoing zap receipt for note and profile payments', () => {
+      const receipt = {
+        kind: 9735,
+        pubkey: 'ln-server',
+        tags: [
+          ['p', 'recipient'],
+          ['P', 'sender'],
+          ['e', 'note1']
+        ]
+      };
+      expect(zapReceiptMatchesPayment(receipt, {
+        senderPubkey: 'sender',
+        eventId: 'note1'
+      })).toBe(true);
+      expect(zapReceiptMatchesPayment(receipt, {
+        senderPubkey: 'other',
+        eventId: 'note1'
+      })).toBe(false);
+      expect(zapReceiptMatchesPayment({
+        kind: 9735,
+        tags: [['p', 'recipient'], ['P', 'sender']]
+      }, {
+        senderPubkey: 'sender',
+        recipientPubkey: 'recipient'
+      })).toBe(true);
     });
 
     it('treats p tag as incoming receipt, not P', () => {

@@ -456,17 +456,30 @@
         <span id="zapRecipientName" class="font-bold" style="font-weight:bold;"></span>
         <span class="muted text-sm ml-8" id="zapRecipientAddress" style="font-size:0.8rem; opacity:0.7; margin-left:8px;"></span>
       </div>
-      <div id="zapAmountHistory" class="zap-amount-history" hidden></div>
-      <div style="margin-bottom:12px;">
-        <label for="zapAmountInput" class="modal-field-label" data-i18n="zap.amount_label" style="display:block; font-size:0.85rem; margin-bottom:4px;">金額 (Sats)</label>
-        <input type="number" id="zapAmountInput" min="1" step="1" inputmode="numeric" style="width:100%; box-sizing:border-box; padding:6px;">
+      <div id="zapPayForm">
+        <div id="zapAmountHistory" class="zap-amount-history" hidden></div>
+        <div style="margin-bottom:12px;">
+          <label for="zapAmountInput" class="modal-field-label" data-i18n="zap.amount_label" style="display:block; font-size:0.85rem; margin-bottom:4px;">金額 (Sats)</label>
+          <input type="number" id="zapAmountInput" min="1" step="1" inputmode="numeric" style="width:100%; box-sizing:border-box; padding:6px;">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label for="zapCommentInput" class="modal-field-label" data-i18n="zap.comment_label" style="display:block; font-size:0.85rem; margin-bottom:4px;">コメント (オプション)</label>
+          <input type="text" id="zapCommentInput" data-i18n-placeholder="zap.comment_placeholder" placeholder="Zap! ⚡" style="width:100%; box-sizing:border-box; padding:6px;">
+        </div>
+        <div class="row mt-12" style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+          <button id="zapConfirm" type="button" style="padding:8px 16px;">⚡ Zapを送信</button>
+          <button id="zapWalletPay" class="secondary" type="button" style="padding:8px 16px;" data-i18n="zap.modal.wallet_pay" hidden>他のウォレット</button>
+        </div>
       </div>
-      <div style="margin-bottom:12px;">
-        <label for="zapCommentInput" class="modal-field-label" data-i18n="zap.comment_label" style="display:block; font-size:0.85rem; margin-bottom:4px;">コメント (オプション)</label>
-        <input type="text" id="zapCommentInput" data-i18n-placeholder="zap.comment_placeholder" placeholder="Zap! ⚡" style="width:100%; box-sizing:border-box; padding:6px;">
+      <div id="zapInvoicePanel" class="zap-invoice-panel" hidden>
+        <p class="muted text-sm" id="zapInvoiceHint" data-i18n="zap.modal.invoice_hint">Wallet of Satoshi などでQRを読み取るか、「ウォレットで開く」から支払ってください。</p>
+        <div id="zapInvoiceQr" class="zap-invoice-qr"></div>
+        <div class="row mt-12" style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+          <a id="zapInvoiceOpen" class="zap-invoice-open" href="#" rel="noopener noreferrer" data-i18n="zap.modal.open_wallet">ウォレットで開く</a>
+          <button id="zapInvoiceCopy" class="secondary" type="button" style="padding:8px 16px;" data-i18n="zap.modal.copy_invoice">インボイスをコピー</button>
+        </div>
       </div>
       <div class="row mt-12" style="display:flex; gap:8px; margin-top:12px;">
-        <button id="zapConfirm" type="button" style="padding:8px 16px;">⚡ Zapを送信</button>
         <button id="zapCancel" class="secondary" type="button" style="padding:8px 16px;">キャンセル</button>
       </div>
       <div class="muted mt-8" id="zapStatus" style="font-size:0.85rem; opacity:0.7; margin-top:8px;"></div>
