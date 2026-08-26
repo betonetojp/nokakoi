@@ -42,9 +42,9 @@ button.secondary.small {
 }
 
 /* プライマリボタン: subtle glow */
-button:not(.secondary):not(.tab):not(.quick-reaction):not(.btn-react):not(.btn-kind):not(.btn-repost):not(.btn-reply):not(.btn-quote):not(.btn-omochat-h):not(.btn-omochat-t):not(.btn-json):not(.btn-remove):not(.btn-remove-cand):not(.scroll-to-top):not(.open-media):not(.load-more-btn):not(.nip46-tab):not(.emoji-shortcode-suggest-item):not(.channel-list-item):not(.channel-search-result-item) {
+button:not(.secondary):not(.tab):not(.quick-reaction):not(.btn-react):not(.btn-zap):not(.btn-kind):not(.btn-repost):not(.btn-reply):not(.btn-quote):not(.btn-omochat-h):not(.btn-omochat-t):not(.btn-json):not(.btn-remove):not(.btn-remove-cand):not(.scroll-to-top):not(.open-media):not(.load-more-btn):not(.nip46-tab):not(.emoji-shortcode-suggest-item):not(.channel-list-item):not(.channel-search-result-item) {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
-button:not(.secondary):not(.tab):not(.quick-reaction):not(.btn-react):not(.btn-kind):not(.btn-repost):not(.btn-reply):not(.btn-quote):not(.btn-omochat-h):not(.btn-omochat-t):not(.btn-json):not(.btn-remove):not(.btn-remove-cand):not(.scroll-to-top):not(.open-media):not(.load-more-btn):not(.nip46-tab):not(.emoji-shortcode-suggest-item):not(.channel-list-item):not(.channel-search-result-item):hover:not(:disabled) {
+button:not(.secondary):not(.tab):not(.quick-reaction):not(.btn-react):not(.btn-zap):not(.btn-kind):not(.btn-repost):not(.btn-reply):not(.btn-quote):not(.btn-omochat-h):not(.btn-omochat-t):not(.btn-json):not(.btn-remove):not(.btn-remove-cand):not(.scroll-to-top):not(.open-media):not(.load-more-btn):not(.nip46-tab):not(.emoji-shortcode-suggest-item):not(.channel-list-item):not(.channel-search-result-item):hover:not(:disabled) {
   box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 35%, transparent);
 }

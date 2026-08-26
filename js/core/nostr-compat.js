@@ -2,7 +2,7 @@
 // Nostrツール互換レイヤー
 // ============================================================================
 
-import { nip19, SimplePool as NostrSimplePool, getPublicKey as getPublicKeyFn, generateSecretKey as generateSecretKeyFn, finalizeEvent, kinds, utils, nip04, nip44 } from 'nostr-tools';
+import { nip19, SimplePool as NostrSimplePool, getPublicKey as getPublicKeyFn, generateSecretKey as generateSecretKeyFn, finalizeEvent, verifyEvent, kinds, utils, nip04, nip44, nip57 } from 'nostr-tools';
 
 /**
  * Filter | Filter[] を Filter[] に正規化
@@ -136,6 +136,20 @@ export function getNostrTools() {
  */
 export function getNip19() {
   return nip19;
+}
+
+/**
+ * verifyEvent取得
+ */
+export function getVerifyEvent() {
+  return verifyEvent;
+}
+
+/**
+ * nip57取得
+ */
+export function getNip57() {
+  return nip57;
 }
 
 /**

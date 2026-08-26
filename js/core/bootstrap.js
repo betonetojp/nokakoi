@@ -7,6 +7,7 @@ import { relayConnect, stopMonitoringRelays, loadRelays, defaultIntlRelayUrl, de
 import { createState, clearFeed, findEventById } from './state.js';
 import { initializeProfileCache } from '../features/profile/profile.js';
 import { reactToEvent, repostEvent } from '../features/post/actions.js';
+import { loadZappedEvents } from '../features/zap/zap.js';
 import { setupModalEscClose } from '../ui/modals/modals.js';
 import { login, autoLogin, setupAuthUI, updateHeaderName } from './auth.js';
 import {
@@ -213,6 +214,11 @@ export async function initApp() {
   }
 
   initializeProfileCache(state);
+  try {
+    loadZappedEvents(state);
+  } catch (e) {
+    console.warn('[Init] loadZappedEvents 失敗:', e);
+  }
 
   try {
     const storedLang = localStorage.getItem('lang');

@@ -322,6 +322,20 @@
             <div><span data-i18n="mute.private_label">非公開ミュート：</span> <span id="mutePubPrivateCount">0</span> users / <span id="muteWordPrivateCount">0</span> words</div>
           </div>
         </div>
+        <!-- NWC設定 -->
+        <fieldset class="settings-fieldset mt-12">
+          <legend data-i18n="nwc.title">NWC (Nostr Wallet Connect)</legend>
+          <p class="muted text-sm" data-i18n="nwc.summary">NWC接続URI (nostr+walletconnect://...) を設定すると、投稿から直接Zapを送れるようになります。</p>
+          <div class="flex-col gap-8">
+            <input type="password" id="nwcUriInput" data-i18n-placeholder="nwc.placeholder" placeholder="nostr+walletconnect://..." class="settings-input-wide" style="width: 100%; box-sizing: border-box; padding: 6px;">
+            <div class="row gap-8">
+              <button id="saveNwcBtn" type="button" class="secondary" data-i18n="save">保存</button>
+              <button id="deleteNwcBtn" class="secondary btn-danger" type="button" data-i18n="delete">削除</button>
+            </div>
+            <div id="nwcStatus" class="muted text-sm"></div>
+          </div>
+        </fieldset>
+
         <div class="mt-24">
           <button id="clearCacheBtn" class="secondary" type="button" data-i18n="clearCache">キャッシュをクリア</button>
           <span id="clearCacheStatus" class="muted settings-status-inline"></span>

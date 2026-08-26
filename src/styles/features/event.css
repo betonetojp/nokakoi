@@ -102,6 +102,25 @@ body.simple-display-mode #profileEvents .event:not(.event-selected) .event-top-r
 body.theme-light .event-actions-react .btn-react[data-reacted="true"] {
   color: var(--accent) !important;
 }
+.btn-zap {
+  transition: transform 0.2s !important;
+}
+.btn-zap img {
+  filter: grayscale(100%) opacity(30%) !important;
+  transition: filter 0.2s !important;
+}
+.btn-zap:hover {
+  transform: scale(1.15) !important;
+}
+.btn-zap:hover img {
+  filter: none !important;
+  opacity: 1 !important;
+}
+.btn-zap[data-zapped="true"] img,
+.btn-zap.zapped img {
+  filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.95)) !important;
+  opacity: 1 !important;
+}
 .event-bottom-row {
   display: flex;
   align-items: center;

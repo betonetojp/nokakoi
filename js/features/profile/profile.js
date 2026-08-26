@@ -410,6 +410,32 @@ export function updateNameDom(state, pubkey, nip19) {
   try {
     updateAvatarDom(state, pubkey);
   } catch (e) { }
+  try {
+    updateZapButtonDom(state, pubkey);
+  } catch (e) { }
+}
+
+/**
+ * 対象pubkeyの投稿のZapボタン表示を更新
+ */
+export function updateZapButtonDom(state, pubkey) {
+  if (!pubkey) return;
+  const prof = state && state.profiles ? state.profiles.get(pubkey) : null;
+  const lud = (prof && (prof.lud16 || prof.lud06)) || '';
+  
+  const nameNodes = document.querySelectorAll('.name[data-pubkey="' + pubkey + '"]');
+  nameNodes.forEach(function (el) {
+    const eventEl = el.closest('.event');
+    if (!eventEl) return;
+    const zapBtn = eventEl.querySelector('.btn-zap');
+    if (zapBtn) {
+      if (lud) {
+        zapBtn.style.display = '';
+      } else {
+        zapBtn.style.display = 'none';
+      }
+    }
+  });
 }
 
 /**

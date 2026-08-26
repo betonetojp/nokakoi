@@ -25,7 +25,7 @@ describe('feed filters', () => {
         authors: ['alice', 'bob'],
         limit: EVENTS_FETCH_LIMIT
       },
-      { kinds: [1, 6, 7, 1111], '#p': ['me'], limit: EVENTS_FETCH_LIMIT },
+      { kinds: [1, 6, 7, 1111, 9735], '#p': ['me'], limit: EVENTS_FETCH_LIMIT },
       { kinds: [7, 42, 16], authors: ['me'], limit: EVENTS_FETCH_LIMIT }
     ]);
   });

@@ -1,5 +1,7 @@
 import { escapeHtml, fmtTime, processHiddenTagChars, buildReactionEmojiTags, replaceBadgeEmoji } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
+import { showZapModal } from '../modals/zap-modal.js';
+import { sendZap } from '../../features/zap/zap.js';
 import { findEventById } from '../../core/state.js';
 import { displayNameWithUsername } from '../../features/profile/profile.js';
 import { showReactionModal, showConfirmModal } from '../modals/modals.js';
@@ -248,6 +250,35 @@ export function setupReplyButton(div, ev, replyToEvent) {
   if (!replyBtn) return;
   replyBtn.onclick = function () {
     replyToEvent(ev);
+  };
+}
+
+export function setupZapButton(div, ev, state, settings, settingsManager) {
+  const zapBtn = div.querySelector('.btn-zap');
+  if (!zapBtn) return;
+
+  const pubkey = ev.pubkey;
+  const prof = state && state.profiles ? state.profiles.get(pubkey) : null;
+  const lud = (prof && (prof.lud16 || prof.lud06)) || '';
+
+  if (lud) {
+    zapBtn.style.display = '';
+  }
+
+  zapBtn.onclick = async function (e) {
+    e.stopPropagation();
+    const recipientName = (prof && (prof.display_name || prof.name)) || pubkey.slice(0, 8) + '...';
+
+    if (!settingsManager || !settingsManager.settings || !settingsManager.settings.nwcUri) {
+      alert(t('zap.modal.unconfigured'));
+      return;
+    }
+
+    showZapModal(recipientName, lud, async (amount, comment) => {
+      await sendZap(state, settingsManager, ev, amount, comment);
+      zapBtn.classList.add('zapped');
+      zapBtn.dataset.zapped = "true";
+    });
   };
 }
 
@@ -976,6 +1007,7 @@ function bindEventListeners(div, ev, state, nip19, settings, settingsManager, re
   setupReactButton(div, ev, settings, settingsManager, reactToEvent, state);
   setupRepostButton(div, ev, repostEvent);
   setupReplyButton(div, ev, replyToEvent);
+  setupZapButton(div, ev, state, settings, settingsManager);
 
   if (ev.kind === 20000) {
     bindOmochatHandlers(div, ev, state, nip19);
@@ -1035,10 +1067,14 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
 
   const nameBlockHtml = buildEventNameBlockHtml(state, ev, settings, names, statusHtml);
 
+  const isZapped = !!(state.zappedEventIds && state.zappedEventIds.has(ev.id));
+  const zappedAttr = isZapped ? ' class="btn-zap zapped" data-zapped="true"' : ' class="btn-zap"';
+
   const topRowHtml = '<div class="event-top-row">' +
     nameBlockHtml +
     (localStorage.getItem('pubkey') && ev.kind !== 20000 ?
       '<div class="event-actions-react">' +
+      '<button' + zappedAttr + ' type="button" style="display:none;" data-i18n-title="zap.button.title"><img src="icon/zap.svg" alt="" class="icon-btn" data-i18n-alt="zap.button.title"></button>' +
       '<button class="btn-react" type="button" data-i18n-title="reaction.button.title"><img src="icon/star.png" alt="" class="icon-btn" data-i18n-alt="reaction.button.title"></button>' +
       '</div>' : '') +
     '</div>';

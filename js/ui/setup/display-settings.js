@@ -1,5 +1,6 @@
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { showToast, debounce } from '../../utils/utils.js';
+import { parseNwcUri } from '../../core/nwc.js';
 import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL, EVENTLINK_DEFAULT_TITLE, EVENTLINK_DEFAULT_URL, MAX_PREVIEW_LENGTH, EVENTS_MAX, setEventsMax } from '../../config/constants.js';
 import { ensureNotificationPermission } from '../../utils/notification.js';
 import { renderFeed, teardownDomPurge } from '../../features/timeline/feed-renderer.js';
@@ -613,6 +614,55 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
       settingsManager.set('maxEvents', v);
     };
   }
+
+  // NWC 設定バインド
+  const nwcUriInput = $('nwcUriInput');
+  const saveNwcBtn = $('saveNwcBtn');
+  const deleteNwcBtn = $('deleteNwcBtn');
+
+  if (nwcUriInput && saveNwcBtn && deleteNwcBtn) {
+    nwcUriInput.value = settingsManager.settings.nwcUri || '';
+
+    saveNwcBtn.onclick = function () {
+      const uri = (nwcUriInput.value || '').trim();
+      if (!uri) {
+        settingsManager.set('nwcUri', null);
+        const pk = localStorage.getItem('pubkey');
+        if (pk) settingsManager.saveForAccount(pk);
+        else settingsManager.save();
+        showToast(t('settings.nwc.cleared'));
+        refreshAllDisplaySettingsUI(settingsManager);
+        return;
+      }
+      const parsed = parseNwcUri(uri);
+      if (!parsed) {
+        showToast(t('settings.nwc.invalid'));
+        return;
+      }
+      settingsManager.set('nwcUri', uri);
+      const pk = localStorage.getItem('pubkey');
+      if (pk) {
+        settingsManager.saveForAccount(pk);
+      } else {
+        settingsManager.save();
+      }
+      showToast(t('settings.nwc.saved'));
+      refreshAllDisplaySettingsUI(settingsManager);
+    };
+
+    deleteNwcBtn.onclick = function () {
+      nwcUriInput.value = '';
+      settingsManager.set('nwcUri', null);
+      const pk = localStorage.getItem('pubkey');
+      if (pk) {
+        settingsManager.saveForAccount(pk);
+      } else {
+        settingsManager.save();
+      }
+      showToast(t('settings.nwc.deleted'));
+      refreshAllDisplaySettingsUI(settingsManager);
+    };
+  }
 }
 
 export function refreshAllDisplaySettingsUI(settingsManager) {
@@ -681,6 +731,28 @@ export function refreshAllDisplaySettingsUI(settingsManager) {
     syncVal('eventLinkUrlInput', s.eventLinkUrl || EVENTLINK_DEFAULT_URL);
     syncVal('eventLinkTitleInput', s.eventLinkTitle || EVENTLINK_DEFAULT_TITLE);
 
+    // NWC設定の同期とステータス表示
+    const nwcUriInput = document.getElementById('nwcUriInput');
+    const nwcStatus = document.getElementById('nwcStatus');
+    if (nwcUriInput) {
+      nwcUriInput.value = s.nwcUri || '';
+    }
+    if (nwcStatus) {
+      if (s.nwcUri) {
+        const parsed = parseNwcUri(s.nwcUri);
+        if (parsed) {
+          nwcStatus.textContent = t('settings.nwc.status_connected', { pubkey: parsed.walletPubkey.slice(0, 8) });
+          nwcStatus.style.color = 'var(--success, green)';
+        } else {
+          nwcStatus.textContent = t('settings.nwc.status_invalid');
+          nwcStatus.style.color = 'var(--danger, red)';
+        }
+      } else {
+        nwcStatus.textContent = t('settings.nwc.status_unconfigured');
+        nwcStatus.style.color = '';
+      }
+    }
+
     // 7. テーマ・カラー・明るさの反映
     try {
       const mode = s.theme || 'system';
@@ -717,3 +789,5 @@ export function refreshAllDisplaySettingsUI(settingsManager) {
     console.warn('[Settings] refreshAllDisplaySettingsUI エラー:', e);
   }
 }
+
+

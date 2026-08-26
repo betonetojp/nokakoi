@@ -10,7 +10,7 @@ import { formatReaction } from './reaction-renderer.js';
 export function renderReplyContext(state, ev, nip19, settings) {
   const isModal = !!settings && settings.isModal === true;
   const inlineMedia = settings && settings.showTimelineMedia === true;
-  if (ev.kind !== 1 && ev.kind !== 42 && ev.kind !== 1111 && ev.kind !== 7 && ev.kind !== 6 && ev.kind !== 16) return '';
+  if (ev.kind !== 1 && ev.kind !== 42 && ev.kind !== 1111 && ev.kind !== 7 && ev.kind !== 6 && ev.kind !== 16 && ev.kind !== 9735) return '';
 
 
 
@@ -24,7 +24,12 @@ export function renderReplyContext(state, ev, nip19, settings) {
 
   if (!replyToEvent) {
     const ownerAttr = ' data-owner-event-id="' + escapeHtml(ev.id || '') + '"';
-    if (ev.kind === 7) {
+    if (ev.kind === 9735) {
+      const amountMsat = (ev.tags.find(t => t[0] === 'amount') || [])[1];
+      const sats = amountMsat ? Math.round(Number(amountMsat) / 1000) : 0;
+      const label = `Zap! ⚡ ${sats} sat`;
+      return '<div class="reply-to zap"' + ownerAttr + '><span class="reply-marker">⚡</span><span class="reply-to-author" data-event-id="' + replyToEventId + '" data-relay-hint="' + escapeHtml(replyToRelayHint) + '"><span>' + label + '</span></span></div>';
+    } else if (ev.kind === 7) {
       const reactionDisplay = formatReaction(ev.content, ev.tags || []);
       const label = t('reaction.button.title');
       return '<div class="reply-to reaction"' + ownerAttr + '><span class="reply-marker">' + reactionDisplay + '</span><span class="reply-to-author" data-event-id="' + replyToEventId + '" data-relay-hint="' + escapeHtml(replyToRelayHint) + '"><span>' + label + '</span></span></div>';
@@ -88,6 +93,46 @@ export function renderReplyContext(state, ev, nip19, settings) {
     }
     const label = t('repost.label', { author: escapeHtml(replyToAuthor) });
     return '<div class="reply-to repost"><span class="reply-marker"><img src="icon/repost.png" alt="' + escapeHtml(t('repost')) + '" class="icon"/></span><span class="reply-to-author" data-pubkey="' + replyToPubkey + '"><span>' + replaceBadgeEmoji(label) + '</span></span><div class="reply-to-content" data-event-id="' + (replyToEvent.id || '') + '">' + replyContentHtml + '</div></div>';
+  } else if (ev.kind === 9735) {
+    let senderPubkey = ev.pubkey;
+    let comment = '';
+    
+    try {
+      const descTag = ev.tags.find(t => t[0] === 'description');
+      if (descTag && descTag[1]) {
+        const zapReq = JSON.parse(descTag[1]);
+        if (zapReq) {
+          if (zapReq.pubkey) senderPubkey = zapReq.pubkey;
+          if (zapReq.content) comment = zapReq.content;
+        }
+      }
+    } catch (e) {
+      console.warn('[ReplyRenderer] Failed to parse Zap Request from description:', e);
+    }
+
+    if (!comment && ev.content) {
+      comment = ev.content;
+    }
+
+    const amountMsat = (ev.tags.find(t => t[0] === 'amount') || [])[1];
+    const sats = amountMsat ? Math.round(Number(amountMsat) / 1000) : 0;
+    const zapSenderName = displayName(state, senderPubkey, nip19);
+    
+    const zapLabel = comment ? `⚡ ${sats} sat (${comment})` : `⚡ ${sats} sat`;
+    
+    const isOpaqueAuthor = (function (a, pk) {
+      try {
+        if (!a) return true;
+        if (pk && typeof pk === 'string' && /^[0-9a-f]{64}$/i.test(pk) && typeof a === 'string' && a.toLowerCase() === pk.toLowerCase()) return true;
+        if (typeof a === 'string' && /^[0-9a-f]{64}$/i.test(a) && (!pk || a.toLowerCase() === pk.toLowerCase())) return true;
+        return false;
+      } catch (e) { return false; }
+    })(zapSenderName, senderPubkey);
+
+    const displayAuthorName = isOpaqueAuthor ? '誰か' : zapSenderName;
+    const label = `Zap from ${escapeHtml(displayAuthorName)}: ${zapLabel}`;
+
+    return '<div class="reply-to zap"><span class="reply-marker">⚡</span><span class="reply-to-author" data-pubkey="' + senderPubkey + '"><span>' + replaceBadgeEmoji(label) + '</span></span><div class="reply-to-content" data-event-id="' + (replyToEvent.id || '') + '">' + replyContentHtml + '</div></div>';
   } else {
     if (isOpaqueAuthor) {
       const label = t('reply');

@@ -444,3 +444,36 @@
       <div id="accountModalContent" class="account-modal-content"></div>
     </div>
   </div>
+
+  <!-- Zap入力モーダル -->
+  <div id="zapModal" class="modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-body modal-body--sm panel">
+      <div class="modal-header-row">
+        <h2 class="modal-title" data-i18n="zap.modal.title">Zapを送信</h2>
+        <button id="zapModalClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div class="zap-recipient-info mb-12 flex-align-center" style="display:flex; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+        <span id="zapRecipientName" class="font-bold" style="font-weight:bold;"></span>
+        <span class="muted text-sm ml-8" id="zapRecipientAddress" style="font-size:0.8rem; opacity:0.7; margin-left:8px;"></span>
+      </div>
+      <div class="zap-amount-options flex-row gap-8 mb-12" style="display:flex; gap:8px; margin-bottom:12px;">
+        <button type="button" class="zap-amount-btn secondary" data-amount="50" style="padding:6px 12px;">50</button>
+        <button type="button" class="zap-amount-btn secondary" data-amount="100" style="padding:6px 12px;">100</button>
+        <button type="button" class="zap-amount-btn secondary" data-amount="500" style="padding:6px 12px;">500</button>
+        <button type="button" class="zap-amount-btn secondary" data-amount="1000" style="padding:6px 12px;">1000</button>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label for="zapAmountInput" class="modal-field-label" data-i18n="zap.amount_label" style="display:block; font-size:0.85rem; margin-bottom:4px;">金額 (Sats)</label>
+        <input type="number" id="zapAmountInput" min="1" step="1" value="50" style="width:100%; box-sizing:border-box; padding:6px;">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label for="zapCommentInput" class="modal-field-label" data-i18n="zap.comment_label" style="display:block; font-size:0.85rem; margin-bottom:4px;">コメント (オプション)</label>
+        <input type="text" id="zapCommentInput" data-i18n-placeholder="zap.comment_placeholder" placeholder="Zap! ⚡" style="width:100%; box-sizing:border-box; padding:6px;">
+      </div>
+      <div class="row mt-12" style="display:flex; gap:8px; margin-top:12px;">
+        <button id="zapConfirm" type="button" style="padding:8px 16px;">⚡ Zapを送信</button>
+        <button id="zapCancel" class="secondary" type="button" style="padding:8px 16px;">キャンセル</button>
+      </div>
+      <div class="muted mt-8" id="zapStatus" style="font-size:0.85rem; opacity:0.7; margin-top:8px;"></div>
+    </div>
+  </div>

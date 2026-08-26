@@ -21,6 +21,7 @@ export class SettingsManager {
    */
   getDefaultSettings() {
     return {
+      nwcUri: null,
       reactionDefault: '+',
       preferredSigner: null,
       encryptedNsec: null,
