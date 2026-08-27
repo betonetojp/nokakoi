@@ -601,6 +601,8 @@
   "login.modal.keygen_desc": "Generate a brand new Nostr account",
   "login.modal.saved_accounts_desc": "Select from saved accounts",
   "account.modal.nip07_mismatch": "The account in your browser extension does not match this account. Please switch accounts in your extension and try again.",
+  "account.nip07_switched_title": "NIP-07 Account Switched",
+  "account.nip07_switched_confirm": "The browser extension account has switched ({extPubkey}).\nDo you want to switch your active account in nokakoi as well?",
   "account.modal.unsaved_prompt": "This account's secret key is not saved. Please enter your secret key (nsec) to log in.",
   "account.modal.delete_confirm": "Are you sure you want to remove this account from the list? (Only local settings will be removed)",
   "keygen.title": "New Secret Key",

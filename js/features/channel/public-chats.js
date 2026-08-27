@@ -194,6 +194,22 @@ export async function encryptPrivatePublicChatTags(state, privateRefs, encryptio
   const myPubkey = (state && state.pubkey) || localStorage.getItem('pubkey');
   if (!myPubkey) throw new Error('No pubkey for encryption');
 
+  const checkNip07Match = async () => {
+    if (typeof window === 'undefined' || !window.nostr) return false;
+    if (typeof window.nostr.getPublicKey === 'function') {
+      try {
+        const extPk = await window.nostr.getPublicKey();
+        if (extPk && myPubkey && extPk.toLowerCase() !== myPubkey.toLowerCase()) {
+          console.warn('[PublicChats] NIP-07拡張のアカウントが不一致のため拡張機能暗号化をスキップします');
+          return false;
+        }
+      } catch (e) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   const nip44 = getNip44();
   const nip04 = getNip04();
   const mode = encryptionMode === 'nip04' ? 'nip04' : 'nip44';
@@ -202,7 +218,7 @@ export async function encryptPrivatePublicChatTags(state, privateRefs, encryptio
     if (nip44 && nip44.v2 && signer.hasKey()) {
       return signer.nip44Encrypt(nip44, plaintext, myPubkey);
     }
-    if (typeof window !== 'undefined' && window.nostr && window.nostr.nip44 && typeof window.nostr.nip44.encrypt === 'function') {
+    if (typeof window !== 'undefined' && window.nostr && window.nostr.nip44 && typeof window.nostr.nip44.encrypt === 'function' && (await checkNip07Match())) {
       let res = window.nostr.nip44.encrypt(myPubkey, plaintext);
       if (res && typeof res.then === 'function') res = await res;
       if (res) return res;
@@ -216,9 +232,9 @@ export async function encryptPrivatePublicChatTags(state, privateRefs, encryptio
     if (nip04 && signer.hasKey()) {
       let res = signer.nip04Encrypt(nip04, myPubkey, plaintext);
       if (res && typeof res.then === 'function') res = await res;
-      if (res) return res;
+      return res;
     }
-    if (typeof window !== 'undefined' && window.nostr && window.nostr.nip04 && typeof window.nostr.nip04.encrypt === 'function') {
+    if (typeof window !== 'undefined' && window.nostr && window.nostr.nip04 && typeof window.nostr.nip04.encrypt === 'function' && (await checkNip07Match())) {
       let res = window.nostr.nip04.encrypt(myPubkey, plaintext);
       if (res && typeof res.then === 'function') res = await res;
       if (res) return res;
@@ -234,7 +250,7 @@ export async function encryptPrivatePublicChatTags(state, privateRefs, encryptio
     }
   }
 
-  if (typeof window !== 'undefined' && window.nostr) {
+  if (typeof window !== 'undefined' && window.nostr && (await checkNip07Match())) {
     if (window.nostr.nip44 && typeof window.nostr.nip44.encrypt === 'function') {
       let res = window.nostr.nip44.encrypt(myPubkey, plaintext);
       if (res && typeof res.then === 'function') res = await res;

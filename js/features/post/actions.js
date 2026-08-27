@@ -243,38 +243,68 @@ export async function signEventWithMode(state, draft) {
     return signer.sign(draft);
   }
 
-  const prepareNip07Draft = async (d) => {
+  const signWithNip07 = async (d) => {
     let hexPk = ensureHexPubkey(d.pubkey);
     if (!hexPk) {
       if (state && state.pubkey) hexPk = ensureHexPubkey(state.pubkey);
       if (!hexPk) hexPk = ensureHexPubkey(localStorage.getItem('pubkey'));
-      if (!hexPk && window.nostr && typeof window.nostr.getPublicKey === 'function') {
-        try {
-          const extPk = await window.nostr.getPublicKey();
-          hexPk = ensureHexPubkey(extPk);
-        } catch (_e) {}
+    }
+
+    // 事前チェック: 拡張機能の現在の公開鍵を取得してログイン中アカウントとの一致を検証
+    if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+      let extPk = null;
+      try {
+        extPk = await window.nostr.getPublicKey();
+      } catch (e) {
+        console.warn('[signEventWithMode] window.nostr.getPublicKey 失敗:', e);
+      }
+      const normExtPk = extPk ? ensureHexPubkey(extPk) : null;
+      if (normExtPk) {
+        if (hexPk && normExtPk.toLowerCase() !== hexPk.toLowerCase()) {
+          const shortExt = normExtPk.substring(0, 8) + '...';
+          const shortTarget = hexPk.substring(0, 8) + '...';
+          const errMsg = t('account.modal.nip07_mismatch') || `ブラウザ拡張機能側のアカウント (${shortExt}) が、ログイン中のアカウント (${shortTarget}) と一致しません。拡張機能側でアカウントを切り替えてからお試しください。`;
+          throw new Error(errMsg);
+        }
+        if (!hexPk) {
+          hexPk = normExtPk;
+        }
       }
     }
+
     // nostr-tools/pure serializeEvent が厳格に求める 5 大要素プロパティ型 (tags内の全要素がstring型) で構成
-    return {
+    const validDraft = {
       kind: Number(d.kind),
       created_at: Number(d.created_at || Math.floor(Date.now() / 1000)),
       tags: sanitizeTags(d.tags),
       content: String(d.content || ''),
       pubkey: hexPk || ''
     };
+
+    const signedEvent = await window.nostr.signEvent(validDraft);
+
+    // 事後チェック: 返却された署名済みイベントの pubkey を検証
+    if (signedEvent && signedEvent.pubkey) {
+      const signedHex = ensureHexPubkey(signedEvent.pubkey);
+      if (hexPk && signedHex && signedHex.toLowerCase() !== hexPk.toLowerCase()) {
+        const shortExt = signedHex.substring(0, 8) + '...';
+        const shortTarget = hexPk.substring(0, 8) + '...';
+        const errMsg = t('account.modal.nip07_mismatch') || `ブラウザ拡張機能側のアカウント (${shortExt}) が、ログイン中のアカウント (${shortTarget}) と一致しません。拡張機能側でアカウントを切り替えてからお試しください。`;
+        throw new Error(errMsg);
+      }
+    }
+
+    return signedEvent;
   };
 
   // NIP-07 明示指定
   if ((state && state.signer === 'nip07' || effectiveSigner === 'nip07') && window.nostr && window.nostr.signEvent) {
-    const validDraft = await prepareNip07Draft(draft);
-    return await window.nostr.signEvent(validDraft);
+    return await signWithNip07(draft);
   }
 
   // フォールバック: 拡張が利用可能なら試す
   if (window.nostr && window.nostr.signEvent) {
-    const validDraft = await prepareNip07Draft(draft);
-    return await window.nostr.signEvent(validDraft);
+    return await signWithNip07(draft);
   }
 
   // 最後の手段として、local sk があれば finalizeEvent を再試行

@@ -101,7 +101,7 @@ const EMBED_ALLOWED_STORAGE_KEYS = new Set([
 
 // 信頼できる静的ホワイトリスト（自身のオリジン）
 const STATIC_EHAGAKI_WHITELIST = new Set([
-  window.location.origin
+  (typeof window !== 'undefined' && window.location && window.location.origin) || ''
 ]);
 
 function isTrustedEhagakiOrigin(origin) {

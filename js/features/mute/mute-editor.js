@@ -552,12 +552,28 @@ async function encryptPrivateMutes(state, privateUsers, privateWords, encryption
   const nip44 = getNip44();
   const nip04 = getNip04();
 
+  const checkNip07Match = async () => {
+    if (typeof window === 'undefined' || !window.nostr) return false;
+    if (typeof window.nostr.getPublicKey === 'function') {
+      try {
+        const extPk = await window.nostr.getPublicKey();
+        if (extPk && myPubkey && extPk.toLowerCase() !== myPubkey.toLowerCase()) {
+          console.warn('[MuteEditor] NIP-07拡張のアカウントが不一致のため拡張機能暗号化をスキップします');
+          return false;
+        }
+      } catch (e) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   // NIP-44 暗号化
   if (encryptionMode === 'nip44') {
     if (nip44 && nip44.v2 && signer.hasKey() && myPubkey) {
       return signer.nip44Encrypt(nip44, plaintext, myPubkey);
     }
-    if (window.nostr && window.nostr.nip44 && typeof window.nostr.nip44.encrypt === 'function') {
+    if (window.nostr && window.nostr.nip44 && typeof window.nostr.nip44.encrypt === 'function' && (await checkNip07Match())) {
       let res = window.nostr.nip44.encrypt(myPubkey, plaintext);
       if (res && typeof res.then === 'function') res = await res;
       if (res) return res;
@@ -577,7 +593,7 @@ async function encryptPrivateMutes(state, privateUsers, privateWords, encryption
       if (res && typeof res.then === 'function') res = await res;
       return res;
     }
-    if (window.nostr && window.nostr.nip04 && typeof window.nostr.nip04.encrypt === 'function') {
+    if (window.nostr && window.nostr.nip04 && typeof window.nostr.nip04.encrypt === 'function' && (await checkNip07Match())) {
       let res = window.nostr.nip04.encrypt(myPubkey, plaintext);
       if (res && typeof res.then === 'function') res = await res;
       if (res) return res;
@@ -594,7 +610,7 @@ async function encryptPrivateMutes(state, privateUsers, privateWords, encryption
   }
 
   // フォールバック: NIP-07 (window.nostr.nip44 または nip04)
-  if (window.nostr) {
+  if (window.nostr && (await checkNip07Match())) {
     if (window.nostr.nip44 && typeof window.nostr.nip44.encrypt === 'function') {
       let res = window.nostr.nip44.encrypt(myPubkey, plaintext);
       if (res && typeof res.then === 'function') res = await res;

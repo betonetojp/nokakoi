@@ -595,6 +595,8 @@
   "account.modal.add": "＋ アカウント追加",
   "account.modal.edit_profile": "📝 プロフィール編集",
   "account.modal.nip07_mismatch": "ブラウザ拡張機能のアカウントがこのアカウントと一致しません。拡張側でアカウントを切り替えてから再度お試しください。",
+  "account.nip07_switched_title": "NIP-07 アカウント変更検知",
+  "account.nip07_switched_confirm": "ブラウザ拡張機能側のアカウントが切り替わりました ({extPubkey})。\nnokakoi のログインアカウントも切り替えますか？",
   "account.modal.unsaved_prompt": "このアカウントは秘密鍵が保存されていません。秘密鍵(nsec)を入力してログインしてください。",
   "account.modal.delete_confirm": "このアカウントをリストから削除しますか？（ローカル設定のみが削除されます）",
   "account.method.passkey": "🔐 パスキー",

@@ -692,7 +692,16 @@ export function syncAccountUI(state, settingsManager, options = {}) {
     });
   } catch (e) {}
 
-  // 5. メインフィードのソフトリロード
+  // 5. 参加中チャンネル一覧・ビューの同期
+  try {
+    import('../../features/channel/channel-ui.js').then(c => {
+      if (c && typeof c.resetChannelViewForAccount === 'function') {
+        c.resetChannelViewForAccount(state);
+      }
+    });
+  } catch (e) {}
+
+  // 6. メインフィードのソフトリロード
   if (options.reload !== false) {
     try {
       if (typeof window !== 'undefined') {

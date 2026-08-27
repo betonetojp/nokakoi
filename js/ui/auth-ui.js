@@ -117,4 +117,89 @@ export function setupAuthUI(state, settings, settingsManager, {
       login(state, settings, settingsManager, restartFeeds, enableComposerScroll);
     };
   }
+
+  // NIP-07 拡張機能のアカウント切り替えをフォーカス時に検知
+  setupNip07FocusListener(state, settings, settingsManager, { restartFeeds, enableComposerScroll });
+}
+
+let isNip07SwitchPromptOpen = false;
+
+/**
+ * ウィンドウ/タブ復帰時に NIP-07 拡張機能のアカウント変更を検知・案内
+ */
+export function setupNip07FocusListener(state, settings, settingsManager, { restartFeeds, enableComposerScroll }) {
+  if (typeof window === 'undefined') return;
+
+  const checkNip07AccountSwitch = async () => {
+    try {
+      if (isNip07SwitchPromptOpen) return;
+      if (!state || !state.pubkey || state.signer !== 'nip07') return;
+      if (!window.nostr || typeof window.nostr.getPublicKey !== 'function') return;
+      if (window.__nokakoiAuthPending) return;
+
+      const currentPubkey = state.pubkey.toLowerCase();
+      let extPubkey = null;
+      try {
+        extPubkey = await window.nostr.getPublicKey();
+      } catch (e) {
+        return;
+      }
+
+      if (!extPubkey) return;
+      const normExtPubkey = extPubkey.toLowerCase();
+
+      if (normExtPubkey !== currentPubkey) {
+        isNip07SwitchPromptOpen = true;
+        const shortExt = normExtPubkey.substring(0, 8) + '...';
+        const { showConfirmModal } = await import('./modals/modals.js');
+        const title = t('account.nip07_switched_title') || 'NIP-07 アカウント変更検知';
+        const message = (t('account.nip07_switched_confirm') || 'ブラウザ拡張機能側のアカウントが切り替わりました ({extPubkey})。\nnokakoi のログインアカウントも切り替えますか？')
+          .replace('{extPubkey}', shortExt);
+
+        showConfirmModal(
+          title,
+          message,
+          async () => {
+            isNip07SwitchPromptOpen = false;
+            try {
+              const { getAccountList, switchAccount } = await import('../core/account-manager.js');
+              const { login } = await import('../core/auth/auth-core.js');
+              const list = getAccountList();
+              const found = list.accounts.find(a => a.id.toLowerCase() === normExtPubkey);
+              if (found) {
+                await switchAccount(normExtPubkey, state, settingsManager, async () => {
+                  await login(state, settings, settingsManager, restartFeeds, enableComposerScroll);
+                });
+              } else {
+                state.signer = 'nip07';
+                await login(state, settings, settingsManager, restartFeeds, enableComposerScroll);
+                const { resetChannelViewForAccount } = await import('../features/channel/channel-ui.js');
+                if (typeof resetChannelViewForAccount === 'function') {
+                  resetChannelViewForAccount(state);
+                }
+              }
+            } catch (err) {
+              console.error('[NIP-07 Sync] アカウント切り替え失敗:', err);
+            }
+          },
+          () => {
+            isNip07SwitchPromptOpen = false;
+          }
+        );
+      }
+    } catch (e) {
+      console.warn('[NIP-07 Sync] チェックエラー:', e);
+      isNip07SwitchPromptOpen = false;
+    }
+  };
+
+  window.addEventListener('focus', () => {
+    setTimeout(checkNip07AccountSwitch, 200);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      setTimeout(checkNip07AccountSwitch, 200);
+    }
+  });
 }
