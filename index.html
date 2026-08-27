@@ -28,17 +28,19 @@
 <body>
   <script src="./js/boot/viewport.js" type="module" data-cfasync="false"></script>
   <header class="topbar">
-    <div class="brand">
-      <img src="icon/nokakoi.png" data-i18n-alt="brand" class="brand-icon">
-      <span class="brand-text" data-i18n="brand">nokakoi</span>
+    <div class="topbar-inner">
+      <div class="brand">
+        <img src="icon/nokakoi.png" data-i18n-alt="brand" class="brand-icon">
+        <span class="brand-text" data-i18n="brand">nokakoi</span>
+      </div>
+      <nav class="actions">
+        <button id="openLoginModalBtn" class="secondary" type="button" data-i18n="login.button">ログイン</button>
+        <button id="nsecLoginBtn" class="secondary" type="button" hidden data-i18n="login.nsec">nsec</button>
+        <button id="nip46LoginBtn" class="secondary" type="button" hidden data-i18n="login.nip46">NIP-46</button>
+        <button id="loginBtn" class="secondary" type="button" hidden data-i18n="login.nip07">NIP-07</button>
+        <span id="userInfo" class="muted" role="button" tabindex="0" data-i18n-title="account.modal.title" title="アカウント管理"></span>
+      </nav>
     </div>
-    <nav class="actions">
-      <button id="openLoginModalBtn" class="secondary" type="button" data-i18n="login.button">ログイン</button>
-      <button id="nsecLoginBtn" class="secondary" type="button" hidden data-i18n="login.nsec">nsec</button>
-      <button id="nip46LoginBtn" class="secondary" type="button" hidden data-i18n="login.nip46">NIP-46</button>
-      <button id="loginBtn" class="secondary" type="button" hidden data-i18n="login.nip07">NIP-07</button>
-      <span id="userInfo" class="muted" role="button" tabindex="0" data-i18n-title="account.modal.title" title="アカウント管理"></span>
-    </nav>
   </header>
 
   <main class="container">
