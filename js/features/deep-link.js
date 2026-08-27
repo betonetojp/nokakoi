@@ -8,7 +8,7 @@ function sanitizeRelayHints(relays) {
 }
 
 /**
- * pathname 末尾からディープリンク用 bech32 を取り出す。
+ * pathname または hash からディープリンク用 bech32 を取り出す。
  * nsec / naddr / アセットパスは対象外。
  */
 export function extractDeepLinkBech32(pathname) {
@@ -16,6 +16,10 @@ export function extractDeepLinkBech32(pathname) {
   let segment = pathname.replace(/\/+$/, '');
   const slash = segment.lastIndexOf('/');
   segment = slash >= 0 ? segment.slice(slash + 1) : segment;
+  if (segment.startsWith('#')) segment = segment.slice(1);
+  if (/^(?:nostr:)?(npub|nprofile|nevent|note):/i.test(segment)) {
+    segment = segment.replace(/^(?:nostr:)?(npub|nprofile|nevent|note):/i, '');
+  }
   if (!segment) return null;
   try { segment = decodeURIComponent(segment); } catch (_e) { }
   segment = String(segment).trim();
@@ -92,13 +96,16 @@ function isVisibleModal(id) {
  */
 export function clearDeepLinkFromUrlIfIdle() {
   if (typeof window === 'undefined' || !window.location || !window.history) return false;
-  const pathname = window.location.pathname || '';
-  const root = appRootPathFromDeepLink(pathname);
-  if (!root) return false;
   if (isVisibleModal('eventModal') || isVisibleModal('profileModal')) return false;
   try {
     const url = new URL(window.location.href);
-    const next = root + url.search + url.hash;
+    const pathname = url.pathname || '';
+    const root = appRootPathFromDeepLink(pathname);
+    const hasNostrHash = url.hash && (/^#(?:nostr:)?(?:npub|nprofile|nevent|note)(?:1|:)/i.test(url.hash) || extractDeepLinkBech32(url.hash) !== null);
+    if (!root && !hasNostrHash) return false;
+    const targetPath = root || pathname;
+    const targetHash = hasNostrHash ? '' : url.hash;
+    const next = targetPath + url.search + targetHash;
     const current = url.pathname + url.search + url.hash;
     if (next === current) return false;
     window.history.replaceState({}, document.title, next);
@@ -155,19 +162,27 @@ export function extractChannelRootIdFromEvent(event) {
 }
 
 /**
- * 現在の URL パスからイベント詳細またはプロフィールモーダルを開く。
+ * 現在の URL パスまたはハッシュからイベント詳細またはプロフィールモーダルを開く。
  * @returns {Promise<boolean>} ディープリンクを処理したら true
  */
 export async function openDeepLink(state, options = {}) {
   const pathname = options.pathname
     || (typeof window !== 'undefined' && window.location ? window.location.pathname : '');
+  const hash = options.hash
+    || (typeof window !== 'undefined' && window.location ? window.location.hash : '');
   let nip19 = options.nip19;
   if (!nip19) {
     const { getNip19 } = await import('../core/nostr-compat.js');
     nip19 = getNip19();
   }
-  const parsed = parseDeepLinkFromPathname(pathname, nip19);
-  if (!parsed) return false;
+  let parsed = parseDeepLinkFromPathname(pathname, nip19);
+  if (!parsed && hash) {
+    parsed = parseDeepLinkBech32(extractDeepLinkBech32(hash), nip19);
+  }
+  if (!parsed) {
+    clearDeepLinkFromUrlIfIdle();
+    return false;
+  }
 
   if (parsed.kind === 'profile') {
     if (typeof options.showProfileModal === 'function') {

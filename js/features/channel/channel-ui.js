@@ -19,6 +19,7 @@ import { showMediaViewer } from '../../ui/media-viewer.js';
 import { displayNameWithUsername, loadProfile } from '../profile/profile.js';
 import { getNip19 } from '../../core/nostr-compat.js';
 import { linkifyText } from '../../utils/content/linkifier.js';
+import { setupMediaLinkHandlers, updateNostrNpubLinks } from '../../utils/content/dom-utils.js';
 import { getSettingsManager } from '../../core/app-context.js';
 
 const CHANNEL_LIST_CACHE_KEY = 'nokakoi_public_chats_cache_v1';
@@ -400,6 +401,8 @@ function openChannelInfoModal() {
         }).catch(() => {});
       }
     }
+    setupMediaLinkHandlers(contentEl);
+    updateNostrNpubLinks(contentEl);
   };
 
   renderModal(profile, _activeRootEvent);

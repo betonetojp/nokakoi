@@ -40,6 +40,7 @@ export function setupMediaLinkHandlers(container) {
       target : target.closest('.nostr-link');
 
     if (nostrLink && nostrLink.classList.contains('nostr-note')) {
+      e.preventDefault();
       const uri = nostrLink.dataset.uri;
       if (uri) {
         handleNostrUri(uri);

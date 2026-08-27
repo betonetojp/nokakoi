@@ -17,9 +17,16 @@ describe('extractDeepLinkBech32', () => {
     expect(extractDeepLinkBech32('/app/nprofile1abc')).toBe('nprofile1abc');
   });
 
+  it('reads bech32 from url hash including prefix like #npub:', () => {
+    expect(extractDeepLinkBech32('#npub:npub1abc')).toBe('npub1abc');
+    expect(extractDeepLinkBech32('#nprofile:nprofile1abc')).toBe('nprofile1abc');
+    expect(extractDeepLinkBech32('#npub1abc')).toBe('npub1abc');
+  });
+
   it('strips a trailing slash and a nostr: prefix', () => {
     expect(extractDeepLinkBech32('/app/nevent1qqexample/')).toBe('nevent1qqexample');
     expect(extractDeepLinkBech32('/app/nostr:npub1abc')).toBe('npub1abc');
+    expect(extractDeepLinkBech32('#nostr:npub1abc')).toBe('npub1abc');
   });
 
   it('ignores gyouza, assets, nsec, and naddr', () => {
@@ -236,5 +243,22 @@ describe('openDeepLink routing', () => {
     expect(handled).toBe(true);
     expect(openChannel).not.toHaveBeenCalled();
     expect(showEventModal).toHaveBeenCalledWith(expect.objectContaining({ id: noteId, kind: 1 }));
+  });
+
+  it('calls showProfileModal when deep link is provided in hash', async () => {
+    const { openDeepLink } = await import('./deep-link.js');
+    const npub = nip19.npubEncode(PUBKEY);
+    const fakeState = {};
+    const showProfileModal = vi.fn();
+
+    const handled = await openDeepLink(fakeState, {
+      pathname: '/app/',
+      hash: '#npub:' + npub,
+      nip19,
+      showProfileModal
+    });
+
+    expect(handled).toBe(true);
+    expect(showProfileModal).toHaveBeenCalledWith(PUBKEY);
   });
 });

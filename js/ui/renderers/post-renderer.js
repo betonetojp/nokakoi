@@ -555,6 +555,9 @@ function bindProfileClickHandlers(div, ev, state, nip19, settings, settingsManag
   profileEls.forEach(el => {
     el.style.cursor = 'pointer';
     el.onclick = function (e) {
+      if (e && typeof e.preventDefault === 'function') {
+        e.preventDefault();
+      }
       e.stopPropagation();
       const targetPk = el.dataset.pubkey || pk;
       if (targetPk) {
