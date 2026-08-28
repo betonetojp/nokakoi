@@ -2,7 +2,7 @@
 // プロフィール管理
 // ============================================================================
 
-import { profileIndexerRelay } from '../../core/relay.js';
+import { profileIndexerRelays } from '../../core/relay.js';
 import { truncateName, escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 
@@ -222,8 +222,8 @@ export async function loadProfile(state, pubkey) {
       // ]);
 
       // 複数リレーへの重複要求による過負荷を避けるため
-      // プロフィール取得は中央インデクサのみを使用
-      const events = await state.pool.querySync([profileIndexerRelay], {
+      // プロフィール取得はインデクサリレー（directory.yabu.me + purplepag.es）を使用
+      const events = await state.pool.querySync(profileIndexerRelays, {
         kinds: [0],
         authors: [pubkey],
         limit: 20

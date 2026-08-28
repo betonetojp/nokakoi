@@ -3,8 +3,7 @@
 // ============================================================================
 
 import { $, escapeHtml, fmtTime } from '../../utils/utils.js';
-import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
-import { subOnce, getReadRelays, relayConnect, profileIndexerRelay } from '../../core/relay.js';
+import { subOnce, getReadRelays, relayConnect, profileIndexerRelays } from '../../core/relay.js';
 import { getSimplePool, getNip19 } from '../../core/nostr-compat.js';
 import { renderEvent } from '../../ui/renderer.js';
 import { showJsonModal } from '../../ui/modals/json-modal.js';
@@ -94,8 +93,8 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
         const SimplePool = getSimplePool();
         const userRelays = getReadRelays(state.relays) || [];
         const fetchRelays = [...userRelays];
-        if (profileIndexerRelay && !fetchRelays.includes(profileIndexerRelay)) {
-          fetchRelays.push(profileIndexerRelay);
+        for (const idx of profileIndexerRelays) {
+          if (idx && !fetchRelays.includes(idx)) fetchRelays.push(idx);
         }
         if (!fetchRelays.length) return;
 

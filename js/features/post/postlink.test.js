@@ -80,11 +80,56 @@ describe('postlink context aggregation', () => {
 
     const iframe = document.getElementById('ehagakiFrame');
     expect(iframe.src).toContain('parentOrigin=');
+    expect(iframe.src).toContain('hostRelayConfig=1');
     expect(iframe.src).toContain('channel=nevent1channel123');
     expect(iframe.src).toContain('channelName=Test+Channel');
     // iframe モーダルでは早期フェッチ失敗防止のため reply/quote は URL から除外される
     expect(iframe.src).not.toContain('reply=');
     expect(iframe.src).not.toContain('quote=');
+  });
+
+  it('handles relays.request message and responds with relays.set containing active relays and indexers', async () => {
+    setupPostLinkUI(mocks.settingsManager);
+    const channelContext = {
+      reference: 'nevent1channel123',
+      name: 'Test Channel',
+    };
+    await openEhagakiWithChannel(channelContext);
+
+    const iframe = document.getElementById('ehagakiFrame');
+    let postedMessage = null;
+    const mockContentWindow = {
+      postMessage: vi.fn((msg) => {
+        postedMessage = msg;
+      }),
+    };
+    Object.defineProperty(iframe, 'contentWindow', {
+      value: mockContentWindow,
+      configurable: true,
+      writable: true,
+    });
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          namespace: 'ehagaki.embed',
+          version: 1,
+          type: 'relays.request',
+          requestId: 'req-relay-test-1',
+        },
+        origin: new URL(iframe.src).origin,
+        source: mockContentWindow,
+      })
+    );
+
+    expect(postedMessage).not.toBeNull();
+    expect(postedMessage.namespace).toBe('ehagaki.embed');
+    expect(postedMessage.type).toBe('relays.set');
+    expect(postedMessage.requestId).toBe('req-relay-test-1');
+    expect(Array.isArray(postedMessage.payload)).toBe(true);
+
+    const urls = postedMessage.payload.map((r) => r.url);
+    expect(urls).toContain('wss://directory.yabu.me');
   });
 
   it('includes valid Nostr event in preloadedEvents for instant hydration', async () => {

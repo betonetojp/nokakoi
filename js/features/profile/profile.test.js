@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../core/relay.js', () => ({
-  profileIndexerRelay: 'wss://profile.example'
+  profileIndexerRelays: ['wss://profile.example', 'wss://profile2.example']
 }));
 vi.mock('../../utils/utils.js', () => ({
   truncateName: vi.fn((value) => value),

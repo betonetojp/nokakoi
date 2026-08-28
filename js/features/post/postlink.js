@@ -7,7 +7,7 @@ import { signEventWithMode } from './actions.js';
 import { POSTLINK_DEFAULT_TITLE, POSTLINK_DEFAULT_URL } from '../../config/constants.js';
 import { debounce } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
-import { getEventSeenOn, getReadRelays } from '../../core/relay.js';
+import { getEventSeenOn, getReadRelays, profileIndexerRelays } from '../../core/relay.js';
 import { findEventById } from '../../core/state.js';
 
 const DEFAULT_TITLE = POSTLINK_DEFAULT_TITLE;
@@ -473,6 +473,58 @@ export async function setupPostLinkUI(settingsManager) {
       } catch (e) { }
 
       return hints.slice(0, 4);
+    }
+
+    function normalizeRelayUrlForEmbed(url) {
+      if (typeof url !== 'string') return null;
+      const trimmed = url.trim();
+      if (!trimmed) return null;
+      try {
+        const u = new URL(trimmed);
+        if (u.protocol !== 'ws:' && u.protocol !== 'wss:') return null;
+        if (u.username || u.password) return null;
+        return u.toString().replace(/\/+$/, '');
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function buildHostRelayConfigPayload(state) {
+      const relayMap = new Map();
+
+      // 1. nokakoi 側で設定されている Read / Write リレー
+      if (state && Array.isArray(state.relays)) {
+        for (const r of state.relays) {
+          if (!r || typeof r !== 'object') continue;
+          const norm = normalizeRelayUrlForEmbed(r.url);
+          if (!norm) continue;
+          const read = !!r.read;
+          const write = !!r.write;
+          if (!read && !write) continue;
+          const existing = relayMap.get(norm);
+          if (existing) {
+            existing.read = existing.read || read;
+            existing.write = existing.write || write;
+          } else {
+            relayMap.set(norm, { url: norm, read, write });
+          }
+        }
+      }
+
+      // 2. インデクサリレー（directory.yabu.me + purplepag.es）を read: true として追加
+      for (const idx of profileIndexerRelays) {
+        const norm = normalizeRelayUrlForEmbed(idx);
+        if (!norm) continue;
+        const existing = relayMap.get(norm);
+        if (existing) {
+          existing.read = true;
+        } else {
+          relayMap.set(norm, { url: norm, read: true, write: false });
+        }
+      }
+
+      const list = Array.from(relayMap.values()).filter(r => r.read || r.write);
+      return list.length ? list : null;
     }
 
     function encodeNeventForEmbed(eventId, options = {}) {
@@ -1159,6 +1211,41 @@ export async function setupPostLinkUI(settingsManager) {
           }
           if (iframeEl && e.source !== iframeEl.contentWindow) return;
 
+          if (data.type === 'relays.request') {
+            try {
+              const state = getNostrState && getNostrState();
+              const relayPayload = buildHostRelayConfigPayload(state);
+              if (relayPayload && relayPayload.length > 0) {
+                postToEhagakiIframe({
+                  namespace: EMBED_NS,
+                  version: 1,
+                  type: 'relays.set',
+                  requestId: data.requestId,
+                  payload: relayPayload,
+                });
+              } else {
+                postToEhagakiIframe({
+                  namespace: EMBED_NS,
+                  version: 1,
+                  type: 'relays.error',
+                  requestId: data.requestId,
+                  payload: { message: 'no_relays_available' },
+                });
+              }
+            } catch (err) {
+              try {
+                postToEhagakiIframe({
+                  namespace: EMBED_NS,
+                  version: 1,
+                  type: 'relays.error',
+                  requestId: data.requestId,
+                  payload: { message: err?.message || 'internal_error' },
+                });
+              } catch (ee) { }
+            }
+            return;
+          }
+
           if (data.type === 'storage.get' || data.type === 'storage.set' || data.type === 'storage.remove') {
             handleStorageDelegation(data);
             return;
@@ -1449,6 +1536,11 @@ export async function setupPostLinkUI(settingsManager) {
               try { u.searchParams.set('defaultReplyNotification', replyNotification ? 'true' : 'false'); } catch (e) { }
             }
           } catch (e) { }
+
+          try {
+            u.searchParams.set('hostRelayConfig', '1');
+          } catch (e) { }
+
           safeTarget = u.toString();
         } catch (e) { /* URL操作エラーは無視 */ }
         iframe.src = safeTarget;

@@ -3,7 +3,7 @@ export {
   defaultIntlRelayUrl,
   defaultJaRelayUrl,
   getDefaultGlobalRelayByLang,
-  profileIndexerRelay,
+  profileIndexerRelays,
   stopMonitoringRelays,
   loadRelays,
   saveRelays,

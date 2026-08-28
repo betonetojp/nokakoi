@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../core/relay.js', () => ({
-  profileIndexerRelay: 'wss://profile.example'
+  profileIndexerRelays: ['wss://profile.example', 'wss://profile2.example']
 }));
 vi.mock('../../utils/utils.js', () => ({
   truncateName: vi.fn((value) => value),
@@ -64,7 +64,7 @@ describe('profile indexer queue', () => {
 
     expect(pool.querySync).toHaveBeenCalledTimes(1);
     expect(pool.querySync).toHaveBeenLastCalledWith(
-      ['wss://profile.example'],
+      ['wss://profile.example', 'wss://profile2.example'],
       { kinds: [0], authors: ['alice'], limit: 20 },
       { maxWait: 800 }
     );
@@ -78,7 +78,7 @@ describe('profile indexer queue', () => {
 
     expect(pool.querySync).toHaveBeenCalledTimes(2);
     expect(pool.querySync).toHaveBeenLastCalledWith(
-      ['wss://profile.example'],
+      ['wss://profile.example', 'wss://profile2.example'],
       { kinds: [0], authors: ['bob'], limit: 20 },
       { maxWait: 800 }
     );

@@ -10,7 +10,9 @@ export const defaultRelays = [
   { url: 'wss://yabu.me', read: true, write: true }
 ];
 
-export const profileIndexerRelay = 'wss://directory.yabu.me';
+export const profileIndexerRelays = [
+  'wss://directory.yabu.me',
+];
 
 /**
  * 言語に応じたデフォルトのグローバル選択リレーリストを返す（一元化関数）

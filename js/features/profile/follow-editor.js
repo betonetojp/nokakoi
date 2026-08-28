@@ -6,7 +6,7 @@
 import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../core/replaceable-event.js';
 import { t } from '../../utils/i18n.js';
 import { getNip19, getSimplePool } from '../../core/nostr-compat.js';
-import { getReadRelays, relayConnect, profileIndexerRelay } from '../../core/relay.js';
+import { getReadRelays, relayConnect, profileIndexerRelays } from '../../core/relay.js';
 import { displayNameWithUsername, loadProfile, updateNameDom } from './profile.js';
 
 const SNAPSHOTS_KEY_BASE = 'follow_list_snapshots';
@@ -32,8 +32,8 @@ export async function checkMutualFollow(state, targetPubkey, myPubkey, cache = n
     const SimplePool = getSimplePool();
     const userRelays = getReadRelays(state ? state.relays : null) || [];
     const fetchRelays = [...userRelays];
-    if (profileIndexerRelay && !fetchRelays.includes(profileIndexerRelay)) {
-      fetchRelays.push(profileIndexerRelay);
+    for (const idx of profileIndexerRelays) {
+      if (idx && !fetchRelays.includes(idx)) fetchRelays.push(idx);
     }
     if (!fetchRelays.length) return false;
 
