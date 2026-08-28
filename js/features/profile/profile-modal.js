@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { $, escapeHtml, fmtTime } from '../../utils/utils.js';
+import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { subOnce, getReadRelays, relayConnect, profileIndexerRelays } from '../../core/relay.js';
 import { getSimplePool, getNip19 } from '../../core/nostr-compat.js';
 import { renderEvent } from '../../ui/renderer.js';
