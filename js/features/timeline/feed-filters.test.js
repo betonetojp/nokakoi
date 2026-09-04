@@ -45,8 +45,10 @@ describe('feed filters', () => {
     expect(mentionFilters).toHaveLength(2);
     expect(mentionFilters[0].kinds).toEqual([1, 6, 7, 16, 42, 1111, 9735]);
     expect(mentionFilters[1].kinds).toEqual([1111]);
-    expect(mentionFilters[1]['#P']).toEqual(['me']);
-    expect(getFeedBaseFilters(state, settings, 'me')[0].authors).toEqual(['me']);
+    const meFilters = getFeedBaseFilters(state, settings, 'me');
+    expect(meFilters).toHaveLength(2);
+    expect(meFilters[0].authors).toEqual(['me']);
+    expect(meFilters[1]).toEqual({ kinds: [9735], '#P': ['me'], limit: EVENTS_FETCH_LIMIT });
     expect(getFeedBaseFilters(state, settings, 'bitchat')[0].kinds).toEqual([20000]);
     expect(getFeedBaseFilters(state, settings, 'global')[0].kinds).toEqual([1, 6, 1111]);
   });

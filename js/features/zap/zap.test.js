@@ -13,6 +13,7 @@ import {
   zapReceiptMatchesPayment,
   applyZapReceiptToZappedState,
   isIncomingZapReceiptFor,
+  isOutgoingZapReceiptFor,
   loadZapAmountHistory,
   getLastZapAmount,
   rememberZapAmount,
@@ -239,6 +240,8 @@ describe('Zap Service Helpers', () => {
       };
       expect(isIncomingZapReceiptFor(ev, 'recipient')).toBe(true);
       expect(isIncomingZapReceiptFor(ev, 'sender')).toBe(false);
+      expect(isOutgoingZapReceiptFor(ev, 'sender')).toBe(true);
+      expect(isOutgoingZapReceiptFor(ev, 'recipient')).toBe(false);
     });
 
     it('marks the target note when the logged-in user sent the zap', () => {

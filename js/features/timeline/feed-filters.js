@@ -2,7 +2,7 @@ import { EVENTS_FETCH_LIMIT } from '../../config/constants.js';
 
 /**
  * 自分が送った Zap レシート (kind:9735 の P タグ)。
- * フィード表示用ではなく Zap 済み判定用。addToFeed 側でタイムラインへは入れない。
+ * ホーム/自分フィードでの送信Zap表示および Zap 済み判定用。
  */
 export function buildOutgoingZapReceiptFilter(pubkey, extra = {}) {
   if (!pubkey) return null;
@@ -50,7 +50,10 @@ export function getFeedBaseFilters(state, settingsManager, feedId) {
       ];
     } else if (feedId === 'me') {
       const pubkey = localStorage.getItem('pubkey');
-      return [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
+      return [
+        { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT },
+        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT })
+      ].filter(Boolean);
     } else if (feedId === 'bitchat') {
       return [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT }];
     } else if (feedId === 'global') {

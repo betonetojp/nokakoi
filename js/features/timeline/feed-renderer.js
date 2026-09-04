@@ -833,7 +833,10 @@ export function renderFeed(id = 'global', force = false) {
           ];
         } else if (id === 'me') {
           const pubkey = localStorage.getItem('pubkey');
-          baseFilters = [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
+          baseFilters = [
+            { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT },
+            buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT })
+          ].filter(Boolean);
         } else if (id === 'bitchat') {
           baseFilters = [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT }];
         } else if (id === 'global') {

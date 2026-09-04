@@ -190,6 +190,13 @@ export function isIncomingZapReceiptFor(ev, pubkey) {
   return ((ev.tags || []).some((t) => Array.isArray(t) && t[0] === 'p' && t[1] && String(t[1]).toLowerCase() === want));
 }
 
+export function isOutgoingZapReceiptFor(ev, pubkey) {
+  if (!ev || ev.kind !== 9735 || !pubkey) return false;
+  const want = String(pubkey).toLowerCase();
+  const sender = String(getZapReceiptSenderPubkey(ev) || '').toLowerCase();
+  return sender === want;
+}
+
 export function toLightningUri(pr) {
   const inv = String(pr || '').replace(/\s/g, '');
   if (!inv) return '';

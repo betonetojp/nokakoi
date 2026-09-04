@@ -6,7 +6,7 @@ import { setupCustomEmojiSubscription, scheduleCustomEmojiSubscription } from '.
 import { renderFeed, scheduleRender, userKind7Memory, feedLoadState, ensureEventRestored } from '../../features/timeline/feed-renderer.js';
 import { pickChannelRootId, prefetchChannelMetadata } from '../../features/channel/channel.js';
 import { updateUserStatusDom, updateNameDom, loadProfile } from '../../features/profile/profile.js';
-import { applyZapReceiptToZappedState, isIncomingZapReceiptFor } from '../../features/zap/zap.js';
+import { applyZapReceiptToZappedState, isIncomingZapReceiptFor, isOutgoingZapReceiptFor } from '../../features/zap/zap.js';
 import { applyReactionToButton } from '../../ui/renderer.js';
 import { showFeedNotification, sanitizeNotificationBody, ensureNotificationPermission, shouldShowBrowserNotification, normalizeMentionNotificationMode, _notifiedEventIds } from '../../utils/notification.js';
 import { t } from '../../utils/i18n.js';
@@ -512,7 +512,16 @@ export function addToFeed(feedId, ev, keepLatestCount = null, relay = null) {
       try { applyZapReceiptToZappedState(state, ev); } catch (e) { }
       let myPub = '';
       try { myPub = localStorage.getItem('pubkey') || ''; } catch (e) { }
-      if (!isIncomingZapReceiptFor(ev, myPub)) {
+      const isIncoming = isIncomingZapReceiptFor(ev, myPub);
+      const isOutgoing = isOutgoingZapReceiptFor(ev, myPub);
+
+      if (feedId === 'mentions') {
+        if (!isIncoming) return;
+      } else if (feedId === 'me') {
+        if (!isOutgoing) return;
+      } else if (feedId === 'home') {
+        if (!isIncoming && !isOutgoing) return;
+      } else {
         return;
       }
     }
@@ -1027,7 +1036,10 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
               if (shouldMulticastToMentions(ev, pubkey)) {
                 addToFeed('mentions', ev, keepCount, relay);
               }
-              if (ev.pubkey === pubkey && [1, 6, 7, 42, 16, 1111, 30315].includes(ev.kind)) {
+              if (
+                (ev.pubkey === pubkey && [1, 6, 7, 42, 16, 1111, 30315].includes(ev.kind)) ||
+                (ev.kind === 9735 && isOutgoingZapReceiptFor(ev, pubkey))
+              ) {
                 addToFeed('me', ev, keepCount, relay);
               }
             }
@@ -1104,7 +1116,10 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
       try {
         if (!state.feeds['me']) state.feeds['me'] = { list: [], map: new Map() };
         const isMeActive = activeTab === 'me';
-        const meHist = isMeActive ? [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }] : [];
+        const meHist = isMeActive ? [
+          { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT },
+          buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT })
+        ].filter(Boolean) : [];
         stopFetcherSlot('_meFetcher');
         const meFetcher = setupFeedFetcher({
           state,
@@ -1122,7 +1137,10 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
       } catch (e) {
         // 例外時のフォールバック処理
         try {
-          subOnce(state, 'me_hist', [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }], (ev3, relay, done) => {
+          subOnce(state, 'me_hist', [
+            { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT },
+            buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT })
+          ].filter(Boolean), (ev3, relay, done) => {
             if (ev3) addToFeed('me', ev3);
             if (done) {
               const list = state.feeds['me'] && state.feeds['me'].list;
@@ -1398,7 +1416,10 @@ export function setupSingleFeed(feedId) {
           if (shouldMulticastToMentions(ev, pubkey)) {
             addToFeed('mentions', ev, keepCount, relay);
           }
-          if (ev.pubkey === pubkey && [1, 6, 7, 42, 16, 1111, 30315].includes(ev.kind)) {
+          if (
+            (ev.pubkey === pubkey && [1, 6, 7, 42, 16, 1111, 30315].includes(ev.kind)) ||
+            (ev.kind === 9735 && isOutgoingZapReceiptFor(ev, pubkey))
+          ) {
             addToFeed('me', ev, keepCount, relay);
           }
         }
@@ -1464,7 +1485,10 @@ export function setupSingleFeed(feedId) {
       });
       state._mentionsFetcher = mentionsFetcher;
     } else if (feedId === 'me') {
-      const meHist = [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];
+      const meHist = [
+        { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT },
+        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT })
+      ].filter(Boolean);
       stopFetcherSlot('_meFetcher');
       const meFetcher = setupFeedFetcher({
         state,

@@ -4,7 +4,9 @@ const mocks = vi.hoisted(() => ({
   getReadRelays: vi.fn(() => ['wss://relay.example']),
   setupFeedFetcher: vi.fn(),
   subOnce: vi.fn(),
-  unsubscribeAll: vi.fn()
+  unsubscribeAll: vi.fn(),
+  isIncomingZapReceiptFor: vi.fn(() => false),
+  isOutgoingZapReceiptFor: vi.fn(() => false)
 }));
 
 vi.mock('../../core/state.js', () => ({
@@ -71,7 +73,8 @@ vi.mock('./feed-filters.js', () => ({
 }));
 vi.mock('../zap/zap.js', () => ({
   applyZapReceiptToZappedState: vi.fn(),
-  isIncomingZapReceiptFor: vi.fn(() => false)
+  isIncomingZapReceiptFor: mocks.isIncomingZapReceiptFor,
+  isOutgoingZapReceiptFor: mocks.isOutgoingZapReceiptFor
 }));
 
 import {
@@ -80,7 +83,8 @@ import {
   setupBitchatFeed,
   setupGlobalFeed,
   setupSingleFeed,
-  getRenderSettingsWithUiState
+  getRenderSettingsWithUiState,
+  addToFeed
 } from './feed-manager.js';
 
 function createSettings(values) {
@@ -278,6 +282,12 @@ describe('feed manager startup lifecycle', () => {
     const mentionsOptions = mocks.setupFeedFetcher.mock.calls.find(([opts]) => opts.feedId === 'mentions')[0];
     expect(mentionsOptions.histFilters[0].kinds).toEqual([1, 6, 7, 16, 42, 1111, 9735]);
     expect(mentionsOptions.histFilters[1].kinds).toEqual([1111]);
+
+    setupSingleFeed('me');
+    const meOptions = mocks.setupFeedFetcher.mock.calls.find(([opts]) => opts.feedId === 'me')[0];
+    expect(meOptions.histFilters[0].kinds).toEqual([1, 6, 7, 42, 16, 1111]);
+    expect(meOptions.histFilters[1].kinds).toEqual([9735]);
+    expect(meOptions.histFilters[1]['#P']).toBeDefined();
   });
 
   it('reflects updated settings in getRenderSettingsWithUiState even if settingsManager.settings object is replaced', () => {
@@ -301,5 +311,52 @@ describe('feed manager startup lifecycle', () => {
     };
     renderSettings = getRenderSettingsWithUiState('home');
     expect(renderSettings.showTimelineMedia).toBe(true);
+  });
+
+  it('routes kind:9735 properly to home, me, and mentions feeds', () => {
+    const state = {
+      pool: {},
+      relays: ['wss://relay.example'],
+      subs: new Map(),
+      feeds: {
+        home: createFeed(),
+        mentions: createFeed(),
+        me: createFeed(),
+        global: createFeed()
+      }
+    };
+    initFeedManager(state, createSettings({}));
+
+    const incomingZap = { id: 'zap-in', kind: 9735, created_at: 100 };
+    const outgoingZap = { id: 'zap-out', kind: 9735, created_at: 101 };
+    const unrelatedZap = { id: 'zap-other', kind: 9735, created_at: 102 };
+
+    mocks.isIncomingZapReceiptFor.mockImplementation((ev) => ev.id === 'zap-in');
+    mocks.isOutgoingZapReceiptFor.mockImplementation((ev) => ev.id === 'zap-out');
+
+    // mentions: Incoming only
+    addToFeed('mentions', incomingZap);
+    addToFeed('mentions', outgoingZap);
+    addToFeed('mentions', unrelatedZap);
+    expect(state.feeds.mentions.list.map(e => e.id)).toEqual(['zap-in']);
+
+    // me: Outgoing only
+    addToFeed('me', incomingZap);
+    addToFeed('me', outgoingZap);
+    addToFeed('me', unrelatedZap);
+    expect(state.feeds.me.list.map(e => e.id)).toEqual(['zap-out']);
+
+    // home: Both incoming and outgoing, no unrelated
+    addToFeed('home', incomingZap);
+    addToFeed('home', outgoingZap);
+    addToFeed('home', unrelatedZap);
+    expect(state.feeds.home.list.map(e => e.id)).toContain('zap-in');
+    expect(state.feeds.home.list.map(e => e.id)).toContain('zap-out');
+    expect(state.feeds.home.list.map(e => e.id)).not.toContain('zap-other');
+
+    // global: None
+    addToFeed('global', incomingZap);
+    addToFeed('global', outgoingZap);
+    expect(state.feeds.global.list).toHaveLength(0);
   });
 });

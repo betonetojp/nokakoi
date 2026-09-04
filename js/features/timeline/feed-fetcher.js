@@ -171,7 +171,7 @@ export function setupFeedFetcher(opts) {
 
   const absorbHistEvent = (ev, relay) => {
     if (!ev) return;
-    if (ev.kind === 30315) {
+    if (ev.kind === 30315 || ev.kind === 9735) {
       try { if (typeof addToFeed === 'function') addToFeed(feedId, ev, null, relay); } catch (e) { }
       return;
     }
