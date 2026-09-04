@@ -160,6 +160,14 @@ export async function updateNostrNpubLinks(container) {
     const pubkey = link.dataset.pubkey;
     if (!pubkey) continue;
 
+    if (state.followPetnames && state.followPetnames.has(pubkey)) {
+      const pet = state.followPetnames.get(pubkey);
+      if (pet) {
+        link.innerHTML = replaceBadgeEmoji(escapeHtml('\u200B📛' + pet));
+        continue;
+      }
+    }
+
     const profile = state.profiles.get(pubkey);
     if (profile) {
       const displayNameVal = (profile.display_name || profile.name || '').trim();
@@ -170,6 +178,13 @@ export async function updateNostrNpubLinks(container) {
       try {
         const { loadProfile } = await import('../../features/profile/profile.js');
         loadProfile(state, pubkey).then(() => {
+          if (state.followPetnames && state.followPetnames.has(pubkey)) {
+            const pet = state.followPetnames.get(pubkey);
+            if (pet) {
+              link.innerHTML = replaceBadgeEmoji(escapeHtml('\u200B📛' + pet));
+              return;
+            }
+          }
           const prof = state.profiles.get(pubkey);
           if (prof) {
             const displayNameVal = (prof.display_name || prof.name || '').trim();

@@ -1,8 +1,8 @@
-import { getZapReceiptAmountSats, getZapReceiptSenderPubkey } from '../../features/zap/zap.js';
+import { getZapReceiptAmountSats, getZapReceiptSenderPubkey, getZapReceiptRecipientPubkey, isOutgoingZapReceiptFor } from '../../features/zap/zap.js';
 import { findEventById } from '../../core/state.js';
 import { displayName } from '../../features/profile/profile.js';
 import { escapeHtml, truncateName, replaceBadgeEmoji } from '../../utils/utils.js';
-import { linkifyText, getEffectiveTextLength, getPreviewWithFullLinksAndEmojis } from '../../utils/url-parser.js';
+import { linkifyText, getEffectiveTextLength, getPreviewWithFullLinksAndEmojis, getNip19 } from '../../utils/url-parser.js';
 import { t } from '../../utils/i18n.js';
 import { MAX_PREVIEW_LINES } from '../../config/constants.js';
 import { pickETagEventId, pickETagWithHint, resolvePreviewMaxLength, evaluateMuteState } from './render-helpers.js';
@@ -30,24 +30,125 @@ function isOpaqueDisplayName(name, pubkey) {
   }
 }
 
+export function renderZapReceiptAuthorLinkHtml(state, pubkey, nip19) {
+  if (!pubkey) return '';
+  const effectiveNip19 = nip19 || getNip19();
+  let npub = '';
+  try {
+    if (effectiveNip19 && typeof effectiveNip19.npubEncode === 'function' && /^[0-9a-f]{64}$/i.test(pubkey)) {
+      npub = effectiveNip19.npubEncode(pubkey);
+    }
+  } catch (_e) {}
+
+  const uri = npub ? `nostr:${npub}` : `nostr:${pubkey}`;
+  const href = npub ? `#npub:${npub}` : `#npub:${pubkey}`;
+  const title = npub || pubkey;
+
+  // petname 優先で表示名を解決
+  let initialLabel = '';
+  let isPetname = false;
+  try {
+    if (state && state.followPetnames && state.followPetnames.has(pubkey)) {
+      const pet = state.followPetnames.get(pubkey);
+      if (pet) {
+        initialLabel = '\u200B📛' + pet;
+        isPetname = true;
+      }
+    }
+  } catch (_e) {}
+
+  if (!initialLabel && state && state.profiles) {
+    const prof = state.profiles.get(pubkey);
+    if (prof) {
+      const name = (prof.display_name || prof.name || '').trim();
+      if (name) {
+        initialLabel = '@' + name;
+      }
+    }
+  }
+
+  if (!initialLabel) {
+    initialLabel = npub ? `@${npub.substring(0, 12)}...` : `@${pubkey.substring(0, 8)}...`;
+  }
+
+  const labelHtml = isPetname
+    ? replaceBadgeEmoji(escapeHtml(initialLabel))
+    : escapeHtml(initialLabel);
+
+  return '<a href="' + escapeHtml(href) + '" class="nostr-link nostr-npub name" data-uri="' +
+    escapeHtml(uri) + '" data-pubkey="' + escapeHtml(pubkey) +
+    '" title="' + escapeHtml(title) + '">' +
+    labelHtml + '</a>';
+}
+
+function formatZapComment(comment) {
+  if (!comment || !comment.trim()) return '';
+  const lines = comment.split(/\r\n|\r|\n/);
+  return lines.map((line) => (line.trim() === '' ? '💬' : `💬 ${line}`)).join('\n');
+}
+
 export function formatZapReceiptLabel(state, ev, nip19) {
+  const myPubkey = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage.getItem('pubkey') : '';
+  const isOutgoing = !!(myPubkey && isOutgoingZapReceiptFor(ev, myPubkey));
   const senderPubkey = getZapReceiptSenderPubkey(ev) || (ev && ev.pubkey) || '';
-  const comment = getZapRequestComment(ev);
+  const recipientPubkey = getZapReceiptRecipientPubkey(ev);
+  const targetPubkey = isOutgoing ? recipientPubkey : senderPubkey;
+  const direction = isOutgoing ? 'to' : 'from';
+
   const sats = getZapReceiptAmountSats(ev);
-  const zapSenderName = displayName(state, senderPubkey, nip19);
-  const displayAuthorName = isOpaqueDisplayName(zapSenderName, senderPubkey) ? '誰か' : zapSenderName;
-  const zapLabel = comment ? `${sats} sat (${escapeHtml(comment)})` : `${sats} sat`;
+  const amountStr = sats > 0 ? (sats === 1 ? '1sat' : `${sats}sats`) : 'Zap';
+
+  const effectiveNip19 = nip19 || getNip19();
+  let npub = '';
+  try {
+    if (effectiveNip19 && typeof effectiveNip19.npubEncode === 'function' && targetPubkey && /^[0-9a-f]{64}$/i.test(targetPubkey)) {
+      npub = effectiveNip19.npubEncode(targetPubkey);
+    }
+  } catch (_e) {}
+  const mention = npub ? `nostr:${npub}` : (targetPubkey ? `nostr:${targetPubkey}` : '');
+
+  const header = mention ? `⚡ ${amountStr} ${direction} ${mention}` : `⚡ ${amountStr} ${direction}`;
+  const rawComment = getZapRequestComment(ev);
+  const formattedComment = formatZapComment(rawComment);
+  const fullLabel = formattedComment ? `${header}\n${formattedComment}` : header;
+
   return {
     senderPubkey,
-    label: `Zap from ${escapeHtml(displayAuthorName)}: ${zapLabel}`
+    recipientPubkey,
+    targetPubkey,
+    direction,
+    sats,
+    header,
+    comment: formattedComment,
+    rawComment,
+    label: fullLabel
   };
 }
 
 function renderZapReceiptBannerHtml(state, ev, nip19, extraAttrs, extraInner) {
-  const { senderPubkey, label } = formatZapReceiptLabel(state, ev, nip19);
+  const { senderPubkey, targetPubkey, direction, sats, comment } = formatZapReceiptLabel(state, ev, nip19);
   const attrs = extraAttrs ? extraAttrs : '';
   const extra = extraInner || '';
-  return '<div class="reply-to zap"' + attrs + '><span class="reply-marker"><img src="icon/zap.svg" alt="" class="icon"/></span><span class="reply-to-author" data-pubkey="' + escapeHtml(senderPubkey) + '"><span>' + replaceBadgeEmoji(label) + '</span></span>' + extra + '</div>';
+
+  const amountStr = sats > 0 ? (sats === 1 ? '1sat' : `${sats}sats`) : 'Zap';
+  const prefixText = `⚡ ${amountStr} ${direction} `;
+  const authorLinkHtml = renderZapReceiptAuthorLinkHtml(state, targetPubkey || senderPubkey, nip19);
+
+  const commentHtml = comment ? linkifyText(comment, ev && ev.tags ? ev.tags : [], { inlineMedia: false }) : '';
+
+  let html = '<div class="reply-to zap"' + attrs + '>';
+  html += '<div class="zap-header">';
+  html += '<span class="zap-header-prefix">' + escapeHtml(prefixText) + '</span>';
+  html += authorLinkHtml;
+  html += '</div>';
+
+  if (commentHtml) {
+    html += '<div class="zap-comment">' + replaceBadgeEmoji(commentHtml) + '</div>';
+  }
+
+  html += extra;
+  html += '</div>';
+  return html;
 }
 
 export function renderReplyContext(state, ev, nip19, settings) {

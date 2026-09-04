@@ -184,6 +184,12 @@ export function getZapReceiptTargetEventId(ev) {
   return eTags[eTags.length - 1][1];
 }
 
+export function getZapReceiptRecipientPubkey(ev) {
+  if (!ev || !Array.isArray(ev.tags)) return '';
+  const pTag = ev.tags.find((t) => Array.isArray(t) && t[0] === 'p' && t[1]);
+  return pTag ? String(pTag[1]).trim() : '';
+}
+
 export function isIncomingZapReceiptFor(ev, pubkey) {
   if (!ev || ev.kind !== 9735 || !pubkey) return false;
   const want = String(pubkey).toLowerCase();

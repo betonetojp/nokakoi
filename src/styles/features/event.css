@@ -358,6 +358,12 @@ body.theme-light img.icon-btn {
   white-space: nowrap;
   vertical-align: bottom;
 }
+.reply-to-author[data-pubkey] {
+  cursor: pointer;
+}
+.reply-to-author[data-pubkey]:hover {
+  text-decoration: underline;
+}
 .reply-to-content {
   margin-top: 4px;
   font-size: 0.9em;
@@ -386,6 +392,27 @@ body.theme-light img.icon-btn {
 body:not(.theme-light) .reply-to.zap .reply-marker img.icon,
 body.theme-light .reply-to.zap .reply-marker img.icon {
   filter: none;
+}
+.reply-to.zap .zap-header {
+  font-size: 0.9em;
+  color: var(--text);
+  word-break: break-word;
+  line-height: 1.4;
+}
+.reply-to.zap .zap-header a.nostr-link {
+  font-weight: 500;
+  text-decoration: none;
+}
+.reply-to.zap .zap-header a.nostr-link:hover {
+  text-decoration: underline;
+}
+.reply-to.zap .zap-comment {
+  font-size: 0.9em;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-top: 4px;
+  line-height: 1.4;
 }
 .event[data-kind="7"] .reply-marker {
   font-size: 1.5em;
