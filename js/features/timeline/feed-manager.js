@@ -82,7 +82,7 @@ function sameFetcherConfig(fetcher, configKey) {
 
 function shouldMulticastToMentions(ev, pubkey) {
   if (!ev || !pubkey) return false;
-  if (ev.kind !== 1 && ev.kind !== 6 && ev.kind !== 7 && ev.kind !== 1111 && ev.kind !== 9735) return false;
+  if (ev.kind !== 1 && ev.kind !== 6 && ev.kind !== 7 && ev.kind !== 16 && ev.kind !== 42 && ev.kind !== 1111 && ev.kind !== 9735) return false;
   const tags = Array.isArray(ev.tags) ? ev.tags : [];
   // kind:1111 (NIP-22) は親作者が P。9735 の P は送信者なので通知に使わない
   if (ev.kind === 1111) {
@@ -997,7 +997,8 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
       const sinceLive = Math.floor(Date.now() / 1000);
       const homeLive = [
         { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, since: sinceLive },
-        { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], since: sinceLive },
+        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], since: sinceLive },
+        { kinds: [1111], '#P': [pubkey], since: sinceLive },
         buildOutgoingZapReceiptFilter(pubkey, { since: sinceLive }),
         { kinds: [7, 42, 16, 1111], authors: [pubkey], since: sinceLive }
       ].filter(Boolean);
@@ -1064,7 +1065,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
         try { window.__mentionsInitialLoading = true; } catch (e) { }
         const isMentionsActive = activeTab === 'mentions';
         const mentionsHist = isMentionsActive ? [
-          { kinds: [1, 6, 7, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+          { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
           { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
         ] : [];
         stopFetcherSlot('_mentionsFetcher');
@@ -1088,7 +1089,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
         // 例外時のフォールバック処理
         try {
           subOnce(state, 'mentions_hist', [
-            { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+            { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
             { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
           ], (ev2, relay, done) => {
             if (ev2) addToFeed('mentions', ev2);
@@ -1380,7 +1381,8 @@ export function setupSingleFeed(feedId) {
       const sinceLive = Math.floor(Date.now() / 1000);
       const homeLive = [
         { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, since: sinceLive },
-        { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], since: sinceLive },
+        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], since: sinceLive },
+        { kinds: [1111], '#P': [pubkey], since: sinceLive },
         buildOutgoingZapReceiptFilter(pubkey, { since: sinceLive }),
         { kinds: [7, 42, 16, 1111], authors: [pubkey], since: sinceLive }
       ].filter(Boolean);
@@ -1444,7 +1446,7 @@ export function setupSingleFeed(feedId) {
       }
     } else if (feedId === 'mentions') {
       const mentionsHist = [
-        { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
         { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
       ];
       stopFetcherSlot('_mentionsFetcher');

@@ -827,7 +827,10 @@ export function renderFeed(id = 'global', force = false) {
           } catch (e) { console.error('[FeedRenderer] home filter err:', e); baseFilters = []; }
         } else if (id === 'mentions') {
           const pubkey = localStorage.getItem('pubkey');
-          baseFilters = [{ kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT }];
+          baseFilters = [
+            { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+            { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
+          ];
         } else if (id === 'me') {
           const pubkey = localStorage.getItem('pubkey');
           baseFilters = [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }];

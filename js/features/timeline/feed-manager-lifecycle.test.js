@@ -266,6 +266,18 @@ describe('feed manager startup lifecycle', () => {
     const homeOptions = mocks.setupFeedFetcher.mock.calls.find(([opts]) => opts.feedId === 'home')[0];
     expect(homeOptions.relays).toEqual([relayJp, relayUs]);
     expect(homeOptions.liveRelays).toEqual([relayUs]);
+
+    const pFilter = homeOptions.liveFilters.find(f => Array.isArray(f['#p']));
+    expect(pFilter.kinds).toContain(16);
+    expect(pFilter.kinds).toContain(42);
+
+    const capPFilter = homeOptions.liveFilters.find(f => Array.isArray(f['#P']));
+    expect(capPFilter.kinds).toEqual([1111]);
+
+    setupSingleFeed('mentions');
+    const mentionsOptions = mocks.setupFeedFetcher.mock.calls.find(([opts]) => opts.feedId === 'mentions')[0];
+    expect(mentionsOptions.histFilters[0].kinds).toEqual([1, 6, 7, 16, 42, 1111, 9735]);
+    expect(mentionsOptions.histFilters[1].kinds).toEqual([1111]);
   });
 
   it('reflects updated settings in getRenderSettingsWithUiState even if settingsManager.settings object is replaced', () => {
