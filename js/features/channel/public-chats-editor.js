@@ -463,6 +463,8 @@ export async function openPublicChatsEditor(state, options = {}) {
     if (!listHost) return;
     const items = listSection === 'private' ? privateItems : publicItems;
     const editable = listSection === 'public' || canEditPrivate;
+    const prevList = listHost.querySelector('#publicChatsDragList');
+    const prevScroll = prevList ? prevList.scrollTop : 0;
     if (!items.length) {
       listHost.innerHTML = `<div class="muted p-16 text-center">${t('channel.editor.empty') || 'チャンネルがありません'}</div>`;
       return;
@@ -553,9 +555,12 @@ export async function openPublicChatsEditor(state, options = {}) {
 
     listHost.innerHTML = '';
     listHost.appendChild(listEl);
+    if (prevScroll) listEl.scrollTop = prevScroll;
   }
 
   function renderSavedView(container) {
+    const prevSnapList = container.querySelector('.editor-list');
+    const prevSnapScroll = prevSnapList ? prevSnapList.scrollTop : 0;
     const snapshots = loadSnapshots();
     if (!snapshots.length) {
       container.innerHTML = `<div class="muted p-16 text-center">${t('editor.snapshot.empty') || '保存されたリストはありません。'}</div>`;
@@ -626,6 +631,7 @@ export async function openPublicChatsEditor(state, options = {}) {
 
     container.innerHTML = '';
     container.appendChild(listEl);
+    if (prevSnapScroll) listEl.scrollTop = prevSnapScroll;
   }
 
   if (newSaveBtn) {

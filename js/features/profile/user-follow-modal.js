@@ -6,11 +6,71 @@
 import { t } from '../../utils/i18n.js';
 import { getNip19, getSimplePool } from '../../core/nostr-compat.js';
 import { getReadRelays, relayConnect, profileIndexerRelays } from '../../core/relay.js';
-import { displayNameWithUsername, loadProfile } from './profile.js';
+import { displayNameWithUsername, saveProfilesBatchToCache, isAvatarsEnabled, isDomPurgeEnabled } from './profile.js';
 import { updateFollowButtonState, toggleFollowUser } from './follow-editor.js';
 import { bringModalToFront } from '../../ui/setup/modal-helper.js';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 40;
+
+/**
+ * 複数ユーザーのプロフィールを一括非同期取得してキャッシュに保存
+ */
+async function fetchProfilesBatch(state, pubkeys) {
+  if (!Array.isArray(pubkeys) || !pubkeys.length) return;
+  const needed = pubkeys.filter(pk => {
+    const p = (state && state.profiles) ? (state.profiles.get(pk) || state.profiles.get(pk.toLowerCase())) : null;
+    return !p || (!p.loaded && !p.name && !p.display_name);
+  });
+  if (!needed.length) return;
+
+  try {
+    const SimplePool = getSimplePool();
+    if (state && !state.pool) relayConnect(state, SimplePool, () => {});
+    const pool = (state && state.pool) ? state.pool : (typeof SimplePool === 'function' ? new SimplePool() : SimplePool);
+    if (!pool || typeof pool.querySync !== 'function') return;
+
+    const events = await pool.querySync(profileIndexerRelays, {
+      kinds: [0],
+      authors: needed,
+    }, { maxWait: 1200 });
+
+    if (Array.isArray(events)) {
+      const toCache = [];
+      const sortedEvents = events.slice().sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0));
+      for (const ev of sortedEvents) {
+        if (ev && ev.kind === 0 && ev.pubkey && ev.content) {
+          try {
+            const existing = state?.profiles?.get(ev.pubkey);
+            if (existing && existing.created_at && Number(existing.created_at) >= Number(ev.created_at || 0)) {
+              continue;
+            }
+            const meta = JSON.parse(ev.content);
+            const entry = Object.assign({}, meta, {
+              loaded: true,
+              loading: false,
+              fromCache: false,
+              created_at: ev.created_at,
+              lastAttempt: Date.now()
+            });
+            if (state && state.profiles) {
+              state.profiles.set(ev.pubkey, entry);
+              const lower = ev.pubkey.toLowerCase();
+              if (lower !== ev.pubkey) state.profiles.set(lower, entry);
+            }
+            toCache.push({ pubkey: ev.pubkey, profile: meta });
+          } catch (e) { }
+        }
+      }
+      if (toCache.length > 0) {
+        try {
+          saveProfilesBatchToCache(toCache);
+        } catch (e) { }
+      }
+    }
+  } catch (e) {
+    console.warn('[UserFollowModal] 一括プロフィール取得エラー:', e);
+  }
+}
 
 /**
  * ユーザーのフォロー一覧モーダルを開く
@@ -32,17 +92,30 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
   const contentEl = document.getElementById('userFollowListContent');
 
   let listObserver = null;
+  let purgeObserver = null;
   let currentLoadMore = null;
+  let isModalActive = true;
+  let listEl = null;
+  const useDomPurge = isDomPurgeEnabled(state);
+  const showAvatars = isAvatarsEnabled(state);
 
   // モーダルを閉じる処理
   const closeModal = () => {
+    isModalActive = false;
     if (listObserver) {
       try { listObserver.disconnect(); } catch (e) { }
       listObserver = null;
     }
+    if (purgeObserver) {
+      try { purgeObserver.disconnect(); } catch (e) { }
+      purgeObserver = null;
+    }
     currentLoadMore = null;
+    if (listEl) listEl.onscroll = null;
     modal.hidden = true;
     if (statusEl) statusEl.textContent = '';
+    // DOMを即座に破棄してメモリを解放
+    if (contentEl) contentEl.innerHTML = '';
   };
   if (closeBtn) closeBtn.onclick = closeModal;
   if (bottomCloseBtn) bottomCloseBtn.onclick = closeModal;
@@ -152,8 +225,47 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
   }
 
   // リストコンテナ生成
-  const listEl = document.createElement('div');
+  listEl = document.createElement('div');
   listEl.className = 'editor-list';
+
+  // DOMパージ（画面外要素のプレースホルダー置換によるメモリ節約）
+  if (useDomPurge && typeof IntersectionObserver !== 'undefined') {
+    purgeObserver = new IntersectionObserver((entries) => {
+      if (!isModalActive) return;
+      for (const entry of entries) {
+        const el = entry.target;
+        if (!el || !el.isConnected) continue;
+        const pk = el.dataset.pk;
+        if (!pk) continue;
+
+        if (entry.isIntersecting) {
+          // 画面内またはマージン内に戻ったプレースホルダーを実DOMに復元
+          if (el.classList.contains('editor-list-placeholder')) {
+            const newRow = renderItem(pk);
+            purgeObserver.unobserve(el);
+            el.replaceWith(newRow);
+            purgeObserver.observe(newRow);
+          }
+        } else {
+          // 画面外かつマージンを超えた実DOMをプレースホルダーに置換
+          if (!el.classList.contains('editor-list-placeholder') && el.classList.contains('editor-list-item')) {
+            const height = el.offsetHeight > 0 ? el.offsetHeight : 49;
+            const placeholder = document.createElement('div');
+            placeholder.className = 'editor-list-item editor-list-placeholder';
+            placeholder.dataset.pk = pk;
+            placeholder.style.height = `${height}px`;
+            placeholder.style.boxSizing = 'border-box';
+            purgeObserver.unobserve(el);
+            el.replaceWith(placeholder);
+            purgeObserver.observe(placeholder);
+          }
+        }
+      }
+    }, {
+      root: listEl,
+      rootMargin: '600px 0px 600px 0px'
+    });
+  }
 
   let renderedIndex = 0;
 
@@ -161,6 +273,7 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
   function renderItem(pk) {
     const row = document.createElement('div');
     row.className = 'editor-list-item';
+    row.dataset.pk = pk;
 
     const profileInfo = document.createElement('div');
     profileInfo.className = 'editor-list-info';
@@ -168,24 +281,31 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
     const avatar = document.createElement('img');
     avatar.className = 'editor-list-avatar d-none';
     avatar.alt = '';
+    avatar.loading = 'lazy';
+    avatar.decoding = 'async';
     avatar.onerror = () => {
       avatar.classList.add('d-none');
     };
 
     const nameEl = document.createElement('span');
     nameEl.className = 'editor-list-name';
-    nameEl.textContent = pk.substring(0, 10) + '...';
 
     const subEl = document.createElement('span');
     subEl.className = 'editor-list-sub d-none';
 
-    loadProfile(state, pk).then(prof => {
-      if (prof) {
-        if (prof.picture) {
+    // プロフィール表示の更新関数（同期反映 & noLoad で直列キューに積まない）
+    const updateProfileUi = () => {
+      const nip19 = getNip19();
+      const prof = (state && state.profiles) ? (state.profiles.get(pk) || state.profiles.get(pk.toLowerCase())) : null;
+      if (prof && (prof.name || prof.display_name || prof.picture)) {
+        if (prof.picture && showAvatars) {
           avatar.src = prof.picture;
           avatar.classList.remove('d-none');
+        } else {
+          avatar.src = '';
+          avatar.classList.add('d-none');
         }
-        const names = displayNameWithUsername(state, pk, getNip19(), { usePetname: false, noTruncate: true });
+        const names = displayNameWithUsername(state, pk, nip19, { usePetname: false, noTruncate: true, noLoad: true });
         nameEl.textContent = names.main;
         if (names.sub) {
           subEl.textContent = `@${names.sub}`;
@@ -195,16 +315,20 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
           subEl.classList.add('d-none');
         }
       } else {
-        const nip19 = getNip19();
-        nameEl.textContent = nip19 ? nip19.npubEncode(pk).substring(0, 12) + '...' : pk.substring(0, 10) + '...';
+        const shortNpub = (nip19 && typeof nip19.npubEncode === 'function')
+          ? nip19.npubEncode(pk).substring(0, 12) + '...'
+          : pk.substring(0, 10) + '...';
+        nameEl.textContent = shortNpub;
         subEl.textContent = '';
         subEl.classList.add('d-none');
+        avatar.src = '';
+        avatar.classList.add('d-none');
       }
-    }).catch(() => {
-      nameEl.textContent = pk.substring(0, 10) + '...';
-      subEl.textContent = '';
-      subEl.classList.add('d-none');
-    });
+    };
+
+    // 初期表示（キャッシュがあれば即時表示）
+    updateProfileUi();
+    row._updateProfileUi = updateProfileUi;
 
     profileInfo.appendChild(avatar);
     profileInfo.appendChild(nameEl);
@@ -247,10 +371,29 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
   // 段階的読み込み
   function appendNextBatch() {
     const nextBatch = followPubkeys.slice(renderedIndex, renderedIndex + PAGE_SIZE);
+    const rows = [];
     nextBatch.forEach(pk => {
-      listEl.appendChild(renderItem(pk));
+      const row = renderItem(pk);
+      rows.push(row);
+      listEl.appendChild(row);
+      if (purgeObserver) {
+        purgeObserver.observe(row);
+      }
     });
     renderedIndex += nextBatch.length;
+
+    // 未キャッシュのプロフィールを一括取得し、DOMを反映
+    if (nextBatch.length > 0) {
+      fetchProfilesBatch(state, nextBatch).then(() => {
+        if (!isModalActive) return;
+        nextBatch.forEach(pk => {
+          const liveRow = listEl?.querySelector(`.editor-list-item[data-pk="${pk}"]`);
+          if (liveRow && typeof liveRow._updateProfileUi === 'function') {
+            liveRow._updateProfileUi();
+          }
+        });
+      });
+    }
 
     // 既存の「もっと読む」行を削除
     const existingMoreRow = listEl.querySelector('.btn-load-more-follows');

@@ -6,7 +6,7 @@
 import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../core/replaceable-event.js';
 import { getNip04, getNip44, hexToBytes, getNip19 } from '../../core/nostr-compat.js';
 import { t } from '../../utils/i18n.js';
-import { displayNameWithUsername, loadProfile, updateNameDom } from '../profile/profile.js';
+import { displayNameWithUsername, loadProfile, updateNameDom, isAvatarsEnabled } from '../profile/profile.js';
 import { refreshEventsMuteState, invalidateMuteConfigCache } from '../../ui/renderers/render-helpers.js';
 import { signer } from '../../core/signer.js';
 
@@ -909,6 +909,10 @@ export async function openMuteEditor(state) {
     if (contentEl) contentEl.__renderMuteStructure = renderMuteStructure;
     const modalBody = modal.querySelector('.modal-body');
     const savedModalScroll = modalBody ? modalBody.scrollTop : 0;
+    const tabBodyPrev = contentEl.querySelector('#muteTabBody');
+    const savedTabBodyScroll = tabBodyPrev ? tabBodyPrev.scrollTop : 0;
+    const snapListPrev = contentEl.querySelector('#muteMainBody > .editor-list');
+    const savedSnapListScroll = snapListPrev ? snapListPrev.scrollTop : 0;
     const wordsListPrev = contentEl.querySelector('#muteWordsList');
     const usersListPrev = contentEl.querySelector('#muteUsersList');
     const savedWordsScroll = wordsListPrev ? wordsListPrev.scrollTop : 0;
@@ -950,6 +954,10 @@ export async function openMuteEditor(state) {
 
     requestAnimationFrame(() => {
       if (modalBody) modalBody.scrollTop = savedModalScroll;
+      const tabBodyNew = contentEl.querySelector('#muteTabBody');
+      if (tabBodyNew && savedTabBodyScroll) tabBodyNew.scrollTop = savedTabBodyScroll;
+      const snapListNew = contentEl.querySelector('#muteMainBody > .editor-list');
+      if (snapListNew && savedSnapListScroll) snapListNew.scrollTop = savedSnapListScroll;
       const wordsListNew = contentEl.querySelector('#muteWordsList');
       const usersListNew = contentEl.querySelector('#muteUsersList');
       if (wordsListNew) wordsListNew.scrollTop = savedWordsScroll;
@@ -1214,9 +1222,12 @@ export async function openMuteEditor(state) {
 
         loadProfile(state, item.pubkey).then(prof => {
           if (prof) {
-            if (prof.picture) {
+            if (prof.picture && isAvatarsEnabled(state)) {
               avatar.src = prof.picture;
               avatar.classList.remove('d-none');
+            } else {
+              avatar.src = '';
+              avatar.classList.add('d-none');
             }
             const names = displayNameWithUsername(state, item.pubkey, getNip19(), { usePetname: false, noTruncate: true });
             nameEl.textContent = names.main;

@@ -269,8 +269,7 @@
   background: rgba(124, 147, 255, 0.04);
 }
 
-#profileModal .modal-body,
-#userFollowListModal .modal-body {
+#profileModal .modal-body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -278,27 +277,11 @@
   height: calc(var(--vh, 1vh) * 100 - 40px);
 }
 
-#userFollowListContent {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  overflow: hidden;
-  min-height: 0;
-}
-
-#userFollowListModal .editor-list {
-  flex: 1 1 auto;
-  max-height: none;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-#userFollowListModal .modal-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
+@media (max-width: 768px) {
+  #profileModal .modal-body {
+    max-height: calc(var(--vh, 1vh) * 100 - 28px);
+    height: calc(var(--vh, 1vh) * 100 - 28px);
+  }
 }
 
 #userFollowListTitle {
@@ -312,6 +295,7 @@
 #userFollowListClose {
   flex-shrink: 0;
 }
+
 #profileModal > .modal-body > #profileContent {
   display: flex;
   flex-direction: column;

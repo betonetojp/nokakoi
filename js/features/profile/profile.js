@@ -69,35 +69,48 @@ function loadProfileCache() {
 }
 
 /**
- * プロフィールをキャッシュに保存
+ * 複数プロフィールを一括でキャッシュに保存
  */
-export function saveProfileToCache(pubkey, profile) {
+export function saveProfilesBatchToCache(entries) {
+  if (!Array.isArray(entries) || !entries.length) return;
   try {
     const cached = localStorage.getItem(PROFILE_CACHE_KEY);
     const data = cached ? JSON.parse(cached) : {};
+    const now = Date.now();
 
-    data[pubkey] = {
-      ...profile,
-      cachedAt: Date.now()
-    };
+    for (const item of entries) {
+      if (item && item.pubkey && item.profile) {
+        data[item.pubkey] = {
+          ...item.profile,
+          cachedAt: now
+        };
+      }
+    }
 
     // キャッシュサイズ上限1000件
-    const entries = Object.entries(data);
-    if (entries.length > 1000) {
+    const allEntries = Object.entries(data);
+    if (allEntries.length > 1000) {
       // cachedAtでソートし新しい1000件のみ保持
-      entries.sort((a, b) => (b[1].cachedAt || 0) - (a[1].cachedAt || 0));
-      const limited = Object.fromEntries(entries.slice(0, 1000));
+      allEntries.sort((a, b) => (b[1].cachedAt || 0) - (a[1].cachedAt || 0));
+      const limited = Object.fromEntries(allEntries.slice(0, 1000));
       localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(limited));
     } else {
       localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(data));
     }
   } catch (e) {
-    console.warn('[Profile] プロフィールキャッシュ保存失敗:', e);
+    console.warn('[Profile] プロフィール一括キャッシュ保存失敗:', e);
     // localStorageがいっぱいなら古いデータをクリア
     try {
       localStorage.removeItem(PROFILE_CACHE_KEY);
     } catch { }
   }
+}
+
+/**
+ * プロフィールをキャッシュに保存
+ */
+export function saveProfileToCache(pubkey, profile) {
+  saveProfilesBatchToCache([{ pubkey, profile }]);
 }
 
 /**
@@ -473,20 +486,45 @@ export function refreshAllZapButtons(state) {
 }
 
 /**
- * pubkeyのアバター画像をDOMに反映
+ * アプリ設定のプロフィール画像表示フラグを取得
  */
-export function updateAvatarDom(state, pubkey) {
-  if (!pubkey) return;
-  let showAvatars = true;
+export function isAvatarsEnabled(state) {
+  if (state && state.settings && typeof state.settings.get === 'function') {
+    return state.settings.get('showAvatars') !== false;
+  }
   try {
     const saved = localStorage.getItem('appSettings');
     if (saved) {
       const s = JSON.parse(saved);
-      if (s.showAvatars === false) showAvatars = false;
+      if (s.showAvatars === false) return false;
     }
   } catch (e) { }
+  return true;
+}
 
-  if (!showAvatars) return;
+/**
+ * アプリ設定のDOMパージ有効フラグを取得
+ */
+export function isDomPurgeEnabled(state) {
+  if (state && state.settings && typeof state.settings.get === 'function') {
+    return state.settings.get('useDomPurge') === true;
+  }
+  try {
+    const saved = localStorage.getItem('appSettings');
+    if (saved) {
+      const s = JSON.parse(saved);
+      if (s.useDomPurge === true) return true;
+    }
+  } catch (e) { }
+  return false;
+}
+
+/**
+ * pubkeyのアバター画像をDOMに反映
+ */
+export function updateAvatarDom(state, pubkey) {
+  if (!pubkey) return;
+  if (!isAvatarsEnabled(state)) return;
 
   const prof = state && state.profiles ? state.profiles.get(pubkey) : null;
   const avatarUrl = sanitizeUrlCandidate((prof && prof.picture) || '') || '';
@@ -552,31 +590,34 @@ export function displayNameWithUsername(state, pubkey, nip19, options = {}) {
   const names = getNamesFromMeta(prof);
   const usePetname = options.usePetname !== false;
   const noTruncate = options.noTruncate === true;
+  const noLoad = options.noLoad === true;
 
-  // 名前がなくロード中でなければプロフィールロード
-  if (!names.displayName && (!prof || (!prof.loading && !prof.loaded))) {
-    loadProfile(state, pubkey);
-  }
-  // キャッシュ由来ならバックグラウンドで再ロード
-  if (prof && prof.fromCache && !prof.loading) {
-    const now = Date.now();
-    const lastAttempt = prof.lastAttempt || 0;
-    //5秒以上経過で再ロード
-    if (now - lastAttempt > 5000) {
+  if (!noLoad) {
+    // 名前がなくロード中でなければプロフィールロード
+    if (!names.displayName && (!prof || (!prof.loading && !prof.loaded))) {
       loadProfile(state, pubkey);
     }
-  }
-  // プロフィールはあるが名前なし、かつしばらく経過なら再試行
-  if (!names.displayName && prof && prof.loaded && !prof.loading && !prof.fromCache) {
-    const now = Date.now();
-    const lastAttempt = prof.lastAttempt || 0;
-    //60秒以上経過で再試行
-    if (now - lastAttempt > 60000) {
-      state.profiles.set(pubkey, Object.assign({}, prof, {
-        lastAttempt: now,
-        loaded: false
-      }));
-      loadProfile(state, pubkey);
+    // キャッシュ由来ならバックグラウンドで再ロード
+    if (prof && prof.fromCache && !prof.loading) {
+      const now = Date.now();
+      const lastAttempt = prof.lastAttempt || 0;
+      //5秒以上経過で再ロード
+      if (now - lastAttempt > 5000) {
+        loadProfile(state, pubkey);
+      }
+    }
+    // プロフィールはあるが名前なし、かつしばらく経過なら再試行
+    if (!names.displayName && prof && prof.loaded && !prof.loading && !prof.fromCache) {
+      const now = Date.now();
+      const lastAttempt = prof.lastAttempt || 0;
+      //60秒以上経過で再試行
+      if (now - lastAttempt > 60000) {
+        state.profiles.set(pubkey, Object.assign({}, prof, {
+          lastAttempt: now,
+          loaded: false
+        }));
+        loadProfile(state, pubkey);
+      }
     }
   }
 

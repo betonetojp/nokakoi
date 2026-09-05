@@ -30,7 +30,11 @@ vi.mock('../../ui/setup/modal-helper.js', () => ({
 
 vi.mock('./profile.js', () => ({
   displayNameWithUsername: vi.fn((state, pk) => ({ main: `User_${pk}`, sub: pk })),
-  loadProfile: vi.fn(async (state, pk) => ({ name: `User_${pk}`, picture: 'https://example.com/pic.png' }))
+  loadProfile: vi.fn(async (state, pk) => ({ name: `User_${pk}`, picture: 'https://example.com/pic.png' })),
+  saveProfileToCache: vi.fn(),
+  saveProfilesBatchToCache: vi.fn(),
+  isAvatarsEnabled: vi.fn(() => true),
+  isDomPurgeEnabled: vi.fn(() => false)
 }));
 
 vi.mock('./follow-editor.js', () => ({
@@ -135,5 +139,64 @@ describe('openUserFollowListModal', () => {
     const closeBtn = document.getElementById('userFollowListClose');
     closeBtn.click();
     expect(modal.hidden).toBe(true);
+  });
+
+  it('hides avatars when isAvatarsEnabled is false', async () => {
+    const { isAvatarsEnabled } = await import('./profile.js');
+    isAvatarsEnabled.mockReturnValue(false);
+
+    const state = {
+      pubkey: 'my_pubkey',
+      profiles: new Map([['pk_alice', { name: 'Alice', picture: 'https://example.com/alice.jpg' }]])
+    };
+    const cachedKind3 = {
+      kind: 3,
+      tags: [['p', 'pk_alice']]
+    };
+
+    await openUserFollowListModal(state, 'target_user_pk', null, cachedKind3);
+
+    const avatar = document.querySelector('.editor-list-avatar');
+    expect(avatar).not.toBeNull();
+    expect(avatar.classList.contains('d-none')).toBe(true);
+    expect(avatar.getAttribute('src') || '').toBe('');
+
+    isAvatarsEnabled.mockReturnValue(true);
+  });
+
+  it('initializes purgeObserver when isDomPurgeEnabled is true', async () => {
+    const { isDomPurgeEnabled } = await import('./profile.js');
+    isDomPurgeEnabled.mockReturnValue(true);
+
+    const observeFn = vi.fn();
+    const disconnectFn = vi.fn();
+    const mockObserver = vi.fn().mockImplementation((callback) => ({
+      observe: observeFn,
+      unobserve: vi.fn(),
+      disconnect: disconnectFn
+    }));
+    vi.stubGlobal('IntersectionObserver', mockObserver);
+
+    const state = {
+      pubkey: 'my_pubkey',
+      profiles: new Map([['pk_alice', { name: 'Alice' }]])
+    };
+    const cachedKind3 = {
+      kind: 3,
+      tags: [['p', 'pk_alice']]
+    };
+
+    await openUserFollowListModal(state, 'target_user_pk', null, cachedKind3);
+
+    // Observer should have been called and observed the row
+    expect(observeFn).toHaveBeenCalled();
+
+    // Closing modal should disconnect observer
+    const closeBtn = document.getElementById('userFollowListClose');
+    closeBtn.click();
+    expect(disconnectFn).toHaveBeenCalled();
+
+    isDomPurgeEnabled.mockReturnValue(false);
+    vi.unstubAllGlobals();
   });
 });

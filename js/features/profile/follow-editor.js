@@ -7,7 +7,7 @@ import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../co
 import { t } from '../../utils/i18n.js';
 import { getNip19, getSimplePool } from '../../core/nostr-compat.js';
 import { getReadRelays, relayConnect, profileIndexerRelays } from '../../core/relay.js';
-import { displayNameWithUsername, loadProfile, updateNameDom } from './profile.js';
+import { displayNameWithUsername, loadProfile, updateNameDom, isAvatarsEnabled } from './profile.js';
 import { bringModalToFront } from '../../ui/setup/modal-helper.js';
 
 const SNAPSHOTS_KEY_BASE = 'follow_list_snapshots';
@@ -657,6 +657,8 @@ export async function openFollowEditor(state) {
     }
 
     const listEl = container.querySelector('#currentFollowsList');
+    const prevList = listEl ? listEl.querySelector('.editor-list') : null;
+    const prevScroll = prevList ? prevList.scrollTop : 0;
     if (items.length === 0) {
       listEl.innerHTML = `<div class="muted p-16 text-center">${t('editor.follow.empty') || 'Not following anyone.'}</div>`;
       return;
@@ -702,9 +704,12 @@ export async function openFollowEditor(state) {
 
       loadProfile(state, item.pubkey).then(prof => {
         if (prof) {
-          if (prof.picture) {
+          if (prof.picture && isAvatarsEnabled(state)) {
             avatar.src = prof.picture;
             avatar.classList.remove('d-none');
+          } else {
+            avatar.src = '';
+            avatar.classList.add('d-none');
           }
           const names = displayNameWithUsername(state, item.pubkey, getNip19(), { usePetname: false, noTruncate: true });
           nameEl.textContent = names.main;
@@ -815,11 +820,15 @@ export async function openFollowEditor(state) {
       listContainer.appendChild(row);
     });
 
+    listEl.innerHTML = '';
     listEl.appendChild(listContainer);
+    if (prevScroll) listContainer.scrollTop = prevScroll;
   }
 
   // 2. 「保存済みスナップショット」タブの描画
   function renderSavedSnapshotsView(container) {
+    const prevSnapList = container.querySelector('.editor-list');
+    const prevSnapScroll = prevSnapList ? prevSnapList.scrollTop : 0;
     container.innerHTML = '';
     const snapshots = loadSnapshots();
     if (snapshots.length === 0) {
@@ -922,6 +931,7 @@ export async function openFollowEditor(state) {
     });
 
     container.appendChild(listEl);
+    if (prevSnapScroll) listEl.scrollTop = prevSnapScroll;
   }
 
   // 初期レイアウト表示

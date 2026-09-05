@@ -108,6 +108,8 @@ body.theme-light .editor-confirm-dialog {
 .editor-list {
   max-height: 400px;
   overflow-y: auto;
+  overflow-x: hidden;
+  max-width: 100%;
   scrollbar-width: thin;
   scrollbar-color: var(--border) var(--bg);
 }
@@ -129,11 +131,112 @@ body.theme-light .editor-confirm-dialog {
   background: var(--muted);
 }
 
-.editor-list {
-  max-height: 400px;
+/* List Editor Modals - Unified Height & Flex Scroll Layout */
+#userFollowListModal .modal-body,
+#followEditModal .modal-body,
+#muteEditModal .modal-body,
+#publicChatsEditModal .modal-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: calc(var(--vh, 1vh) * 100 - 40px);
+  height: calc(var(--vh, 1vh) * 100 - 40px);
+}
+
+@media (max-width: 768px) {
+  #userFollowListModal .modal-body,
+  #followEditModal .modal-body,
+  #muteEditModal .modal-body,
+  #publicChatsEditModal .modal-body {
+    max-height: calc(var(--vh, 1vh) * 100 - 28px);
+    height: calc(var(--vh, 1vh) * 100 - 28px);
+  }
+}
+
+#userFollowListModal .modal-header-row,
+#followEditModal .modal-header-row,
+#muteEditModal .modal-header-row,
+#publicChatsEditModal .modal-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+#userFollowListStatus,
+#followEditStatus,
+#muteEditStatus,
+#publicChatsEditStatus {
+  flex-shrink: 0;
+}
+
+#userFollowListModal .modal-body > .row,
+#followEditModal .modal-body > .row,
+#muteEditModal .modal-body > .row,
+#publicChatsEditModal .modal-body > .row {
+  flex-shrink: 0;
+}
+
+#userFollowListModal .row.mt-16,
+#followEditModal .row.mt-16,
+#muteEditModal .row.mt-16,
+#publicChatsEditModal .row.mt-16 {
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+#userFollowListContent,
+#followEditContent,
+#muteEditContent,
+#publicChatsEditContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#followEditContent #editorTabBody,
+#followEditContent #currentFollowsList,
+#publicChatsEditContent #publicChatsEditorTabBody,
+#publicChatsEditContent #publicChatsItemsList,
+#muteEditContent #muteMainBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#followEditContent #editorTabBody > .row,
+#publicChatsEditContent #publicChatsEditorTabBody > .row {
+  flex-shrink: 0;
+}
+
+#userFollowListModal .editor-list,
+#followEditModal .editor-list,
+#publicChatsEditModal .editor-list,
+#muteEditModal #muteMainBody > .editor-list {
+  flex: 1 1 auto;
+  max-height: none;
   overflow-y: auto;
-  overflow-x: hidden;
-  max-width: 100%;
+  min-height: 0;
+}
+
+#muteEditContent #muteTabBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+#muteEditContent #muteTabBody .editor-list {
+  flex: 0 0 auto;
+  max-height: none;
+  overflow-y: visible;
 }
 
 .editor-list-item {
@@ -258,6 +361,7 @@ body.theme-light .editor-confirm-dialog {
   margin-bottom: 1rem;
   border-bottom: 1px solid var(--border);
   padding-bottom: 0.5rem;
+  flex-shrink: 0;
 }
 
 .editor-tab {
