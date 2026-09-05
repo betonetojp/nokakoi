@@ -247,13 +247,23 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   const oldMuteBtn = document.getElementById('profileMuteToggleBtn');
   if (oldMuteBtn) oldMuteBtn.remove();
 
-  const infoTextEl = document.querySelector('#profileModal .profile-info-text');
-  if (infoTextEl) {
-    let actionGroupEl = infoTextEl.querySelector('.profile-action-group');
+  const modalEl = document.getElementById('profileModal');
+  if (modalEl) {
+    let actionGroupEl = modalEl.querySelector('.profile-action-group');
     if (!actionGroupEl) {
       actionGroupEl = document.createElement('div');
       actionGroupEl.className = 'profile-action-group';
-      infoTextEl.appendChild(actionGroupEl);
+      const infoRowEl = modalEl.querySelector('.profile-info-row');
+      if (infoRowEl && infoRowEl.nextSibling) {
+        infoRowEl.parentNode.insertBefore(actionGroupEl, infoRowEl.nextSibling);
+      } else {
+        const scrollAreaEl = modalEl.querySelector('#profileScrollArea');
+        if (scrollAreaEl) {
+          scrollAreaEl.parentNode.insertBefore(actionGroupEl, scrollAreaEl);
+        } else {
+          modalEl.querySelector('#profileContent')?.appendChild(actionGroupEl);
+        }
+      }
     } else {
       actionGroupEl.innerHTML = '';
     }

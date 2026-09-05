@@ -42,21 +42,86 @@ function _dequeueProfileLoad() {
   })();
 }
 
+let _inMemoryProfileCache = null;
+let _flushProfilesTimer = null;
+
+/**
+ * キャッシュ用に最小限の軽量フィールドのみ抽出
+ */
+export function sanitizeProfileForCache(profile, now = Date.now()) {
+  if (!profile) return null;
+  return {
+    name: profile.name || '',
+    display_name: profile.display_name || '',
+    picture: profile.picture || '',
+    nip05: profile.nip05 || '',
+    lud16: profile.lud16 || '',
+    cachedAt: now
+  };
+}
+
+function getProfileCacheData() {
+  if (_inMemoryProfileCache) return _inMemoryProfileCache;
+  try {
+    const cached = typeof localStorage !== 'undefined' ? localStorage.getItem(PROFILE_CACHE_KEY) : null;
+    _inMemoryProfileCache = cached ? JSON.parse(cached) : {};
+  } catch (e) {
+    _inMemoryProfileCache = {};
+  }
+  return _inMemoryProfileCache;
+}
+
+/**
+ * インメモリのプロフィールキャッシュを localStorage に遅延書き込み
+ */
+export function flushProfilesCacheToStorage() {
+  if (_flushProfilesTimer) {
+    clearTimeout(_flushProfilesTimer);
+    _flushProfilesTimer = null;
+  }
+  if (!_inMemoryProfileCache || typeof localStorage === 'undefined') return;
+  try {
+    const allEntries = Object.entries(_inMemoryProfileCache);
+    if (allEntries.length > 1000) {
+      allEntries.sort((a, b) => (b[1].cachedAt || 0) - (a[1].cachedAt || 0));
+      const limited = Object.fromEntries(allEntries.slice(0, 1000));
+      _inMemoryProfileCache = limited;
+      localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(limited));
+    } else {
+      localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(_inMemoryProfileCache));
+    }
+  } catch (e) {
+    console.warn('[Profile] プロフィールキャッシュ書き込み失敗:', e);
+    try { localStorage.removeItem(PROFILE_CACHE_KEY); } catch (_) { }
+  }
+}
+
+function scheduleFlushProfilesCache() {
+  if (_flushProfilesTimer) return;
+  _flushProfilesTimer = setTimeout(() => {
+    _flushProfilesTimer = null;
+    flushProfilesCacheToStorage();
+  }, 1000);
+}
+
+try {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', flushProfilesCacheToStorage);
+  }
+} catch (e) { }
+
 /**
  * localStorageからプロフィールキャッシュを読み込む
  */
 function loadProfileCache() {
   try {
-    const cached = localStorage.getItem(PROFILE_CACHE_KEY);
-    if (!cached) return new Map();
-
-    const data = JSON.parse(cached);
+    const data = getProfileCacheData();
     const profiles = new Map();
 
     // 有効期限切れを除外
     const now = Date.now();
     for (const [pubkey, entry] of Object.entries(data)) {
-      if (entry.cachedAt && (now - entry.cachedAt) < CACHE_EXPIRY_MS) {
+      if (entry && entry.cachedAt && (now - entry.cachedAt) < CACHE_EXPIRY_MS) {
         profiles.set(pubkey, entry);
       }
     }
@@ -69,40 +134,26 @@ function loadProfileCache() {
 }
 
 /**
- * 複数プロフィールを一括でキャッシュに保存
+ * 複数プロフィールを一括でキャッシュに保存（軽量化 & デバウンス書き込み）
  */
 export function saveProfilesBatchToCache(entries) {
   if (!Array.isArray(entries) || !entries.length) return;
   try {
-    const cached = localStorage.getItem(PROFILE_CACHE_KEY);
-    const data = cached ? JSON.parse(cached) : {};
+    const data = getProfileCacheData();
     const now = Date.now();
 
     for (const item of entries) {
       if (item && item.pubkey && item.profile) {
-        data[item.pubkey] = {
-          ...item.profile,
-          cachedAt: now
-        };
+        const sanitized = sanitizeProfileForCache(item.profile, now);
+        if (sanitized) {
+          data[item.pubkey] = sanitized;
+        }
       }
     }
 
-    // キャッシュサイズ上限1000件
-    const allEntries = Object.entries(data);
-    if (allEntries.length > 1000) {
-      // cachedAtでソートし新しい1000件のみ保持
-      allEntries.sort((a, b) => (b[1].cachedAt || 0) - (a[1].cachedAt || 0));
-      const limited = Object.fromEntries(allEntries.slice(0, 1000));
-      localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(limited));
-    } else {
-      localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(data));
-    }
+    scheduleFlushProfilesCache();
   } catch (e) {
     console.warn('[Profile] プロフィール一括キャッシュ保存失敗:', e);
-    // localStorageがいっぱいなら古いデータをクリア
-    try {
-      localStorage.removeItem(PROFILE_CACHE_KEY);
-    } catch { }
   }
 }
 

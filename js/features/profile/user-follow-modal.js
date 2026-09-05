@@ -7,7 +7,7 @@ import { t } from '../../utils/i18n.js';
 import { getNip19, getSimplePool } from '../../core/nostr-compat.js';
 import { getReadRelays, relayConnect, profileIndexerRelays } from '../../core/relay.js';
 import { displayNameWithUsername, saveProfilesBatchToCache, isAvatarsEnabled, isDomPurgeEnabled } from './profile.js';
-import { updateFollowButtonState, toggleFollowUser } from './follow-editor.js';
+import { updateFollowButtonState, toggleFollowUser, clearMutualQueue } from './follow-editor.js';
 import { bringModalToFront } from '../../ui/setup/modal-helper.js';
 
 const PAGE_SIZE = 40;
@@ -15,8 +15,9 @@ const PAGE_SIZE = 40;
 /**
  * 複数ユーザーのプロフィールを一括非同期取得してキャッシュに保存
  */
-async function fetchProfilesBatch(state, pubkeys) {
+async function fetchProfilesBatch(state, pubkeys, abortSignal = null) {
   if (!Array.isArray(pubkeys) || !pubkeys.length) return;
+  if (abortSignal && abortSignal.aborted) return;
   const needed = pubkeys.filter(pk => {
     const p = (state && state.profiles) ? (state.profiles.get(pk) || state.profiles.get(pk.toLowerCase())) : null;
     return !p || (!p.loaded && !p.name && !p.display_name);
@@ -29,10 +30,15 @@ async function fetchProfilesBatch(state, pubkeys) {
     const pool = (state && state.pool) ? state.pool : (typeof SimplePool === 'function' ? new SimplePool() : SimplePool);
     if (!pool || typeof pool.querySync !== 'function') return;
 
+    const queryParams = { maxWait: 1200 };
+    if (abortSignal) queryParams.signal = abortSignal;
+
     const events = await pool.querySync(profileIndexerRelays, {
       kinds: [0],
       authors: needed,
-    }, { maxWait: 1200 });
+    }, queryParams);
+
+    if (abortSignal && abortSignal.aborted) return;
 
     if (Array.isArray(events)) {
       const toCache = [];
@@ -45,19 +51,24 @@ async function fetchProfilesBatch(state, pubkeys) {
               continue;
             }
             const meta = JSON.parse(ev.content);
-            const entry = Object.assign({}, meta, {
+            const entry = {
+              name: meta.name || '',
+              display_name: meta.display_name || '',
+              picture: meta.picture || '',
+              nip05: meta.nip05 || '',
+              lud16: meta.lud16 || '',
               loaded: true,
               loading: false,
               fromCache: false,
               created_at: ev.created_at,
               lastAttempt: Date.now()
-            });
+            };
             if (state && state.profiles) {
               state.profiles.set(ev.pubkey, entry);
               const lower = ev.pubkey.toLowerCase();
               if (lower !== ev.pubkey) state.profiles.set(lower, entry);
             }
-            toCache.push({ pubkey: ev.pubkey, profile: meta });
+            toCache.push({ pubkey: ev.pubkey, profile: entry });
           } catch (e) { }
         }
       }
@@ -68,6 +79,7 @@ async function fetchProfilesBatch(state, pubkeys) {
       }
     }
   } catch (e) {
+    if (abortSignal && abortSignal.aborted) return;
     console.warn('[UserFollowModal] 一括プロフィール取得エラー:', e);
   }
 }
@@ -91,17 +103,23 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
   const statusEl = document.getElementById('userFollowListStatus');
   const contentEl = document.getElementById('userFollowListContent');
 
+  const modalAbortController = new AbortController();
+  const abortSignal = modalAbortController.signal;
+
   let listObserver = null;
   let purgeObserver = null;
   let currentLoadMore = null;
   let isModalActive = true;
   let listEl = null;
-  const useDomPurge = isDomPurgeEnabled(state);
   const showAvatars = isAvatarsEnabled(state);
 
   // モーダルを閉じる処理
   const closeModal = () => {
     isModalActive = false;
+    try {
+      modalAbortController.abort();
+    } catch (e) { }
+    clearMutualQueue(abortSignal);
     if (listObserver) {
       try { listObserver.disconnect(); } catch (e) { }
       listObserver = null;
@@ -187,7 +205,9 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
       if (state && !state.pool) relayConnect(state, SimplePool, () => {});
       const pool = (state && state.pool) ? state.pool : (typeof SimplePool === 'function' ? new SimplePool() : SimplePool);
       ev = await pool.get(fetchRelays, { kinds: [3], authors: [targetPubkey] });
+      if (!isModalActive || abortSignal.aborted) return;
     } catch (e) {
+      if (!isModalActive || abortSignal.aborted) return;
       console.warn('[UserFollowModal] kind:3 取得失敗:', e);
       if (statusEl) statusEl.textContent = t('editor.common.fetch_failed', { msg: e.message || e }) || '取得に失敗しました';
       return;
@@ -228,7 +248,8 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
   listEl = document.createElement('div');
   listEl.className = 'editor-list';
 
-  // DOMパージ（画面外要素のプレースホルダー置換によるメモリ節約）
+  // DOMパージ（画面外要素のプレースホルダー置換によるメモリ節約。ユーザー設定に準拠）
+  const useDomPurge = isDomPurgeEnabled(state);
   if (useDomPurge && typeof IntersectionObserver !== 'undefined') {
     purgeObserver = new IntersectionObserver((entries) => {
       if (!isModalActive) return;
@@ -356,7 +377,7 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
       toggleBtn.className = 'btn-follow-toggle';
       actionsDiv.appendChild(toggleBtn);
 
-      updateFollowButtonState(state, toggleBtn, pk);
+      updateFollowButtonState(state, toggleBtn, pk, { signal: abortSignal });
       toggleBtn.onclick = async (e) => {
         e.stopPropagation();
         await toggleFollowUser(state, pk, toggleBtn);
@@ -384,8 +405,8 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
 
     // 未キャッシュのプロフィールを一括取得し、DOMを反映
     if (nextBatch.length > 0) {
-      fetchProfilesBatch(state, nextBatch).then(() => {
-        if (!isModalActive) return;
+      fetchProfilesBatch(state, nextBatch, abortSignal).then(() => {
+        if (!isModalActive || abortSignal.aborted) return;
         nextBatch.forEach(pk => {
           const liveRow = listEl?.querySelector(`.editor-list-item[data-pk="${pk}"]`);
           if (liveRow && typeof liveRow._updateProfileUi === 'function') {

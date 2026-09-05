@@ -17,7 +17,105 @@ function getSnapshotsKey() {
   return pk ? `${SNAPSHOTS_KEY_BASE}.${pk.toLowerCase()}` : SNAPSHOTS_KEY_BASE;
 }
 
-const globalMutualCache = new Map();
+export const globalMutualCache = new Map();
+const inFlightMutualPromises = new Map();
+
+const _mutualQueue = [];
+let _mutualActiveCount = 0;
+const MAX_CONCURRENT_MUTUAL_CHECKS = 2;
+const MUTUAL_CHECK_INTERVAL_MS = 60;
+
+function _processMutualQueue() {
+  if (_mutualActiveCount >= MAX_CONCURRENT_MUTUAL_CHECKS) return;
+  if (!_mutualQueue.length) return;
+
+  const item = _mutualQueue.shift();
+  if (!item) return;
+
+  if (item.signal && item.signal.aborted) {
+    _processMutualQueue();
+    return;
+  }
+
+  const activeCache = item.cache || globalMutualCache;
+  if (activeCache.has(item.targetPubkey)) {
+    const isMutual = activeCache.get(item.targetPubkey);
+    for (const cb of item.callbacks) {
+      if (typeof cb === 'function') {
+        try { cb(isMutual); } catch (e) { }
+      }
+    }
+    _processMutualQueue();
+    return;
+  }
+
+  _mutualActiveCount++;
+  checkMutualFollow(item.state, item.targetPubkey, item.myPubkey, activeCache)
+    .then(isMutual => {
+      _mutualActiveCount--;
+      if (!item.signal || !item.signal.aborted) {
+        for (const cb of item.callbacks) {
+          if (typeof cb === 'function') {
+            try { cb(isMutual); } catch (e) { }
+          }
+        }
+      }
+    })
+    .catch(() => {
+      _mutualActiveCount--;
+    })
+    .finally(() => {
+      setTimeout(_processMutualQueue, MUTUAL_CHECK_INTERVAL_MS);
+    });
+}
+
+/**
+ * 相互フォロー判定を遅延キュー経由で安全に実行
+ */
+export function queueMutualCheck(state, targetPubkey, myPubkey, onResult = null, options = {}) {
+  if (!targetPubkey || !myPubkey) return;
+  const activeCache = options.cache || globalMutualCache;
+
+  if (activeCache.has(targetPubkey)) {
+    if (typeof onResult === 'function') {
+      try { onResult(activeCache.get(targetPubkey)); } catch (e) { }
+    }
+    return;
+  }
+
+  // 既にキューにある場合はコールバックを追加
+  const existing = _mutualQueue.find(q => q.targetPubkey === targetPubkey && (!options.cache || q.cache === options.cache));
+  if (existing) {
+    if (typeof onResult === 'function') existing.callbacks.push(onResult);
+    return;
+  }
+
+  _mutualQueue.push({
+    state,
+    targetPubkey,
+    myPubkey,
+    cache: activeCache,
+    callbacks: onResult ? [onResult] : [],
+    signal: options.signal || null
+  });
+
+  _processMutualQueue();
+}
+
+/**
+ * 特定の signal に紐づく未実行キュー、または全キューをクリア
+ */
+export function clearMutualQueue(signal = null) {
+  if (!signal) {
+    _mutualQueue.length = 0;
+    return;
+  }
+  for (let i = _mutualQueue.length - 1; i >= 0; i--) {
+    if (_mutualQueue[i].signal === signal) {
+      _mutualQueue.splice(i, 1);
+    }
+  }
+}
 
 /**
  * 相手が自分をフォローしているか（相互フォローか）非同期チェック
@@ -29,25 +127,37 @@ export async function checkMutualFollow(state, targetPubkey, myPubkey, cache = n
     return activeCache.get(targetPubkey);
   }
 
-  try {
-    const SimplePool = getSimplePool();
-    const userRelays = getReadRelays(state ? state.relays : null) || [];
-    const fetchRelays = [...userRelays];
-    for (const idx of profileIndexerRelays) {
-      if (idx && !fetchRelays.includes(idx)) fetchRelays.push(idx);
-    }
-    if (!fetchRelays.length) return false;
-
-    if (state && !state.pool) relayConnect(state, SimplePool, () => {});
-    const pool = (state && state.pool) ? state.pool : (typeof SimplePool === 'function' ? new SimplePool() : SimplePool);
-
-    const ev = await pool.get(fetchRelays, { kinds: [3], authors: [targetPubkey] });
-    const isMutual = !!(ev && ev.tags && ev.tags.some(t => t[0] === 'p' && t[1] === myPubkey));
-    activeCache.set(targetPubkey, isMutual);
-    return isMutual;
-  } catch (e) {
-    return false;
+  const inFlightKey = `${targetPubkey}:${myPubkey}`;
+  if (inFlightMutualPromises.has(inFlightKey)) {
+    return inFlightMutualPromises.get(inFlightKey);
   }
+
+  const promise = (async () => {
+    try {
+      const SimplePool = getSimplePool();
+      const userRelays = getReadRelays(state ? state.relays : null) || [];
+      const fetchRelays = [...userRelays];
+      for (const idx of profileIndexerRelays) {
+        if (idx && !fetchRelays.includes(idx)) fetchRelays.push(idx);
+      }
+      if (!fetchRelays.length) return false;
+
+      if (state && !state.pool) relayConnect(state, SimplePool, () => {});
+      const pool = (state && state.pool) ? state.pool : (typeof SimplePool === 'function' ? new SimplePool() : SimplePool);
+
+      const ev = await pool.get(fetchRelays, { kinds: [3], authors: [targetPubkey] });
+      const isMutual = !!(ev && ev.tags && ev.tags.some(t => t[0] === 'p' && t[1] === myPubkey));
+      activeCache.set(targetPubkey, isMutual);
+      return isMutual;
+    } catch (e) {
+      return false;
+    } finally {
+      inFlightMutualPromises.delete(inFlightKey);
+    }
+  })();
+
+  inFlightMutualPromises.set(inFlightKey, promise);
+  return promise;
 }
 
 /**
@@ -443,7 +553,7 @@ export async function toggleFollowUser(state, targetPubkey, buttonEl) {
 /**
  * フォローボタンの見た目を更新する
  */
-export function updateFollowButtonState(state, buttonEl, targetPubkey) {
+export function updateFollowButtonState(state, buttonEl, targetPubkey, options = {}) {
   if (!buttonEl) return;
 
   if (targetPubkey) {
@@ -456,16 +566,22 @@ export function updateFollowButtonState(state, buttonEl, targetPubkey) {
   const myPubkey = (state && state.pubkey) || localStorage.getItem('pubkey');
 
   if (isFollowing) {
-    buttonEl.textContent = t('editor.follow.following') || 'フォロー中';
-    buttonEl.className = 'btn-follow-toggle following';
+    const isMutualCached = globalMutualCache.get(pk) === true;
+    if (isMutualCached) {
+      buttonEl.textContent = t('editor.follow.mutual') || '相互';
+      buttonEl.className = 'btn-follow-toggle following mutual';
+    } else {
+      buttonEl.textContent = t('editor.follow.following') || 'フォロー中';
+      buttonEl.className = 'btn-follow-toggle following';
+    }
 
-    if (myPubkey) {
-      checkMutualFollow(state, pk, myPubkey).then(isMutual => {
+    if (myPubkey && !options?.skipMutualNetwork && !isMutualCached) {
+      queueMutualCheck(state, pk, myPubkey, (isMutual) => {
         if (isMutual && buttonEl.isConnected && buttonEl.classList.contains('following')) {
           buttonEl.textContent = t('editor.follow.mutual') || '相互';
           buttonEl.classList.add('mutual');
         }
-      }).catch(() => {});
+      }, { signal: options?.signal });
     }
   } else {
     buttonEl.textContent = t('editor.follow.follow') || '+ フォロー';
@@ -519,6 +635,8 @@ export async function openFollowEditor(state) {
   const saveBtn = document.getElementById('followEditSaveBtn');
   const cancelBtn = document.getElementById('followEditCancelBtn');
   const closeBtn = document.getElementById('followEditClose');
+
+  const editorAbortController = new AbortController();
 
   if (statusEl) statusEl.textContent = t('editor.common.fetching') || 'Fetching...';
   if (contentEl) contentEl.innerHTML = '';
@@ -786,15 +904,21 @@ export async function openFollowEditor(state) {
       toggleBtn.textContent = item.isMutual ? (t('editor.follow.mutual') || '相互') : (t('editor.follow.following') || 'Following');
 
       if (myPubkey && item.pubkey) {
-        checkMutualFollow(state, item.pubkey, myPubkey, mutualCache).then(isMutual => {
-          if (isMutual) {
-            item.isMutual = true;
-            if (item.isFollowing && toggleBtn.isConnected) {
-              toggleBtn.textContent = t('editor.follow.mutual') || '相互';
-              toggleBtn.className = 'secondary mutual';
+        if (mutualCache.get(item.pubkey) === true) {
+          item.isMutual = true;
+          toggleBtn.textContent = t('editor.follow.mutual') || '相互';
+          toggleBtn.className = 'secondary mutual';
+        } else {
+          queueMutualCheck(state, item.pubkey, myPubkey, (isMutual) => {
+            if (isMutual) {
+              item.isMutual = true;
+              if (item.isFollowing && toggleBtn.isConnected) {
+                toggleBtn.textContent = t('editor.follow.mutual') || '相互';
+                toggleBtn.className = 'secondary mutual';
+              }
             }
-          }
-        }).catch(() => {});
+          }, { cache: mutualCache, signal: editorAbortController.signal });
+        }
       }
 
       toggleBtn.onclick = () => {
@@ -1019,6 +1143,8 @@ export async function openFollowEditor(state) {
   };
 
   const closeModal = () => {
+    try { editorAbortController.abort(); } catch (e) { }
+    clearMutualQueue(editorAbortController.signal);
     modal.hidden = true;
     if (statusEl) statusEl.textContent = '';
   };

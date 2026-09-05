@@ -227,3 +227,58 @@ describe('updateZapButtonDom', () => {
     expect(document.querySelector('.btn-zap').classList.contains('d-none')).toBe(false);
   });
 });
+
+describe('profile cache optimization', () => {
+  it('sanitizeProfileForCache strips heavy fields like about and banner', async () => {
+    const { sanitizeProfileForCache } = await import('./profile.js');
+    const heavyProfile = {
+      name: 'alice',
+      display_name: 'Alice',
+      picture: 'https://example.com/pic.png',
+      nip05: 'alice@example.com',
+      lud16: 'alice@coinos.io',
+      about: 'A'.repeat(50000), // Huge about string
+      banner: 'https://example.com/huge-banner.jpg',
+      extraField: 'should be stripped'
+    };
+
+    const sanitized = sanitizeProfileForCache(heavyProfile, 123456789);
+    expect(sanitized).toEqual({
+      name: 'alice',
+      display_name: 'Alice',
+      picture: 'https://example.com/pic.png',
+      nip05: 'alice@example.com',
+      lud16: 'alice@coinos.io',
+      cachedAt: 123456789
+    });
+    expect(sanitized.about).toBeUndefined();
+    expect(sanitized.banner).toBeUndefined();
+    expect(sanitized.extraField).toBeUndefined();
+  });
+
+  it('saveProfilesBatchToCache and flushProfilesCacheToStorage write sanitized data to localStorage', async () => {
+    const { saveProfilesBatchToCache, flushProfilesCacheToStorage } = await import('./profile.js');
+    localStorage.clear();
+
+    saveProfilesBatchToCache([
+      {
+        pubkey: 'pk_heavy_user',
+        profile: {
+          name: 'HeavyUser',
+          about: 'Huge about text '.repeat(1000),
+          picture: 'https://example.com/p.jpg'
+        }
+      }
+    ]);
+
+    // Flush immediately to test storage content
+    flushProfilesCacheToStorage();
+
+    const stored = JSON.parse(localStorage.getItem('nostr_profiles_cache') || '{}');
+    expect(stored.pk_heavy_user).toBeDefined();
+    expect(stored.pk_heavy_user.name).toBe('HeavyUser');
+    expect(stored.pk_heavy_user.picture).toBe('https://example.com/p.jpg');
+    expect(stored.pk_heavy_user.about).toBeUndefined();
+  });
+});
+

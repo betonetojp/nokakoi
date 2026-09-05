@@ -39,7 +39,8 @@ vi.mock('./profile.js', () => ({
 
 vi.mock('./follow-editor.js', () => ({
   updateFollowButtonState: vi.fn(),
-  toggleFollowUser: vi.fn()
+  toggleFollowUser: vi.fn(),
+  clearMutualQueue: vi.fn()
 }));
 
 import { openUserFollowListModal } from './user-follow-modal.js';
@@ -199,4 +200,59 @@ describe('openUserFollowListModal', () => {
     isDomPurgeEnabled.mockReturnValue(false);
     vi.unstubAllGlobals();
   });
+
+  it('calls updateFollowButtonState with signal to allow queued checks and cancel on close', async () => {
+    const { updateFollowButtonState, clearMutualQueue } = await import('./follow-editor.js');
+    updateFollowButtonState.mockClear();
+    clearMutualQueue.mockClear();
+
+    const state = {
+      pubkey: 'my_pubkey',
+      profiles: new Map()
+    };
+    const cachedKind3 = {
+      kind: 3,
+      tags: [['p', 'pk_other_user']]
+    };
+
+    await openUserFollowListModal(state, 'target_user_pk', null, cachedKind3);
+
+    expect(updateFollowButtonState).toHaveBeenCalledWith(
+      state,
+      expect.any(HTMLElement),
+      'pk_other_user',
+      { signal: expect.any(Object) }
+    );
+
+    const closeBtn = document.getElementById('userFollowListClose');
+    closeBtn.click();
+    expect(clearMutualQueue).toHaveBeenCalled();
+  });
+
+  it('does not enable DOM purge when isDomPurgeEnabled is false even for large lists', async () => {
+    const { isDomPurgeEnabled } = await import('./profile.js');
+    isDomPurgeEnabled.mockReturnValue(false);
+
+    const observeFn = vi.fn();
+    const disconnectFn = vi.fn();
+    const mockObserver = vi.fn().mockImplementation(() => ({
+      observe: observeFn,
+      unobserve: vi.fn(),
+      disconnect: disconnectFn
+    }));
+    vi.stubGlobal('IntersectionObserver', mockObserver);
+
+    const largeTags = Array.from({ length: 85 }, (_, i) => ['p', `pk_${i}`]);
+    const state = { pubkey: 'my_pubkey', profiles: new Map() };
+    const cachedKind3 = { kind: 3, tags: largeTags };
+
+    await openUserFollowListModal(state, 'target_user_pk', null, cachedKind3);
+
+    // Only the "load more" button should be observed by listObserver; rows must NOT be observed for DOM purging
+    const observedRows = observeFn.mock.calls.filter(call => call[0]?.classList?.contains('editor-list-item'));
+    expect(observedRows.length).toBe(0);
+
+    vi.unstubAllGlobals();
+  });
 });
+
