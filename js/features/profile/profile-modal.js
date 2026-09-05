@@ -86,8 +86,10 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   if (aboutDetailsEl) aboutDetailsEl.open = false;
   if (metadataDetailsEl) metadataDetailsEl.open = false;
 
-  // フォロー状態確認（非同期）
-  if (state && state.pubkey && followStatusEl) {
+  let cachedTargetKind3 = null;
+
+  // フォロー状態確認およびフォロー中件数取得（非同期）
+  if (state) {
     const targetPubkey = pubkey;
     (async () => {
       try {
@@ -101,16 +103,30 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
 
         if (!state.pool) relayConnect(state, SimplePool, () => { });
 
-        // 自分のpubkeyが相手のkind:3に含まれているか確認
+        // 相手のkind:3を取得
         const ev = await state.pool.get(fetchRelays, { kinds: [3], authors: [targetPubkey] });
 
         if (currentModalPubkey !== targetPubkey) return; // モーダル表示対象が切り替わった
 
-        if (ev && ev.tags) {
-          const isFollowing = ev.tags.some(t => t[0] === 'p' && t[1] === state.pubkey);
-          if (isFollowing) {
-            followStatusEl.classList.remove('d-none');
+        cachedTargetKind3 = ev;
+
+        let followCount = 0;
+        if (ev && Array.isArray(ev.tags)) {
+          const pTags = ev.tags.filter(t => t[0] === 'p' && t[1]);
+          followCount = pTags.length;
+
+          // 自分のpubkeyが相手のkind:3に含まれているか確認
+          if (state.pubkey && followStatusEl) {
+            const isFollowing = pTags.some(t => t[1] === state.pubkey);
+            if (isFollowing) {
+              followStatusEl.classList.remove('d-none');
+            }
           }
+        }
+
+        const btn = document.getElementById('profileFollowListBtn');
+        if (btn && btn.isConnected) {
+          btn.textContent = t('profile.follow_list_btn_count', { n: followCount }) || `フォロー一覧 (${followCount})`;
         }
       } catch (e) { }
     })();
@@ -219,64 +235,90 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     }
   }
 
-  // プロフィールモーダルに「フォローする / フォロー中」および「ミュート」ボタンを配置
+  // プロフィールモーダルに「フォローする / フォロー中」、「フォロー一覧」、および「ミュート」ボタンを配置
   const myPubkey = (state && state.pubkey) || localStorage.getItem('pubkey');
   const targetPubkey = pubkey;
 
   // 既存のボタンを即座に消去
   const oldFollowBtn = document.getElementById('profileFollowToggleBtn');
   if (oldFollowBtn) oldFollowBtn.remove();
+  const oldFollowListBtn = document.getElementById('profileFollowListBtn');
+  if (oldFollowListBtn) oldFollowListBtn.remove();
   const oldMuteBtn = document.getElementById('profileMuteToggleBtn');
   if (oldMuteBtn) oldMuteBtn.remove();
 
-  if (myPubkey) {
-    Promise.all([
-      import('./follow-editor.js').catch(() => null),
-      import('../mute/mute-editor.js').catch(() => null)
-    ]).then(([followMod, muteMod]) => {
-      // 非同期中に別のプロフィールモーダルに切り替わっていたら処理中断
-      if (currentModalPubkey !== targetPubkey) return;
+  const infoTextEl = document.querySelector('#profileModal .profile-info-text');
+  if (infoTextEl) {
+    let actionGroupEl = infoTextEl.querySelector('.profile-action-group');
+    if (!actionGroupEl) {
+      actionGroupEl = document.createElement('div');
+      actionGroupEl.className = 'profile-action-group';
+      infoTextEl.appendChild(actionGroupEl);
+    } else {
+      actionGroupEl.innerHTML = '';
+    }
 
-      const infoTextEl = document.querySelector('#profileModal .profile-info-text');
-      if (!infoTextEl) return;
+    // 「フォロー一覧」ボタンの配置（ログイン・未ログイン問わず表示）
+    const followListBtn = document.createElement('button');
+    followListBtn.id = 'profileFollowListBtn';
+    followListBtn.type = 'button';
+    followListBtn.className = 'btn-follow-list';
 
-      let actionGroupEl = infoTextEl.querySelector('.profile-action-group');
-      if (!actionGroupEl) {
-        actionGroupEl = document.createElement('div');
-        actionGroupEl.className = 'profile-action-group';
-        infoTextEl.appendChild(actionGroupEl);
-      } else {
-        actionGroupEl.innerHTML = '';
-      }
+    // 既にkind:3が取得済みなら件数を反映、未取得なら「フォロー一覧」
+    if (cachedTargetKind3 && Array.isArray(cachedTargetKind3.tags)) {
+      const cnt = cachedTargetKind3.tags.filter(t => t[0] === 'p' && t[1]).length;
+      followListBtn.textContent = t('profile.follow_list_btn_count', { n: cnt }) || `フォロー一覧 (${cnt})`;
+    } else {
+      followListBtn.textContent = t('profile.follow_list_btn') || 'フォロー一覧';
+    }
 
-      // 1. フォローボタンの配置
-      if (followMod && typeof followMod.updateFollowButtonState === 'function') {
-        const followBtn = document.createElement('button');
-        followBtn.id = 'profileFollowToggleBtn';
-        followBtn.type = 'button';
-        followBtn.className = 'btn-follow-toggle';
-        actionGroupEl.appendChild(followBtn);
-        followMod.updateFollowButtonState(state, followBtn, targetPubkey);
-        followBtn.onclick = async () => {
-          await followMod.toggleFollowUser(state, targetPubkey, followBtn);
-        };
-      }
+    followListBtn.onclick = () => {
+      import('./user-follow-modal.js').then(mod => {
+        if (mod && typeof mod.openUserFollowListModal === 'function') {
+          mod.openUserFollowListModal(state, targetPubkey, profile, cachedTargetKind3);
+        }
+      });
+    };
+    actionGroupEl.appendChild(followListBtn);
 
-      // 2. ミュートボタンの配置（自分自身も含めて表示）
-      if (muteMod && typeof muteMod.updateMuteButtonState === 'function') {
-        const muteBtn = document.createElement('button');
-        muteBtn.id = 'profileMuteToggleBtn';
-        muteBtn.type = 'button';
-        muteBtn.className = 'btn-mute-toggle';
-        actionGroupEl.appendChild(muteBtn);
-        muteMod.updateMuteButtonState(state, muteBtn, targetPubkey);
-        muteBtn.onclick = async () => {
-          await muteMod.toggleMuteUser(state, targetPubkey, muteBtn);
-        };
-      }
-    }).catch(e => {
-      console.warn('[ProfileModal] ボタン初期化エラー:', e);
-    });
+    // ログイン中の場合、フォローボタン・ミュートボタンを追加
+    if (myPubkey) {
+      Promise.all([
+        import('./follow-editor.js').catch(() => null),
+        import('../mute/mute-editor.js').catch(() => null)
+      ]).then(([followMod, muteMod]) => {
+        // 非同期中に別のプロフィールモーダルに切り替わっていたら処理中断
+        if (currentModalPubkey !== targetPubkey) return;
+
+        // 1. フォローボタンの配置（followListBtn の前に挿入）
+        if (followMod && typeof followMod.updateFollowButtonState === 'function') {
+          const followBtn = document.createElement('button');
+          followBtn.id = 'profileFollowToggleBtn';
+          followBtn.type = 'button';
+          followBtn.className = 'btn-follow-toggle';
+          actionGroupEl.insertBefore(followBtn, followListBtn);
+          followMod.updateFollowButtonState(state, followBtn, targetPubkey);
+          followBtn.onclick = async () => {
+            await followMod.toggleFollowUser(state, targetPubkey, followBtn);
+          };
+        }
+
+        // 2. ミュートボタンの配置（followListBtn の後ろに追加）
+        if (muteMod && typeof muteMod.updateMuteButtonState === 'function') {
+          const muteBtn = document.createElement('button');
+          muteBtn.id = 'profileMuteToggleBtn';
+          muteBtn.type = 'button';
+          muteBtn.className = 'btn-mute-toggle';
+          actionGroupEl.appendChild(muteBtn);
+          muteMod.updateMuteButtonState(state, muteBtn, targetPubkey);
+          muteBtn.onclick = async () => {
+            await muteMod.toggleMuteUser(state, targetPubkey, muteBtn);
+          };
+        }
+      }).catch(e => {
+        console.warn('[ProfileModal] ボタン初期化エラー:', e);
+      });
+    }
   }
 
   if (aboutEl) {

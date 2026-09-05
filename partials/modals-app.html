@@ -302,6 +302,25 @@
     </div>
   </div>
 
+  <!-- User follow list modal (viewing follows) -->
+  <div id="userFollowListModal" class="modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-body panel">
+      <div class="modal-header-row">
+        <h2 id="userFollowListTitle" class="modal-title">フォロー一覧</h2>
+        <button id="userFollowListClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
+      </div>
+      <div class="row align-center justify-between mb-8">
+        <span id="userFollowListCount" class="muted text-sm"></span>
+        <button id="userFollowListEditBtn" type="button" class="secondary text-sm d-none" data-i18n="profile.follow_list_edit_btn">フォローリスト編集</button>
+      </div>
+      <div id="userFollowListStatus" class="muted mb-12"></div>
+      <div id="userFollowListContent"></div>
+      <div class="row mt-16 justify-end">
+        <button id="userFollowListBottomCloseBtn" class="secondary" type="button" data-i18n="close">閉じる</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ミュートリスト編集モーダル -->
   <div id="muteEditModal" class="modal" role="dialog" aria-modal="true" hidden>
     <div class="modal-body modal-body--md panel">

@@ -8,6 +8,7 @@ import { t } from '../../utils/i18n.js';
 import { getNip19, getSimplePool } from '../../core/nostr-compat.js';
 import { getReadRelays, relayConnect, profileIndexerRelays } from '../../core/relay.js';
 import { displayNameWithUsername, loadProfile, updateNameDom } from './profile.js';
+import { bringModalToFront } from '../../ui/setup/modal-helper.js';
 
 const SNAPSHOTS_KEY_BASE = 'follow_list_snapshots';
 
@@ -508,6 +509,10 @@ export async function openFollowEditor(state) {
   if (!modal) return;
 
   modal.hidden = false;
+  try {
+    if (typeof bringModalToFront === 'function') bringModalToFront(modal);
+    else if (typeof window !== 'undefined' && typeof window.bringModalToFront === 'function') window.bringModalToFront(modal);
+  } catch (e) { }
 
   const statusEl = document.getElementById('followEditStatus');
   const contentEl = document.getElementById('followEditContent');

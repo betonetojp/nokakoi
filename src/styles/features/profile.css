@@ -104,6 +104,27 @@
   color: #ef4444;
   border-color: rgba(239, 68, 68, 0.3);
 }
+.btn-follow-list {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82em;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  line-height: 1.3;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.btn-follow-list:hover {
+  background: rgba(124, 147, 255, 0.08);
+  color: var(--accent);
+  border-color: var(--accent);
+}
 .btn-mute-toggle {
   display: inline-flex;
   align-items: center;
@@ -248,11 +269,48 @@
   background: rgba(124, 147, 255, 0.04);
 }
 
-#profileModal .modal-body {
+#profileModal .modal-body,
+#userFollowListModal .modal-body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   max-height: calc(var(--vh, 1vh) * 100 - 40px);
+  height: calc(var(--vh, 1vh) * 100 - 40px);
+}
+
+#userFollowListContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#userFollowListModal .editor-list {
+  flex: 1 1 auto;
+  max-height: none;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+#userFollowListModal .modal-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+#userFollowListTitle {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#userFollowListClose {
+  flex-shrink: 0;
 }
 #profileModal > .modal-body > #profileContent {
   display: flex;
