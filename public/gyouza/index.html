@@ -592,6 +592,33 @@
       return results;
     }
 
+    function recursivelyDecodeSuperHidden(text, maxDepth = 20) {
+      let current = text;
+      let depth = 0;
+      let totalLocations = 0;
+
+      while (depth < maxDepth && hasSuperHiddenTagChars(current)) {
+        const results = extractSuperHiddenTexts(current);
+        if (results.length === 0) break;
+        depth++;
+        if (depth === 1) {
+          totalLocations = results.length;
+        }
+        let nextText = '';
+        if (results.length === 1) {
+          nextText = results[0].text;
+        } else {
+          nextText = results.map((r, i) => {
+            const label = r.visible ? `[${r.visible}]` : `[#${i + 1}]`;
+            return `${label}\n${r.text}`;
+          }).join('\n\n');
+        }
+        current = nextText;
+      }
+
+      return { final: current, depth, totalLocations };
+    }
+
     const superDecodeInput = document.getElementById('superDecodeInput');
     const superDecodeBtn = document.getElementById('superDecodeBtn');
     const superDecodeStatus = document.getElementById('superDecodeStatus');
@@ -619,24 +646,21 @@
         return;
       }
 
-      const results = extractSuperHiddenTexts(text);
-      if (results.length === 0) {
+      const res = recursivelyDecodeSuperHidden(text);
+      if (res.depth === 0) {
         superDecodeStatus.textContent = '隠しテキストは見つかりませんでした';
         return;
       }
 
-      if (results.length === 1) {
-        currentSuperDecodedText = results[0].text;
-      } else {
-        currentSuperDecodedText = results.map((r, i) => {
-          const label = r.visible ? `[${r.visible}]` : `[#${i + 1}]`;
-          return `${label}\n${r.text}`;
-        }).join('\n\n');
-      }
-
+      currentSuperDecodedText = res.final;
       superDecodeResult.textContent = currentSuperDecodedText;
       superDecodeResultWrapper.hidden = false;
-      superDecodeStatus.textContent = `隠しテキストを展開しました（${results.length}箇所）`;
+
+      if (res.depth > 1) {
+        superDecodeStatus.textContent = `入れ子（${res.depth}階層）の隠しテキストを最深部まで展開しました！`;
+      } else {
+        superDecodeStatus.textContent = `隠しテキストを展開しました（${res.totalLocations}箇所）`;
+      }
     });
 
     superCopyBtn.addEventListener('click', async () => {
