@@ -83,6 +83,26 @@
   border-color: var(--accent);
   transform: scale(1.1);
 }
+.quick-reaction.quick-reaction-steganography {
+  gap: 6px;
+  padding: 6px 10px;
+  width: auto;
+  max-width: 100%;
+}
+.quick-reaction-steganography .quick-reaction-emoji {
+  flex-shrink: 0;
+  font-size: 1.1em;
+  line-height: 1;
+}
+.quick-reaction-steganography .quick-reaction-steganography-text {
+  font-size: 0.82em;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+  line-height: 1.2;
+}
 
 .custom-emoji {
   display: inline-block;

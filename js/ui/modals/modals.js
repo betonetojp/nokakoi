@@ -133,6 +133,55 @@ function pushRecentReaction(value) {
   saveRecentReactions(filtered.slice(0, MAX_RECENT_REACTIONS));
 }
 
+function decodeSteganographyTagChars(tagStr) {
+  try {
+    const bytes = [];
+    for (const ch of tagStr) {
+      const cp = ch.codePointAt(0);
+      if (cp >= 0xE00F0 && cp <= 0xE01EF) {
+        bytes.push(cp - 0xE00F0);
+      }
+    }
+    if (bytes.length === 0) return null;
+    return new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+  } catch (e) {
+    return null;
+  }
+}
+
+export function parseSteganographyReaction(text) {
+  if (!text || !/[\u{E00F0}-\u{E01EF}]/u.test(text)) return null;
+
+  const PATTERN = /([\u{1F1E6}-\u{1F1FF}]{2}|[\p{Emoji_Presentation}\p{Extended_Pictographic}](?:[\u{FE0E}\u{FE0F}]?(?:\u200D[\p{Emoji_Presentation}\p{Extended_Pictographic}][\u{FE0E}\u{FE0F}]?)*)(?:[\u{1F3FB}-\u{1F3FF}])?|[^\u{E0000}-\u{E01FF}\s])?([\u{E00F0}-\u{E01EF}]+)/gu;
+
+  const match = PATTERN.exec(text);
+  if (!match) return null;
+
+  const visibleEmoji = match[1] || '🥟';
+  let decoded = decodeSteganographyTagChars(match[2]);
+  if (!decoded) return null;
+
+  let depth = 0;
+  while (depth < 10 && /[\u{E00F0}-\u{E01EF}]/u.test(decoded)) {
+    depth++;
+    PATTERN.lastIndex = 0;
+    const innerMatch = PATTERN.exec(decoded);
+    if (innerMatch) {
+      const innerDecoded = decodeSteganographyTagChars(innerMatch[2]);
+      if (innerDecoded) {
+        decoded = innerDecoded;
+        continue;
+      }
+    }
+    break;
+  }
+
+  return {
+    visibleEmoji,
+    decodedText: decoded
+  };
+}
+
 function renderRecentReactions(modal, input, statusEl) {
   const listEl = modal.querySelector('#reactionRecentList');
   if (!listEl) return;
@@ -164,7 +213,24 @@ function renderRecentReactions(modal, input, statusEl) {
       img.className = 'quick-reaction-icon';
       btn.appendChild(img);
     } else {
-      btn.textContent = content;
+      const stego = parseSteganographyReaction(content);
+      if (stego) {
+        btn.classList.add('quick-reaction-steganography');
+        btn.title = `${stego.visibleEmoji} (${stego.decodedText})`;
+
+        const emojiSpan = document.createElement('span');
+        emojiSpan.className = 'quick-reaction-emoji';
+        emojiSpan.textContent = stego.visibleEmoji;
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'steganography-revealed quick-reaction-steganography-text';
+        textSpan.textContent = stego.decodedText;
+
+        btn.appendChild(emojiSpan);
+        btn.appendChild(textSpan);
+      } else {
+        btn.textContent = content;
+      }
     }
 
     btn.onclick = (e) => {
