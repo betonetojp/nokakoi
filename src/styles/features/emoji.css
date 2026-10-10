@@ -88,14 +88,17 @@
   padding: 6px 10px;
   width: auto;
   max-width: 100%;
+  font-size: 1rem;
+  font-weight: normal;
 }
 .quick-reaction-steganography .quick-reaction-emoji {
   flex-shrink: 0;
-  font-size: 1.1em;
+  font-size: 1em;
   line-height: 1;
 }
 .quick-reaction-steganography .quick-reaction-steganography-text {
-  font-size: 0.82em;
+  font-size: 0.9em;
+  font-weight: normal;
   max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
