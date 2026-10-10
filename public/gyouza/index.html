@@ -153,6 +153,36 @@
     body.theme-light .topbar .brand-link {
       color: var(--accent);
     }
+    /* ===== ステガノグラフィ (隠し文字) 表示 ===== */
+    .steganography-emoji {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+      border-radius: 3px;
+      outline: 1.5px dashed rgba(255, 180, 0, 0.65);
+      padding: 0 1px;
+      transition: outline-color 0.2s;
+      user-select: none;
+    }
+    .steganography-emoji:hover {
+      outline-color: rgba(255, 200, 0, 1);
+    }
+    .steganography-revealed {
+      display: inline-block;
+      margin-left: 4px;
+      padding: 0 4px;
+      border-radius: 4px;
+      font-size: 0.95em;
+      color: var(--text);
+      cursor: default;
+      vertical-align: middle;
+      user-select: text;
+    }
+    .gyouza-preview .steganography-revealed {
+      font-size: 1rem;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
   </style>
   <script>
     (function () {
@@ -215,6 +245,24 @@
       <button id="decodeBtn" type="button">復号</button>
       <div id="decodeStatus" class="muted" style="min-height: 1.2em; margin: 12px 0 8px;"></div>
       <div id="decodeResult" class="gyouza-decode-result" hidden></div>
+    </section>
+
+    <section class="panel" id="superDecodePanel">
+      <h2 class="panel-title">🥟 スーパーセクシー餃子復号</h2>
+      <p class="muted" style="margin: 0 0 8px; font-size: 0.9em;">改行コード（\n）などを含み、通常の復号では途切れてしまう隠しテキストもすべて展開・復号します</p>
+      <div style="margin-bottom: 12px;">
+        <label class="field-label" for="superDecodeInput">テキスト</label>
+        <textarea id="superDecodeInput" rows="4" placeholder="隠し文字付きテキストを貼り付け"></textarea>
+      </div>
+      <button id="superDecodeBtn" type="button">スーパー復号</button>
+      <div id="superDecodeStatus" class="muted" style="min-height: 1.2em; margin: 12px 0 8px;"></div>
+      <div id="superDecodeResultWrapper" hidden>
+        <div id="superDecodeResult" class="gyouza-decode-result"></div>
+        <div class="gyouza-actions" style="margin-top: 8px;">
+          <button id="superCopyBtn" type="button">復号テキストをコピー</button>
+        </div>
+        <div id="superCopyStatus" class="muted" style="min-height: 1.2em; margin-top: 8px;"></div>
+      </div>
     </section>
   </main>
 
@@ -505,6 +553,112 @@
       } else {
         decodeStatus.textContent = '隠しテキストは見つかりませんでした';
         decodeResult.hidden = true;
+      }
+    });
+
+    // --- スーパーセクシー餃子復号 ---
+
+    function hasSuperHiddenTagChars(text) {
+      return /[\u{E00F0}-\u{E01EF}]/u.test(text || '');
+    }
+
+    function decodeSuperTagChars(tagStr) {
+      try {
+        const bytes = [];
+        for (const ch of tagStr) {
+          const cp = ch.codePointAt(0);
+          if (cp >= 0xE00F0 && cp <= 0xE01EF) {
+            bytes.push(cp - 0xE00F0);
+          }
+        }
+        if (bytes.length === 0) return null;
+        return new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function extractSuperHiddenTexts(text) {
+      const PATTERN = /([\u{1F1E6}-\u{1F1FF}]{2}|[\p{Emoji_Presentation}\p{Extended_Pictographic}](?:[\u{FE0E}\u{FE0F}]?(?:\u200D[\p{Emoji_Presentation}\p{Extended_Pictographic}][\u{FE0E}\u{FE0F}]?)*)(?:[\u{1F3FB}-\u{1F3FF}])?|[^\u{E0000}-\u{E01FF}\s])?([\u{E00F0}-\u{E01EF}]+)/gu;
+      const results = [];
+      let match;
+      while ((match = PATTERN.exec(text)) !== null) {
+        const visible = match[1] || '';
+        const decoded = decodeSuperTagChars(match[2]);
+        if (decoded) {
+          results.push({ visible, text: decoded });
+        }
+      }
+      return results;
+    }
+
+    const superDecodeInput = document.getElementById('superDecodeInput');
+    const superDecodeBtn = document.getElementById('superDecodeBtn');
+    const superDecodeStatus = document.getElementById('superDecodeStatus');
+    const superDecodeResultWrapper = document.getElementById('superDecodeResultWrapper');
+    const superDecodeResult = document.getElementById('superDecodeResult');
+    const superCopyBtn = document.getElementById('superCopyBtn');
+    const superCopyStatus = document.getElementById('superCopyStatus');
+
+    let currentSuperDecodedText = '';
+
+    superDecodeBtn.addEventListener('click', () => {
+      const text = superDecodeInput.value || '';
+      superDecodeStatus.textContent = '';
+      superDecodeResultWrapper.hidden = true;
+      superDecodeResult.textContent = '';
+      currentSuperDecodedText = '';
+      if (superCopyStatus) superCopyStatus.textContent = '';
+
+      if (!text.trim()) {
+        superDecodeStatus.textContent = 'テキストを入力してください';
+        return;
+      }
+      if (!hasSuperHiddenTagChars(text)) {
+        superDecodeStatus.textContent = '隠しテキストは見つかりませんでした';
+        return;
+      }
+
+      const results = extractSuperHiddenTexts(text);
+      if (results.length === 0) {
+        superDecodeStatus.textContent = '隠しテキストは見つかりませんでした';
+        return;
+      }
+
+      if (results.length === 1) {
+        currentSuperDecodedText = results[0].text;
+      } else {
+        currentSuperDecodedText = results.map((r, i) => {
+          const label = r.visible ? `[${r.visible}]` : `[#${i + 1}]`;
+          return `${label}\n${r.text}`;
+        }).join('\n\n');
+      }
+
+      superDecodeResult.textContent = currentSuperDecodedText;
+      superDecodeResultWrapper.hidden = false;
+      superDecodeStatus.textContent = `隠しテキストを展開しました（${results.length}箇所）`;
+    });
+
+    superCopyBtn.addEventListener('click', async () => {
+      superCopyStatus.textContent = '';
+      if (!currentSuperDecodedText) return;
+      try {
+        await navigator.clipboard.writeText(currentSuperDecodedText);
+        superCopyStatus.textContent = 'クリップボードにコピーしました';
+      } catch (e) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = currentSuperDecodedText;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          superCopyStatus.textContent = 'クリップボードにコピーしました';
+        } catch (e2) {
+          superCopyStatus.textContent = 'コピーに失敗しました';
+        }
       }
     });
 
