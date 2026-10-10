@@ -993,18 +993,17 @@ export function setupModalEscClose() {
 
 const STEGANOGRAPHY_LAST_EMOJI_KEY = 'steganography_last_emoji';
 const STEGANOGRAPHY_EMOJI_HISTORY_KEY = 'steganography_emoji_history';
-const DEFAULT_STEGANOGRAPHY_EMOJIS = ['🥟', '🍣', '🍺', '✨', '❤️'];
 
 function loadSteganographyEmojiHistory() {
   try {
     const raw = localStorage.getItem(STEGANOGRAPHY_EMOJI_HISTORY_KEY);
-    if (!raw) return DEFAULT_STEGANOGRAPHY_EMOJIS.slice();
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
       return parsed.filter(item => typeof item === 'string' && item.trim().length > 0);
     }
   } catch (e) { }
-  return DEFAULT_STEGANOGRAPHY_EMOJIS.slice();
+  return [];
 }
 
 function saveSteganographyEmojiHistory(history) {
@@ -1068,13 +1067,14 @@ export function showHiddenTagCharModal(onConfirm) {
     if (!historyContainer) return;
     historyContainer.innerHTML = '';
     const history = loadSteganographyEmojiHistory();
-    const currentVal = (emojiInput.value || '').trim();
-    const displayList = history.slice();
-    if (currentVal && !displayList.includes(currentVal)) {
-      displayList.unshift(currentVal);
+    if (!history || history.length === 0) {
+      historyContainer.hidden = true;
+      return;
     }
+    historyContainer.hidden = false;
+    const currentVal = (emojiInput.value || '').trim();
 
-    for (const em of displayList.slice(0, 8)) {
+    for (const em of history.slice(0, 8)) {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'steganography-history-chip' + (em === currentVal ? ' active' : '');
