@@ -1061,12 +1061,18 @@ export function renderFeed(id = 'global', force = false) {
     : null;
   const selectedEventId = (() => {
     try {
+      const selectedEl = getSelectedEventEl();
+      if (selectedEl) {
+        return (selectedEl.closest && selectedEl.closest('.feed') === el)
+          ? (selectedEl.dataset ? selectedEl.dataset.eventId : null)
+          : null;
+      }
+      if (isActiveFeed) {
+        return null;
+      }
       const uiState = _options.ensureFeedUiState(id);
       if (uiState && uiState.selectedEventId) return uiState.selectedEventId;
-      const selectedEl = getSelectedEventEl();
-      return (selectedEl && selectedEl.closest && selectedEl.closest('.feed') === el)
-        ? selectedEl.dataset.eventId
-        : null;
+      return null;
     } catch (e) {
       return null;
     }
@@ -1089,7 +1095,7 @@ export function renderFeed(id = 'global', force = false) {
   if (selectedEventId) {
     const restoredEl = el.querySelector('.event[data-event-id="' + selectedEventId + '"]');
     if (restoredEl) {
-      setSelectedEventEl(restoredEl, isDomPurgeEnabled() ? { smooth: false } : undefined);
+      setSelectedEventEl(restoredEl, { smooth: false, scroll: false });
     } else {
       setSelectedEventEl(null);
     }

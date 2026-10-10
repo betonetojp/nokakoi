@@ -2,7 +2,7 @@
 
 import { reactToEvent, repostEvent } from '../features/post/actions.js';
 import { setReplyTarget } from '../features/post/composer.js';
-import { setSelectedEventEl } from './keyboard-shortcuts.js';
+import { getSelectedEventEl, setSelectedEventEl } from './keyboard-shortcuts.js';
 import { getReactionContent } from '../utils/utils.js';
 import { applyReactionToButton } from './renderer.js';
 import { findEventById } from '../core/state.js';
@@ -125,9 +125,23 @@ export function setupDelegatedFeedHandlers(state, settingsManager, feedsContaine
         }
 
         // 投稿クリックによる選択状態切り替え
+        // ボタンやリンク等のインタラクティブ要素をクリックした場合は選択状態のトグルを行わない
+        const interactive = e.target.closest && e.target.closest(
+          'button, a, input, textarea, select, details, audio, video, label, .menu-dropdown, .btn-more, .cw-fold-bar, .muted-fold-bar, .steganography-emoji'
+        );
+        if (interactive) return;
+
         const clickedEvent = e.target.closest && e.target.closest('.event');
         if (clickedEvent) {
-          setSelectedEventEl(clickedEvent);
+          const currentSelected = getSelectedEventEl();
+          const isAlreadySelected = (currentSelected === clickedEvent) || clickedEvent.classList.contains('event-selected');
+          if (isAlreadySelected) {
+            // もう一度クリック（またはタップ）したら選択解除
+            setSelectedEventEl(null);
+          } else {
+            // クリック/タップ時は画面が動かないようスクロールなしで選択
+            setSelectedEventEl(clickedEvent, { scroll: false });
+          }
         }
       } catch (e) { }
     }, false);
