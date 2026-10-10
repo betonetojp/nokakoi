@@ -96,7 +96,6 @@
   "ehagaki.open": "Open in new tab",
   "steganography.title": "Steganography",
   "steganography.emoji_label": "Emoji",
-  "steganography.emoji_placeholder": "Enter emoji",
   "steganography.text_label": "Secret message",
   "steganography.text_placeholder": "secret message",
   "steganography.confirm": "Embed",

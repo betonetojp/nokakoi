@@ -35,11 +35,6 @@ textarea {
   border-radius: 8px;
   flex-shrink: 0;
 }
-#steganographyModal #steganographyEmoji::placeholder {
-  color: var(--muted);
-  opacity: 1;
-  font-family: "Segoe UI Symbol", "Noto Sans Symbols2", "Noto Sans JP", sans-serif;
-}
 .steganography-emoji-history {
   display: flex;
   align-items: center;
