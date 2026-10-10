@@ -19,16 +19,57 @@ textarea {
   width: 100%;
 }
 
-/* セクシー餃子モーダルの絵文字プレースホルダは通常入力と見分けやすくする */
-#steganographyEmoji {
-  width: 100%;
-  font-size: 1.2em;
-  text-align: center;
+/* セクシー餃子モーダルの絵文字入力行と履歴 */
+.steganography-emoji-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
-#steganographyEmoji::placeholder {
+#steganographyModal #steganographyEmoji {
+  width: 56px;
+  height: 48px;
+  font-size: 1.8rem;
+  text-align: center;
+  padding: 2px 4px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+#steganographyModal #steganographyEmoji::placeholder {
   color: var(--muted);
   opacity: 1;
   font-family: "Segoe UI Symbol", "Noto Sans Symbols2", "Noto Sans JP", sans-serif;
+}
+.steganography-emoji-history {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.steganography-history-chip {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.steganography-history-chip:hover {
+  background: rgba(228, 0, 125, 0.2);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.steganography-history-chip.active {
+  border-color: var(--accent);
+  background: rgba(228, 0, 125, 0.25);
+  box-shadow: 0 0 0 1.5px var(--accent);
 }
 .modal input[type="text"], .modal input[type="password"], .modal input[type="number"] {
   width: 100%;

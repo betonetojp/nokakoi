@@ -112,6 +112,39 @@ export function setMuteApplyEnabled(settingsManager, enabled, restartFeeds) {
   try { if (typeof fn === 'function') fn(true); } catch (e) { }
 }
 
+export function toggleAllSteganographyInDocument(enabled) {
+  try {
+    const emojis = document.querySelectorAll('.steganography-emoji');
+    emojis.forEach(span => {
+      const existing = span.querySelector('.steganography-revealed');
+      if (enabled) {
+        if (!existing && span.dataset.hidden) {
+          const popup = document.createElement('span');
+          popup.className = 'steganography-revealed';
+          popup.textContent = span.dataset.hidden;
+          span.appendChild(popup);
+          span.classList.add('steganography-open');
+        }
+      } else {
+        if (existing) {
+          existing.remove();
+          span.classList.remove('steganography-open');
+        }
+      }
+    });
+  } catch (e) {
+    console.warn('[DisplaySettings] toggleAllSteganographyInDocument 失敗:', e);
+  }
+}
+
+export function setAutoExpandSteganographyEnabled(settingsManager, enabled) {
+  if (!settingsManager) return;
+  settingsManager.set('autoExpandSteganography', enabled);
+  syncDisplayCheckbox('autoExpandSteganographyCheck', enabled);
+  syncDisplayCheckbox('homeDisplayQuickAutoExpandSteganographyCheck', enabled);
+  toggleAllSteganographyInDocument(enabled);
+}
+
 export function showHomeDisplayQuickModal() {
   const settingsManager = _settingsManagerRef;
   if (!settingsManager) return;
@@ -119,6 +152,7 @@ export function showHomeDisplayQuickModal() {
   const modal = document.getElementById('homeDisplayQuickModal');
   const compactCheck = document.getElementById('homeDisplayQuickCompactCheck');
   const mediaCheck = document.getElementById('homeDisplayQuickMediaCheck');
+  const autoExpandCheck = document.getElementById('homeDisplayQuickAutoExpandSteganographyCheck');
   const reactionsCheck = document.getElementById('homeDisplayQuickReactionsCheck');
   const deltaCheck = document.getElementById('homeDisplayQuickDeltaCheck');
   const muteCheck = document.getElementById('homeDisplayQuickMuteCheck');
@@ -127,6 +161,7 @@ export function showHomeDisplayQuickModal() {
 
   compactCheck.checked = settingsManager.settings.simpleDisplayMode === true;
   mediaCheck.checked = settingsManager.settings.showTimelineMedia === true;
+  if (autoExpandCheck) autoExpandCheck.checked = settingsManager.settings.autoExpandSteganography === true;
   reactionsCheck.checked = settingsManager.settings.showHomeReactions === true;
   if (deltaCheck) deltaCheck.checked = settingsManager.settings.showReceivedDelta !== false;
   const pk = localStorage.getItem('pubkey');
@@ -139,6 +174,11 @@ export function showHomeDisplayQuickModal() {
   mediaCheck.onchange = function () {
     setShowTimelineMediaEnabled(settingsManager, mediaCheck.checked);
   };
+  if (autoExpandCheck) {
+    autoExpandCheck.onchange = function () {
+      setAutoExpandSteganographyEnabled(settingsManager, autoExpandCheck.checked);
+    };
+  }
   reactionsCheck.onchange = function () {
     setShowHomeReactionsEnabled(settingsManager, reactionsCheck.checked);
   };
@@ -211,6 +251,8 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
   showAvatarsCheck.checked = settingsManager.settings.showAvatars !== false;
   if (showTimelineMediaCheck) showTimelineMediaCheck.checked = settingsManager.settings.showTimelineMedia === true;
   if (showCustomEmojiCheck) showCustomEmojiCheck.checked = settingsManager.settings.showCustomEmoji !== false;
+  const autoExpandSteganographyCheck = $('autoExpandSteganographyCheck');
+  if (autoExpandSteganographyCheck) autoExpandSteganographyCheck.checked = settingsManager.settings.autoExpandSteganography === true;
 
   if (showMusicStatusCheck) {
     showMusicStatusCheck.checked = settingsManager.settings.showMusicStatus !== false;
@@ -393,6 +435,12 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
   if (showCustomEmojiCheck) {
     showCustomEmojiCheck.addEventListener('change', () => {
        settingsManager.set('showCustomEmoji', showCustomEmojiCheck.checked);
+    });
+  }
+
+  if (autoExpandSteganographyCheck) {
+    autoExpandSteganographyCheck.addEventListener('change', () => {
+      setAutoExpandSteganographyEnabled(settingsManager, autoExpandSteganographyCheck.checked);
     });
   }
 
@@ -718,6 +766,8 @@ export function refreshAllDisplaySettingsUI(settingsManager) {
     // 5. 各種トグルチェックボックス
     syncDisplayCheckbox('showAvatarsCheck', s.showAvatars !== false);
     syncDisplayCheckbox('showCustomEmojiCheck', s.showCustomEmoji !== false);
+    syncDisplayCheckbox('autoExpandSteganographyCheck', s.autoExpandSteganography === true);
+    syncDisplayCheckbox('homeDisplayQuickAutoExpandSteganographyCheck', s.autoExpandSteganography === true);
     syncDisplayCheckbox('showHomeOmochatCheck', s.showHomeOmochat === true);
     syncDisplayCheckbox('showMusicStatusCheck', s.showMusicStatus !== false);
     syncDisplayCheckbox('showClientNameCheck', s.showClientName !== false);

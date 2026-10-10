@@ -31,6 +31,7 @@ export class SettingsManager {
       famicomMode: false,
       showAvatars: true,
       showTimelineMedia: false,
+      autoExpandSteganography: false,
       showClientName: true,
       attachClientName: true,
       alwaysUseNip22Comment: false,

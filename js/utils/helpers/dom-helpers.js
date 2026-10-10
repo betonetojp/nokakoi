@@ -1,5 +1,6 @@
 import { t } from '../i18n.js';
 import { resolveThemeButtonBg, contrastColorForBg } from './reaction-helpers.js';
+import { getSettingsManager } from '../../core/app-context.js';
 
 export const $ = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -93,9 +94,21 @@ export function showToast(message, options = {}) {
   } catch (e) { console.warn('[Utils] showToast に失敗', e); }
 }
 
-export function processHiddenTagChars(el) {
+export function processHiddenTagChars(el, options = {}) {
   if (!el) return;
   const TAG_RE = /[\u{E0100}-\u{E01EF}]/u;
+
+  let shouldAutoExpand = false;
+  if (options && typeof options.autoExpand === 'boolean') {
+    shouldAutoExpand = options.autoExpand;
+  } else {
+    try {
+      const sm = typeof getSettingsManager === 'function' ? getSettingsManager() : null;
+      if (sm && sm.settings) {
+        shouldAutoExpand = sm.settings.autoExpandSteganography === true;
+      }
+    } catch (e) { }
+  }
 
   function decodeTagChars(tagStr) {
     try {
@@ -137,6 +150,16 @@ export function processHiddenTagChars(el) {
         span.dataset.hidden = decoded;
         span.title = t('steganography.click_to_reveal');
         span.textContent = visibleEmoji;
+
+        function mountPopup() {
+          const popup = document.createElement('span');
+          popup.className = 'steganography-revealed';
+          popup.textContent = decoded;
+          processHiddenTagChars(popup, { autoExpand: shouldAutoExpand });
+          span.appendChild(popup);
+          span.classList.add('steganography-open');
+        }
+
         span.addEventListener('click', function (e) {
           e.stopPropagation();
           const existing = span.querySelector('.steganography-revealed');
@@ -144,14 +167,14 @@ export function processHiddenTagChars(el) {
             existing.remove();
             span.classList.remove('steganography-open');
           } else {
-            const popup = document.createElement('span');
-            popup.className = 'steganography-revealed';
-            popup.textContent = decoded;
-            processHiddenTagChars(popup);
-            span.appendChild(popup);
-            span.classList.add('steganography-open');
+            mountPopup();
           }
         });
+
+        if (shouldAutoExpand) {
+          mountPopup();
+        }
+
         fragment.appendChild(span);
       } else {
         fragment.appendChild(document.createTextNode(visibleEmoji));

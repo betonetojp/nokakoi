@@ -30,7 +30,10 @@
         </div>
         <div class="modal-field">
           <label for="steganographyEmoji" class="modal-field-label" data-i18n="steganography.emoji_label">絵文字</label>
-          <input type="text" id="steganographyEmoji" data-i18n-placeholder="steganography.emoji_placeholder">
+          <div class="steganography-emoji-row">
+            <input type="text" id="steganographyEmoji" data-i18n-placeholder="steganography.emoji_placeholder">
+            <div id="steganographyEmojiHistory" class="steganography-emoji-history"></div>
+          </div>
         </div>
         <div class="modal-field">
           <label for="steganographyText" class="modal-field-label" data-i18n="steganography.text_label">隠すテキスト</label>
@@ -57,6 +60,12 @@
           <label class="setting-row-clickable">
             <input type="checkbox" id="homeDisplayQuickMediaCheck">
             <span data-i18n="showTimelineMedia">画像・動画をインライン表示</span>
+          </label>
+        </div>
+        <div class="mt-8">
+          <label class="setting-row-clickable">
+            <input type="checkbox" id="homeDisplayQuickAutoExpandSteganographyCheck">
+            <span data-i18n="autoExpandSteganography">セクシー餃子を自動展開</span>
           </label>
         </div>
         <div class="mt-8">

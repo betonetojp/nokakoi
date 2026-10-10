@@ -991,6 +991,50 @@ export function setupModalEscClose() {
   });
 }
 
+const STEGANOGRAPHY_LAST_EMOJI_KEY = 'steganography_last_emoji';
+const STEGANOGRAPHY_EMOJI_HISTORY_KEY = 'steganography_emoji_history';
+const DEFAULT_STEGANOGRAPHY_EMOJIS = ['🥟', '🍣', '🍺', '✨', '❤️'];
+
+function loadSteganographyEmojiHistory() {
+  try {
+    const raw = localStorage.getItem(STEGANOGRAPHY_EMOJI_HISTORY_KEY);
+    if (!raw) return DEFAULT_STEGANOGRAPHY_EMOJIS.slice();
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.filter(item => typeof item === 'string' && item.trim().length > 0);
+    }
+  } catch (e) { }
+  return DEFAULT_STEGANOGRAPHY_EMOJIS.slice();
+}
+
+function saveSteganographyEmojiHistory(history) {
+  try {
+    localStorage.setItem(STEGANOGRAPHY_EMOJI_HISTORY_KEY, JSON.stringify(history.slice(0, 8)));
+  } catch (e) { }
+}
+
+function pushSteganographyEmojiHistory(emoji) {
+  if (!emoji) return;
+  const list = loadSteganographyEmojiHistory();
+  const filtered = list.filter(item => item !== emoji);
+  filtered.unshift(emoji);
+  saveSteganographyEmojiHistory(filtered);
+}
+
+function loadSteganographyLastEmoji() {
+  try {
+    const saved = localStorage.getItem(STEGANOGRAPHY_LAST_EMOJI_KEY);
+    if (saved && saved.trim()) return saved.trim();
+  } catch (e) { }
+  return '🥟';
+}
+
+function saveSteganographyLastEmoji(emoji) {
+  try {
+    if (emoji && emoji.trim()) localStorage.setItem(STEGANOGRAPHY_LAST_EMOJI_KEY, emoji.trim());
+  } catch (e) { }
+}
+
 /**
  * 隠し文字埋め込みモーダルを表示
  */
@@ -1002,6 +1046,7 @@ export function showHiddenTagCharModal(onConfirm) {
   }
 
   const emojiInput = modal.querySelector('#steganographyEmoji');
+  const historyContainer = modal.querySelector('#steganographyEmojiHistory');
   const textInput = modal.querySelector('#steganographyText');
   const confirmBtn = modal.querySelector('#steganographyConfirm');
   const closeBtn = modal.querySelector('#steganographyClose');
@@ -1014,9 +1059,41 @@ export function showHiddenTagCharModal(onConfirm) {
 
   // モーダル表示
   modal.hidden = false;
-  emojiInput.value = '🥟';
+  const initialEmoji = loadSteganographyLastEmoji();
+  emojiInput.value = initialEmoji;
   textInput.value = '';
   if (statusEl) statusEl.textContent = '';
+
+  function renderEmojiHistory() {
+    if (!historyContainer) return;
+    historyContainer.innerHTML = '';
+    const history = loadSteganographyEmojiHistory();
+    const currentVal = (emojiInput.value || '').trim();
+    const displayList = history.slice();
+    if (currentVal && !displayList.includes(currentVal)) {
+      displayList.unshift(currentVal);
+    }
+
+    for (const em of displayList.slice(0, 8)) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'steganography-history-chip' + (em === currentVal ? ' active' : '');
+      chip.textContent = em;
+      chip.title = em;
+      chip.addEventListener('click', (e) => {
+        e.preventDefault();
+        emojiInput.value = em;
+        renderEmojiHistory();
+        textInput.focus();
+      });
+      historyContainer.appendChild(chip);
+    }
+  }
+
+  renderEmojiHistory();
+  emojiInput.oninput = () => {
+    renderEmojiHistory();
+  };
 
   // 前面化
   try {
@@ -1046,6 +1123,9 @@ export function showHiddenTagCharModal(onConfirm) {
       if (statusEl) statusEl.textContent = t('steganography.error.text_required');
       return;
     }
+
+    saveSteganographyLastEmoji(emoji);
+    pushSteganographyEmojiHistory(emoji);
 
     // エンコード処理
     try {
