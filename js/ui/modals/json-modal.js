@@ -4,7 +4,58 @@
 
 import { $ } from '../../utils/utils.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
-import { getEventSeenOn } from '../../core/relay.js';
+import { getEventSeenOn, getReadRelays } from '../../core/relay.js';
+import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
+
+/**
+ * イベントオブジェクトから nevent1... 形式の識別子を生成
+ * @param {object} event
+ * @param {object} [state]
+ * @param {object} [nip19]
+ * @returns {string|null}
+ */
+export function encodeEventToNevent(event, state = null, nip19 = null) {
+  if (!event || typeof event !== 'object' || !event.id) return null;
+  const nip19Local = nip19 || (typeof window !== 'undefined' && window.__nip19) || getNip19Compat() || null;
+  if (!nip19Local) return null;
+
+  try {
+    const relays = [];
+    try {
+      const stateObj = state || (typeof window !== 'undefined' ? window.__nostrState : null);
+      const seen = getEventSeenOn ? getEventSeenOn(stateObj, event) : [];
+      for (const r of (seen || [])) {
+        if (typeof r === 'string' && /^wss?:\/\//i.test(r) && !relays.includes(r)) relays.push(r);
+      }
+      if (relays.length === 0 && getReadRelays && stateObj && stateObj.relays) {
+        for (const r of getReadRelays(stateObj.relays).slice(0, 3)) {
+          if (typeof r === 'string' && /^wss?:\/\//i.test(r) && !relays.includes(r)) relays.push(r);
+        }
+      }
+    } catch (_err) { }
+
+    const payload = {
+      id: event.id,
+      relays: relays.slice(0, 3)
+    };
+    if (event.pubkey && typeof event.pubkey === 'string') {
+      payload.author = event.pubkey;
+    }
+    if (typeof event.kind === 'number') {
+      payload.kind = event.kind;
+    }
+
+    if (typeof nip19Local.neventEncode === 'function') {
+      return nip19Local.neventEncode(payload);
+    }
+    if (nip19Local.nevent && typeof nip19Local.nevent.encode === 'function') {
+      return nip19Local.nevent.encode(payload);
+    }
+  } catch (err) {
+    console.warn('[json-modal] Failed to encode nevent:', err);
+  }
+  return null;
+}
 
 function eventForJsonDisplay(event) {
   if (!event || typeof event !== 'object') return event;
@@ -44,11 +95,29 @@ export function showJsonModal(event) {
   const content = $('#jsonContent');
   const copyBtn = $('#jsonCopy');
   const copyStatus = $('#jsonCopyStatus');
+  const neventWrap = $('#jsonNeventWrap');
+  const neventEl = $('#jsonNevent');
+  const copyNeventBtn = $('#jsonCopyNevent');
+  const copyNeventBottomBtn = $('#jsonCopyNeventBottom');
 
   if (!modal || !content) return;
 
   // モーダルの静的ラベルに翻訳を適用
   try { if (typeof applyTranslations === 'function') applyTranslations(modal, true); } catch (e) { }
+
+  // nevent の生成と表示
+  const state = (typeof window !== 'undefined' && window.__nostrState) ? window.__nostrState : null;
+  const nevent = encodeEventToNevent(event, state);
+
+  if (neventWrap && neventEl) {
+    if (nevent) {
+      neventEl.textContent = nevent;
+      neventWrap.classList.remove('d-none');
+    } else {
+      neventEl.textContent = '';
+      neventWrap.classList.add('d-none');
+    }
+  }
 
   // JSONを整形して表示（クライアント専用フィールドは除外）
   const jsonText = JSON.stringify(eventForJsonDisplay(event), null, 2);
@@ -65,7 +134,39 @@ export function showJsonModal(event) {
     };
   }
 
-  // コピー機能セットアップ
+  // nevent コピーハンドラー
+  const handleCopyNevent = async function () {
+    if (!nevent) return;
+    try {
+      await navigator.clipboard.writeText(nevent);
+      if (copyStatus) {
+        copyStatus.textContent = t('json.copy_nevent.done') || 'neventをコピーしました';
+        setTimeout(() => {
+          copyStatus.textContent = '';
+        }, 2000);
+      }
+    } catch (e) {
+      if (copyStatus) {
+        copyStatus.textContent = t('json.copy.failed');
+        setTimeout(() => {
+          copyStatus.textContent = '';
+        }, 2000);
+      }
+    }
+  };
+
+  if (copyNeventBtn) {
+    copyNeventBtn.onclick = handleCopyNevent;
+  }
+  if (copyNeventBottomBtn) {
+    copyNeventBottomBtn.classList.toggle('d-none', !nevent);
+    copyNeventBottomBtn.onclick = handleCopyNevent;
+  }
+  if (neventEl) {
+    neventEl.onclick = handleCopyNevent;
+  }
+
+  // JSONコピー機能セットアップ
   if (copyBtn) {
     copyBtn.onclick = async function () {
       try {

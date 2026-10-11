@@ -6,7 +6,7 @@ import { escapeHtml, fmtTime, processHiddenTagChars, replaceBadgeEmoji } from '.
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { displayNameWithUsername } from '../../features/profile/profile.js';
 import { getEventDisplayPubkey } from '../../features/zap/zap.js';
-import { showJsonModal } from './json-modal.js';
+import { showJsonModal, encodeEventToNevent } from './json-modal.js';
 import { linkifyText, fitCustomEmoji, updateNostrNpubLinks, updateNostrNoteLinks, linkifyNostrUri } from '../../utils/url-parser.js';
 import { parseMarkdownSafe } from '../../utils/markdown.js';
 import { setupReactButton, setupRepostButton, setupReplyButton, renderReplyContext, applyClientBadgeToContainer } from '../renderer.js';
@@ -379,6 +379,29 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
     });
     return false;
   };
+
+  // nevent コピーボタンのセットアップ
+  const eventCopyNeventBtn = modal.querySelector('#eventModalCopyNevent');
+  if (eventCopyNeventBtn) {
+    const nevent = encodeEventToNevent(event, state, nip19);
+    if (nevent) {
+      eventCopyNeventBtn.classList.remove('d-none');
+      eventCopyNeventBtn.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(nevent);
+          const origText = eventCopyNeventBtn.textContent;
+          eventCopyNeventBtn.textContent = '✓ ' + (t('json.copy.done') || 'コピーしました');
+          setTimeout(() => {
+            eventCopyNeventBtn.textContent = origText;
+          }, 2000);
+        } catch (_err) { }
+      };
+    } else {
+      eventCopyNeventBtn.classList.add('d-none');
+    }
+  }
 
   // タイムラインと同じボタン配置・動作
   // リアクション（名前右）

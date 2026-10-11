@@ -284,6 +284,7 @@ body.theme-light #eventModalContent::-webkit-scrollbar-thumb {
 .modal .json-pre,
 .modal #debugContent,
 .modal #jsonContent,
+.modal #jsonNevent,
 .modal #profileNpub,
 .modal #profileDisplayName,
 .modal #profileUsername,

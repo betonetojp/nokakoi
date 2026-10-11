@@ -281,7 +281,7 @@ export function setupComposerNostrPreview(state, noteInput, composer) {
 
       const hint = document.createElement('span');
       hint.className = 'nostr-preview-label nostr-convert-hint';
-      hint.textContent = t('composer.convertHint') || '💡 nostr: を付与:';
+      hint.textContent = t('composer.convertHint') || '💡 nostr: を付与';
       convertRow.appendChild(hint);
 
       const btnGroup = document.createElement('div');

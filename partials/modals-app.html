@@ -407,9 +407,15 @@
         <h2 class="modal-title" data-i18n="json.title">イベントJSON</h2>
         <button id="jsonClose" class="secondary modal-close" type="button" data-i18n-aria-label="close">✕</button>
       </div>
+      <div id="jsonNeventWrap" class="json-nevent-wrap d-none">
+        <span class="json-nevent-label muted">nevent:</span>
+        <code id="jsonNevent" class="json-nevent-value" title="クリックしてコピー"></code>
+        <button id="jsonCopyNevent" class="btn-copy-nevent secondary small" type="button" data-i18n="json.copy_nevent">neventをコピー</button>
+      </div>
       <pre id="jsonContent"></pre>
       <div class="row json-copy-row">
-        <button id="jsonCopy" type="button" data-i18n="json.copy">コピー</button>
+        <button id="jsonCopy" type="button" data-i18n="json.copy">JSONをコピー</button>
+        <button id="jsonCopyNeventBottom" class="secondary d-none" type="button" data-i18n="json.copy_nevent">neventをコピー</button>
         <span id="jsonCopyStatus" class="muted"></span>
       </div>
       <div id="jsonSeenOnWrap" class="json-seen-on-wrap">
@@ -437,6 +443,7 @@
         <div>
           <span id="eventModalTime"></span>
           <button id="eventModalKind" class="btn-kind" type="button"><span data-i18n="kind">kind</span>:</button>
+          <button id="eventModalCopyNevent" class="btn-kind ml-8 d-none" type="button" data-i18n="event.copy_nevent" title="neventをコピー">nevent</button>
         </div>
         <div class="event-actions-bottom" id="eventModalActionsBottom"></div>
       </div>

@@ -218,7 +218,50 @@ body.theme-light .json-pre {
 #jsonContent::-webkit-scrollbar { width: 6px; background: #151820; }
 #jsonContent::-webkit-scrollbar-thumb { background: #232633; border-radius: 3px; }
 #jsonContent::-webkit-scrollbar-thumb:hover { background: #444b5a; }
-.json-copy-row { margin-top: 12px; }
+.json-nevent-wrap {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: rgba(124, 147, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.json-nevent-label {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.json-nevent-value {
+  font-family: monospace;
+  font-size: 0.82em;
+  color: var(--accent);
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  -webkit-user-select: text;
+  user-select: text;
+  line-height: 1.3;
+}
+.json-nevent-value:hover {
+  text-decoration: underline;
+}
+.btn-copy-nevent {
+  flex-shrink: 0;
+  font-size: 0.82em;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.json-copy-row {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .json-seen-on-wrap { margin-top: 16px; }
 .json-seen-on-label {
   font-size: 0.85em;
