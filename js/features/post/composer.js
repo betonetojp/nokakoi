@@ -20,6 +20,9 @@ import {
 import { sendChannelMessage } from '../channel/channel-feed.js';
 import { pickChannelRootId } from '../channel/channel.js';
 import { getCustomEmojis, getSettingsManager } from '../../core/app-context.js';
+import { setupComposerNostrPreview } from './composer-nostr-preview.js';
+
+let nostrPreviewHandler = null;
 
 let currentReplyTarget = null;
 let currentGeohashTarget = null;
@@ -667,6 +670,28 @@ export function setupEmojiShortcodeSuggest() {
   } catch (e) {
     console.warn('[Composer] emoji ショートコードサジェストセットアップに失敗:', e);
   }
+}
+
+/**
+ * 投稿欄の Nostr メンション/引用プレビューおよび nostr: 付与アシストをセットアップ
+ */
+export function setupNostrPreview(state) {
+  try {
+    const noteInput = $('#noteInput');
+    const composer = $('#composer');
+    if (!noteInput || !composer) return;
+    nostrPreviewHandler = setupComposerNostrPreview(state, noteInput, composer);
+  } catch (e) {
+    console.warn('[Composer] nostr プレビューセットアップに失敗:', e);
+  }
+}
+
+export function clearNostrPreview() {
+  try {
+    if (nostrPreviewHandler && typeof nostrPreviewHandler.clear === 'function') {
+      nostrPreviewHandler.clear();
+    }
+  } catch (_e) { }
 }
 
 /**

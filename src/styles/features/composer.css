@@ -160,3 +160,90 @@
   word-break: break-all;
   overflow-wrap: anywhere;
 }
+
+/* Nostr プレビュー & nostr: 付与アシスト */
+.composer-nostr-preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  background: var(--bg-secondary, rgba(127, 127, 127, 0.08));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85em;
+  line-height: 1.3;
+}
+.nostr-preview-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.nostr-preview-label {
+  font-weight: 600;
+  color: var(--muted, #888);
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+.nostr-preview-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.nostr-preview-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--bg, #fff);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  max-width: 240px;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+.nostr-preview-chip:hover {
+  border-color: var(--accent, #fbbf24);
+  opacity: 0.9;
+}
+.nostr-preview-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.nostr-preview-icon {
+  font-size: 0.95em;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.nostr-preview-name,
+.nostr-preview-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9em;
+}
+.nostr-convert-row {
+  border-top: 1px dashed var(--border);
+  padding-top: 4px;
+}
+.nostr-convert-hint {
+  color: var(--accent, #e5a710);
+}
+.nostr-convert-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.nostr-convert-btn {
+  padding: 2px 7px;
+  font-size: 0.82em;
+  line-height: 1.2;
+  cursor: pointer;
+}
+

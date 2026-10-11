@@ -15,7 +15,7 @@ import {
   setupComposerScrollBehavior,
   setupComposerScrollLifecycle
 } from '../features/post/composer-scroll.js';
-import { setReplyTarget, clearReplyTarget, setupCancelReplyButton, setupEmojiPreview, setupEmojiShortcodeSuggest, openHiddenTagCharModal, setupComposerUI, setQuoteTarget } from '../features/post/composer.js';
+import { setReplyTarget, clearReplyTarget, setupCancelReplyButton, setupEmojiPreview, setupEmojiShortcodeSuggest, setupNostrPreview, openHiddenTagCharModal, setupComposerUI, setQuoteTarget } from '../features/post/composer.js';
 import { setupGlobalTabSelector, updateGlobalButtonLabel, showGlobalRelaySelector } from '../features/relay/global-relay.js';
 import { setupRelaySettingsUI } from '../features/relay/relay-settings.js';
 import { setupMediaLinkHandlers } from '../utils/url-parser.js';
@@ -271,6 +271,7 @@ export async function initApp() {
   setupCancelReplyButton();
   setupEmojiPreview();
   setupEmojiShortcodeSuggest();
+  setupNostrPreview(state);
 
   try {
     const steganographyBtn = document.getElementById('steganographyBtn');
