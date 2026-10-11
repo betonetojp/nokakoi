@@ -2,7 +2,6 @@
 // 通知管理 (PWA in-page notifications)
 // ============================================================================
 
-import { t } from './i18n.js';
 import { logWarn } from './utils.js';
 
 const NOTIF_MIN_INTERVAL = 10000; // ms

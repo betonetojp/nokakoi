@@ -70,7 +70,7 @@ export async function reconnectSingleRelay(state, url) {
 /**
  * リレーの再接続をスケジュール（指数バックオフ、上限なし）
  */
-export function scheduleReconnect(state, url, restartFeedsCallback = null) {
+export function scheduleReconnect(state, url) {
   try {
     const relayState = relayStates.get(url);
     if (!relayState) return;
@@ -196,7 +196,7 @@ export function removeVisibilityHandler(state) {
 /**
  * リレー接続監視
  */
-export function monitorRelayConnections(state, restartFeedsCallback) {
+export function monitorRelayConnections(state) {
   if (!state.pool) return;
   const allRelays = getAllRelayUrls(state.relays);
   allRelays.forEach(url => {
@@ -225,7 +225,7 @@ export function monitorRelayConnections(state, restartFeedsCallback) {
             updateRelayState(url, false);
             const rs = relayStates.get(url);
             if (rs.lastSeenDown && (now - rs.lastSeenDown) >= DOWN_PERSIST_MS) {
-              scheduleReconnect(state, url, restartFeedsCallback);
+              scheduleReconnect(state, url);
               rs.lastSeenDown = null;
               relayStates.set(url, rs);
             }
@@ -237,7 +237,7 @@ export function monitorRelayConnections(state, restartFeedsCallback) {
             updateRelayState(url, false);
             const rs = relayStates.get(url);
             if (rs.lastSeenDown && (now - rs.lastSeenDown) >= DOWN_PERSIST_MS) {
-              scheduleReconnect(state, url, restartFeedsCallback);
+              scheduleReconnect(state, url);
               rs.lastSeenDown = null;
               relayStates.set(url, rs);
             }
@@ -267,7 +267,7 @@ export function stopMonitoringRelays(state) {
   }
   stopKeepalive(state);
   removeVisibilityHandler(state);
-  relayStates.forEach((relayState, url) => {
+  relayStates.forEach((relayState) => {
     if (relayState.reconnectTimer) {
       clearTimeout(relayState.reconnectTimer);
       relayState.reconnectTimer = null;

@@ -12,7 +12,7 @@ import { t } from '../utils/i18n.js';
 /**
  * タイムライン要素（いいね・返信・リポストなど）のイベント委譲処理をセットアップする
  */
-export function setupDelegatedFeedHandlers(state, settingsManager, feedsContainer) {
+export function setupDelegatedFeedHandlers(state, settingsManager, _feedsContainer) {
   const settings = settingsManager.settings;
   const nip19 = getNip19();
   const touchTimers = new Map();

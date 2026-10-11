@@ -31,7 +31,6 @@ export function setupScrollToTopButton() {
   // 状態
   let scrollTimeout = null;
   let inReloadMode = false;
-  let pendingReloadRestore = false; // フラグ: softReload 完了後に tab-top へ復元
   let _spacerEl = null;
   let _desiredTabTop = null;
   let pendingSecondClickTimer = null;
@@ -263,7 +262,7 @@ export function setupScrollToTopButton() {
     try { e.preventDefault(); } catch (e) { }
   }
 
-  function stopDrag(e) {
+  function stopDrag() {
     if (!isDragging) return;
     button.classList.remove('dragging');
     const duration = Date.now() - startTime;
@@ -274,8 +273,6 @@ export function setupScrollToTopButton() {
         // ここでは即トーストを出さず、second tab click 前に表示する
         // 目標 top を保持し、トースト描画後にスクロール位置を変えず再読込要求
         setTimeout(() => {
-          // softReload 完了後に tab-top 復元するフラグを立てる
-          try { pendingReloadRestore = true; } catch (e) { }
           // 進行中を明示するため 2 秒の loading トーストを表示
           try { showToast(t('loading'), { type: 'info', duration: 2000 }); } catch (e) { }
           // トースト表示後（約2秒）に second tab click を予約
@@ -296,7 +293,6 @@ export function setupScrollToTopButton() {
               // スペーサーをクリーンアップ
               try { if (_spacerEl && _spacerEl.parentNode) { _spacerEl.parentNode.removeChild(_spacerEl); _spacerEl = null; _desiredTabTop = null; } } catch (e) { }
               pendingSecondClickTimer = null;
-              pendingReloadRestore = false;
             }, 2100);
           } catch (e) { }
           try { if (typeof window.softReload === 'function') { window.softReload(); } else { window.dispatchEvent(new CustomEvent('softReloadRequest')); } } catch (e) { }
@@ -326,8 +322,6 @@ export function setupScrollToTopButton() {
       // ここでは即トーストを出さず、second tab click 前に表示
       // 目標 top を保持し、短時間待ってからスクロール位置を変えず再読込要求
       setTimeout(() => {
-        // softReload 完了後に tab-top 復元するフラグを立てる
-        try { pendingReloadRestore = true; } catch (e) { }
         // 進行中を明示するため 2 秒の loading トーストを表示
         try { showToast(t('loading'), { type: 'info', duration: 2000 }); } catch (e) { }
         // トースト表示後（約2秒）に second tab click を予約
@@ -348,7 +342,6 @@ export function setupScrollToTopButton() {
             // スペーサーをクリーンアップ
             try { if (_spacerEl && _spacerEl.parentNode) { _spacerEl.parentNode.removeChild(_spacerEl); _spacerEl = null; _desiredTabTop = null; } } catch (e) { }
             pendingSecondClickTimer = null;
-            pendingReloadRestore = false;
           }, 2100);
         } catch (e) { }
         try {
@@ -369,9 +362,9 @@ export function setupScrollToTopButton() {
     scrollToTabTop(behavior);
   }
 
-  button.addEventListener('click', (e) => { if (isDragging) return; activateButtonAction(); });
-  button.addEventListener('pointerup', (e) => { if (!isDragging) activateButtonAction(); });
-  button.addEventListener('touchend', (e) => { if (!isDragging) activateButtonAction(); }, { passive: true });
+  button.addEventListener('click', () => { if (isDragging) return; activateButtonAction(); });
+  button.addEventListener('pointerup', () => { if (!isDragging) activateButtonAction(); });
+  button.addEventListener('touchend', () => { if (!isDragging) activateButtonAction(); }, { passive: true });
 
   // 下層の composer へイベントが抜けないようにする
   button.addEventListener('pointerdown', (e) => { try { e.stopPropagation(); } catch (err) { } });

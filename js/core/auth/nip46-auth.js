@@ -90,7 +90,7 @@ export function showNip46LoginModal(state, settings, settingsManager, loginFn) {
     if (protection === 'protected') {
       try {
         if (statusEl) statusEl.textContent = t('auth.passkey_register_prompt');
-        const passkeyData = await registerPasskey('nip46-user');
+        const passkeyData = await registerPasskey();
         if (statusEl) statusEl.textContent = t('auth.pending');
         const authResult = await authenticateWithPasskey(passkeyData.credentialId);
         if (!authResult.success || !authResult.prfKey) throw new Error(t('webauthn.prf_not_supported'));

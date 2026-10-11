@@ -19,7 +19,7 @@ export default [
       }
     },
     rules: {
-      "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }],
+      "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "caughtErrors": "none", "ignoreRestSiblings": true }],
       "no-undef": "error",
       "no-empty": ["error", { "allowEmptyCatch": true }]
     }

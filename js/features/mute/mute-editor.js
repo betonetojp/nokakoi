@@ -4,9 +4,9 @@
  */
 
 import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../core/replaceable-event.js';
-import { getNip04, getNip44, hexToBytes, getNip19 } from '../../core/nostr-compat.js';
+import { getNip04, getNip44, getNip19 } from '../../core/nostr-compat.js';
 import { t } from '../../utils/i18n.js';
-import { displayNameWithUsername, loadProfile, updateNameDom, isAvatarsEnabled } from '../profile/profile.js';
+import { displayNameWithUsername, loadProfile, isAvatarsEnabled } from '../profile/profile.js';
 import { refreshEventsMuteState, invalidateMuteConfigCache } from '../../ui/renderers/render-helpers.js';
 import { signer } from '../../core/signer.js';
 
@@ -41,90 +41,6 @@ function formatDateStr(ts) {
   const hh = String(d.getHours()).padStart(2, '0');
   const min = String(d.getMinutes()).padStart(2, '0');
   return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
-}
-
-function openMuteSnapshotModal(parentModal, options) {
-  const overlay = document.createElement('div');
-  overlay.className = 'editor-confirm-overlay';
-
-  const dialog = document.createElement('div');
-  dialog.className = 'editor-confirm-dialog';
-  dialog.style.maxWidth = '480px';
-  dialog.style.width = '90%';
-
-  function renderDialogContent() {
-    const snapshots = loadMuteSnapshots();
-    dialog.innerHTML = `
-      <div class="row align-center justify-between mb-12">
-        <h3 class="font-bold text-base m-0">📸 ${t('editor.mute.snapshots') || 'Snapshots'}</h3>
-        <button type="button" class="secondary small" id="closeSnapDialog">✕</button>
-      </div>
-      <button type="button" id="createSnapBtn" class="mb-12 w-full">${t('editor.mute.create_snapshot') || '+ Create Snapshot'}</button>
-      <div class="editor-list" style="max-height: 260px; text-align: left;">
-        ${snapshots.length === 0 ? `<div class="muted p-8 text-center text-sm">${t('editor.mute.no_snapshots') || 'No saved snapshots.'}</div>` : ''}
-      </div>
-    `;
-
-    const closeBtn = dialog.querySelector('#closeSnapDialog');
-    closeBtn.onclick = () => overlay.remove();
-
-    const createBtn = dialog.querySelector('#createSnapBtn');
-    createBtn.onclick = () => {
-      const now = Date.now();
-      const newSnap = {
-        id: now.toString(),
-        name: formatDateStr(now),
-        createdAt: now,
-        publicUsers: options.publicUserItems.filter(i => i.isMuted).map(i => i.pubkey),
-        publicWords: options.publicWordItems.filter(i => i.isMuted).map(i => i.word),
-        privateUsers: options.privateUserItems.filter(i => i.isMuted).map(i => i.pubkey),
-        privateWords: options.privateWordItems.filter(i => i.isMuted).map(i => i.word),
-        encryptionMode: options.selectedEncryptionMode
-      };
-      snapshots.unshift(newSnap);
-      saveMuteSnapshots(snapshots);
-      renderDialogContent();
-    };
-
-    const listContainer = dialog.querySelector('.editor-list');
-    snapshots.forEach((snap, idx) => {
-      const row = document.createElement('div');
-      row.className = 'editor-list-item justify-between align-center p-6';
-
-      const userCount = (snap.publicUsers ? snap.publicUsers.length : 0) + (snap.privateUsers ? snap.privateUsers.length : 0);
-      const wordCount = (snap.publicWords ? snap.publicWords.length : 0) + (snap.privateWords ? snap.privateWords.length : 0);
-
-      row.innerHTML = `
-        <div class="flex-column min-w-0 flex-1 mr-8">
-          <div class="font-bold text-sm truncate">${snap.name}</div>
-          <div class="muted text-xs">Users: ${userCount} / Words: ${wordCount}</div>
-        </div>
-        <div class="flex-row gap-4">
-          <button type="button" class="small apply-btn">${t('editor.mute.snapshot_apply') || 'Apply'}</button>
-          <button type="button" class="secondary small delete-btn">✕</button>
-        </div>
-      `;
-
-      row.querySelector('.apply-btn').onclick = () => {
-        if (typeof options.onApply === 'function') {
-          options.onApply(snap);
-        }
-        overlay.remove();
-      };
-
-      row.querySelector('.delete-btn').onclick = () => {
-        snapshots.splice(idx, 1);
-        saveMuteSnapshots(snapshots);
-        renderDialogContent();
-      };
-
-      listContainer.appendChild(row);
-    });
-  }
-
-  renderDialogContent();
-  overlay.appendChild(dialog);
-  (parentModal.querySelector('.modal-body') || parentModal).appendChild(overlay);
 }
 
 let dragScrollTimer = null;
@@ -227,7 +143,7 @@ function attachDragAndTouchHandlers(row, dragHandle, itemType, index, itemsArray
   };
 
   // Mobile / Touch Drag Events
-  dragHandle.ontouchstart = (e) => {
+  dragHandle.ontouchstart = () => {
     const fromIndex = index;
     row.classList.add('dragging');
 
@@ -348,10 +264,6 @@ function showConfirmDialog(parentElement, msgKey, okBtnKey) {
 
     parentElement.appendChild(overlay);
   });
-}
-
-function getSecretKeyHex(state) {
-  return signer.hasKey();
 }
 
 /**
@@ -1058,8 +970,6 @@ export async function openMuteEditor(state) {
 
   // 2. 「現在のリスト」タブの描画
   function renderMutesTab(container) {
-    const totalUsers = publicUserItems.filter(i => i.isMuted).length + privateUserItems.filter(i => i.isMuted).length;
-    const totalWords = publicWordItems.filter(i => i.isMuted).length + privateWordItems.filter(i => i.isMuted).length;
 
     container.innerHTML = `
       <div style="display: flex; justify-content: flex-end;" class="mb-8">

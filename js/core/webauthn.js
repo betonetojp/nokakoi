@@ -99,7 +99,7 @@ const PRF_SALT = new Uint8Array([
 /**
  * パスキー（認証情報）新規登録（PRF拡張を利用）
  */
-export async function registerPasskey(username = 'nostr-user') {
+export async function registerPasskey() {
   if (!isWebAuthnSupported()) {
     throw new Error(t('webauthn.not_supported'));
   }

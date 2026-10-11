@@ -1,6 +1,7 @@
 import { t } from '../../utils/i18n.js';
 import { addAutoCloseCheckbox, waitForEhagakiPublish } from '../../ui/ehagaki-autoclose.js';
-import { getReplyTarget, getQuoteMode } from './composer.js';
+import { getReplyTarget, getQuoteMode, getChannelTarget } from './composer.js';
+import { buildChannelEmbedContext } from '../channel/channel.js';
 import { clearTextShortcodeRegistry } from '../emoji/custom-emoji-store.js';
 import { getNip19 } from '../../core/nostr-compat.js';
 import { signEventWithMode } from './actions.js';
@@ -625,7 +626,6 @@ export async function setupPostLinkUI(settingsManager) {
       // 4. preloadedEvents（返信先・引用元の完全な Nostr イベントを渡して 0ms 即時展開）
       try {
         const preloadedEvents = {};
-        const isQuoteMode = (typeof getQuoteMode === 'function') && getQuoteMode();
         const rt = (typeof getReplyTarget === 'function') ? getReplyTarget() : null;
 
         // 返信先または引用ターゲットのイベント
@@ -830,20 +830,6 @@ export async function setupPostLinkUI(settingsManager) {
         if (code.startsWith('ja')) return 'ja';
       } catch (e) { }
       return 'en';
-    }
-
-    function postEmbedLocaleSetting() {
-      try {
-        postToEhagakiIframe({
-          namespace: EMBED_NS,
-          version: 1,
-          type: 'settings.set',
-          requestId: 'settings-locale-' + String(Date.now()),
-          payload: {
-            locale: resolveEmbedLocale(),
-          },
-        });
-      } catch (e) { }
     }
 
     function readDelegatedSetting(key) {

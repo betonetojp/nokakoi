@@ -1,8 +1,8 @@
 import { $, escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
-import { bytesToHex, decryptNsec } from '../crypto.js';
-import { getNip19, getPublicKey as getPublicKeyFn } from '../nostr-compat.js';
+import { decryptNsec } from '../crypto.js';
+import { getNip19 } from '../nostr-compat.js';
 import { signer } from '../signer.js';
-import { displayNameWithUsername, loadProfile, updateNameDom } from '../../features/profile/profile.js';
+import { displayNameWithUsername, loadProfile } from '../../features/profile/profile.js';
 import { resolveLoginOrder } from '../../features/post/actions.js';
 import { t } from '../../utils/i18n.js';
 import { isWebAuthnSupported, authenticateWithPasskey, decryptNip46SessionWithPasskey, decryptNsecWithPasskey } from '../webauthn.js';
@@ -10,8 +10,7 @@ import { Nip46Client, DEFAULT_NIP46_RELAYS } from '../nip46.js';
 import { showPasswordModal } from './nsec-auth.js';
 import { getNip46LocalSecretKey, getNip46ProtectedSession, clearNip46LocalSecretKey } from './nip46-session.js';
 import { addAccount, migrateFromSingleAccount, setActiveAccountId } from '../account-manager.js';
-import { defaultJaRelayUrl, defaultIntlRelayUrl, saveRelaysForAccount, loadRelaysForAccount, getDefaultGlobalRelayByLang } from '../relay.js';
-import { detectBrowserLang } from '../../utils/i18n.js';
+import { saveRelaysForAccount, loadRelaysForAccount, getDefaultGlobalRelayByLang } from '../relay.js';
 import { updateGlobalButtonLabel } from '../../features/relay/global-relay.js';
 import { invalidateMuteWork, saveMuteListForAccount, loadMuteListForAccount, clearMuteListState } from '../../features/mute/mute.js';
 import { setupTabs } from '../../ui/setup/tab-manager.js';
@@ -23,7 +22,6 @@ import {
 let isPasskeyAuthPending = false;
 
 export async function login(state, settings, settingsManager, restartFeeds, setupComposerScroll) {
-  const getPublicKey = getPublicKeyFn();
   const nip19 = getNip19();
 
   // 前のアカウントのメモリ・フォローリスト・DOM描画の完全クリア

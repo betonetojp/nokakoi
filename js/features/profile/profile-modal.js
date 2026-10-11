@@ -211,7 +211,6 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
 
         // カスタム表示アプリへのリンクを追加
         try {
-          const span = document.createElement('span'); // ラッパー（直接追加でも可）
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'btn-kind ml-8';
@@ -643,7 +642,6 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     const eventsMap = new Map();
     // 表示上限（最新イベント表示数）。初期は取得件数、追加読込ごとに増加し最大値まで
     let displayLimit = EVENTS_FETCH_LIMIT;
-    let rendered = false;
     let loadingMore = false;
 
     // ---追加: リレー接続確認 ---
@@ -741,7 +739,6 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
           const relays = getReadRelays(state.relays) || [];
           const perRelayTimeout = EVENTS_TIMEOUT; // ミリ秒（共通定数）
           const unsubs = [];
-          let receivedCountMore = 0;
 
           return new Promise((resolve) => {
             if (!relays.length) {
@@ -750,8 +747,8 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
                 state,
                 'profile_kinds_' + pubkey + '_more_all_' + until,
                 [{ kinds: profileFeedKinds, authors: [pubkey], limit: EVENTS_FETCH_LIMIT, until: until - 1 }],
-                (ev, relay) => {
-                  try { if (ev && profileFeedKindSet.has(ev.kind) && ev.id) eventsMap.set(ev.id, ev); if (ev) receivedCountMore++; } catch (e) { }
+                (ev) => {
+                  try { if (ev && profileFeedKindSet.has(ev.kind) && ev.id) eventsMap.set(ev.id, ev); } catch (e) { }
                 },
                 getReadRelays(state.relays)
               );
@@ -798,7 +795,6 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
                       if (ev && profileFeedKindSet.has(ev.kind) && ev.id) {
                         eventsMap.set(ev.id, ev);
                       }
-                      if (ev) receivedCountMore++;
                       if (done) {
                         tryFinish(relay);
                       }
@@ -837,7 +833,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
             state,
             'profile_kinds_' + pubkey + '_fetch_all_' + Math.random().toString(36).slice(2, 8),
             until ? [{ kinds: profileFeedKinds, authors: [pubkey], limit: limit, until: until }] : [{ kinds: profileFeedKinds, authors: [pubkey], limit: limit }],
-            (ev, r, done) => {
+            (ev) => {
               try { if (ev && profileFeedKindSet.has(ev.kind) && ev.id) eventsMap.set(ev.id, ev); } catch (e) { }
               // done が来ない実装もあるため timeout 側で確定
             },
@@ -905,7 +901,6 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
       const perRelayTimeout = EVENTS_TIMEOUT; // ミリ秒（共通定数）
       fetchAndMergePerRelays({ relays, limit: EVENTS_FETCH_LIMIT, until: null, timeout: perRelayTimeout }).then(() => {
         renderProfileEvents();
-        rendered = true;
       });
     }
     fetchProfileEvents();

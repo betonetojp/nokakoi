@@ -2,7 +2,7 @@
 // 投稿欄管理
 // ============================================================================
 
-import { $, escapeHtml, truncateName, truncateByGraphemeVisible, logWarn, replaceBadgeEmoji } from '../../utils/utils.js';
+import { $, escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
 import { displayName } from '../profile/profile.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { attachEmojiShortcodeSuggest } from '../emoji/emoji-shortcode-suggest.js';

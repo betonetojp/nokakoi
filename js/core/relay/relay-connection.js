@@ -1,6 +1,6 @@
 import { logWarn } from '../../utils/utils.js';
 import { getNostrTools } from '../nostr-compat.js';
-import { getAllRelayUrls, cleanupPoolDuplicates } from './relay-helpers.js';
+import { cleanupPoolDuplicates } from './relay-helpers.js';
 import { stopMonitoringRelays, monitorRelayConnections, startKeepalive, setupVisibilityHandler, debugRelay } from './relay-state.js';
 import { releaseSubscriptionsForPool } from './relay-subscription.js';
 import { appendRelayConnectionLog } from '../app-context.js';
@@ -62,7 +62,7 @@ export function countPoolSockets(pool) {
   try {
     if (!pool || !pool.relays) return { total: 0, open: 0 };
     let total = 0, open = 0;
-    for (const [k, v] of pool.relays.entries()) {
+    for (const v of pool.relays.values()) {
       try {
         total++;
         const ws = v && v.ws;
@@ -141,7 +141,7 @@ export function relayConnect(state, SimplePool, restartFeedsCallback = null) {
     } catch (e) { }
     try { cleanupPoolDuplicates(state.pool); } catch (e) { logWarn('[Relay] cleanupPoolDuplicates 失敗:', e); }
     if (restartFeedsCallback) {
-      monitorRelayConnections(state, restartFeedsCallback);
+      monitorRelayConnections(state);
     }
     startKeepalive(state);
     setupVisibilityHandler(state, restartFeedsCallback);
@@ -198,7 +198,7 @@ export async function closePoolAndWait(state, timeoutMs = 1000) {
       try {
         let anyOpen = false;
         if (oldPool && oldPool.relays) {
-          for (const [k, entry] of oldPool.relays.entries()) {
+          for (const entry of oldPool.relays.values()) {
             try {
               const ws = entry && entry.ws;
               if (ws && typeof ws.readyState !== 'undefined' && ws.readyState === WebSocket.OPEN) {

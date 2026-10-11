@@ -1,10 +1,9 @@
 import { getAppState, setRelayInspector } from '../app-context.js';
 
-import { findEventById, cacheEvent } from '../state.js';
 import { getReadRelays, normalizeUrl } from './relay-helpers.js';
 import { MAX_LIVE_PER_RELAY, MAX_ONESHOT_PER_RELAY, MAX_TOTAL_SUB_PER_RELAY, EVENTS_TIMEOUT, PER_RELAY_ONESHOT_LIMIT } from '../../config/constants.js';
 import { getRelayFromPool } from './relay-connection.js';
-import { debugRelay, relayStates } from './relay-state.js';
+import { debugRelay } from './relay-state.js';
 
 // subId -> リスナー集合
 export const logicalListeners = new Map();
@@ -855,7 +854,7 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
           state.subs.set(subId, s);
         }
       } catch (e) { }
-    }).catch(e => {
+    }).catch(() => {
       const currentPending = pendingLogicalSubscriptions.get(logicalIdentity);
       if (currentPending && currentPending.queuedReq === queuedReq) {
         pendingLogicalSubscriptions.delete(logicalIdentity);

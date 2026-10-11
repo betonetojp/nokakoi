@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { t, applyTranslations } from '../../utils/i18n.js';
-import { loadRelays, loadRelaysForAccount } from '../../core/relay.js';
+import { loadRelaysForAccount } from '../../core/relay.js';
 
 function countReadRelays(relays) {
   return (relays || []).filter(r => {

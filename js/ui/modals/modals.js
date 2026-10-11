@@ -19,9 +19,7 @@ function countGraphemeClusters(text) {
   try {
     if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
       const segmenter = new Intl.Segmenter('ja', { granularity: 'grapheme' });
-      let count = 0;
-      for (const _ of segmenter.segment(text)) count++;
-      return count;
+      return Array.from(segmenter.segment(text)).length;
     }
   } catch (e) { }
   return Array.from(text).length;
@@ -791,7 +789,7 @@ export function showOmochatSettingsModal(settingsManager) {
       const label = document.createElement('span');
       label.textContent = gh;
       label.className = 'history-label';
-      label.onclick = (e) => {
+      label.onclick = () => {
         input.value = gh;
         historyPopup.classList.add('d-none');
         input.dispatchEvent(new Event('input'));

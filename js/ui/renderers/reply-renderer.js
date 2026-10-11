@@ -1,11 +1,11 @@
 import { getZapReceiptAmountSats, getZapReceiptSenderPubkey, getZapReceiptRecipientPubkey, isOutgoingZapReceiptFor } from '../../features/zap/zap.js';
 import { findEventById } from '../../core/state.js';
 import { displayName } from '../../features/profile/profile.js';
-import { escapeHtml, truncateName, replaceBadgeEmoji } from '../../utils/utils.js';
+import { escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
 import { linkifyText, getEffectiveTextLength, getPreviewWithFullLinksAndEmojis, getNip19 } from '../../utils/url-parser.js';
 import { t } from '../../utils/i18n.js';
 import { MAX_PREVIEW_LINES } from '../../config/constants.js';
-import { pickETagEventId, pickETagWithHint, resolvePreviewMaxLength, evaluateMuteState } from './render-helpers.js';
+import { pickETagWithHint, resolvePreviewMaxLength } from './render-helpers.js';
 import { formatReaction } from './reaction-renderer.js';
 
 function getZapRequestComment(ev) {
@@ -17,17 +17,6 @@ function getZapRequestComment(ev) {
     }
   } catch (_e) {}
   return (ev && ev.content) ? String(ev.content) : '';
-}
-
-function isOpaqueDisplayName(name, pubkey) {
-  try {
-    if (!name) return true;
-    if (pubkey && typeof pubkey === 'string' && /^[0-9a-f]{64}$/i.test(pubkey) && typeof name === 'string' && name.toLowerCase() === pubkey.toLowerCase()) return true;
-    if (typeof name === 'string' && /^[0-9a-f]{64}$/i.test(name) && (!pubkey || name.toLowerCase() === pubkey.toLowerCase())) return true;
-    return false;
-  } catch (_e) {
-    return false;
-  }
 }
 
 export function renderZapReceiptAuthorLinkHtml(state, pubkey, nip19) {

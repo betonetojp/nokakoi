@@ -139,8 +139,7 @@ export function setupFeedFetcher(opts) {
     onHistFinalize = null,
     onHistBufferStart = null,
     onHistBufferEnd = null,
-    acceptHistEvent = null,
-    stampReceivedAt = false
+    acceptHistEvent = null
   } = opts || {};
 
   // live 受信のみ: 投稿者時計と閲覧者時計のずれ把握用（履歴・追加取得では付けない）
@@ -253,7 +252,6 @@ export function setupFeedFetcher(opts) {
       perRelayUnsubs.add(unsubAll);
     } else {
       // リレーごとに個別購読（フィルタは統合）
-      let totalSubs = 0;
       let finishedSubs = 0;
       const expected = relayList.length;
       if (expected === 0) {
@@ -280,7 +278,6 @@ export function setupFeedFetcher(opts) {
             } catch (e) { }
           }, [relay]);
           perRelayUnsubs.add(unsub);
-          totalSubs += 1;
         } catch (e) { }
       });
       // セーフティタイムアウト
@@ -342,8 +339,6 @@ export function fetchMore(opts) {
     filters = [],
     relays = null,
     startListLength = 0,
-    addToFeed,
-    scheduleRender,
     eventsFetchLimit = 60,
     eventsTimeout = 10000,
     onCollect = null
@@ -478,7 +473,6 @@ export function fetchMore(opts) {
       return;
     }
 
-    let totalSubs = 0;
     let finishedSubs = 0;
     const expected = relayList.length;
     if (expected === 0) {
@@ -511,7 +505,6 @@ export function fetchMore(opts) {
           } catch (e) { }
         }, [relay]);
         perRelayUnsubs.add(unsub);
-        totalSubs += 1;
       } catch (e) { }
     });
     // セーフティタイムアウト

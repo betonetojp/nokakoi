@@ -1,6 +1,6 @@
 import { signer } from './signer.js';
 import { decryptNsec } from './crypto.js';
-import { showPasswordModal, nsecLoginPrompt } from './auth/nsec-auth.js';
+import { showPasswordModal } from './auth/nsec-auth.js';
 import { authenticateWithPasskey, decryptNip46SessionWithPasskey, decryptNsecWithPasskey } from './webauthn.js';
 import { Nip46Client, DEFAULT_NIP46_RELAYS } from './nip46.js';
 import { getNip46LocalSecretKey, getNip46ProtectedSession, setNip46LocalSecretKey } from './auth/nip46-session.js';

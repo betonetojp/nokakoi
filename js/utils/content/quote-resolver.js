@@ -1,7 +1,6 @@
 import { findEventById, cacheEvent } from '../../core/state.js';
 import { getReadRelays } from '../../core/relay.js';
 import { subOnce } from '../../core/relay/relay-subscription.js';
-import { getNip19 } from './linkifier.js';
 
 export const _quoteFetchInflight = new Map();
 export const _quoteIdBatches = new Map();

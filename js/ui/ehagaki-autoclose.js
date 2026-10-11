@@ -268,7 +268,7 @@ export async function waitForEhagakiPublish(arg1, arg2, arg3) {
             startDomPolling();
             // ここでは done/resolve しない。ポーリングでの検知を許可する
           },
-          onerror: (err) => { try { startStatePolling(); startDomPolling(); } catch (ee) { } }
+          onerror: () => { try { startStatePolling(); startDomPolling(); } catch (ee) { } }
         });
 
         // cleanup と干渉しないよう sub.close をラップ

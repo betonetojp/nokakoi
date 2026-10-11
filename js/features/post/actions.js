@@ -5,8 +5,6 @@
 import { getPublicKey as getPublicKeyFn, getFinalizeEvent, getKinds, getNip19 } from '../../core/nostr-compat.js';
 import { awaitAny, buildReactionEmojiTags, getReactionContent, getReactionEmojiTags } from '../../utils/utils.js';
 import { extractEmojiTagsFromText } from '../emoji/custom-emoji-store.js';
-import { authenticateWithPasskey, decryptNsecWithPasskey, isWebAuthnSupported } from '../../core/webauthn.js';
-import { bytesToHex, randomBytes } from '../../core/crypto.js';
 import { t } from '../../utils/i18n.js';
 import { DEFAULT_OMOCHAT_RELAYS } from '../../config/constants.js';
 import { signer } from '../../core/signer.js';

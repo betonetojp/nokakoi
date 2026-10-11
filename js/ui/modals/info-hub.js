@@ -6,7 +6,7 @@ import { VERSION } from '../../config/version.js';
 import { applyTranslations } from '../../utils/i18n.js';
 import { getBuildInfo } from '../../core/app-context.js';
 
-export function setupInfoHubModal(state, settings) {
+export function setupInfoHubModal() {
   const brand = document.querySelector('.brand');
   const infoHubModal = document.getElementById('infoHubModal');
   const infoHubClose = document.getElementById('infoHubClose');

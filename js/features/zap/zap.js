@@ -384,8 +384,10 @@ export function getZapReceiptAmountSats(ev) {
  * LNURL callback URL に amount / nostr を付与する。
  * nostr は NIP-57 例示・nostter と同じ encodeURI（URLSearchParams は使わない）。
  * URLSearchParams は `:` `,` を %3A/%2C にし、decodeURI する LNURL 実装で JSON が壊れる。
+ * comment / commentAllowed は呼び出し互換のため受け取るが、LNURL の comment パラメータは付与しない
+ * （Coinos 等が zap メモを上書きするため。コメントは zap request の content で渡す）。
  */
-export function buildZapCallbackUrl(callbackUrl, amountMsat, zapRequestEvent, comment = '', commentAllowed = 0) {
+export function buildZapCallbackUrl(callbackUrl, amountMsat, zapRequestEvent, _comment = '', _commentAllowed = 0) {
   const url = new URL(callbackUrl);
   url.hash = '';
   url.searchParams.set('amount', String(amountMsat));

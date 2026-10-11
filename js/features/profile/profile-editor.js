@@ -4,7 +4,7 @@
  */
 
 import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../core/replaceable-event.js';
-import { t, applyTranslations } from '../../utils/i18n.js';
+import { t } from '../../utils/i18n.js';
 import { getNip19 } from '../../core/nostr-compat.js';
 import { showConfirmModal } from '../../ui/modals/modals.js';
 

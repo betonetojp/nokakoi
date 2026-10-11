@@ -16,7 +16,6 @@ import { MAX_PREVIEW_LENGTH, MAX_PREVIEW_LINES } from '../../config/constants.js
 import { pickChannelRootId, scheduleChannelLabelUpdate } from '../../features/channel/channel.js';
 
 import {
-  pickETagEventId,
   pickETagWithHint,
   applyMutedToneToEvent,
   evaluateMuteState,
@@ -463,7 +462,7 @@ function setupContentWarning(div, ev, contentEl, isCwExpanded, markCwExpanded) {
           contentEl.parentNode.insertBefore(foldBar, contentEl);
         }
 
-        expandBtn.onclick = function (e) {
+        expandBtn.onclick = function () {
           try {
             if (contentEl) contentEl.classList.remove('d-none');
             try { if (markCwExpanded) markCwExpanded(ev.id, true); } catch (e) { }
@@ -482,7 +481,6 @@ function setupContentWarning(div, ev, contentEl, isCwExpanded, markCwExpanded) {
 function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markMutedExpanded, state = null, settings = null) {
   try {
     const isMuted = !!muteState.isMuted;
-    const mutedType = muteState.mutedType;
     const muteApply = !!muteState.muteApply;
     const muteDisplayMode = muteState.muteDisplayMode || 'collapse';
 

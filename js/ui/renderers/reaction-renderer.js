@@ -75,7 +75,7 @@ export function applyReactionToButton(btn, reaction, emojiTags = []) {
 }
 
 // title/tooltip 向けのプレーンテキストラベルを返す
-export function getReactionLabel(reaction, emojiTags = []) {
+export function getReactionLabel(reaction, _emojiTags = []) {
   try {
     const reactionContent = getReactionContent(reaction);
     if (reactionContent === '+') return '⭐';

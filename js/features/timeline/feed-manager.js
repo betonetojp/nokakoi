@@ -2,8 +2,8 @@ import { insertEventSorted, findEventById, clearFeed } from '../../core/state.js
 import { getReadRelays, subOnce, relayConnect, unsubscribeAll, cancelInactiveTabOneshots } from '../../core/relay.js';
 import { EVENTS_MAX, EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT } from '../../config/constants.js';
 import { setupFeedFetcher, updatePerFilterUntil } from '../../features/timeline/feed-fetcher.js';
-import { setupCustomEmojiSubscription, scheduleCustomEmojiSubscription } from '../../features/emoji/custom-emoji-sub.js';
-import { renderFeed, scheduleRender, userKind7Memory, feedLoadState, ensureEventRestored } from '../../features/timeline/feed-renderer.js';
+import { scheduleCustomEmojiSubscription } from '../../features/emoji/custom-emoji-sub.js';
+import { renderFeed, scheduleRender, userKind7Memory, feedLoadState } from '../../features/timeline/feed-renderer.js';
 import { pickChannelRootId, prefetchChannelMetadata } from '../../features/channel/channel.js';
 import { updateUserStatusDom, updateNameDom, loadProfile } from '../../features/profile/profile.js';
 import { applyZapReceiptToZappedState, isIncomingZapReceiptFor, isOutgoingZapReceiptFor } from '../../features/zap/zap.js';
@@ -50,7 +50,6 @@ const SimplePoolProvider = function () {
 };
 
 const _feedUiStateById = new Map();
-let _restartFeedsCalled = false;
 let _feedGeneration = 0;
 let _delayedBitchatTimer = null;
 const _poolIds = new WeakMap();
@@ -476,7 +475,7 @@ function setMentionBlink(active) {
 /**
  * フィードにイベントを追加する
  */
-export function addToFeed(feedId, ev, keepLatestCount = null, relay = null) {
+export function addToFeed(feedId, ev, keepLatestCount = null, _relay = null) {
   if (ev != null) {
     // kind:30315（User Status）の処理
     if (ev.kind === 30315) {
@@ -530,7 +529,6 @@ export function addToFeed(feedId, ev, keepLatestCount = null, relay = null) {
     const wasEmpty = Array.isArray(feed?.list) && feed.list.length === 0;
     const histLoading = feedLoadState[feedId]?.histLoading === true;
     const listBeforeLen = feed.list?.length || 0;
-    const topBefore = feed.list?.[0] || null;
     const bottomBefore = listBeforeLen > 0 ? feed.list[listBeforeLen - 1] : null;
     
     if (histLoading) {
@@ -1246,7 +1244,6 @@ export function restartFeeds(fullReset = false) {
     clearTimeout(_delayedBitchatTimer);
     _delayedBitchatTimer = null;
   }
-  _restartFeedsCalled = true;
   try {
     const fetcherKeys = ['_globalFetcher', '_homeFetcher', '_homeOmochatFetcher', '_mentionsFetcher', '_meFetcher', '_bitchatFetcher'];
     for (const k of fetcherKeys) {

@@ -1,7 +1,6 @@
-import { getNip04, getNip44, hexToBytes } from '../../core/nostr-compat.js';
+import { getNip04, getNip44 } from '../../core/nostr-compat.js';
 import { getReadRelays, subOnce } from '../../core/relay.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
-import { addAutoCloseCheckbox, waitForEhagakiPublish } from '../../ui/ehagaki-autoclose.js';
 import { refreshEventsMuteState, invalidateMuteConfigCache } from '../../ui/renderers/render-helpers.js';
 import { signer } from '../../core/signer.js';
 

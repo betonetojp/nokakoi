@@ -697,7 +697,6 @@ export function renderFeed(id = 'global', force = false) {
     } catch (e) { }
   }
   captureFeedUiStateFromDom(id, el);
-  const renderSettings = _options.getRenderSettingsWithUiState(id);
 
   const addNotifyDot = () => {
     try {

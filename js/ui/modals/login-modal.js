@@ -308,7 +308,7 @@ function renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess) {
         if (radioPasskey && radioPasskey.checked && passkeyAvailable) {
           try {
             if (statusEl) statusEl.textContent = t('auth.passkey_register_prompt');
-            const passkeyData = await registerPasskey('nostr-user');
+            const passkeyData = await registerPasskey();
             if (statusEl) statusEl.textContent = t('auth.pending');
             const authResult = await authenticateWithPasskey(passkeyData.credentialId);
             if (authResult.success) {

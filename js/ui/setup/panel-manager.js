@@ -94,7 +94,7 @@ export function observePanel(el) {
     try {
       const summary = el.querySelector('summary');
       if (summary) {
-        summary.addEventListener('click', (ev) => {
+        summary.addEventListener('click', () => {
           try {
             if (!el.open) {
               _suppressRestore = true;

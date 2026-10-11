@@ -24,17 +24,12 @@ export function setSelectedEventEl(el, options = {}) {
 export function setupKeyboardShortcuts(state, options) {
   const {
     nip19,
-    reactToEvent,
-    repostEvent,
-    setReplyTarget,
     clearReplyTarget,
     findEventById,
     revealComposer,
     setQuoteTarget,
     showProfileModalProxy,
-    bringModalToFront,
-    $,
-    $$
+    $
   } = options;
 
   function getTopShortcutModal() {

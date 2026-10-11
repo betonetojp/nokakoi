@@ -3,7 +3,7 @@ import { logInitInfo, getNip19, getSimplePool, getNostrTools } from './nostr-com
 import { VERSION } from '../config/version.js';
 import { $, $$, showToast } from '../utils/utils.js';
 import { SettingsManager } from './settings.js';
-import { relayConnect, stopMonitoringRelays, loadRelays, defaultIntlRelayUrl, defaultJaRelayUrl, getDefaultGlobalRelayByLang } from './relay.js';
+import { relayConnect, stopMonitoringRelays, loadRelays, getDefaultGlobalRelayByLang } from './relay.js';
 import { createState, clearFeed, findEventById } from './state.js';
 import { initializeProfileCache } from '../features/profile/profile.js';
 import { reactToEvent, repostEvent } from '../features/post/actions.js';

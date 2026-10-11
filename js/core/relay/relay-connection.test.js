@@ -92,7 +92,7 @@ describe('relay connection', () => {
     expect(state.pool).toBeInstanceOf(SimplePool);
     expect(socket.close).toHaveBeenCalled();
     expect(mocks.releaseSubscriptionsForPool).toHaveBeenCalledWith(state, oldPool, 'relay pool replaced');
-    expect(mocks.monitorRelayConnections).toHaveBeenCalledWith(state, restartFeeds);
+    expect(mocks.monitorRelayConnections).toHaveBeenCalledWith(state);
     expect(mocks.startKeepalive).toHaveBeenCalledWith(state);
     expect(window.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'relay:poolReady' }));
   });

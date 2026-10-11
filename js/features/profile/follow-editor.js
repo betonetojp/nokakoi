@@ -308,7 +308,7 @@ function attachDragAndTouchHandlers(row, dragHandle, itemType, index, itemsArray
     } catch (err) { }
   };
 
-  dragHandle.ontouchstart = (e) => {
+  dragHandle.ontouchstart = () => {
     const fromIndex = index;
     row.classList.add('dragging');
 

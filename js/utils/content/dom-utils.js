@@ -1,9 +1,9 @@
-import { escapeHtml, truncateName, replaceBadgeEmoji, processHiddenTagChars } from '../utils.js';
+import { escapeHtml, replaceBadgeEmoji, processHiddenTagChars } from '../utils.js';
 import { showMediaViewer } from '../../ui/media-viewer.js';
 import { t } from '../i18n.js';
 import { MAX_PREVIEW_LENGTH, MAX_PREVIEW_LINES } from '../../config/constants.js';
 import { findEventById } from '../../core/state.js';
-import { getNip19, linkifyText, linkifyNostrUri } from './linkifier.js';
+import { getNip19, linkifyText } from './linkifier.js';
 import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } from './timeline-anchor.js';
 import { resolveQuoteRelays, fetchQuoteEventById, fetchQuoteEventByNaddr, prefetchQuotesForElements, sanitizeRelays } from './quote-resolver.js';
 import { getEffectiveTextLength, getPreviewWithFullLinksAndEmojis } from './text-preview.js';
@@ -635,7 +635,7 @@ export function attachQuoteRetryHandler(quoteEl, container, showEventModal, stat
   });
 }
 
-export async function renderEventQuote(state, event, nip19, settings = {}) {
+export async function renderEventQuote(state, event, nip19, _settings = {}) {
   const { displayName } = await import('../../features/profile/profile.js');
   let author;
   if (event && event.kind === 20000) {

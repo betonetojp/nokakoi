@@ -7,7 +7,7 @@ import { truncateName, escapeHtml, replaceBadgeEmoji } from '../../utils/utils.j
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 
 import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
-import { evaluateMuteState, applyMutedToneToEvent, updateEventMuteDom } from '../../ui/renderers/render-helpers.js';
+import { updateEventMuteDom } from '../../ui/renderers/render-helpers.js';
 
 const PROFILE_CACHE_KEY = 'nostr_profiles_cache';
 const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; //24時間
@@ -712,15 +712,6 @@ function getNip19() {
   try {
     return getNip19Compat() || null;
   } catch (e) { }
-  return null;
-}
-
-/**
- * ユーザーステータス (kind: 30315) をロード
- * ※現在はLive更新（main.jsの購読）のみに依存するため、ここでの能動的なFetchは行いません。
- */
-export async function loadUserStatus(state, pubkey) {
-  // musicステータスはLive購読でのみ取得するため、ここでは何もしない
   return null;
 }
 

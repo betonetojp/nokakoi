@@ -1,6 +1,5 @@
-import { escapeHtml, getReactionContent, getReactionEmojiTags } from '../../utils/utils.js';
+import { getReactionContent } from '../../utils/utils.js';
 import { findEventById } from '../../core/state.js';
-import { displayName } from '../../features/profile/profile.js';
 import { t } from '../../utils/i18n.js';
 import { MAX_PREVIEW_LENGTH } from '../../config/constants.js';
 
@@ -24,7 +23,7 @@ export async function loadClientsMap() {
       }
       __clientsMap = m;
       return m;
-    }).catch(e => {
+    }).catch(() => {
       __clientsMap = new Map();
       return __clientsMap;
     });

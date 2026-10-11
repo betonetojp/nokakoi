@@ -2,15 +2,14 @@ import { $ } from '../utils/utils.js';
 import { isWebAuthnSupported, authenticateWithPasskey, decryptNsecWithPasskey } from '../core/webauthn.js';
 import { decryptNsec } from '../core/crypto.js';
 import { signer } from '../core/signer.js';
-import { login, logout } from '../core/auth/auth-core.js';
+import { login } from '../core/auth/auth-core.js';
 import { nsecLoginPrompt, showPasswordModal } from '../core/auth/nsec-auth.js';
 import { showNip46LoginModal } from '../core/auth/nip46-auth.js';
 import { t } from '../utils/i18n.js';
 
 export function setupAuthUI(state, settings, settingsManager, {
   restartFeeds,
-  enableComposerScroll,
-  onLogout
+  enableComposerScroll
 }) {
   const openLoginBtn = $('#openLoginModalBtn');
   if (openLoginBtn) {

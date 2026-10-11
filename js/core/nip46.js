@@ -1123,7 +1123,7 @@ export class Nip46Client {
     }
 
     // pending requestsをクリア
-    for (const [id, pending] of this.pendingRequests) {
+    for (const pending of this.pendingRequests.values()) {
       clearTimeout(pending.timeout);
       pending.reject(new Error('Disconnected'));
     }

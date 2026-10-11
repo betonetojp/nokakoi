@@ -13,7 +13,7 @@ export function setupDebugModal(state, settings) {
     const debugClose = document.getElementById('debugClose');
     const debugCopyStatus = document.getElementById('debugCopyStatus');
 
-    setupInfoHubModal(state, settings);
+    setupInfoHubModal();
 
     const renderDebugContent = () => {
       function normalizeUrl(u) {

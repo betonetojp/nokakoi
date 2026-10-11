@@ -3,20 +3,12 @@
 // ============================================================================
 
 import { $, setStatus } from '../../utils/utils.js';
-import { defaultRelays, saveRelays, getReadRelays, saveRelaysForAccount, loadRelaysForAccount, relayConnect } from '../../core/relay.js';
+import { defaultRelays, saveRelays, getReadRelays, saveRelaysForAccount } from '../../core/relay.js';
 import { getSimplePool } from '../../core/nostr-compat.js';
 import { showConfirmModal } from '../../ui/modals/modals.js';
 import { t } from '../../utils/i18n.js';
-import { hideComposerForOverlay, restoreComposerFromOverlay } from '../post/composer-scroll.js';
 import { createRelaySnapshot, renderRelaySnapshotsUI } from './relay-snapshots.js';
 import { publishDefaultNip65RelayList } from '../../core/replaceable-event.js';
-
-function _hideComposerForSettings() {
-  hideComposerForOverlay();
-}
-function _restoreComposerFromSettings(container) {
-  restoreComposerFromOverlay(container);
-}
 
 /**
  * リレーリストUIを描画
@@ -535,7 +527,7 @@ export function setupRelaySettingsUI(state, relayConnect, getSimplePool, restart
         try { saveRelays(state.relays); } catch (e) { console.warn('[RelaySettings] saveRelays に失敗', e); }
         try {
           const SimplePoolForConnect = getSimplePool();
-          const ok = relayConnect(state, SimplePoolForConnect, restartFeeds);
+          relayConnect(state, SimplePoolForConnect, restartFeeds);
           restartFeeds(true);
           setStatus(statusEl, t('relay.import.success', { count: newRelays.length }));
           renderRelayList(state.relays);
