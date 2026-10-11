@@ -836,8 +836,6 @@ export function renderFeed(id = 'global', force = false) {
             { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT },
             buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT })
           ].filter(Boolean);
-        } else if (id === 'bitchat') {
-          baseFilters = [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT }];
         } else if (id === 'global') {
           baseFilters = [{ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT }];
         } else {
@@ -905,9 +903,7 @@ export function renderFeed(id = 'global', force = false) {
         }
 
         let relays = getReadRelays(_state.relays);
-        if (id === 'bitchat') {
-          relays = _options.getOmochatRelays();
-        } else if (id === 'global') {
+        if (id === 'global') {
           relays = _options.resolveGlobalRelays(_options.settingsManager, _state.relays);
         }
 
@@ -918,7 +914,7 @@ export function renderFeed(id = 'global', force = false) {
             filters: filtersToUse,
             relays: relays,
             startListLength,
-            addToFeed: (id === 'bitchat' && _state._bitchatFeedAdder) ? _state._bitchatFeedAdder : _options.addToFeed,
+            addToFeed: _options.addToFeed,
             scheduleRender,
             eventsFetchLimit: EVENTS_FETCH_LIMIT,
             eventsTimeout: Math.max(EVENTS_TIMEOUT, 10000)

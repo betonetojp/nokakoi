@@ -862,7 +862,6 @@ export function setupBitchatFeed({ mode: requestedMode } = {}) {
         }
       } catch (e) { }
     };
-    try { state._bitchatFeedAdder = feedAdder; } catch (e) { }
 
     stopFetcherSlot('_bitchatFetcher');
     const fetcher = markFetcherConfig(setupFeedFetcher({

@@ -258,7 +258,6 @@ export async function initApp() {
       resolveGlobalRelays,
       buildHomeLoadMoreFiltersForGlobalMerge,
       runMergedGlobalLoadMore,
-      getOmochatRelays,
       addToFeed,
       settingsManager,
       nip19
