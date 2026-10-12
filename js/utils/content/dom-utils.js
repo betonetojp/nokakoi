@@ -1,4 +1,5 @@
 import { escapeHtml, replaceBadgeEmoji, processHiddenTagChars } from '../utils.js';
+import { sanitizeUrlCandidate } from '../sanitize-url.js';
 import { showMediaViewer } from '../../ui/media-viewer.js';
 import { t } from '../i18n.js';
 import { MAX_PREVIEW_LENGTH, MAX_PREVIEW_LINES } from '../../config/constants.js';
@@ -443,7 +444,7 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
       }
     }
 
-    if (event && (event.kind === 1 || event.kind === 1111 || event.kind === 42 || event.kind === 30023 || (naddrKind && event.content))) {
+    if (event && (event.kind === 1 || event.kind === 1111 || event.kind === 42 || event.kind === 30023 || event.kind === 20000 || (naddrKind && event.content))) {
       const quoteHtml = await renderEventQuote(state, event, nip19local, settings);
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = quoteHtml;
@@ -509,6 +510,59 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
             showEventModal(event, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
           };
         }
+      }
+      return true;
+    } else if (event && (event.kind === 40 || event.kind === 41)) {
+      const quoteHtml = await renderChannelQuote(state, event, nip19local);
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = quoteHtml;
+      const quoteDiv = tempDiv.firstChild;
+      if (quoteDiv) {
+        const anchor = captureTimelineAnchor(container);
+        quoteEl.parentNode.replaceChild(quoteDiv, quoteEl);
+        restoreTimelineAnchor(anchor, container);
+
+        const rootId = (event.kind === 41)
+          ? (event.tags.find(t => Array.isArray(t) && t[0] === 'e')?.[1] || event.id)
+          : event.id;
+
+        const openBtn = quoteDiv.querySelector('.channel-quote-open-btn');
+        if (openBtn) {
+          openBtn.onclick = function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            import('../../features/channel/channel-ui.js').then(mod => {
+              if (mod && typeof mod.openChannelFromExternal === 'function') {
+                mod.openChannelFromExternal(rootId, state);
+              }
+            });
+          };
+        }
+        quoteDiv.onclick = function (e) {
+          if (e.target.closest('.channel-quote-open-btn')) return;
+          e.stopPropagation();
+          if (typeof showEventModal === 'function') {
+            showEventModal(event, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+          }
+        };
+      }
+      return true;
+    } else if (event && event.kind === 30030) {
+      const quoteHtml = await renderEmojiPackQuote(state, event, nip19local);
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = quoteHtml;
+      const quoteDiv = tempDiv.firstChild;
+      if (quoteDiv) {
+        const anchor = captureTimelineAnchor(container);
+        quoteEl.parentNode.replaceChild(quoteDiv, quoteEl);
+        restoreTimelineAnchor(anchor, container);
+
+        quoteDiv.onclick = function (e) {
+          e.stopPropagation();
+          if (typeof showEventModal === 'function') {
+            showEventModal(event, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+          }
+        };
       }
       return true;
     } else if (event && (event.kind === 6 || event.kind === 7 || event.kind === 16)) {
@@ -633,6 +687,99 @@ export function attachQuoteRetryHandler(quoteEl, container, showEventModal, stat
       handleActivate(e);
     }
   });
+}
+
+/**
+ * kind:40 / kind:41 パブリックチャットチャンネルの引用カードを描画
+ */
+export async function renderChannelQuote(state, event, nip19) {
+  let fields = null;
+  try {
+    fields = JSON.parse(event.content);
+  } catch (_) { }
+
+  const rootId = (event.kind === 41)
+    ? (event.tags.find(t => Array.isArray(t) && t[0] === 'e')?.[1] || event.id)
+    : event.id;
+
+  const rawName = (fields && (fields.name || fields.title || fields.label)) || '';
+  const name = rawName ? String(rawName).trim() : (t('channel.unknown') || 'チャンネル');
+  const about = (fields && fields.about) ? String(fields.about).trim() : '';
+  const rawPic = (fields && fields.picture) ? String(fields.picture).trim() : '';
+  const picture = rawPic ? sanitizeUrlCandidate(rawPic) : '';
+
+  const picHtml = picture
+    ? `<img src="${escapeHtml(picture)}" class="channel-quote-picture" alt="" loading="lazy" />`
+    : `<div class="channel-quote-picture-placeholder">💬</div>`;
+
+  const { displayName } = await import('../../features/profile/profile.js');
+  const author = displayName(state, event.pubkey, nip19);
+
+  const baseLabel = replaceBadgeEmoji(t('channel.quote_label') || 'パブリックチャット');
+  const labelText = author ? `${baseLabel} <small class="muted">by ${escapeHtml(author)}</small>` : baseLabel;
+  const openBtnText = escapeHtml(t('channel.open_btn') || 'チャンネルを開く');
+
+  return '<div class="event-quote channel-quote" data-channel-id="' + escapeHtml(rootId) + '" data-event-id="' + escapeHtml(event.id || '') + '">' +
+    '<div class="event-quote-header">' +
+    '<span class="reply-marker">💬</span>' +
+    '<span class="event-quote-label">' + labelText + '</span>' +
+    '</div>' +
+    '<div class="channel-quote-body">' +
+    picHtml +
+    '<div class="channel-quote-info">' +
+    '<div class="channel-quote-title">' + escapeHtml(name) + '</div>' +
+    (about ? '<div class="channel-quote-about">' + escapeHtml(about) + '</div>' : '') +
+    '</div>' +
+    '<button type="button" class="channel-quote-open-btn secondary" data-channel-id="' + escapeHtml(rootId) + '">' + openBtnText + '</button>' +
+    '</div>' +
+    '</div>';
+}
+
+/**
+ * kind:30030 カスタム絵文字パックの引用カードを描画
+ */
+export async function renderEmojiPackQuote(state, event, nip19) {
+  const { displayName } = await import('../../features/profile/profile.js');
+  const author = displayName(state, event.pubkey, nip19);
+
+  const titleTag = Array.isArray(event.tags) ? event.tags.find(t => Array.isArray(t) && t[0] === 'title') : null;
+  const dTag = Array.isArray(event.tags) ? event.tags.find(t => Array.isArray(t) && t[0] === 'd') : null;
+  const rawTitle = (titleTag && titleTag[1]) || (dTag && dTag[1]) || '';
+  const title = rawTitle ? String(rawTitle).trim() : (t('emoji.pack_quote_label') || '絵文字パック');
+
+  const descTag = Array.isArray(event.tags) ? event.tags.find(t => Array.isArray(t) && t[0] === 'description') : null;
+  const desc = (descTag && descTag[1]) ? String(descTag[1]).trim() : (event.content ? String(event.content).trim() : '');
+
+  const emojiTags = (Array.isArray(event.tags) ? event.tags : []).filter(t => Array.isArray(t) && t[0] === 'emoji' && t[1] && t[2]);
+  const maxDisplay = 16;
+  const displayEmojis = emojiTags.slice(0, maxDisplay);
+  const remainingCount = emojiTags.length - maxDisplay;
+
+  let gridHtml = '';
+  if (emojiTags.length > 0) {
+    const items = displayEmojis.map(t => {
+      const shortcode = String(t[1]);
+      const rawUrl = String(t[2]);
+      const url = sanitizeUrlCandidate(rawUrl);
+      if (!url) return '';
+      return `<div class="emoji-pack-item" title=":${escapeHtml(shortcode)}:"><img src="${escapeHtml(url)}" alt=":${escapeHtml(shortcode)}:" loading="lazy" /></div>`;
+    }).join('');
+    const moreHtml = remainingCount > 0 ? `<div class="emoji-pack-more muted">+${remainingCount}</div>` : '';
+    gridHtml = `<div class="emoji-pack-grid">${items}${moreHtml}</div>`;
+  }
+
+  const labelText = replaceBadgeEmoji(escapeHtml(title) + ' <small class="muted">by ' + escapeHtml(author) + '</small>');
+
+  return '<div class="event-quote emoji-pack-quote" data-event-id="' + escapeHtml(event.id || '') + '">' +
+    '<div class="event-quote-header">' +
+    '<span class="reply-marker">🎨</span>' +
+    '<span class="event-quote-label">' + labelText + '</span>' +
+    '</div>' +
+    '<div class="emoji-pack-body">' +
+    (desc ? '<div class="emoji-pack-desc">' + escapeHtml(desc) + '</div>' : '') +
+    gridHtml +
+    '</div>' +
+    '</div>';
 }
 
 export async function renderEventQuote(state, event, nip19, _settings = {}) {
