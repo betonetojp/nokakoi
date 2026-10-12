@@ -217,8 +217,38 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       try { if (typeof fitCustomEmoji === 'function') fitCustomEmoji(contentEl, 28); } catch (e) { }
     }
 
-    // kind:30023のみマークダウン解釈（==で型を許容）
-    if (event.kind == 30023) {
+    // kind:40 / kind:41 パブリックチャットチャンネル
+    if (event.kind === 40 || event.kind === 41) {
+      import('../../utils/content/dom-utils.js').then(async ({ renderChannelQuote }) => {
+        const quoteHtml = await renderChannelQuote(state, event, nip19);
+        contentEl.innerHTML = quoteHtml;
+
+        const openBtn = contentEl.querySelector('.channel-quote-open-btn');
+        if (openBtn) {
+          openBtn.onclick = function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            modal.hidden = true;
+            try { window.__nokakoiEventModalEvent = null; } catch (_e) { }
+            const rootId = (event.kind === 41)
+              ? (event.tags.find(t => Array.isArray(t) && t[0] === 'e')?.[1] || event.id)
+              : event.id;
+            import('../../features/channel/channel-ui.js').then(mod => {
+              if (mod && typeof mod.openChannelFromExternal === 'function') {
+                mod.openChannelFromExternal(rootId, state);
+              }
+            });
+          };
+        }
+        afterContentMounted();
+      });
+    } else if (event.kind === 30030) {
+      import('../../utils/content/dom-utils.js').then(async ({ renderEmojiPackQuote }) => {
+        const quoteHtml = await renderEmojiPackQuote(state, event, nip19);
+        contentEl.innerHTML = quoteHtml;
+        afterContentMounted();
+      });
+    } else if (event.kind == 30023) {
       parseMarkdownSafe(event.content || '').then(html => {
         contentEl.innerHTML = channelHtml + (replyHtml ? replyHtml : '') + html;
         normalizeNostrUrisInMarkdownRoot(contentEl);

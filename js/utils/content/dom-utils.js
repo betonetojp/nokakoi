@@ -718,6 +718,7 @@ export async function renderChannelQuote(state, event, nip19) {
   const baseLabel = replaceBadgeEmoji(t('channel.quote_label') || 'パブリックチャット');
   const labelText = author ? `${baseLabel} <small class="muted">by ${escapeHtml(author)}</small>` : baseLabel;
   const openBtnText = escapeHtml(t('channel.open_btn') || 'チャンネルを開く');
+  const aboutHtml = about ? linkifyText(about, event.tags || [], { inlineMedia: false }) : '';
 
   return '<div class="event-quote channel-quote" data-channel-id="' + escapeHtml(rootId) + '" data-event-id="' + escapeHtml(event.id || '') + '">' +
     '<div class="event-quote-header">' +
@@ -727,8 +728,8 @@ export async function renderChannelQuote(state, event, nip19) {
     '<div class="channel-quote-body">' +
     picHtml +
     '<div class="channel-quote-info">' +
-    '<div class="channel-quote-title">' + escapeHtml(name) + '</div>' +
-    (about ? '<div class="channel-quote-about">' + escapeHtml(about) + '</div>' : '') +
+    '<div class="channel-quote-title">' + replaceBadgeEmoji(escapeHtml(name)) + '</div>' +
+    (about ? '<div class="channel-quote-about">' + replaceBadgeEmoji(aboutHtml) + '</div>' : '') +
     '</div>' +
     '<button type="button" class="channel-quote-open-btn secondary" data-channel-id="' + escapeHtml(rootId) + '">' + openBtnText + '</button>' +
     '</div>' +

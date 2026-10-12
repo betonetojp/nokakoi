@@ -627,6 +627,26 @@ body.theme-light .reply-to.zap .reply-marker img.icon {
   padding: 2px 6px;
 }
 
+/* イベント詳細モーダル内でのチャンネル引用カード・絵文字パックのスタイル調整 */
+#eventModalContent .channel-quote,
+#eventModalContent .emoji-pack-quote {
+  cursor: default;
+  margin: 4px 0;
+}
+#eventModalContent .channel-quote-body {
+  align-items: flex-start;
+}
+#eventModalContent .channel-quote-title {
+  white-space: normal;
+  word-break: break-word;
+}
+#eventModalContent .channel-quote-about {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
 .nostr-quote {
   display: inline;
   color: var(--muted);
