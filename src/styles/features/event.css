@@ -144,6 +144,14 @@ body.theme-light .event-actions-react .btn-react[data-reacted="true"] {
   font-size: 0.85em;
   color: var(--muted);
   flex: 0 0 auto;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s ease, text-decoration 0.15s ease;
+}
+.event-time-kind .time:hover,
+.event-time-kind .time:focus-visible {
+  color: var(--text);
+  text-decoration: underline;
 }
 .event-time-kind .btn-kind {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;

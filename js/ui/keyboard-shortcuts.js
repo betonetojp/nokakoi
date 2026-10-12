@@ -129,6 +129,17 @@ export function setupKeyboardShortcuts(state, options) {
     return false;
   }
 
+  async function openSelectedEventDetail() {
+    try {
+      if (!_selectedEventEl) return false;
+      const timeEl = _selectedEventEl.querySelector('.event-time-kind .time');
+      if (!timeEl || typeof timeEl.click !== 'function') return false;
+      timeEl.click();
+      return true;
+    } catch (e) { }
+    return false;
+  }
+
   async function openSelectedAuthorProfile() {
     try {
       if (!_selectedEventEl) return false;
@@ -373,11 +384,20 @@ export function setupKeyboardShortcuts(state, options) {
       return;
     }
 
-    // Vキー: 選択中の投稿の最上部参照先をイベント詳細で開く
+    // Vキー: 選択中の投稿の最上部参照先をイベント詳細で開く（参照先がなければ投稿自体の詳細を開く） / Shift+V: 常に選択中の投稿自体の詳細を開く
     if (e.key === 'v' || e.key === 'V') {
       if (!_selectedEventEl) return;
       e.preventDefault();
-      openSelectedReferencedEvent();
+      if (e.shiftKey) {
+        openSelectedEventDetail();
+      } else {
+        (async () => {
+          const openedRef = await openSelectedReferencedEvent();
+          if (!openedRef) {
+            await openSelectedEventDetail();
+          }
+        })();
+      }
       return;
     }
 

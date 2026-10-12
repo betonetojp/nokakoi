@@ -1003,8 +1003,25 @@ function bindOmochatHandlers(div, ev, state, nip19) {
   }
 }
 
+function bindTimeClickHandler(div, ev, state, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent) {
+  const timeEl = div.querySelector('.event-time-kind .time');
+  if (!timeEl) return;
+  const openDetail = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    showEventModal(ev, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+  };
+  timeEl.onclick = openDetail;
+  timeEl.onkeydown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      openDetail(e);
+    }
+  };
+}
+
 function bindEventListeners(div, ev, state, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent) {
   bindProfileClickHandlers(div, ev, state, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent);
+  bindTimeClickHandler(div, ev, state, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent);
   bindJsonButtonHandlers(div, ev, nip19);
   bindQuoteButtonHandler(div, ev, state, nip19);
   bindContentClickHandlers(div, ev, state, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent);
@@ -1122,7 +1139,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
 
   const bottomRowHtml = '<div class="event-bottom-row">' +
     '<div class="event-time-kind">' +
-    '<span class="time">' + formatTimeForEvent(ev) + '</span>' +
+    '<span class="time" role="button" tabindex="0" title="' + escapeHtml(t('event.detail.title') || 'イベント詳細') + '" data-i18n-title="event.detail.title">' + formatTimeForEvent(ev) + '</span>' +
     '<button class="btn-json btn-kind" type="button" data-kind="' + ev.kind + '" data-i18n-title="showJson"> k:' + ev.kind + '</button>' +
     '</div>' +
     (localStorage.getItem('pubkey') ?
