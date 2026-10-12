@@ -13,7 +13,7 @@ vi.mock('../i18n.js', () => ({
   applyTranslations: () => Promise.resolve(),
 }));
 
-import { updateNostrNpubLinks } from './dom-utils.js';
+import { updateNostrNpubLinks, renderChannelQuote, renderEmojiPackQuote, renderArticleQuote, resolveAndRenderQuote } from './dom-utils.js';
 
 describe('updateNostrNpubLinks', () => {
   beforeEach(() => {
@@ -208,4 +208,76 @@ describe('resolveAndRenderQuote kind routing', () => {
     expect(card.textContent).toContain('Gyouza Set');
     expect(card.querySelector('.emoji-pack-item img').getAttribute('src')).toBe('https://example.com/gyouza.png');
   });
+
+  it('renders kind:30023 as article-quote card', async () => {
+    const container = document.createElement('div');
+    const quoteEl = document.createElement('span');
+    quoteEl.className = 'nostr-quote';
+    quoteEl.dataset.eventId = 'article-ev-1';
+    container.appendChild(quoteEl);
+
+    const state = {
+      eventCache: new Map([
+        ['article-ev-1', {
+          id: 'article-ev-1',
+          pubkey: 'pk1',
+          kind: 30023,
+          content: '# はじめに\n\nNostrについての記事です。',
+          tags: [
+            ['title', 'Nostr入門ガイド'],
+            ['summary', 'Nostrの基礎をわかりやすく解説します。'],
+            ['image', 'https://example.com/cover.png']
+          ]
+        }]
+      ]),
+      profiles: new Map()
+    };
+
+    const result = await resolveAndRenderQuote(quoteEl, container, null, state, {}, null, null, null, {}, {}, 0, 2);
+    expect(result).toBe(true);
+    const card = container.querySelector('.article-quote');
+    expect(card).not.toBeNull();
+    expect(card.textContent).toContain('Nostr入門ガイド');
+    expect(card.textContent).toContain('Nostrの基礎をわかりやすく解説します。');
+    expect(card.querySelector('.article-quote-image').getAttribute('src')).toBe('https://example.com/cover.png');
+  });
 });
+
+describe('renderArticleQuote', () => {
+  it('renders kind:30023 article event with title, summary and cover image', async () => {
+    const ev = {
+      id: 'article-1',
+      pubkey: 'author-pk',
+      kind: 30023,
+      content: '記事本文がここに入ります。',
+      tags: [
+        ['title', 'テスト記事タイトル'],
+        ['summary', '記事の概要文です'],
+        ['image', 'https://example.com/thumb.jpg']
+      ]
+    };
+
+    const html = await renderArticleQuote({ profiles: new Map() }, ev, {});
+    expect(html).toContain('article-quote');
+    expect(html).toContain('テスト記事タイトル');
+    expect(html).toContain('記事の概要文です');
+    expect(html).toContain('https://example.com/thumb.jpg');
+    expect(html).toContain('📄');
+  });
+
+  it('falls back to content heading if title tag is absent', async () => {
+    const ev = {
+      id: 'article-2',
+      pubkey: 'author-pk',
+      kind: 30023,
+      content: '# 自動抽出見出し\n\n本文テキストです。',
+      tags: []
+    };
+
+    const html = await renderArticleQuote({ profiles: new Map() }, ev, {});
+    expect(html).toContain('article-quote');
+    expect(html).toContain('自動抽出見出し');
+    expect(html).toContain('本文テキストです。');
+  });
+});
+

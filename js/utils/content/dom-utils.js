@@ -444,7 +444,7 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
       }
     }
 
-    if (event && (event.kind === 1 || event.kind === 1111 || event.kind === 42 || event.kind === 30023 || event.kind === 20000 || (naddrKind && event.content))) {
+    if (event && event.kind !== 30023 && (event.kind === 1 || event.kind === 1111 || event.kind === 42 || event.kind === 20000 || (naddrKind && event.content))) {
       const quoteHtml = await renderEventQuote(state, event, nip19local, settings);
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = quoteHtml;
@@ -549,6 +549,24 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
       return true;
     } else if (event && event.kind === 30030) {
       const quoteHtml = await renderEmojiPackQuote(state, event, nip19local);
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = quoteHtml;
+      const quoteDiv = tempDiv.firstChild;
+      if (quoteDiv) {
+        const anchor = captureTimelineAnchor(container);
+        quoteEl.parentNode.replaceChild(quoteDiv, quoteEl);
+        restoreTimelineAnchor(anchor, container);
+
+        quoteDiv.onclick = function (e) {
+          e.stopPropagation();
+          if (typeof showEventModal === 'function') {
+            showEventModal(event, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
+          }
+        };
+      }
+      return true;
+    } else if (event && event.kind === 30023) {
+      const quoteHtml = await renderArticleQuote(state, event, nip19local);
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = quoteHtml;
       const quoteDiv = tempDiv.firstChild;
@@ -779,6 +797,60 @@ export async function renderEmojiPackQuote(state, event, nip19) {
     '<div class="emoji-pack-body">' +
     (desc ? '<div class="emoji-pack-desc">' + escapeHtml(desc) + '</div>' : '') +
     gridHtml +
+    '</div>' +
+    '</div>';
+}
+
+/**
+ * kind:30023 長文記事（NIP-23）の引用カードを描画
+ */
+export async function renderArticleQuote(state, event, nip19) {
+  const titleTag = Array.isArray(event.tags) ? event.tags.find(t => Array.isArray(t) && t[0] === 'title' && t[1]) : null;
+  let title = (titleTag && titleTag[1]) ? String(titleTag[1]).trim() : '';
+  if (!title) {
+    const firstLine = (event.content || '').split('\n').find(l => l.trim().length > 0) || '';
+    const headingMatch = firstLine.match(/^#+\s*(.+)/);
+    title = (headingMatch && headingMatch[1]) ? headingMatch[1].trim() : (t('article.untitled') || '無題の記事');
+  }
+
+  const summaryTag = Array.isArray(event.tags) ? event.tags.find(t => Array.isArray(t) && t[0] === 'summary' && t[1]) : null;
+  let summary = (summaryTag && summaryTag[1]) ? String(summaryTag[1]).trim() : '';
+  if (!summary && event.content) {
+    const cleaned = String(event.content)
+      .replace(/^#+\s+/gm, '')
+      .replace(/!\[.*?\]\(.*?\)/g, '')
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+      .replace(/[*_`~>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    summary = cleaned.length > 120 ? cleaned.slice(0, 120) + '...' : cleaned;
+  }
+
+  const imageTag = Array.isArray(event.tags) ? event.tags.find(t => Array.isArray(t) && t[0] === 'image' && t[1]) : null;
+  const rawImage = (imageTag && imageTag[1]) ? String(imageTag[1]).trim() : '';
+  const image = rawImage ? sanitizeUrlCandidate(rawImage) : '';
+
+  const { displayName } = await import('../../features/profile/profile.js');
+  const author = displayName(state, event.pubkey, nip19);
+
+  const baseLabel = replaceBadgeEmoji(t('article.quote_label') || '記事');
+  const labelText = author ? `${baseLabel} <small class="muted">by ${escapeHtml(author)}</small>` : baseLabel;
+
+  const imageHtml = image
+    ? `<img src="${escapeHtml(image)}" class="article-quote-image" alt="" loading="lazy" />`
+    : '';
+
+  return '<div class="event-quote article-quote" data-event-id="' + escapeHtml(event.id || '') + '">' +
+    '<div class="event-quote-header">' +
+    '<span class="reply-marker">📄</span>' +
+    '<span class="event-quote-label">' + labelText + '</span>' +
+    '</div>' +
+    '<div class="article-quote-body">' +
+    imageHtml +
+    '<div class="article-quote-info">' +
+    '<div class="article-quote-title">' + replaceBadgeEmoji(escapeHtml(title)) + '</div>' +
+    (summary ? '<div class="article-quote-summary">' + replaceBadgeEmoji(escapeHtml(summary)) + '</div>' : '') +
+    '</div>' +
     '</div>' +
     '</div>';
 }

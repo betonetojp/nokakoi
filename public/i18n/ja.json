@@ -59,6 +59,8 @@
   "channel.quote_label": "パブリックチャット",
   "channel.open_btn": "チャンネルを開く",
   "emoji.pack_quote_label": "絵文字パック",
+  "article.quote_label": "記事",
+  "article.untitled": "無題の記事",
   "showHomeRepost16": "ホームに汎用リポストを表示",
   "disableBlink": "点滅通知を使用しない",
   "mentionBackgroundNotification": "ブラウザ通知（PC向け）",

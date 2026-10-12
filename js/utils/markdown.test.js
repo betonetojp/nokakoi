@@ -25,6 +25,16 @@ describe('parseMarkdownSafe', () => {
     expect(html).toContain('<img src="x">');
   });
 
+  it('removes deprecated marquee and blink tags', async () => {
+    const html = await parseMarkdownSafe('<marquee>scrolling text</marquee><blink>blinking</blink>');
+    expect(html).not.toContain('<marquee');
+    expect(html).not.toContain('</marquee>');
+    expect(html).not.toContain('<blink');
+    expect(html).not.toContain('</blink>');
+    expect(html).toContain('scrolling text');
+    expect(html).toContain('blinking');
+  });
+
   it('handles empty input', async () => {
     await expect(parseMarkdownSafe()).resolves.toBe('');
   });

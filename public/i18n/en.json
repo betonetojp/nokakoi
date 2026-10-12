@@ -59,6 +59,8 @@
   "channel.quote_label": "Public Chat",
   "channel.open_btn": "Open Channel",
   "emoji.pack_quote_label": "Emoji Pack",
+  "article.quote_label": "Article",
+  "article.untitled": "Untitled Article",
   "showHomeRepost16": "Show generic reposts from follows in home",
   "disableBlink": "Disable blink notifications",
   "mentionBackgroundNotification": "Browser notifications (for PC)",
