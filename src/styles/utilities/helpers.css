@@ -219,7 +219,8 @@ body.theme-light .json-pre {
 #jsonContent::-webkit-scrollbar-thumb { background: #232633; border-radius: 3px; }
 #jsonContent::-webkit-scrollbar-thumb:hover { background: #444b5a; }
 .json-nevent-wrap {
-  margin-bottom: 12px;
+  margin-top: 10px;
+  margin-bottom: 0;
   padding: 8px 12px;
   background: rgba(124, 147, 255, 0.06);
   border: 1px solid var(--border);
@@ -249,14 +250,8 @@ body.theme-light .json-pre {
 .json-nevent-value:hover {
   text-decoration: underline;
 }
-.btn-copy-nevent {
-  flex-shrink: 0;
-  font-size: 0.82em;
-  padding: 3px 8px;
-  white-space: nowrap;
-}
 .json-copy-row {
-  margin-top: 12px;
+  margin-top: 10px;
   display: flex;
   align-items: center;
   gap: 8px;

@@ -98,7 +98,6 @@ export function showJsonModal(event) {
   const neventWrap = $('#jsonNeventWrap');
   const neventEl = $('#jsonNevent');
   const copyNeventBtn = $('#jsonCopyNevent');
-  const copyNeventBottomBtn = $('#jsonCopyNeventBottom');
 
   if (!modal || !content) return;
 
@@ -156,11 +155,8 @@ export function showJsonModal(event) {
   };
 
   if (copyNeventBtn) {
+    copyNeventBtn.classList.toggle('d-none', !nevent);
     copyNeventBtn.onclick = handleCopyNevent;
-  }
-  if (copyNeventBottomBtn) {
-    copyNeventBottomBtn.classList.toggle('d-none', !nevent);
-    copyNeventBottomBtn.onclick = handleCopyNevent;
   }
   if (neventEl) {
     neventEl.onclick = handleCopyNevent;
