@@ -25,14 +25,29 @@ describe('parseMarkdownSafe', () => {
     expect(html).toContain('<img src="x">');
   });
 
-  it('removes deprecated marquee and blink tags', async () => {
-    const html = await parseMarkdownSafe('<marquee>scrolling text</marquee><blink>blinking</blink>');
+  it('escapes and renders disallowed tags (marquee, script, etc.) as visible text', async () => {
+    const html = await parseMarkdownSafe('<marquee>(☝ ՞ਊ ՞)☝ｳｪｰｲ</marquee><SCRIPT>alert("xss")</SCRIPT><font size=1000>huge</font>');
     expect(html).not.toContain('<marquee');
-    expect(html).not.toContain('</marquee>');
-    expect(html).not.toContain('<blink');
-    expect(html).not.toContain('</blink>');
-    expect(html).toContain('scrolling text');
-    expect(html).toContain('blinking');
+    expect(html).not.toContain('<SCRIPT');
+    expect(html).not.toContain('<font');
+    expect(html).toContain('&lt;marquee&gt;(☝ ՞ਊ ՞)☝ｳｪｰｲ&lt;/marquee&gt;');
+    expect(html).toContain('&lt;SCRIPT&gt;alert("xss")&lt;/SCRIPT&gt;');
+    expect(html).toContain('&lt;font size=1000&gt;huge&lt;/font&gt;');
+  });
+
+  it('safely handles unclosed disallowed tags without breaking following markdown', async () => {
+    const input = [
+      '<marquee>(☝ ՞ਊ ՞)☝ｳｪｰｲ<marquee>',
+      '',
+      '|1|2|',
+      '|:--|:--|',
+      '|test|value|'
+    ].join('\n');
+    const html = await parseMarkdownSafe(input);
+    expect(html).toContain('&lt;marquee&gt;(☝ ՞ਊ ՞)☝ｳｪｰｲ&lt;marquee&gt;');
+    expect(html).toContain('<table>');
+    expect(html).toContain('test');
+    expect(html).toContain('value');
   });
 
   it('handles empty input', async () => {

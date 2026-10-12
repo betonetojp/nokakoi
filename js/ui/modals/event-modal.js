@@ -215,6 +215,19 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       } catch (e) { }
       try { processHiddenTagChars(contentEl); } catch (e) { }
       try { if (typeof fitCustomEmoji === 'function') fitCustomEmoji(contentEl, 28); } catch (e) { }
+      try {
+        const contentImgs = contentEl.querySelectorAll('img:not(.custom-emoji):not(.icon):not(.avatar):not(.client-badge-icon):not(.channel-quote-picture):not(.article-quote-image)');
+        contentImgs.forEach(img => {
+          img.onclick = (e) => {
+            e.stopPropagation();
+            import('../media-viewer.js').then(m => {
+              if (m && typeof m.showMediaViewer === 'function') {
+                m.showMediaViewer(img.src, 'image');
+              }
+            });
+          };
+        });
+      } catch (e) { }
     }
 
     // kind:40 / kind:41 パブリックチャットチャンネル
