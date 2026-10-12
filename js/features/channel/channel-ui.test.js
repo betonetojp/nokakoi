@@ -41,6 +41,7 @@ vi.mock('../../utils/i18n.js', () => ({ t: key => key }));
 
 import {
   initChannelView,
+  openChannelFromExternal,
   pauseChannelSubscriptions,
   refreshActiveChannelFeed,
   reloadChannelView,
@@ -435,6 +436,60 @@ describe('channel feed reload', () => {
       null,
       { resume: false }
     );
+  });
+});
+
+describe('openChannelFromExternal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    document.body.innerHTML = '';
+  });
+
+  it('switches to channels tab and closes modals when opening channel externally', async () => {
+    // Setup tabs DOM
+    const tabs = document.createElement('div');
+    tabs.className = 'tabs';
+    const homeTab = document.createElement('button');
+    homeTab.className = 'tab active';
+    homeTab.dataset.tab = 'home';
+    const channelsTab = document.createElement('button');
+    channelsTab.className = 'tab';
+    channelsTab.dataset.tab = 'channels';
+    tabs.appendChild(homeTab);
+    tabs.appendChild(channelsTab);
+    document.body.appendChild(tabs);
+
+    // Setup feed containers
+    const feedHome = document.createElement('div');
+    feedHome.id = 'feed-home';
+    feedHome.className = 'feed active';
+    const feedChannels = document.createElement('div');
+    feedChannels.id = 'feed-channels';
+    feedChannels.className = 'feed';
+    document.body.appendChild(feedHome);
+    document.body.appendChild(feedChannels);
+
+    // Setup modals
+    const eventModal = document.createElement('div');
+    eventModal.id = 'eventModal';
+    eventModal.hidden = false;
+    document.body.appendChild(eventModal);
+
+    const targetChannelId = '1'.repeat(64);
+    const state = { pubkey: ACCOUNT_A };
+
+    const success = await openChannelFromExternal(targetChannelId, state);
+    expect(success).toBe(true);
+
+    // Modal should be closed
+    expect(eventModal.hidden).toBe(true);
+
+    // Channels tab should be active
+    expect(channelsTab.classList.contains('active')).toBe(true);
+    expect(homeTab.classList.contains('active')).toBe(false);
+    expect(feedChannels.classList.contains('active')).toBe(true);
+    expect(feedHome.classList.contains('active')).toBe(false);
   });
 });
 

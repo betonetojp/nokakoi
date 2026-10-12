@@ -973,6 +973,20 @@ export async function openChannelFromExternal(rootId, state = null) {
         profileModal.hidden = true;
       }
     }
+
+    try {
+      const { activateTab } = await import('../../ui/setup/tab-manager.js');
+      const sm = _settingsManagerRef || (typeof getSettingsManager === 'function' ? getSettingsManager() : null);
+      if (typeof activateTab === 'function') {
+        activateTab('channels', sm, { skipFeedLifecycle: true });
+      } else {
+        const channelsTabBtn = document.querySelector('.tabs .tab[data-tab="channels"]');
+        if (channelsTabBtn) channelsTabBtn.click();
+      }
+    } catch (_e) {
+      const channelsTabBtn = document.querySelector('.tabs .tab[data-tab="channels"]');
+      if (channelsTabBtn) channelsTabBtn.click();
+    }
   }
 
   const feedChan = document.getElementById('feed-channels');
