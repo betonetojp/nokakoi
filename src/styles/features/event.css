@@ -861,6 +861,133 @@ body.theme-light .reply-to.zap .reply-marker img.icon {
   margin: 4px 0;
 }
 
+/* イベント詳細モーダル内の見出し調整 */
+#eventModalContent h1,
+#eventModalContent h2,
+#eventModalContent h3,
+#eventModalContent h4,
+#eventModalContent h5,
+#eventModalContent h6 {
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 16px 0 8px;
+}
+#eventModalContent h1 {
+  font-size: 1.35em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 5px;
+}
+#eventModalContent h2 {
+  font-size: 1.2em;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.18);
+  padding-bottom: 4px;
+}
+#eventModalContent h3 {
+  font-size: 1.1em;
+}
+#eventModalContent h4 {
+  font-size: 1.0em;
+}
+#eventModalContent h5,
+#eventModalContent h6 {
+  font-size: 0.9em;
+  color: var(--muted);
+}
+
+/* 水平区切り線 (<hr> / ---) */
+#eventModalContent hr,
+.article-quote-markdown hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+  opacity: 0.8;
+}
+
+/* コード表示 (pre / code) */
+#eventModalContent code:not(pre code),
+.article-quote-markdown code:not(pre code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.88em;
+  background: rgba(128, 128, 128, 0.15);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  word-break: break-word;
+}
+#eventModalContent pre,
+.article-quote-markdown pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.88em;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(128, 128, 128, 0.2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 10px 0;
+  overflow-x: auto;
+  line-height: 1.45;
+}
+body.theme-light #eventModalContent pre,
+body.theme-light .article-quote-markdown pre {
+  background: rgba(0, 0, 0, 0.04);
+}
+#eventModalContent pre code,
+.article-quote-markdown pre code {
+  background: transparent;
+  padding: 0;
+  border: none;
+  font-size: inherit;
+  white-space: pre;
+  word-break: normal;
+}
+
+/* ハイライト (<mark>) */
+#eventModalContent mark,
+.article-quote-markdown mark {
+  background-color: rgba(251, 191, 36, 0.28);
+  color: inherit;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+
+/* タスクリスト (- [ ] / - [x]) */
+#eventModalContent li.task-list-item,
+#eventModalContent li:has(> input[type="checkbox"]),
+.article-quote-markdown li.task-list-item,
+.article-quote-markdown li:has(> input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -16px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+#eventModalContent li.task-list-item input[type="checkbox"],
+#eventModalContent li:has(> input[type="checkbox"]) > input[type="checkbox"],
+.article-quote-markdown li.task-list-item input[type="checkbox"],
+.article-quote-markdown li:has(> input[type="checkbox"]) > input[type="checkbox"] {
+  margin: 0;
+  vertical-align: middle;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* 取り消し線 (<del>, <s>) */
+#eventModalContent del,
+#eventModalContent s,
+.article-quote-markdown del,
+.article-quote-markdown s {
+  opacity: 0.75;
+  color: var(--muted);
+}
+
+/* 上付き・下付き文字 (<sup>, <sub>) */
+#eventModalContent sup,
+#eventModalContent sub,
+.article-quote-markdown sup,
+.article-quote-markdown sub {
+  font-size: 0.78em;
+  line-height: 0;
+}
+
 .nostr-quote {
   display: inline;
   color: var(--muted);

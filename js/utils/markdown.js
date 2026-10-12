@@ -63,7 +63,42 @@ const subExtension = {
   }
 };
 
-marked.use({ extensions: [supExtension, subExtension] });
+const markExtension = {
+  name: 'mark',
+  level: 'inline',
+  start(src) {
+    return src.indexOf('==');
+  },
+  tokenizer(src) {
+    const match = /^==([^\s=][^=\n]*[^\s=]|[^=\s])==/.exec(src);
+    if (match) {
+      return {
+        type: 'mark',
+        raw: match[0],
+        text: match[1],
+        tokens: this.lexer.inlineTokens(match[1])
+      };
+    }
+  },
+  renderer(token) {
+    return `<mark>${this.parser.parseInline(token.tokens)}</mark>`;
+  }
+};
+
+marked.use({ extensions: [supExtension, subExtension, markExtension] });
+
+// DOMPurify でタスクリスト用チェックボックス (<input type="checkbox" disabled>) のみを安全に許可
+if (typeof DOMPurify.addHook === 'function') {
+  DOMPurify.addHook('uponSanitizeElement', (node, data) => {
+    if (data.tagName === 'input') {
+      if (node.getAttribute('type') === 'checkbox') {
+        node.setAttribute('disabled', '');
+      } else {
+        node.remove();
+      }
+    }
+  });
+}
 
 /**
  * 許可するURIスキーム: http, https, nostr, mailto, 安全なdata:image
@@ -78,6 +113,8 @@ export function parseMarkdownSafeSync(mdText) {
     USE_PROFILES: { html: true },
     ALLOWED_URI_REGEXP,
     ADD_DATA_URI_TAGS: ['img'],
+    ADD_TAGS: ['input'],
+    ADD_ATTR: ['type', 'checked', 'disabled'],
     FORBID_TAGS: ['marquee', 'blink']
   });
 }

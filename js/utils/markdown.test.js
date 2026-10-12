@@ -70,6 +70,24 @@ describe('parseMarkdownSafe', () => {
     expect(html).toContain('H<sub>2</sub>O');
     expect(html).toContain('<del>strikethrough</del>');
   });
+
+  it('renders text highlights (==highlight==)', async () => {
+    const input = 'This is ==highlighted text== and normal text.';
+    const html = await parseMarkdownSafe(input);
+    expect(html).toContain('<mark>highlighted text</mark>');
+  });
+
+  it('renders task list checkboxes as disabled inputs safely', async () => {
+    const input = [
+      '- [ ] Incomplete task',
+      '- [x] Completed task'
+    ].join('\n');
+    const html = await parseMarkdownSafe(input);
+    expect(html).toContain('<input disabled="" type="checkbox">');
+    expect(html).toContain('<input checked="" disabled="" type="checkbox">');
+    expect(html).toContain('Incomplete task');
+    expect(html).toContain('Completed task');
+  });
 });
 
 describe('renderMarkdownWithCustomEmojis', () => {
