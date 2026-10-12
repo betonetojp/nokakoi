@@ -15,6 +15,57 @@ export function escapeDisallowedHtmlTags(mdText) {
 }
 
 /**
+ * Pandoc/GFMスタイルの上付き文字 (^text^) と下付き文字 (~text~) の marked 拡張
+ * 空白を含まない文字列を対象とし、取り消し線 (~~strike~~) との衝突を防止する
+ */
+const supExtension = {
+  name: 'sup',
+  level: 'inline',
+  start(src) {
+    return src.indexOf('^');
+  },
+  tokenizer(src) {
+    const match = /^\^([^\s^]+)\^/.exec(src);
+    if (match) {
+      return {
+        type: 'sup',
+        raw: match[0],
+        text: match[1],
+        tokens: this.lexer.inlineTokens(match[1])
+      };
+    }
+  },
+  renderer(token) {
+    return `<sup>${this.parser.parseInline(token.tokens)}</sup>`;
+  }
+};
+
+const subExtension = {
+  name: 'sub',
+  level: 'inline',
+  start(src) {
+    return src.indexOf('~');
+  },
+  tokenizer(src) {
+    if (src.startsWith('~~')) return;
+    const match = /^~([^\s~]+)~/.exec(src);
+    if (match) {
+      return {
+        type: 'sub',
+        raw: match[0],
+        text: match[1],
+        tokens: this.lexer.inlineTokens(match[1])
+      };
+    }
+  },
+  renderer(token) {
+    return `<sub>${this.parser.parseInline(token.tokens)}</sub>`;
+  }
+};
+
+marked.use({ extensions: [supExtension, subExtension] });
+
+/**
  * 許可するURIスキーム: http, https, nostr, mailto, 安全なdata:image
  * ftp, ftps, javascript, vbscript, data:text/html 等は無効化（href/src除去）される
  */

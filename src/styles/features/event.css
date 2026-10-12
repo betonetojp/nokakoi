@@ -712,9 +712,19 @@ body.theme-light .reply-to.zap .reply-marker img.icon {
 
 .article-quote-markdown blockquote {
   margin: 4px 0;
-  padding-left: 8px;
-  border-left: 2px solid var(--border);
-  color: var(--muted);
+  padding: 4px 8px;
+  border-left: 3px solid var(--accent);
+  background: rgba(128, 128, 128, 0.08);
+  border-radius: 0 4px 4px 0;
+  color: var(--text);
+  font-style: italic;
+}
+.article-quote-markdown blockquote blockquote {
+  margin: 4px 0 4px 4px;
+  background: rgba(128, 128, 128, 0.06);
+}
+.article-quote-markdown blockquote p {
+  margin: 2px 0;
 }
 
 .article-quote-markdown table {
@@ -831,6 +841,24 @@ body.theme-light .reply-to.zap .reply-marker img.icon {
 #eventModalContent th {
   background: rgba(128, 128, 128, 0.15);
   font-weight: 600;
+}
+
+/* イベント詳細モーダル内の引用装飾（ネスト対応） */
+#eventModalContent blockquote {
+  margin: 8px 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--accent);
+  background: rgba(128, 128, 128, 0.08);
+  border-radius: 0 4px 4px 0;
+  color: var(--text);
+  font-style: italic;
+}
+#eventModalContent blockquote blockquote {
+  margin: 6px 0 6px 6px;
+  background: rgba(128, 128, 128, 0.06);
+}
+#eventModalContent blockquote p {
+  margin: 4px 0;
 }
 
 .nostr-quote {

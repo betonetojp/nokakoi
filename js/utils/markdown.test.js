@@ -58,6 +58,18 @@ describe('parseMarkdownSafe', () => {
   it('handles empty input', async () => {
     await expect(parseMarkdownSafe()).resolves.toBe('');
   });
+
+  it('renders superscript (^th^) and subscript (~2~) without conflicting with strikethrough (~~del~~)', async () => {
+    const input = [
+      '- 19^th^',
+      '- H~2~O',
+      '- ~~strikethrough~~'
+    ].join('\n');
+    const html = await parseMarkdownSafe(input);
+    expect(html).toContain('19<sup>th</sup>');
+    expect(html).toContain('H<sub>2</sub>O');
+    expect(html).toContain('<del>strikethrough</del>');
+  });
 });
 
 describe('renderMarkdownWithCustomEmojis', () => {
