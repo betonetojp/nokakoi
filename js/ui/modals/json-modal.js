@@ -2,7 +2,7 @@
 // JSONビューアモーダル
 // ============================================================================
 
-import { $ } from '../../utils/utils.js';
+import { $, showToast } from '../../utils/utils.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { getEventSeenOn, getReadRelays } from '../../core/relay.js';
 import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
@@ -94,7 +94,6 @@ export function showJsonModal(event) {
   const closeBtn = $('#jsonClose');
   const content = $('#jsonContent');
   const copyBtn = $('#jsonCopy');
-  const copyStatus = $('#jsonCopyStatus');
   const neventEl = $('#jsonNevent');
   const copyNeventBtn = $('#jsonCopyNevent');
 
@@ -139,19 +138,9 @@ export function showJsonModal(event) {
     if (!nevent) return;
     try {
       await navigator.clipboard.writeText(nevent);
-      if (copyStatus) {
-        copyStatus.textContent = t('json.copy_nevent.done') || 'neventをコピーしました';
-        setTimeout(() => {
-          copyStatus.textContent = '';
-        }, 2000);
-      }
+      showToast(t('json.copy_nevent.done') || 'neventをコピーしました', { type: 'success' });
     } catch (e) {
-      if (copyStatus) {
-        copyStatus.textContent = t('json.copy.failed');
-        setTimeout(() => {
-          copyStatus.textContent = '';
-        }, 2000);
-      }
+      showToast(t('json.copy.failed') || 'コピー失敗', { type: 'error' });
     }
   };
 
@@ -168,19 +157,9 @@ export function showJsonModal(event) {
     copyBtn.onclick = async function () {
       try {
         await navigator.clipboard.writeText(jsonText);
-        if (copyStatus) {
-          copyStatus.textContent = t('json.copy.done');
-          setTimeout(() => {
-            copyStatus.textContent = '';
-          }, 2000);
-        }
+        showToast(t('json.copy.done') || 'コピーしました', { type: 'success' });
       } catch (e) {
-        if (copyStatus) {
-          copyStatus.textContent = t('json.copy.failed');
-          setTimeout(() => {
-            copyStatus.textContent = '';
-          }, 2000);
-        }
+        showToast(t('json.copy.failed') || 'コピー失敗', { type: 'error' });
       }
     };
   }

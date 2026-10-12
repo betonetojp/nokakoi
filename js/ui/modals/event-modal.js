@@ -2,7 +2,7 @@
 // 単一イベント詳細モーダル表示
 // ============================================================================
 
-import { escapeHtml, fmtTime, processHiddenTagChars, replaceBadgeEmoji } from '../../utils/utils.js';
+import { escapeHtml, fmtTime, processHiddenTagChars, replaceBadgeEmoji, showToast } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { displayNameWithUsername } from '../../features/profile/profile.js';
 import { getEventDisplayPubkey } from '../../features/zap/zap.js';
@@ -386,16 +386,13 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
     const nevent = encodeEventToNevent(event, state, nip19);
     if (nevent) {
       eventCopyNeventBtn.classList.remove('d-none');
-      eventCopyNeventBtn.textContent = 'nevent';
+      eventCopyNeventBtn.textContent = t('event.copy_nevent') || 'neventをコピー';
       eventCopyNeventBtn.onclick = async (e) => {
         e.preventDefault();
         e.stopPropagation();
         try {
           await navigator.clipboard.writeText(nevent);
-          eventCopyNeventBtn.textContent = '✓ nevent';
-          setTimeout(() => {
-            eventCopyNeventBtn.textContent = 'nevent';
-          }, 1500);
+          showToast(t('json.copy_nevent.done') || 'neventをコピーしました', { type: 'success' });
         } catch (_err) { }
       };
     } else {
