@@ -16,12 +16,17 @@ describe('parseMarkdownSafe', () => {
     const html = await parseMarkdownSafe([
       '<script>alert("xss")</script>',
       '<img src=x onerror="alert(1)">',
-      '<a href="javascript:alert(1)">unsafe</a>'
+      '<a href="javascript:alert(1)">unsafe</a>',
+      '<a href="ftp://example.com">ftp link</a>',
+      '<a href="data:text/html,<script>alert(1)</script>">data link</a>'
     ].join('\n'));
 
     expect(html).not.toContain('<script');
     expect(html).not.toContain('onerror');
     expect(html).not.toContain('javascript:');
+    expect(html).not.toContain('href="ftp:');
+    expect(html).not.toContain('href="data:');
+    expect(html).toContain('<a>ftp link</a>');
     expect(html).toContain('<img src="x">');
   });
 

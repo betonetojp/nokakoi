@@ -14,11 +14,19 @@ export function escapeDisallowedHtmlTags(mdText) {
   });
 }
 
+/**
+ * 許可するURIスキーム: http, https, nostr, mailto, 安全なdata:image
+ * ftp, ftps, javascript, vbscript, data:text/html 等は無効化（href/src除去）される
+ */
+export const ALLOWED_URI_REGEXP = /^(?:(?:https?|nostr|mailto|data:image\/(?:png|jpeg|jpg|webp|gif|avif)):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i;
+
 export function parseMarkdownSafeSync(mdText) {
   const preprocessed = escapeDisallowedHtmlTags(mdText || '');
   const html = marked.parse(preprocessed);
   return DOMPurify.sanitize(html, {
     USE_PROFILES: { html: true },
+    ALLOWED_URI_REGEXP,
+    ADD_DATA_URI_TAGS: ['img'],
     FORBID_TAGS: ['marquee', 'blink']
   });
 }
