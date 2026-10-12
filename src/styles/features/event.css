@@ -749,23 +749,34 @@ body.theme-light .reply-to.zap .reply-marker img.icon {
   left: 0;
   right: 0;
   height: 52px;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, var(--bg) 95%);
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, var(--panel, var(--bg)) 95%);
   display: flex;
   align-items: flex-end;
-  justify-content: center;
+  justify-content: flex-start;
   padding-bottom: 4px;
   pointer-events: none;
 }
 
 .article-quote-read-more {
-  font-size: 0.8em;
-  font-weight: 600;
-  color: var(--link, var(--primary, #007bff));
-  background: var(--panel, var(--bg));
-  border: 1px solid var(--border);
-  padding: 2px 12px;
-  border-radius: 12px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  background: var(--panel, var(--bg)) !important;
+  color: var(--muted) !important;
+  font-size: 0.8em !important;
+  font-weight: 500 !important;
+  border: 1px solid rgba(128, 128, 128, 0.22) !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  box-shadow: none !important;
+  pointer-events: auto;
+  cursor: pointer;
+  margin: 0 !important;
+  width: fit-content !important;
+  transition: background 0.12s, color 0.12s, border-color 0.12s !important;
+}
+
+.article-quote-read-more:hover:not(:disabled) {
+  background: var(--panel, var(--bg)) !important;
+  color: var(--text) !important;
+  border-color: rgba(128, 128, 128, 0.4) !important;
 }
 
 /* イベント詳細モーダル内でのチャンネル引用カード・絵文字パックのスタイル調整 */

@@ -837,12 +837,12 @@ export function renderArticlePreviewHtml(event) {
   const contentToRender = event.content || '';
   const bodyHtml = contentToRender ? renderMarkdownWithCustomEmojisSync(contentToRender, event.tags || []) : '';
 
-  const readMoreText = escapeHtml(t('see_detail', '続きを読む'));
+  const readMoreText = escapeHtml(t('see_detail', '省略されています'));
   const previewHtml = bodyHtml
     ? '<div class="article-quote-preview">' +
       '<div class="article-quote-markdown">' + bodyHtml + '</div>' +
       '<div class="article-quote-fade">' +
-      '<span class="article-quote-read-more">' + readMoreText + '</span>' +
+      '<button type="button" class="read-more-btn secondary article-quote-read-more">' + readMoreText + '</button>' +
       '</div>' +
       '</div>'
     : '';
