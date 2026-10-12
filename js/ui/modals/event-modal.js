@@ -386,16 +386,16 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
     const nevent = encodeEventToNevent(event, state, nip19);
     if (nevent) {
       eventCopyNeventBtn.classList.remove('d-none');
+      eventCopyNeventBtn.textContent = 'nevent';
       eventCopyNeventBtn.onclick = async (e) => {
         e.preventDefault();
         e.stopPropagation();
         try {
           await navigator.clipboard.writeText(nevent);
-          const origText = eventCopyNeventBtn.textContent;
-          eventCopyNeventBtn.textContent = '✓ ' + (t('json.copy.done') || 'コピーしました');
+          eventCopyNeventBtn.textContent = '✓ nevent';
           setTimeout(() => {
-            eventCopyNeventBtn.textContent = origText;
-          }, 2000);
+            eventCopyNeventBtn.textContent = 'nevent';
+          }, 1500);
         } catch (_err) { }
       };
     } else {

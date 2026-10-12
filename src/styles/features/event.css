@@ -586,7 +586,8 @@ body.theme-light .reply-to.zap .reply-marker img.icon {
 
 /* .open-media などのインライン・補助ボタン共通スタイルは後述のグループルールで定義 */
 
-button.btn-kind {
+button.btn-kind,
+button.btn-nevent {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 0.75em;
   font-weight: normal;
@@ -597,7 +598,8 @@ button.btn-kind {
   cursor: pointer;
   transition: color 0.2s, background 0.2s, border-color 0.2s;
 }
-button.btn-kind:hover {
+button.btn-kind:hover,
+button.btn-nevent:hover {
   color: #fbbf24;
   background: var(--accent-muted);
   border-color: #fbbf24;

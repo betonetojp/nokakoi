@@ -1224,6 +1224,7 @@ try {
       try {
         document.querySelectorAll('.btn-kind').forEach(btn => {
           try {
+            if (btn.id === 'eventModalCopyNevent') return;
             const kind = btn.dataset && btn.dataset.kind ? btn.dataset.kind : (btn.textContent || '').split(':').pop().trim();
             btn.textContent = t('kind') + ':' + kind;
             try { btn.setAttribute('title', t('showJson')); } catch (e) { }
