@@ -14,13 +14,17 @@ export function escapeDisallowedHtmlTags(mdText) {
   });
 }
 
-export async function parseMarkdownSafe(mdText) {
+export function parseMarkdownSafeSync(mdText) {
   const preprocessed = escapeDisallowedHtmlTags(mdText || '');
   const html = marked.parse(preprocessed);
   return DOMPurify.sanitize(html, {
     USE_PROFILES: { html: true },
     FORBID_TAGS: ['marquee', 'blink']
   });
+}
+
+export async function parseMarkdownSafe(mdText) {
+  return parseMarkdownSafeSync(mdText);
 }
 
 /**
@@ -127,15 +131,22 @@ export function replaceCustomEmojiInDom(container, emojiTags = []) {
 }
 
 /**
- * Markdown をパースし、タグに定義されたカスタム絵文字をインライン画像へ置換した安全な HTML を返す
+ * Markdown をパースし、タグに定義されたカスタム絵文字をインライン画像へ置換した安全な HTML を同期的に返す
  */
-export async function renderMarkdownWithCustomEmojis(mdText, emojiTags = []) {
-  const html = await parseMarkdownSafe(mdText || '');
+export function renderMarkdownWithCustomEmojisSync(mdText, emojiTags = []) {
+  const html = parseMarkdownSafeSync(mdText || '');
   if (typeof document === 'undefined') return html;
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
   replaceCustomEmojiInDom(tempDiv, emojiTags);
   return tempDiv.innerHTML;
+}
+
+/**
+ * Markdown をパースし、タグに定義されたカスタム絵文字をインライン画像へ置換した安全な HTML を返す
+ */
+export async function renderMarkdownWithCustomEmojis(mdText, emojiTags = []) {
+  return renderMarkdownWithCustomEmojisSync(mdText, emojiTags);
 }
 
 

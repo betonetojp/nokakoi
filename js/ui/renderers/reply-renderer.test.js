@@ -117,4 +117,43 @@ describe('profile zap receipt cards', () => {
       localStorage.removeItem('pubkey');
     }
   });
+
+  it('renders kind:30023 article preview with markdown and emojis when referenced by kind:7 reaction', async () => {
+    const { findEventById } = await import('../../core/state.js');
+    const articleEvent = {
+      id: 'article-target-1',
+      pubkey: 'author-pk',
+      kind: 30023,
+      content: '### :nan: 見出し\n\n- リスト:nan:\n\n![nan](https://example.com/nan.png)',
+      tags: [
+        ['d', 'test'],
+        ['title', 'テスト記事'],
+        ['emoji', 'nan', 'https://example.com/nan.png']
+      ]
+    };
+    findEventById.mockReturnValue(articleEvent);
+
+    const reactionEvent = {
+      id: 'reaction-1',
+      pubkey: 'reactor-pk',
+      kind: 7,
+      content: '⭐',
+      tags: [
+        ['e', 'article-target-1']
+      ]
+    };
+
+    const state = { profiles: new Map([['author-pk', { display_name: 'もの' }]]) };
+    const html = renderReplyContext(state, reactionEvent, null, {});
+
+    expect(html).toContain('reply-to reaction');
+    expect(html).toContain('⭐');
+    expect(html).toContain('テスト記事');
+    expect(html).toContain('article-quote-preview');
+    expect(html).toContain('article-quote-markdown');
+    expect(html).toContain('class="custom-emoji"');
+    expect(html).toContain('src="https://example.com/nan.png"');
+    expect(html).toContain('article-quote-fade');
+  });
 });
+

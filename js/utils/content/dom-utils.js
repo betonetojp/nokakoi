@@ -9,6 +9,7 @@ import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } 
 import { resolveQuoteRelays, fetchQuoteEventById, fetchQuoteEventByNaddr, prefetchQuotesForElements, sanitizeRelays } from './quote-resolver.js';
 import { getEffectiveTextLength, getPreviewWithFullLinksAndEmojis } from './text-preview.js';
 import { evaluateMuteState, updateEventMuteDom } from '../../ui/renderers/render-helpers.js';
+import { renderMarkdownWithCustomEmojisSync } from '../markdown.js';
 
 export const NOSTR_QUOTE_RECURSION_MAX_DEPTH = 2;
 
@@ -809,9 +810,11 @@ export async function renderEmojiPackQuote(state, event, nip19) {
 }
 
 /**
- * kind:30023 長文記事（NIP-23）の引用カードを描画
+ * kind:30023 記事のミニMarkdownプレビューHTMLを同期的に生成
+ * 引用カードや返信・リアクション先プレビューで共通利用
  */
-export async function renderArticleQuote(state, event, nip19) {
+export function renderArticlePreviewHtml(event) {
+  if (!event) return '';
   const titleTag = Array.isArray(event.tags) ? event.tags.find(t => Array.isArray(t) && t[0] === 'title' && t[1]) : null;
   let title = (titleTag && titleTag[1]) ? String(titleTag[1]).trim() : '';
   if (!title) {
@@ -827,19 +830,12 @@ export async function renderArticleQuote(state, event, nip19) {
   const rawImage = (imageTag && imageTag[1]) ? String(imageTag[1]).trim() : '';
   const image = rawImage ? sanitizeUrlCandidate(rawImage) : '';
 
-  const { displayName } = await import('../../features/profile/profile.js');
-  const author = displayName(state, event.pubkey, nip19);
-
-  const baseLabel = replaceBadgeEmoji(t('article.quote_label') || '記事');
-  const labelText = author ? `${baseLabel} <small class="muted">by ${escapeHtml(author)}</small>` : baseLabel;
-
   const imageHtml = image
     ? `<img src="${escapeHtml(image)}" class="article-quote-image" alt="" loading="lazy" />`
     : '';
 
-  const { renderMarkdownWithCustomEmojis } = await import('../markdown.js');
   const contentToRender = event.content || '';
-  const bodyHtml = contentToRender ? await renderMarkdownWithCustomEmojis(contentToRender, event.tags || []) : '';
+  const bodyHtml = contentToRender ? renderMarkdownWithCustomEmojisSync(contentToRender, event.tags || []) : '';
 
   const readMoreText = escapeHtml(t('see_detail', '続きを読む'));
   const previewHtml = bodyHtml
@@ -851,11 +847,7 @@ export async function renderArticleQuote(state, event, nip19) {
       '</div>'
     : '';
 
-  return '<div class="event-quote article-quote" data-event-id="' + escapeHtml(event.id || '') + '">' +
-    '<div class="event-quote-header">' +
-    '<span class="reply-marker">📄</span>' +
-    '<span class="event-quote-label">' + labelText + '</span>' +
-    '</div>' +
+  return '<div class="article-quote-inner">' +
     '<div class="article-quote-body">' +
     imageHtml +
     '<div class="article-quote-info">' +
@@ -864,6 +856,27 @@ export async function renderArticleQuote(state, event, nip19) {
     '</div>' +
     '</div>' +
     previewHtml +
+    '</div>';
+}
+
+/**
+ * kind:30023 長文記事（NIP-23）の引用カードを描画
+ */
+export async function renderArticleQuote(state, event, nip19) {
+  const { displayName } = await import('../../features/profile/profile.js');
+  const author = displayName(state, event.pubkey, nip19);
+
+  const baseLabel = replaceBadgeEmoji(t('article.quote_label') || '記事');
+  const labelText = author ? `${baseLabel} <small class="muted">by ${escapeHtml(author)}</small>` : baseLabel;
+
+  const innerHtml = renderArticlePreviewHtml(event);
+
+  return '<div class="event-quote article-quote" data-event-id="' + escapeHtml(event.id || '') + '">' +
+    '<div class="event-quote-header">' +
+    '<span class="reply-marker">📄</span>' +
+    '<span class="event-quote-label">' + labelText + '</span>' +
+    '</div>' +
+    innerHtml +
     '</div>';
 }
 

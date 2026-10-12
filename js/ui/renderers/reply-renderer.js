@@ -7,6 +7,8 @@ import { t } from '../../utils/i18n.js';
 import { MAX_PREVIEW_LINES } from '../../config/constants.js';
 import { pickETagWithHint, resolvePreviewMaxLength } from './render-helpers.js';
 import { formatReaction } from './reaction-renderer.js';
+import { renderArticlePreviewHtml } from '../../utils/content/dom-utils.js';
+import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 
 function getZapRequestComment(ev) {
   try {
@@ -193,7 +195,43 @@ export function renderReplyContext(state, ev, nip19, settings) {
   })(replyToAuthor, replyToPubkey);
 
   let replyContentHtml;
-  if (isModal) {
+  if (replyToEvent && replyToEvent.kind === 30023) {
+    replyContentHtml = renderArticlePreviewHtml(replyToEvent);
+  } else if (replyToEvent && (replyToEvent.kind === 40 || replyToEvent.kind === 41)) {
+    try {
+      const meta = JSON.parse(replyToEvent.content || '{}');
+      const channelName = meta.name ? String(meta.name).trim() : (t('channel.untitled') || '無題のチャンネル');
+      const about = meta.about ? String(meta.about).trim() : '';
+      const picture = meta.picture ? sanitizeUrlCandidate(meta.picture) : '';
+      const pictureHtml = picture ? `<img src="${escapeHtml(picture)}" class="channel-quote-picture" alt="" loading="lazy" />` : '';
+      replyContentHtml = '<div class="channel-quote-inner">' +
+        '<div class="channel-quote-body">' +
+        pictureHtml +
+        '<div class="channel-quote-info">' +
+        '<div class="channel-quote-title">📢 ' + replaceBadgeEmoji(escapeHtml(channelName)) + '</div>' +
+        (about ? '<div class="channel-quote-about">' + replaceBadgeEmoji(escapeHtml(about)) + '</div>' : '') +
+        '</div>' +
+        '</div>' +
+        '</div>';
+    } catch (_e) {
+      replyContentHtml = `<span class="reply-preview-text">${escapeHtml(replyToEvent.content || '')}</span>`;
+    }
+  } else if (replyToEvent && replyToEvent.kind === 30030) {
+    const titleTag = Array.isArray(replyToEvent.tags) ? replyToEvent.tags.find(t => Array.isArray(t) && t[0] === 'title' && t[1]) : null;
+    const packTitle = (titleTag && titleTag[1]) ? String(titleTag[1]).trim() : (t('emoji_pack.title') || '絵文字パック');
+    const emojis = Array.isArray(replyToEvent.tags) ? replyToEvent.tags.filter(t => Array.isArray(t) && t[0] === 'emoji' && t[1] && t[2]) : [];
+    const previewEmojis = emojis.slice(0, 8);
+    const gridHtml = previewEmojis.map(t => {
+      const code = escapeHtml(t[1]);
+      const url = sanitizeUrlCandidate(t[2]);
+      if (!url) return '';
+      return `<span class="emoji-pack-item" title=":${code}:"><img src="${escapeHtml(url)}" alt=":${code}:" loading="lazy" /></span>`;
+    }).join('');
+    replyContentHtml = '<div class="emoji-pack-inner">' +
+      '<div class="emoji-pack-title">✨ ' + replaceBadgeEmoji(escapeHtml(packTitle)) + '</div>' +
+      (gridHtml ? '<div class="emoji-pack-grid" style="margin-top:4px;">' + gridHtml + '</div>' : '') +
+      '</div>';
+  } else if (isModal) {
     replyContentHtml = linkifyText(replyToContent, replyToEvent && replyToEvent.tags ? replyToEvent.tags : [], { inlineMedia });
   } else {
     const tags = replyToEvent && replyToEvent.tags ? replyToEvent.tags : [];
