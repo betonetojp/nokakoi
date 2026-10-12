@@ -138,4 +138,38 @@ describe('showEventModal for kind:40 and kind:30030', () => {
     expect(contentEl.textContent).toContain('Cute Cats');
     expect(contentEl.querySelector('.emoji-pack-item img').getAttribute('src')).toBe('https://example.com/cat_happy.png');
   });
+
+  it('renders kind:30023 article with markdown and replaces custom emojis', async () => {
+    const event = {
+      id: 'article-id-1',
+      pubkey: '1111111111111111111111111111111111111111111111111111111111111111',
+      kind: 30023,
+      created_at: 1700000000,
+      content: '### :nan: 見出し\n\n- リスト:nan:\n\n![sample](https://example.com/sample.png)',
+      tags: [
+        ['d', 'test-article'],
+        ['title', 'テスト記事'],
+        ['emoji', 'nan', 'https://example.com/nan.png']
+      ]
+    };
+
+    const state = { profiles: new Map() };
+    showEventModal(event, state, {}, null, null, null, {}, {});
+
+    const contentEl = modal.querySelector('#eventModalContent');
+    await vi.waitFor(() => {
+      const customEmoji = contentEl.querySelector('img.custom-emoji');
+      expect(customEmoji).not.toBeNull();
+    });
+
+    expect(contentEl.querySelector('h3')).not.toBeNull();
+    expect(contentEl.querySelector('ul')).not.toBeNull();
+    const customEmojis = contentEl.querySelectorAll('img.custom-emoji');
+    expect(customEmojis.length).toBeGreaterThanOrEqual(2);
+    expect(customEmojis[0].getAttribute('src')).toBe('https://example.com/nan.png');
+
+    const inlineImg = contentEl.querySelector('img:not(.custom-emoji)');
+    expect(inlineImg).not.toBeNull();
+    expect(inlineImg.getAttribute('src')).toBe('https://example.com/sample.png');
+  });
 });

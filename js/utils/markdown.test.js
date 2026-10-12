@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest';
-import { parseMarkdownSafe } from './markdown.js';
+import { parseMarkdownSafe, renderMarkdownWithCustomEmojis, replaceCustomEmojiInDom } from './markdown.js';
 
 describe('parseMarkdownSafe', () => {
   it('renders common Markdown syntax', async () => {
@@ -54,3 +54,52 @@ describe('parseMarkdownSafe', () => {
     await expect(parseMarkdownSafe()).resolves.toBe('');
   });
 });
+
+describe('renderMarkdownWithCustomEmojis', () => {
+  const emojiTags = [
+    ['emoji', 'nan', 'https://example.com/nan.webp'],
+    ['emoji', 'wayo', 'https://example.com/wayo.webp']
+  ];
+
+  it('replaces emoji shortcodes in headings, bold, lists, and tables', async () => {
+    const input = [
+      '### :nan: **:nan:**',
+      '',
+      '- item 1:nan:',
+      '',
+      '| col1 | col2 |',
+      '|:--|:--|',
+      '| :wayo: | val |'
+    ].join('\n');
+
+    const html = await renderMarkdownWithCustomEmojis(input, emojiTags);
+    expect(html).toContain('class="custom-emoji"');
+    expect(html).toContain('src="https://example.com/nan.webp"');
+    expect(html).toContain('src="https://example.com/wayo.webp"');
+    expect(html).toContain('alt=":nan:"');
+    expect(html).toContain('alt=":wayo:"');
+  });
+
+  it('does NOT replace emoji shortcodes inside code blocks or inline code', async () => {
+    const input = [
+      'Inline `code :nan:` here.',
+      '',
+      '```',
+      'block :nan: here',
+      '```'
+    ].join('\n');
+
+    const html = await renderMarkdownWithCustomEmojis(input, emojiTags);
+    expect(html).toContain('<code>code :nan:</code>');
+    expect(html).toContain('block :nan: here');
+    expect(html).not.toContain('<img src="https://example.com/nan.webp"');
+  });
+
+  it('keeps unknown shortcodes as-is', async () => {
+    const input = 'This is :unknown_emoji: here';
+    const html = await renderMarkdownWithCustomEmojis(input, emojiTags);
+    expect(html).toContain(':unknown_emoji:');
+    expect(html).not.toContain('class="custom-emoji"');
+  });
+});
+

@@ -667,6 +667,107 @@ body.theme-light .reply-to.zap .reply-marker img.icon {
   overflow: hidden;
 }
 
+/* 記事カードのミニMarkdownプレビュー（案B） */
+.article-quote-preview {
+  position: relative;
+  max-height: 200px;
+  overflow: hidden;
+  margin-top: 6px;
+  border-radius: 4px;
+}
+
+.article-quote-markdown {
+  font-size: 0.88em;
+  line-height: 1.45;
+  color: var(--text);
+  word-break: break-word;
+  pointer-events: none;
+}
+
+.article-quote-markdown a {
+  pointer-events: auto;
+}
+
+.article-quote-markdown h1,
+.article-quote-markdown h2,
+.article-quote-markdown h3,
+.article-quote-markdown h4,
+.article-quote-markdown h5,
+.article-quote-markdown h6 {
+  font-size: 0.95em;
+  font-weight: 600;
+  margin: 6px 0 4px;
+  line-height: 1.3;
+}
+
+.article-quote-markdown p {
+  margin: 4px 0;
+}
+
+.article-quote-markdown ul,
+.article-quote-markdown ol {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.article-quote-markdown blockquote {
+  margin: 4px 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--border);
+  color: var(--muted);
+}
+
+.article-quote-markdown table {
+  border-collapse: collapse;
+  max-width: 100%;
+  margin: 6px 0;
+  font-size: 0.85em;
+  display: block;
+  overflow-x: auto;
+}
+
+.article-quote-markdown th,
+.article-quote-markdown td {
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+}
+
+.article-quote-markdown img:not(.custom-emoji):not(.icon):not(.avatar) {
+  max-width: 100%;
+  max-height: 160px;
+  height: auto;
+  object-fit: contain;
+  border-radius: 6px;
+  margin: 4px 0;
+  display: inline-block;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.article-quote-fade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, var(--bg) 95%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4px;
+  pointer-events: none;
+}
+
+.article-quote-read-more {
+  font-size: 0.8em;
+  font-weight: 600;
+  color: var(--link, var(--primary, #007bff));
+  background: var(--panel, var(--bg));
+  border: 1px solid var(--border);
+  padding: 2px 12px;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
 /* イベント詳細モーダル内でのチャンネル引用カード・絵文字パックのスタイル調整 */
 #eventModalContent .channel-quote,
 #eventModalContent .emoji-pack-quote {

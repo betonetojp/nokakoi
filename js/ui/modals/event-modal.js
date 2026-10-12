@@ -8,7 +8,7 @@ import { displayNameWithUsername } from '../../features/profile/profile.js';
 import { getEventDisplayPubkey } from '../../features/zap/zap.js';
 import { showJsonModal, encodeEventToNevent } from './json-modal.js';
 import { linkifyText, fitCustomEmoji, updateNostrNpubLinks, updateNostrNoteLinks, linkifyNostrUri } from '../../utils/url-parser.js';
-import { parseMarkdownSafe } from '../../utils/markdown.js';
+import { renderMarkdownWithCustomEmojis } from '../../utils/markdown.js';
 import { setupReactButton, setupRepostButton, setupReplyButton, renderReplyContext, applyClientBadgeToContainer } from '../renderer.js';
 import { renderChannelContext, bindChannelLabelClickHandler } from '../renderers/channel-renderer.js';
 import { pickChannelRootId, scheduleChannelLabelUpdate } from '../../features/channel/channel.js';
@@ -262,7 +262,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
         afterContentMounted();
       });
     } else if (event.kind == 30023) {
-      parseMarkdownSafe(event.content || '').then(html => {
+      renderMarkdownWithCustomEmojis(event.content || '', event.tags || []).then(html => {
         contentEl.innerHTML = channelHtml + (replyHtml ? replyHtml : '') + html;
         normalizeNostrUrisInMarkdownRoot(contentEl);
         afterContentMounted();

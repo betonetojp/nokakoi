@@ -575,7 +575,14 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
         quoteEl.parentNode.replaceChild(quoteDiv, quoteEl);
         restoreTimelineAnchor(anchor, container);
 
+        try {
+          if (typeof fitCustomEmoji === 'function') fitCustomEmoji(quoteDiv, 24);
+        } catch (e) { }
+
         quoteDiv.onclick = function (e) {
+          if (e.target.closest('a')) {
+            return;
+          }
           e.stopPropagation();
           if (typeof showEventModal === 'function') {
             showEventModal(event, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
@@ -814,17 +821,7 @@ export async function renderArticleQuote(state, event, nip19) {
   }
 
   const summaryTag = Array.isArray(event.tags) ? event.tags.find(t => Array.isArray(t) && t[0] === 'summary' && t[1]) : null;
-  let summary = (summaryTag && summaryTag[1]) ? String(summaryTag[1]).trim() : '';
-  if (!summary && event.content) {
-    const cleaned = String(event.content)
-      .replace(/^#+\s+/gm, '')
-      .replace(/!\[.*?\]\(.*?\)/g, '')
-      .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-      .replace(/[*_`~>]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-    summary = cleaned.length > 120 ? cleaned.slice(0, 120) + '...' : cleaned;
-  }
+  const summary = (summaryTag && summaryTag[1]) ? String(summaryTag[1]).trim() : '';
 
   const imageTag = Array.isArray(event.tags) ? event.tags.find(t => Array.isArray(t) && t[0] === 'image' && t[1]) : null;
   const rawImage = (imageTag && imageTag[1]) ? String(imageTag[1]).trim() : '';
@@ -840,6 +837,20 @@ export async function renderArticleQuote(state, event, nip19) {
     ? `<img src="${escapeHtml(image)}" class="article-quote-image" alt="" loading="lazy" />`
     : '';
 
+  const { renderMarkdownWithCustomEmojis } = await import('../markdown.js');
+  const contentToRender = event.content || '';
+  const bodyHtml = contentToRender ? await renderMarkdownWithCustomEmojis(contentToRender, event.tags || []) : '';
+
+  const readMoreText = escapeHtml(t('see_detail', '続きを読む'));
+  const previewHtml = bodyHtml
+    ? '<div class="article-quote-preview">' +
+      '<div class="article-quote-markdown">' + bodyHtml + '</div>' +
+      '<div class="article-quote-fade">' +
+      '<span class="article-quote-read-more">' + readMoreText + '</span>' +
+      '</div>' +
+      '</div>'
+    : '';
+
   return '<div class="event-quote article-quote" data-event-id="' + escapeHtml(event.id || '') + '">' +
     '<div class="event-quote-header">' +
     '<span class="reply-marker">📄</span>' +
@@ -852,6 +863,7 @@ export async function renderArticleQuote(state, event, nip19) {
     (summary ? '<div class="article-quote-summary">' + replaceBadgeEmoji(escapeHtml(summary)) + '</div>' : '') +
     '</div>' +
     '</div>' +
+    previewHtml +
     '</div>';
 }
 

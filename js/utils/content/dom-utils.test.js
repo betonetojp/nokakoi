@@ -279,5 +279,32 @@ describe('renderArticleQuote', () => {
     expect(html).toContain('自動抽出見出し');
     expect(html).toContain('本文テキストです。');
   });
+
+  it('renders mini markdown preview with custom emojis and inline images (Option B)', async () => {
+    const ev = {
+      id: 'article-3',
+      pubkey: 'author-pk',
+      kind: 30023,
+      content: '- 1:nan:\n  - **2**\n\n|1|2|\n|:--|:--|\n|test| :nan: |\n![img](https://example.com/photo.webp)\n\n### :nan: **:nan:**',
+      tags: [
+        ['d', 'test'],
+        ['title', 'test'],
+        ['summary', ''],
+        ['image', ''],
+        ['emoji', 'nan', 'https://example.com/nan.webp']
+      ]
+    };
+
+    const html = await renderArticleQuote({ profiles: new Map() }, ev, {});
+    expect(html).toContain('article-quote-preview');
+    expect(html).toContain('article-quote-markdown');
+    expect(html).toContain('article-quote-fade');
+    expect(html).toContain('article-quote-read-more');
+    expect(html).toContain('class="custom-emoji"');
+    expect(html).toContain('src="https://example.com/nan.webp"');
+    expect(html).toContain('src="https://example.com/photo.webp"');
+    expect(html).toContain('<table>');
+  });
 });
+
 
