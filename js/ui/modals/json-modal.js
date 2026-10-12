@@ -95,7 +95,6 @@ export function showJsonModal(event) {
   const content = $('#jsonContent');
   const copyBtn = $('#jsonCopy');
   const copyStatus = $('#jsonCopyStatus');
-  const neventWrap = $('#jsonNeventWrap');
   const neventEl = $('#jsonNevent');
   const copyNeventBtn = $('#jsonCopyNevent');
 
@@ -108,13 +107,15 @@ export function showJsonModal(event) {
   const state = (typeof window !== 'undefined' && window.__nostrState) ? window.__nostrState : null;
   const nevent = encodeEventToNevent(event, state);
 
-  if (neventWrap && neventEl) {
+  if (neventEl) {
     if (nevent) {
       neventEl.textContent = nevent;
-      neventWrap.classList.remove('d-none');
+      neventEl.title = t('json.copy_nevent') || 'クリックしてコピー';
+      neventEl.classList.remove('d-none');
     } else {
       neventEl.textContent = '';
-      neventWrap.classList.add('d-none');
+      neventEl.removeAttribute('title');
+      neventEl.classList.add('d-none');
     }
   }
 

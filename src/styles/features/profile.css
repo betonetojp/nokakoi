@@ -404,6 +404,7 @@
   font-size: 0.8em;
   color: var(--muted);
   word-break: break-all;
+  cursor: pointer;
 }
 #profileAbout {
   margin-bottom: 16px;

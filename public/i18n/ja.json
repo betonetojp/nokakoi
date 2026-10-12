@@ -261,6 +261,8 @@
   "profile.follow_list_modal_title": "{name} のフォロー一覧",
   "profile.follow_list_empty": "フォローしているユーザーはいません。",
   "profile.follow_list_edit_btn": "フォローリスト編集",
+  "profile.copy_npub": "クリックしてコピー",
+  "profile.npub_copied": "npubをコピーしました",
   "lumilumi.confirm": "lumilumiで開きますか？",
   "json.title": "イベントJSON",
   "json.copy": "JSONをコピー",

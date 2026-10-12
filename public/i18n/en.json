@@ -263,6 +263,8 @@
   "profile.follow_list_modal_title": "{name}'s Follow List",
   "profile.follow_list_empty": "Not following anyone.",
   "profile.follow_list_edit_btn": "Edit Follow List",
+  "profile.copy_npub": "Click to copy",
+  "profile.npub_copied": "npub copied",
   "lumilumi.confirm": "Open in lumilumi?",
   "json.title": "Event JSON",
   "json.copy": "Copy JSON",

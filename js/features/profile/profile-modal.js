@@ -2,7 +2,7 @@
 // プロフィールモーダル
 // ============================================================================
 
-import { $, escapeHtml, fmtTime } from '../../utils/utils.js';
+import { $, escapeHtml, fmtTime, showToast } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { subOnce, getReadRelays, relayConnect, profileIndexerRelays } from '../../core/relay.js';
 import { getSimplePool, getNip19 } from '../../core/nostr-compat.js';
@@ -208,6 +208,14 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
       try {
         const npub = nip19.npubEncode(pubkey);
         npubEl.textContent = npub;
+        npubEl.title = t('profile.copy_npub') || 'クリックしてコピー';
+        npubEl.onclick = async function (e) {
+          if (e.target.closest('button')) return;
+          try {
+            await navigator.clipboard.writeText(npub);
+            showToast(t('profile.npub_copied') || 'npubをコピーしました', { type: 'success' });
+          } catch (_err) { }
+        };
 
         // カスタム表示アプリへのリンクを追加
         try {
@@ -219,18 +227,23 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
           const appUrl = (sm && typeof sm.get === 'function') ? (sm.get('eventLinkUrl') || 'https://lumilumi.app/') : 'https://lumilumi.app/';
 
           btn.textContent = t('profile.open_eventlink', { title: appTitle });
-          btn.onclick = function() {
-             const separator = appUrl.endsWith('/') ? '' : '/';
-             window.open(appUrl + separator + npub, '_blank', 'noopener,noreferrer');
+          btn.onclick = function (e) {
+            e.stopPropagation();
+            const separator = appUrl.endsWith('/') ? '' : '/';
+            window.open(appUrl + separator + npub, '_blank', 'noopener,noreferrer');
           };
           npubEl.appendChild(btn);
         } catch (e) { }
 
       } catch (e) {
         npubEl.textContent = pubkey.substring(0, 16) + '...';
+        npubEl.onclick = null;
+        npubEl.removeAttribute('title');
       }
     } else {
       npubEl.textContent = pubkey.substring(0, 16) + '...';
+      npubEl.onclick = null;
+      npubEl.removeAttribute('title');
     }
   }
 
