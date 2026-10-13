@@ -55,7 +55,7 @@ describe('composer scroll controller', () => {
       addEventListener: vi.fn(),
       removeEventListener: vi.fn()
     };
-    globalThis.MutationObserver = vi.fn((callback) => {
+    globalThis.MutationObserver = vi.fn(function (callback) {
       mutationCallback = callback;
       return {
         observe: mutationObserve,

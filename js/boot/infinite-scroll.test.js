@@ -9,7 +9,7 @@ describe('infinite scroll boot module', () => {
   it('keeps requesting successful pages while the load-more target remains visible', async () => {
     let callback;
     const observe = vi.fn();
-    const Observer = vi.fn((handler) => {
+    const Observer = vi.fn(function (handler) {
       callback = handler;
       return { observe };
     });
@@ -43,7 +43,7 @@ describe('infinite scroll boot module', () => {
     let callback;
     const click = vi.fn();
     vi.stubGlobal('window', {});
-    vi.stubGlobal('IntersectionObserver', vi.fn((handler) => {
+    vi.stubGlobal('IntersectionObserver', vi.fn(function (handler) {
       callback = handler;
       return { observe: vi.fn() };
     }));

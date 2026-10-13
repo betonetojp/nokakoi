@@ -210,7 +210,9 @@ describe('auth core', () => {
     const localSecretKey = 'ab'.repeat(32);
     const restoreConnection = vi.fn(async () => {});
     const setupResumeHandler = vi.fn();
-    mocks.Nip46Client.mockImplementation(() => ({ restoreConnection, setupResumeHandler }));
+    mocks.Nip46Client.mockImplementation(function () {
+      return { restoreConnection, setupResumeHandler };
+    });
     mocks.getNip46ProtectedSession.mockReturnValue('nip46prf1:encrypted');
     mocks.authenticateWithPasskey.mockResolvedValue({ prfKey: 'prf', success: true });
     mocks.decryptNip46SessionWithPasskey.mockResolvedValue({ localSecretKey, secret: 'connect-secret' });

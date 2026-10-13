@@ -22,7 +22,11 @@ describe('NIP-07 Account Mismatch Guard', () => {
   let originalWindowNostr;
 
   beforeEach(() => {
-    globalThis.localStorage = createStorage();
+    Object.defineProperty(window, 'localStorage', {
+      value: createStorage(),
+      configurable: true,
+      writable: true
+    });
     originalWindowNostr = globalThis.window ? globalThis.window.nostr : undefined;
     if (typeof globalThis.window === 'undefined') {
       globalThis.window = {};

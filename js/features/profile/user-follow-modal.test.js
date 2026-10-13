@@ -171,11 +171,13 @@ describe('openUserFollowListModal', () => {
 
     const observeFn = vi.fn();
     const disconnectFn = vi.fn();
-    const mockObserver = vi.fn().mockImplementation((callback) => ({
-      observe: observeFn,
-      unobserve: vi.fn(),
-      disconnect: disconnectFn
-    }));
+    const mockObserver = vi.fn().mockImplementation(function (callback) {
+      return {
+        observe: observeFn,
+        unobserve: vi.fn(),
+        disconnect: disconnectFn
+      };
+    });
     vi.stubGlobal('IntersectionObserver', mockObserver);
 
     const state = {

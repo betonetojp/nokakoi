@@ -362,7 +362,7 @@ describe('account manager', () => {
     });
     const client = { restoreConnection, setupResumeHandler: vi.fn(), userPubkey: null };
     const { Nip46Client } = await import('./nip46.js');
-    Nip46Client.mockImplementation(() => client);
+    Nip46Client.mockImplementation(function () { return client; });
     const { getNip46LocalSecretKey } = await import('./auth/nip46-session.js');
     getNip46LocalSecretKey.mockReturnValue('01'.repeat(32));
     const state = {
