@@ -1,6 +1,6 @@
 {
   "name": "nokakoi-app",
-  "version": "1.146.13",
+  "version": "1.146.14",
   "description": "Nostr Web Client",
   "scripts": {
     "start": "vite",
@@ -24,7 +24,7 @@
     "vitest": "^3.2.7"
   },
   "dependencies": {
-    "dompurify": "^3.4.13",
+    "dompurify": "^3.4.17",
     "marked": "^18.0.9",
     "nostr-tools": "^2.24.1",
     "qrcode-generator": "^2.0.4"

@@ -837,7 +837,7 @@ export function renderArticlePreviewHtml(event) {
   const contentToRender = event.content || '';
   const bodyHtml = contentToRender ? renderMarkdownWithCustomEmojisSync(contentToRender, event.tags || []) : '';
 
-  const readMoreText = escapeHtml(t('see_detail', '省略されています'));
+  const readMoreText = escapeHtml(t('see_detail'));
   const previewHtml = bodyHtml
     ? '<div class="article-quote-preview">' +
       '<div class="article-quote-markdown">' + bodyHtml + '</div>' +
@@ -906,7 +906,7 @@ export async function renderEventQuote(state, event, nip19, _settings = {}) {
     const previewText = getPreviewWithFullLinksAndEmojis(content, previewMaxLength, MAX_PREVIEW_LINES);
     quoteContentHtml = `<span class="reply-preview-text">${linkifyText(previewText, event.tags || [], { inlineMedia: false })}</span>`;
     if (previewText.length < content.length) {
-      quoteContentHtml += `<button type="button" class="read-more-btn secondary quote-read-more">${t('see_detail','省略されています')}</button>`;
+      quoteContentHtml += `<button type="button" class="read-more-btn secondary quote-read-more">${t('see_detail')}</button>`;
     }
   } else {
     quoteContentHtml = `<span class="reply-preview-text">${linkifyText(content, event.tags || [], { inlineMedia: false })}</span>`;

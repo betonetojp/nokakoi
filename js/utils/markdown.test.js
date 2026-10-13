@@ -88,6 +88,50 @@ describe('parseMarkdownSafe', () => {
     expect(html).toContain('Incomplete task');
     expect(html).toContain('Completed task');
   });
+
+  it('does not double-escape disallowed tags inside code blocks and inline code', async () => {
+    const input = [
+      'use `<iframe>` tag',
+      '',
+      '```html',
+      '<script>alert(1)</script>',
+      '<b>bold</b>',
+      '```'
+    ].join('\n');
+    const html = await parseMarkdownSafe(input);
+    expect(html).toContain('<code>&lt;iframe&gt;</code>');
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(html).toContain('&lt;b&gt;bold&lt;/b&gt;');
+    expect(html).not.toContain('&amp;lt;');
+  });
+
+  it('escapes disallowed tags in block-level raw HTML', async () => {
+    const html = await parseMarkdownSafe('<script>\nalert(1)\n</script>\n\n<iframe src="https://example.com"></iframe>');
+    expect(html).not.toContain('<script');
+    expect(html).not.toContain('<iframe');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).toContain('&lt;iframe src="https://example.com"&gt;');
+  });
+
+  it('strips inline style attributes to prevent overlay/clickjacking layouts', async () => {
+    const html = await parseMarkdownSafe([
+      '<div style="position:fixed;inset:0;z-index:99999">overlay</div>',
+      '',
+      '<a href="https://example.com" style="position:fixed;inset:0;pointer-events:auto">click</a>'
+    ].join('\n'));
+    expect(html).not.toContain('style=');
+    expect(html).not.toContain('position:fixed');
+    expect(html).toContain('overlay');
+    expect(html).toContain('<a href="https://example.com">click</a>');
+  });
+
+  it('does not leak the task-list input hook into other DOMPurify.sanitize calls', async () => {
+    const { default: DOMPurify } = await import('dompurify');
+    await parseMarkdownSafe('- [x] done');
+    const out = DOMPurify.sanitize('<input type="text" name="q">', { ADD_TAGS: ['input'] });
+    expect(out).toContain('<input');
+    expect(out).toContain('type="text"');
+  });
 });
 
 describe('renderMarkdownWithCustomEmojis', () => {

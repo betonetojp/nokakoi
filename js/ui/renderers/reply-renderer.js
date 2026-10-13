@@ -240,7 +240,7 @@ export function renderReplyContext(state, ev, nip19, settings) {
       const previewText = getPreviewWithFullLinksAndEmojis(replyToContent, previewMaxLength, MAX_PREVIEW_LINES);
       replyContentHtml = `<span class="reply-preview-text">${linkifyText(previewText, tags, { inlineMedia: false })}</span>`;
       if (previewText.length < replyToContent.length) {
-        replyContentHtml += `<button type="button" class="read-more-btn secondary reply-read-more">${t('see_detail','省略されています')}</button>`;
+        replyContentHtml += `<button type="button" class="read-more-btn secondary reply-read-more">${t('see_detail')}</button>`;
       }
     } else {
       replyContentHtml = `<span class="reply-preview-text">${linkifyText(replyToContent, tags, { inlineMedia: false })}</span>`;

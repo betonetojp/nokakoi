@@ -85,19 +85,30 @@ const markExtension = {
   }
 };
 
-marked.use({ extensions: [supExtension, subExtension, markExtension] });
-
-// DOMPurify でタスクリスト用チェックボックス (<input type="checkbox" disabled>) のみを安全に許可
-if (typeof DOMPurify.addHook === 'function') {
-  DOMPurify.addHook('uponSanitizeElement', (node, data) => {
-    if (data.tagName === 'input') {
-      if (node.getAttribute('type') === 'checkbox') {
-        node.setAttribute('disabled', '');
-      } else {
-        node.remove();
-      }
+marked.use({
+  extensions: [supExtension, subExtension, markExtension],
+  renderer: {
+    // 生HTMLトークン（ブロック/インライン）のみ禁止タグをエスケープする。
+    // コードブロック・インラインコードは marked 側で既にエスケープされるため対象外（二重エスケープ防止）
+    html(token) {
+      return escapeDisallowedHtmlTags(token && typeof token.text === 'string' ? token.text : '');
     }
-  });
+  }
+});
+
+/**
+ * DOMPurify でタスクリスト用チェックボックス (<input type="checkbox" disabled>) のみを安全に許可するフック。
+ * グローバル登録すると他の DOMPurify.sanitize 呼び出しにも影響するため、
+ * parseMarkdownSafeSync の実行中のみ登録する。
+ */
+function taskListCheckboxHook(node, data) {
+  if (data.tagName === 'input') {
+    if (node.getAttribute('type') === 'checkbox') {
+      node.setAttribute('disabled', '');
+    } else {
+      node.remove();
+    }
+  }
 }
 
 /**
@@ -107,16 +118,24 @@ if (typeof DOMPurify.addHook === 'function') {
 export const ALLOWED_URI_REGEXP = /^(?:(?:https?|nostr|mailto|data:image\/(?:png|jpeg|jpg|webp|gif|avif)):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i;
 
 export function parseMarkdownSafeSync(mdText) {
-  const preprocessed = escapeDisallowedHtmlTags(mdText || '');
-  const html = marked.parse(preprocessed);
-  return DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true },
-    ALLOWED_URI_REGEXP,
-    ADD_DATA_URI_TAGS: ['img'],
-    ADD_TAGS: ['input'],
-    ADD_ATTR: ['type', 'checked', 'disabled'],
-    FORBID_TAGS: ['marquee', 'blink']
-  });
+  // 禁止タグのエスケープは marked の html レンダラー内で生HTMLトークンに対してのみ行う
+  const html = marked.parse(mdText || '');
+  const canHook = typeof DOMPurify.addHook === 'function' && typeof DOMPurify.removeHook === 'function';
+  if (canHook) DOMPurify.addHook('uponSanitizeElement', taskListCheckboxHook);
+  try {
+    return DOMPurify.sanitize(html, {
+      USE_PROFILES: { html: true },
+      ALLOWED_URI_REGEXP,
+      ADD_DATA_URI_TAGS: ['img'],
+      ADD_TAGS: ['input'],
+      ADD_ATTR: ['type', 'checked', 'disabled'],
+      FORBID_TAGS: ['marquee', 'blink'],
+      // position:fixed 等による画面全体の覆い被せ・クリックジャッキングやレイアウト破壊を防ぐ
+      FORBID_ATTR: ['style']
+    });
+  } finally {
+    if (canHook) DOMPurify.removeHook('uponSanitizeElement', taskListCheckboxHook);
+  }
 }
 
 export async function parseMarkdownSafe(mdText) {
