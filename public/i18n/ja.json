@@ -56,7 +56,7 @@
   "showHomeChannel": "ホームにチャンネル投稿を表示",
   "channel.label": "チャンネル: {name}",
   "channel.unknown": "チャンネル",
-  "channel.quote_label": "パブリックチャット",
+  "channel.quote_label": "チャンネル",
   "channel.open_btn": "チャンネルを開く",
   "emoji.pack_quote_label": "絵文字パック",
   "article.quote_label": "記事",

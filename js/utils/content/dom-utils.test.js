@@ -73,6 +73,7 @@ describe('renderChannelQuote', () => {
     expect(html).toContain('https://example.com/icon.png');
     expect(html).toContain('data-channel-id="channel-root-id"');
     expect(html).toContain('channel-quote-open-btn');
+    expect(html).toContain('チャンネル');
   });
 
   it('renders kind:41 metadata event resolving rootId from e tag', async () => {

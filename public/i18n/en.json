@@ -56,7 +56,7 @@
   "showHomeChannel": "Show channel posts from follows in home",
   "channel.label": "Channel: {name}",
   "channel.unknown": "Channel",
-  "channel.quote_label": "Public Chat",
+  "channel.quote_label": "Channel",
   "channel.open_btn": "Open Channel",
   "emoji.pack_quote_label": "Emoji Pack",
   "article.quote_label": "Article",

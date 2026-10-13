@@ -716,7 +716,7 @@ export function attachQuoteRetryHandler(quoteEl, container, showEventModal, stat
 }
 
 /**
- * kind:40 / kind:41 パブリックチャットチャンネルの引用カードを描画
+ * kind:40 / kind:41 チャンネルの引用カードを描画
  */
 export async function renderChannelQuote(state, event, nip19) {
   let fields = null;
@@ -741,7 +741,7 @@ export async function renderChannelQuote(state, event, nip19) {
   const { displayName } = await import('../../features/profile/profile.js');
   const author = displayName(state, event.pubkey, nip19);
 
-  const baseLabel = replaceBadgeEmoji(t('channel.quote_label') || 'パブリックチャット');
+  const baseLabel = replaceBadgeEmoji(t('channel.quote_label') || 'チャンネル');
   const labelText = author ? `${baseLabel} <small class="muted">by ${escapeHtml(author)}</small>` : baseLabel;
   const openBtnText = escapeHtml(t('channel.open_btn') || 'チャンネルを開く');
   const aboutHtml = about ? linkifyText(about, event.tags || [], { inlineMedia: false }) : '';

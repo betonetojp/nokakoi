@@ -230,7 +230,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       } catch (e) { }
     }
 
-    // kind:40 / kind:41 パブリックチャットチャンネル
+    // kind:40 / kind:41 チャンネル
     if (event.kind === 40 || event.kind === 41) {
       import('../../utils/content/dom-utils.js').then(async ({ renderChannelQuote }) => {
         const quoteHtml = await renderChannelQuote(state, event, nip19);
