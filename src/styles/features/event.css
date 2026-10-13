@@ -753,6 +753,23 @@ body.theme-light .reply-to.zap .reply-marker img.icon {
   background: rgba(0, 0, 0, 0.05);
 }
 
+.article-quote-markdown .article-image-fallback {
+  display: inline-block;
+  font-size: 0.88em;
+  padding: 1px 6px;
+  margin: 2px 2px;
+  border-radius: 4px;
+  background: var(--bg-hover, rgba(0, 0, 0, 0.05));
+  border: 1px dashed var(--border);
+  color: var(--accent);
+  text-decoration: none;
+  vertical-align: middle;
+}
+
+.article-quote-markdown .article-image-fallback:hover {
+  text-decoration: underline;
+}
+
 .article-quote-fade {
   position: absolute;
   bottom: 0;

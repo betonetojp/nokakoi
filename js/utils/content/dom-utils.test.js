@@ -305,6 +305,33 @@ describe('renderArticleQuote', () => {
     expect(html).toContain('src="https://example.com/photo.webp"');
     expect(html).toContain('<table>');
   });
+
+  it('hides cover image and converts preview images to fallback links when showTimelineMedia is false', async () => {
+    const ev = {
+      id: 'article-4',
+      pubkey: 'author-pk',
+      kind: 30023,
+      content: '# Article with Images\n\n![diagram](https://example.com/diagram.png)\n\n:nan: emoji',
+      tags: [
+        ['title', 'メディア非表示テスト'],
+        ['image', 'https://example.com/cover.jpg'],
+        ['emoji', 'nan', 'https://example.com/nan.webp']
+      ]
+    };
+
+    const settings = { showTimelineMedia: false };
+    const html = await renderArticleQuote({ profiles: new Map() }, ev, {}, settings);
+
+    // サムネイル画像は非表示
+    expect(html).not.toContain('<img src="https://example.com/cover.jpg"');
+    // 本文画像は fallback link に変換
+    expect(html).not.toContain('<img src="https://example.com/diagram.png"');
+    expect(html).toContain('class="article-image-fallback"');
+    expect(html).toContain('href="https://example.com/diagram.png"');
+    // カスタム絵文字は表示される
+    expect(html).toContain('class="custom-emoji"');
+    expect(html).toContain('src="https://example.com/nan.webp"');
+  });
 });
 
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest';
-import { parseMarkdownSafe, renderMarkdownWithCustomEmojis, replaceCustomEmojiInDom } from './markdown.js';
+import { parseMarkdownSafe, renderMarkdownWithCustomEmojis, replaceCustomEmojiInDom, truncateMarkdownTokens, renderArticleMarkdownPreviewSync } from './markdown.js';
 
 describe('parseMarkdownSafe', () => {
   it('renders common Markdown syntax', async () => {
@@ -179,6 +179,88 @@ describe('renderMarkdownWithCustomEmojis', () => {
     const html = await renderMarkdownWithCustomEmojis(input, emojiTags);
     expect(html).toContain(':unknown_emoji:');
     expect(html).not.toContain('class="custom-emoji"');
+  });
+});
+
+describe('truncateMarkdownTokens & renderArticleMarkdownPreviewSync', () => {
+  it('truncates tokens at block boundaries without breaking reference links', async () => {
+    const { marked } = await import('marked');
+    const md = [
+      '# First Heading',
+      '',
+      'First paragraph with [referenced link][1].',
+      '',
+      'Second paragraph that exceeds length '.repeat(20),
+      '',
+      'Third paragraph which must be dropped '.repeat(50),
+      '',
+      '[1]: https://example.com/ref-url'
+    ].join('\n');
+
+    const tokens = marked.lexer(md);
+    const subset = truncateMarkdownTokens(tokens, 200);
+    const html = marked.parser(subset);
+
+    expect(html).toContain('<h1>First Heading</h1>');
+    expect(html).toContain('<a href="https://example.com/ref-url">referenced link</a>');
+    expect(html).toContain('Second paragraph');
+    expect(html).not.toContain('Third paragraph');
+  });
+
+  it('keeps at least the first content block even if it exceeds maxChars', async () => {
+    const { marked } = await import('marked');
+    const longPara = 'Word '.repeat(500);
+    const md = `${longPara}\n\nSecond paragraph`;
+    const tokens = marked.lexer(md);
+    const subset = truncateMarkdownTokens(tokens, 100);
+    const html = marked.parser(subset);
+
+    expect(html).toContain(longPara.slice(0, 100));
+    expect(html).not.toContain('Second paragraph');
+  });
+
+  it('safely closes massive code blocks when truncating', async () => {
+    const { marked } = await import('marked');
+    const massiveCode = 'console.log("hello");\n'.repeat(100);
+    const md = `\`\`\`javascript\n${massiveCode}\`\`\`\n\nFollowing paragraph`;
+    const tokens = marked.lexer(md);
+    const subset = truncateMarkdownTokens(tokens, 150);
+    const html = marked.parser(subset);
+
+    expect(html).toContain('<pre><code class="language-javascript">');
+    expect(html).toContain('...');
+    expect(html).not.toContain('Following paragraph');
+  });
+
+  it('converts markdown images to fallback links when inlineMedia is false, while preserving custom emojis', () => {
+    const md = [
+      '# Preview Title :nan:',
+      '',
+      'Here is an inline image: ![alt text](https://example.com/photo.png)',
+      '',
+      'And raw html image: <img src="https://example.com/raw.png" alt="raw alt">',
+      '',
+      ':nan: emoji in text'
+    ].join('\n');
+
+    const emojiTags = [['emoji', 'nan', 'https://example.com/nan.webp']];
+
+    // inlineMedia: false
+    const htmlNoMedia = renderArticleMarkdownPreviewSync(md, emojiTags, { inlineMedia: false });
+    expect(htmlNoMedia).not.toContain('<img src="https://example.com/photo.png"');
+    expect(htmlNoMedia).not.toContain('<img src="https://example.com/raw.png"');
+    expect(htmlNoMedia).toContain('class="article-image-fallback"');
+    expect(htmlNoMedia).toContain('href="https://example.com/photo.png"');
+    expect(htmlNoMedia).toContain('href="https://example.com/raw.png"');
+    expect(htmlNoMedia).toContain('[画像: alt text]');
+    // カスタム絵文字は画像として保持される
+    expect(htmlNoMedia).toContain('class="custom-emoji"');
+    expect(htmlNoMedia).toContain('src="https://example.com/nan.webp"');
+
+    // inlineMedia: true (デフォルト)
+    const htmlWithMedia = renderArticleMarkdownPreviewSync(md, emojiTags, { inlineMedia: true });
+    expect(htmlWithMedia).toContain('<img src="https://example.com/photo.png" alt="alt text">');
+    expect(htmlWithMedia).toContain('class="custom-emoji"');
   });
 });
 

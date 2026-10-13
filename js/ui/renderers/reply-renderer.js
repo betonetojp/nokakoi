@@ -196,7 +196,7 @@ export function renderReplyContext(state, ev, nip19, settings) {
 
   let replyContentHtml;
   if (replyToEvent && replyToEvent.kind === 30023) {
-    replyContentHtml = renderArticlePreviewHtml(replyToEvent);
+    replyContentHtml = renderArticlePreviewHtml(replyToEvent, { inlineMedia });
   } else if (replyToEvent && (replyToEvent.kind === 40 || replyToEvent.kind === 41)) {
     try {
       const meta = JSON.parse(replyToEvent.content || '{}');
