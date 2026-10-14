@@ -359,4 +359,41 @@ describe('feed manager startup lifecycle', () => {
     addToFeed('global', outgoingZap);
     expect(state.feeds.global.list).toHaveLength(0);
   });
+
+  it('does not prepend past events to feed header during live reception', () => {
+    const createFeed = () => ({ list: [], map: new Map() });
+    const state = {
+      pool: { ensureRelay: vi.fn() },
+      relays: ['wss://relay.example'],
+      subs: new Map(),
+      feeds: {
+        me: createFeed()
+      }
+    };
+    initFeedManager(state, createSettings({}));
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    // 既存の最新投稿
+    const currentPost = { id: 'current-post', kind: 1, created_at: nowSec - 60 };
+    // 数ヶ月前の過去Zap (例: 2026年2月)
+    const oldZap = { id: 'old-zap', kind: 9735, created_at: 1772084588 };
+    // さらに新しい投稿 (時計が少し進んでいる)
+    const futurePost = { id: 'future-post', kind: 1, created_at: nowSec + 120 };
+
+    mocks.isOutgoingZapReceiptFor.mockImplementation((ev) => ev.id === 'old-zap');
+
+    // 1. まず現在の投稿が存在する
+    addToFeed('me', currentPost);
+    expect(state.feeds.me.list.map(e => e.id)).toEqual(['current-post']);
+
+    // 2. 数ヶ月前のZapがライブ受信で届いた場合、最上部(先頭)に追加されない
+    addToFeed('me', oldZap);
+    expect(state.feeds.me.list[0].id).toBe('current-post');
+    expect(state.feeds.me.list.map(e => e.id)).not.toContain('old-zap');
+
+    // 3. 新しいリアルタイム投稿が届いた場合は、ちゃんと先頭に追加される
+    addToFeed('me', futurePost);
+    expect(state.feeds.me.list[0].id).toBe('future-post');
+  });
 });
+

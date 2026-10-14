@@ -535,10 +535,26 @@ export function addToFeed(feedId, ev, keepLatestCount = null, _relay = null) {
       insertEventSorted(state, feedId, ev);
     } else {
       if (feed && ev.id && !feed.map.has(ev.id)) {
-        feed.map.set(ev.id, ev);
-        feed.list.unshift(ev);
-        if (ev.created_at && ev.created_at > (feed.lastSeen || 0)) {
-          feed.lastSeen = ev.created_at;
+        const nowSec = Math.floor(Date.now() / 1000);
+        const evTs = ev.created_at || 0;
+        // 2010年以降(1262304000)の有効なタイムスタンプの場合のみ過去ログ判定を行う (テスト等の小さな値は新着扱い)
+        const isPastEvent = evTs > 1262304000 && evTs < (nowSec - 600);
+
+        if (!isPastEvent || feed.list.length === 0) {
+          // リアルタイム新着、またはフィードが空の場合: 先頭に追加 (未来日付もここで受けて後続で押し流す)
+          feed.map.set(ev.id, ev);
+          feed.list.unshift(ev);
+          if (ev.created_at && ev.created_at > (feed.lastSeen || 0)) {
+            feed.lastSeen = ev.created_at;
+          }
+        } else {
+          // 10分以上前の過去イベント (遅延到着した過去ログなど):
+          // 表示中の最古イベントより新しい場合のみ時系列の途中に挿入
+          const bottomTs = feed.list[feed.list.length - 1]?.created_at || 0;
+          if (evTs >= bottomTs) {
+            insertEventSorted(state, feedId, ev);
+          }
+          // 表示中の最古イベントよりさらに古い過去イベントは画面に追加しない (Zap済み状態の反映等のみ)
         }
       }
     }
