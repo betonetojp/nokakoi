@@ -320,14 +320,20 @@ body.theme-light .read-more-btn {
 .steganography-emoji:hover {
   outline-color: rgba(255, 200, 0, 1);
 }
+.steganography-emoji.steganography-open {
+  display: inline;
+}
 .steganography-revealed {
-  display: inline-block;
-  margin-left: 0px;
-  padding: 0 1px;
+  display: inline;
+  margin-left: 2px;
+  padding: 0 2px;
   border-radius: 4px;
   font-size: 0.95em;
   color: var(--text, #fff);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   cursor: default;
-  vertical-align: middle;
+  vertical-align: baseline;
   user-select: text;
 }

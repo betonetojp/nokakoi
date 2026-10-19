@@ -96,7 +96,7 @@ export function showToast(message, options = {}) {
 
 export function processHiddenTagChars(el, options = {}) {
   if (!el) return;
-  const TAG_RE = /[\u{E0100}-\u{E01EF}]/u;
+  const TAG_RE = /[\u{E00F0}-\u{E01EF}]/u;
 
   let shouldAutoExpand = false;
   if (options && typeof options.autoExpand === 'boolean') {
@@ -115,7 +115,7 @@ export function processHiddenTagChars(el, options = {}) {
       const bytes = [];
       for (const ch of tagStr) {
         const cp = ch.codePointAt(0);
-        if (cp >= 0xE0100 && cp <= 0xE01EF) bytes.push(cp - 0xE00F0);
+        if (cp >= 0xE00F0 && cp <= 0xE01EF) bytes.push(cp - 0xE00F0);
       }
       if (bytes.length === 0) return null;
       return new TextDecoder('utf-8').decode(new Uint8Array(bytes));
@@ -131,7 +131,7 @@ export function processHiddenTagChars(el, options = {}) {
 
   for (const textNode of textNodes) {
     const text = textNode.textContent;
-    const PATTERN = /([\u{1F1E6}-\u{1F1FF}]{2}|[\p{Emoji_Presentation}\p{Extended_Pictographic}](?:[\u{FE0E}\u{FE0F}]?(?:\u200D[\p{Emoji_Presentation}\p{Extended_Pictographic}][\u{FE0E}\u{FE0F}]?)*)(?:[\u{1F3FB}-\u{1F3FF}])?|[^\u{E0000}-\u{E01FF}\s])([\u{E0100}-\u{E01EF}]+)/gu;
+    const PATTERN = /([\u{1F1E6}-\u{1F1FF}]{2}|[\p{Emoji_Presentation}\p{Extended_Pictographic}](?:[\u{FE0E}\u{FE0F}]?(?:\u200D[\p{Emoji_Presentation}\p{Extended_Pictographic}][\u{FE0E}\u{FE0F}]?)*)(?:[\u{1F3FB}-\u{1F3FF}])?|[^\u{E0000}-\u{E01FF}\s])?([\u{E00F0}-\u{E01EF}]+)/gu;
     let match;
     let lastIndex = 0;
     const fragment = document.createDocumentFragment();
@@ -142,7 +142,7 @@ export function processHiddenTagChars(el, options = {}) {
       if (match.index > lastIndex) {
         fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
       }
-      const visibleEmoji = match[1];
+      const visibleEmoji = match[1] || '🥟';
       const decoded = decodeTagChars(match[2]);
       if (decoded) {
         const span = document.createElement('span');
@@ -155,6 +155,9 @@ export function processHiddenTagChars(el, options = {}) {
           const popup = document.createElement('span');
           popup.className = 'steganography-revealed';
           popup.textContent = decoded;
+          popup.addEventListener('click', function (e) {
+            e.stopPropagation();
+          });
           processHiddenTagChars(popup, { autoExpand: shouldAutoExpand });
           span.appendChild(popup);
           span.classList.add('steganography-open');

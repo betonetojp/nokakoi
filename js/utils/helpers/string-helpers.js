@@ -39,7 +39,7 @@ export function truncateName(str) {
   return truncateByGraphemeVisible(str, 16);
 }
 
-const HIDDEN_TAG_CHARS_RE = /[\u{E0100}-\u{E01EF}]+/u;
+const HIDDEN_TAG_CHARS_RE = /[\u{E00F0}-\u{E01EF}]+/u;
 
 export function truncateByGraphemeVisible(str, maxVisibleChars) {
   if (!str || !Number.isFinite(maxVisibleChars) || maxVisibleChars <= 0) return '';

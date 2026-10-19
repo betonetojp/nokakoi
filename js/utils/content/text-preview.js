@@ -16,7 +16,7 @@ export const EMOJI_SHORTCODE_REGEX = /:([a-zA-Z0-9_+-]+):/g;
 /**
  * セクシー餃子で使用する Unicode Tag characters（隠し文字）
  */
-export const HIDDEN_TAG_CHARS_RE = /[\u{E0100}-\u{E01EF}]+/gu;
+export const HIDDEN_TAG_CHARS_RE = /[\u{E00F0}-\u{E01EF}]+/gu;
 
 export function getGraphemeLengthAt(text, index) {
   if (index >= text.length) return 0;

@@ -167,20 +167,26 @@
     .steganography-emoji:hover {
       outline-color: rgba(255, 200, 0, 1);
     }
+    .steganography-emoji.steganography-open {
+      display: inline;
+    }
     .steganography-revealed {
-      display: inline-block;
+      display: inline;
       margin-left: 4px;
       padding: 0 4px;
       border-radius: 4px;
       font-size: 0.95em;
       color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
       cursor: default;
-      vertical-align: middle;
+      vertical-align: baseline;
       user-select: text;
     }
     .gyouza-preview .steganography-revealed {
       font-size: 1rem;
-      vertical-align: middle;
+      vertical-align: baseline;
       margin-left: 8px;
     }
   </style>
@@ -343,14 +349,14 @@
 
     function processHiddenTagChars(el) {
       if (!el) return;
-      const TAG_RE = /[\u{E0100}-\u{E01EF}]/u;
+      const TAG_RE = /[\u{E00F0}-\u{E01EF}]/u;
 
       function decodeTagChars(tagStr) {
         try {
           const bytes = [];
           for (const ch of tagStr) {
             const cp = ch.codePointAt(0);
-            if (cp >= 0xE0100 && cp <= 0xE01EF) bytes.push(cp - 0xE00F0);
+            if (cp >= 0xE00F0 && cp <= 0xE01EF) bytes.push(cp - 0xE00F0);
           }
           if (bytes.length === 0) return null;
           return new TextDecoder('utf-8').decode(new Uint8Array(bytes));
@@ -366,7 +372,7 @@
 
       for (const textNode of textNodes) {
         const text = textNode.textContent;
-        const PATTERN = /([\u{1F1E6}-\u{1F1FF}]{2}|[\p{Emoji_Presentation}\p{Extended_Pictographic}](?:[\u{FE0E}\u{FE0F}]?(?:\u200D[\p{Emoji_Presentation}\p{Extended_Pictographic}][\u{FE0E}\u{FE0F}]?)*)(?:[\u{1F3FB}-\u{1F3FF}])?|[^\u{E0000}-\u{E01FF}\s])([\u{E0100}-\u{E01EF}]+)/gu;
+        const PATTERN = /([\u{1F1E6}-\u{1F1FF}]{2}|[\p{Emoji_Presentation}\p{Extended_Pictographic}](?:[\u{FE0E}\u{FE0F}]?(?:\u200D[\p{Emoji_Presentation}\p{Extended_Pictographic}][\u{FE0E}\u{FE0F}]?)*)(?:[\u{1F3FB}-\u{1F3FF}])?|[^\u{E0000}-\u{E01FF}\s])?([\u{E00F0}-\u{E01EF}]+)/gu;
         let match;
         let lastIndex = 0;
         const fragment = document.createDocumentFragment();
@@ -377,7 +383,7 @@
           if (match.index > lastIndex) {
             fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
           }
-          const visibleEmoji = match[1];
+          const visibleEmoji = match[1] || '🥟';
           const decoded = decodeTagChars(match[2]);
           if (decoded) {
             const span = document.createElement('span');
@@ -395,6 +401,9 @@
                 const popup = document.createElement('span');
                 popup.className = 'steganography-revealed';
                 popup.textContent = decoded;
+                popup.addEventListener('click', function (e2) {
+                  e2.stopPropagation();
+                });
                 processHiddenTagChars(popup);
                 span.appendChild(popup);
                 span.classList.add('steganography-open');
@@ -417,7 +426,7 @@
     }
 
     function hasHiddenTagChars(text) {
-      return /[\u{E0100}-\u{E01EF}]/u.test(text || '');
+      return /[\u{E00F0}-\u{E01EF}]/u.test(text || '');
     }
 
     // --- UI ---

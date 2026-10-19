@@ -9,7 +9,7 @@ import { attachEmojiShortcodeSuggest } from '../../features/emoji/emoji-shortcod
 import { registerTextShortcodeVariant } from '../../features/emoji/custom-emoji-store.js';
 import { getClosestRelays } from '../../features/relay/geo-relay-directory.js';
 
-const HIDDEN_TAG_CHARS_RE = /[\u{E0100}-\u{E01EF}]+/gu;
+const HIDDEN_TAG_CHARS_RE = /[\u{E00F0}-\u{E01EF}]+/gu;
 const RECENT_REACTIONS_KEY = 'recentReactions';
 const MAX_RECENT_REACTIONS = 24;
 let reactionShortcodeSuggest = null;
