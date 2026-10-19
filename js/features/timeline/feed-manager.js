@@ -406,8 +406,8 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
       const madeProgress = listAfterLen > listBeforeLen || listAfterLen > startListLength || (
         oldestAfter != null && (oldestBefore == null || oldestAfter < oldestBefore)
       );
-      if (globalMinScannedTs != null) {
-        gfeed.mergedPaginationUntil = globalMinScannedTs - 1;
+      if (madeProgress) {
+        delete gfeed.mergedPaginationUntil;
       }
       cleanupAll();
       resolve({

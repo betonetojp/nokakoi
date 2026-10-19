@@ -7,7 +7,7 @@ vi.mock('../../core/relay.js', () => ({
   getReadRelays: vi.fn(() => ['wss://relay.example'])
 }));
 
-import { fetchMore, setupFeedFetcher } from './feed-fetcher.js';
+import { fetchMore, setupFeedFetcher, updatePerFilterUntil, applyPerFilterUntil } from './feed-fetcher.js';
 
 describe('feed fetcher logical keys', () => {
   beforeEach(() => {
@@ -166,13 +166,13 @@ describe('feed fetcher logical keys', () => {
     expect(mocks.subOnce.mock.calls[1][2][0].until).toBe(79);
 
     const cb2 = mocks.subOnce.mock.calls[1][3];
-    cb2({ id: 'ev2', content: 'allowed', created_at: 70 }, 'wss://relay.example', true);
+    cb2({ id: 'ev2', kind: 1, content: 'allowed', created_at: 70 }, 'wss://relay.example', true);
 
     const res = await promise;
     expect(res.appendedCount).toBe(1);
     expect(state.feeds.global.list).toHaveLength(1);
     expect(state.feeds.global.list[0].id).toBe('ev2');
-    expect(state.feeds.global.paginationUntil).toBe(70);
+    expect(state.feeds.global.perFilterUntil[0]).toBe(70);
   });
 });
 

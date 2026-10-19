@@ -777,7 +777,7 @@ export function renderFeed(id = 'global', force = false) {
       try {
         const isManual = clickEvent?.isTrusted === true;
         const listForClick = feed.list || [];
-        const hasPagination = (typeof feed.paginationUntil === 'number') || (Array.isArray(feed.perFilterUntil) && feed.perFilterUntil.some(t => t != null));
+        const hasPagination = Array.isArray(feed.perFilterUntil) && feed.perFilterUntil.some(t => t != null);
         if (!listForClick.length && !hasPagination && id !== 'global') {
           return;
         }
@@ -800,9 +800,7 @@ export function renderFeed(id = 'global', force = false) {
         };
 
         let untilFallback = Math.floor(Date.now() / 1000);
-        if (typeof feed.paginationUntil === 'number' && isValidTimestamp(feed.paginationUntil)) {
-          untilFallback = feed.paginationUntil;
-        } else if (oldest && isValidTimestamp(oldest.created_at)) {
+        if (oldest && isValidTimestamp(oldest.created_at)) {
           untilFallback = oldest.created_at;
         } else {
           const validEvent = listForClick.slice().reverse().find(e => e && isValidTimestamp(e.created_at));
@@ -902,10 +900,12 @@ export function renderFeed(id = 'global', force = false) {
             .then(({ madeProgress, appendedCount, minScannedTs }) => {
               try {
                 if (!gfeed) return;
-                if (typeof minScannedTs === 'number') {
+                if (madeProgress) {
+                  delete gfeed.mergedPaginationUntil;
+                } else if (typeof minScannedTs === 'number') {
                   gfeed.mergedPaginationUntil = minScannedTs - 1;
-                } else if (!madeProgress) {
-                  gfeed.mergedPaginationUntil = mergeUntil - 86400;
+                } else {
+                  gfeed.mergedPaginationUntil = mergeUntil - 3600;
                 }
               } catch (e) { }
               const count = typeof appendedCount === 'number' ? appendedCount : (madeProgress ? 1 : 0);

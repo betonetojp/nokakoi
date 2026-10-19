@@ -38,7 +38,7 @@ function matchesFilter(ev, filter) {
   return true;
 }
 
-export function updatePerFilterUntil(state, feedId, filters, eventsList, minScannedTs = null) {
+export function updatePerFilterUntil(state, feedId, filters, eventsList) {
   try {
     if (!state || !state.feeds || !state.feeds[feedId] || !Array.isArray(filters) || !filters.length) return;
     const feed = state.feeds[feedId];
@@ -55,17 +55,9 @@ export function updatePerFilterUntil(state, feedId, filters, eventsList, minScan
           }
         }
       }
-      if (minScannedTs != null) {
-        minTs = (minTs == null) ? minScannedTs : Math.min(minTs, minScannedTs);
-      }
       perFilter[i] = minTs;
     }
     feed.perFilterUntil = perFilter;
-    if (minScannedTs != null) {
-      feed.paginationUntil = (typeof feed.paginationUntil === 'number')
-        ? Math.min(feed.paginationUntil, minScannedTs)
-        : minScannedTs;
-    }
   } catch (e) { }
 }
 
@@ -75,10 +67,7 @@ export function applyPerFilterUntil(state, feedId, baseFilters, fallbackUntil = 
     const feed = state && state.feeds && state.feeds[feedId];
     const perFilterUntil = feed && Array.isArray(feed.perFilterUntil) ? feed.perFilterUntil : [];
     return baseFilters.map((filter, i) => {
-      let filterUntil = (perFilterUntil[i] != null) ? (perFilterUntil[i] - 1) : (fallbackUntil != null ? fallbackUntil - 1 : null);
-      if (typeof feed?.paginationUntil === 'number' && (filterUntil == null || feed.paginationUntil - 1 < filterUntil)) {
-        filterUntil = feed.paginationUntil - 1;
-      }
+      const filterUntil = (perFilterUntil[i] != null) ? (perFilterUntil[i] - 1) : (fallbackUntil != null ? fallbackUntil - 1 : null);
       const updated = Object.assign({}, filter);
       if (filterUntil != null) {
         updated.until = filterUntil;
@@ -178,13 +167,9 @@ export function setupFeedFetcher(opts) {
 
   let histFinished = false;
   let liveUnsub = null;
-  let minHistScannedTs = null;
 
   const absorbHistEvent = (ev, relay) => {
     if (!ev) return;
-    if (typeof ev.created_at === 'number') {
-      minHistScannedTs = (minHistScannedTs == null) ? ev.created_at : Math.min(minHistScannedTs, ev.created_at);
-    }
     if (ev.kind === 30315 || ev.kind === 9735) {
       try { if (typeof addToFeed === 'function') addToFeed(feedId, ev, null, relay); } catch (e) { }
       return;
@@ -219,7 +204,7 @@ export function setupFeedFetcher(opts) {
         } catch (e) { }
       }
     } catch (e) { }
-    try { updatePerFilterUntil(state, feedId, histFilters, state.feeds[feedId]?.list || [], minHistScannedTs); } catch (e) { }
+    try { updatePerFilterUntil(state, feedId, histFilters, state.feeds[feedId]?.list || []); } catch (e) { }
     try { if (typeof onHistBufferEnd === 'function') onHistBufferEnd(feedId, histFilters && histFilters.length > 0); } catch (e) { }
     try { if (typeof scheduleRender === 'function') scheduleRender(feedId); } catch (e) { }
     try { if (typeof onHistFinalize === 'function') onHistFinalize(); } catch (e) { }
@@ -431,7 +416,7 @@ export function fetchMore(opts) {
         appended = Math.max(0, keep.length - startListLength);
         total = keep.length;
       } catch (e) { }
-      try { updatePerFilterUntil(state, feedId, filters, state.feeds[feedId]?.list || [], globalMinScannedTs); } catch (e) { }
+      try { updatePerFilterUntil(state, feedId, filters, state.feeds[feedId]?.list || []); } catch (e) { }
       cleanupAll();
       // abort リスナーを解除
       try { if (abortListener && controller && controller.signal) controller.signal.removeEventListener('abort', abortListener); } catch (e) { }
