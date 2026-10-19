@@ -10,6 +10,7 @@ import { fetchMore, applyPerFilterUntil } from './feed-fetcher.js';
 import { canStartMore, markMoreFinished, markMoreStarted } from './feed-more-policy.js';
 import { EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT, EVENTS_MAX } from '../../config/constants.js';
 import { buildOutgoingZapReceiptFilter } from './feed-filters.js';
+import { shouldDisplayGlobalEvent } from './lang-filter.js';
 import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } from '../../utils/url-parser.js';
 import { t } from '../../utils/i18n.js';
 import { $ } from '../../utils/utils.js';
@@ -206,6 +207,9 @@ function debugFeed(...args) {
 
 function buildEventNode(eventObj, feedId) {
   if (!_state || !_options) return null;
+  if (feedId === 'global' && _options.settingsManager && !shouldDisplayGlobalEvent(eventObj, _state, _options.settingsManager)) {
+    return null;
+  }
   const renderSettings = _options.getRenderSettingsWithUiState(feedId);
   const node = renderEvent(
     _state,
@@ -727,11 +731,17 @@ export function renderFeed(id = 'global', force = false) {
     const seen = new Map();
     for (const ev of (feed.list || [])) {
       if (!ev || !ev.id) continue;
+      if (id === 'global' && _options?.settingsManager && !shouldDisplayGlobalEvent(ev, _state, _options.settingsManager)) {
+        continue;
+      }
       seen.set(ev.id, ev);
     }
     eventsToRender = Array.from(seen.values());
   } catch (e) {
     eventsToRender = feed.list || [];
+    if (id === 'global' && _options?.settingsManager) {
+      eventsToRender = eventsToRender.filter(ev => shouldDisplayGlobalEvent(ev, _state, _options.settingsManager));
+    }
   }
 
   let bottomBar = null;
@@ -767,7 +777,8 @@ export function renderFeed(id = 'global', force = false) {
       try {
         const isManual = clickEvent?.isTrusted === true;
         const listForClick = feed.list || [];
-        if (!listForClick.length) {
+        const hasPagination = (typeof feed.paginationUntil === 'number') || (Array.isArray(feed.perFilterUntil) && feed.perFilterUntil.some(t => t != null));
+        if (!listForClick.length && !hasPagination && id !== 'global') {
           return;
         }
         feedLoadState[id] = feedLoadState[id] || {};
@@ -789,7 +800,9 @@ export function renderFeed(id = 'global', force = false) {
         };
 
         let untilFallback = Math.floor(Date.now() / 1000);
-        if (oldest && isValidTimestamp(oldest.created_at)) {
+        if (typeof feed.paginationUntil === 'number' && isValidTimestamp(feed.paginationUntil)) {
+          untilFallback = feed.paginationUntil;
+        } else if (oldest && isValidTimestamp(oldest.created_at)) {
           untilFallback = oldest.created_at;
         } else {
           const validEvent = listForClick.slice().reverse().find(e => e && isValidTimestamp(e.created_at));
@@ -886,11 +899,14 @@ export function renderFeed(id = 'global', force = false) {
           }
 
           _options.runMergedGlobalLoadMore({ mergeUntil, startListLength })
-            .then(({ madeProgress, appendedCount }) => {
+            .then(({ madeProgress, appendedCount, minScannedTs }) => {
               try {
                 if (!gfeed) return;
-                if (madeProgress) delete gfeed.mergedPaginationUntil;
-                else gfeed.mergedPaginationUntil = mergeUntil - 86400;
+                if (typeof minScannedTs === 'number') {
+                  gfeed.mergedPaginationUntil = minScannedTs - 1;
+                } else if (!madeProgress) {
+                  gfeed.mergedPaginationUntil = mergeUntil - 86400;
+                }
               } catch (e) { }
               const count = typeof appendedCount === 'number' ? appendedCount : (madeProgress ? 1 : 0);
               finishLoadMore({ appendedCount: count });
@@ -917,7 +933,13 @@ export function renderFeed(id = 'global', force = false) {
             addToFeed: _options.addToFeed,
             scheduleRender,
             eventsFetchLimit: EVENTS_FETCH_LIMIT,
-            eventsTimeout: Math.max(EVENTS_TIMEOUT, 10000)
+            eventsTimeout: Math.max(EVENTS_TIMEOUT, 10000),
+            acceptEvent: (ev) => {
+              if (id === 'global' && _options?.settingsManager) {
+                return shouldDisplayGlobalEvent(ev, _state, _options.settingsManager);
+              }
+              return true;
+            }
           });
           try {
             if (!feedLoadState[id]) feedLoadState[id] = {};

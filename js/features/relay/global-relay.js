@@ -4,6 +4,7 @@
 
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { loadRelaysForAccount } from '../../core/relay.js';
+import { SUPPORTED_LANGUAGES, shouldDisplayGlobalEvent } from '../timeline/lang-filter.js';
 
 function countReadRelays(relays) {
   return (relays || []).filter(r => {
@@ -107,7 +108,7 @@ export function showGlobalRelaySelector(state, settingsManager, onSelect) {
   homeInput.disabled = !isLoggedIn;
 
   const homeSpan = document.createElement('span');
-  homeSpan.setAttribute('data-i18n', 'globalRelay.home');
+  homeSpan.setAttribute('data-i18n', 'globalRelay.home_option');
 
   homeOption.appendChild(homeInput);
   homeOption.appendChild(homeSpan);
@@ -162,6 +163,135 @@ export function showGlobalRelaySelector(state, settingsManager, onSelect) {
     selector.appendChild(option);
   });
 
+  // 言語フィルタセクション
+  const langSection = document.createElement('div');
+  langSection.className = 'global-lang-filter-section';
+  langSection.style.marginTop = '16px';
+  langSection.style.paddingTop = '12px';
+  langSection.style.borderTop = '1px solid var(--border)';
+
+  const langTitle = document.createElement('h3');
+  langTitle.setAttribute('data-i18n', 'globalRelay.lang_filter_title');
+  langTitle.style.margin = '0 0 8px 0';
+  langTitle.style.fontSize = '1em';
+  langSection.appendChild(langTitle);
+
+  const langEnableLabel = document.createElement('label');
+  langEnableLabel.className = 'relay-option';
+  langEnableLabel.style.padding = '4px 0';
+
+  const langEnableInput = document.createElement('input');
+  langEnableInput.type = 'checkbox';
+  langEnableInput.id = 'globalLangFilterEnabledCheck';
+  langEnableInput.checked = settingsManager.get('globalLangFilterEnabled') === true;
+
+  const langEnableSpan = document.createElement('span');
+  langEnableSpan.setAttribute('data-i18n', 'globalRelay.lang_filter_enable');
+
+  langEnableLabel.appendChild(langEnableInput);
+  langEnableLabel.appendChild(langEnableSpan);
+  langSection.appendChild(langEnableLabel);
+
+  const langEnableHint = document.createElement('div');
+  langEnableHint.setAttribute('data-i18n', 'globalRelay.lang_filter_hint');
+  langEnableHint.style.fontSize = '0.8em';
+  langEnableHint.style.color = 'var(--text-muted, #888)';
+  langEnableHint.style.paddingLeft = '24px';
+  langEnableHint.style.marginTop = '-2px';
+  langEnableHint.style.marginBottom = '6px';
+  langSection.appendChild(langEnableHint);
+
+  const langOptionsContainer = document.createElement('div');
+  langOptionsContainer.id = 'globalLangOptionsContainer';
+  langOptionsContainer.style.marginTop = '8px';
+  langOptionsContainer.style.paddingLeft = '4px';
+
+  const presetRow = document.createElement('div');
+  presetRow.style.display = 'flex';
+  presetRow.style.flexWrap = 'wrap';
+  presetRow.style.gap = '6px';
+  presetRow.style.marginBottom = '8px';
+
+  const createPresetBtn = (i18nKey, onClick) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'secondary';
+    btn.style.padding = '2px 8px';
+    btn.style.fontSize = '0.8em';
+    btn.setAttribute('data-i18n', i18nKey);
+    btn.onclick = (e) => {
+      e.preventDefault();
+      onClick();
+    };
+    return btn;
+  };
+
+  const langGrid = document.createElement('div');
+  langGrid.style.display = 'grid';
+  langGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(110px, 1fr))';
+  langGrid.style.gap = '6px';
+  langGrid.style.maxHeight = '140px';
+  langGrid.style.overflowY = 'auto';
+
+  const currentSelected = new Set(Array.isArray(settingsManager.get('globalLangFilterSelected'))
+    ? settingsManager.get('globalLangFilterSelected')
+    : ['jpn']);
+
+  const isEn = (typeof localStorage !== 'undefined' && localStorage.getItem('i18n_lang') === 'en');
+
+  const langCheckboxes = [];
+  SUPPORTED_LANGUAGES.forEach(lang => {
+    const lLabel = document.createElement('label');
+    lLabel.style.display = 'flex';
+    lLabel.style.alignItems = 'center';
+    lLabel.style.gap = '6px';
+    lLabel.style.fontSize = '0.85em';
+    lLabel.style.cursor = 'pointer';
+
+    const lInput = document.createElement('input');
+    lInput.type = 'checkbox';
+    lInput.name = 'globalLang_item';
+    lInput.value = lang.code;
+    lInput.checked = currentSelected.has(lang.code);
+
+    const lSpan = document.createElement('span');
+    const flagPrefix = lang.flag ? `${lang.flag} ` : (lang.code === 'und' ? '🌐 ' : '');
+    lSpan.textContent = `${flagPrefix}${isEn ? lang.nameEn : lang.nameJa}`;
+
+    lLabel.appendChild(lInput);
+    lLabel.appendChild(lSpan);
+    langGrid.appendChild(lLabel);
+    langCheckboxes.push(lInput);
+  });
+
+  presetRow.appendChild(createPresetBtn('globalRelay.lang_preset_jpn', () => {
+    langCheckboxes.forEach(cb => { cb.checked = (cb.value === 'jpn'); });
+  }));
+  presetRow.appendChild(createPresetBtn('globalRelay.lang_preset_jpn_eng', () => {
+    langCheckboxes.forEach(cb => { cb.checked = (cb.value === 'jpn' || cb.value === 'eng'); });
+  }));
+  presetRow.appendChild(createPresetBtn('globalRelay.lang_preset_all', () => {
+    langCheckboxes.forEach(cb => { cb.checked = true; });
+  }));
+  presetRow.appendChild(createPresetBtn('globalRelay.lang_preset_clear', () => {
+    langCheckboxes.forEach(cb => { cb.checked = false; });
+  }));
+
+  langOptionsContainer.appendChild(presetRow);
+  langOptionsContainer.appendChild(langGrid);
+
+  const langUndHint = document.createElement('div');
+  langUndHint.setAttribute('data-i18n', 'globalRelay.lang_und_hint');
+  langUndHint.style.fontSize = '0.8em';
+  langUndHint.style.color = 'var(--text-muted, #888)';
+  langUndHint.style.paddingLeft = '4px';
+  langUndHint.style.marginTop = '6px';
+  langOptionsContainer.appendChild(langUndHint);
+
+  langSection.appendChild(langOptionsContainer);
+
+  body.insertBefore(langSection, row);
+
   // 決定ボタン
   confirmBtn.onclick = (e) => {
     e.preventDefault();
@@ -171,6 +301,34 @@ export function showGlobalRelaySelector(state, settingsManager, onSelect) {
     let selected = [];
     const items = modal.querySelectorAll('input[name="globalRelay_item"]');
     items.forEach(it => { try { if (it.checked) selected.push(it.value); } catch (e) { } });
+
+    // 言語フィルタ設定保存
+    const langFilterEnabled = langEnableInput.checked;
+    const selectedLangs = [];
+    langCheckboxes.forEach(cb => {
+      if (cb.checked) selectedLangs.push(cb.value);
+    });
+    settingsManager.set('globalLangFilterEnabled', langFilterEnabled);
+    settingsManager.set('globalLangFilterSelected', selectedLangs);
+
+    // 言語フィルタの変更を即座に global フィードへ反映（メモリ・DOM の整理）
+    try {
+      if (state && state.feeds && state.feeds['global']) {
+        const gfeed = state.feeds['global'];
+        delete gfeed.paginationUntil;
+        delete gfeed.mergedPaginationUntil;
+        delete gfeed.perFilterUntil;
+        if (Array.isArray(gfeed.list)) {
+          gfeed.list = gfeed.list.filter(ev => shouldDisplayGlobalEvent(ev, state, settingsManager));
+          gfeed.map = new Map();
+          for (const ev of gfeed.list) {
+            if (ev && ev.id) gfeed.map.set(ev.id, ev);
+          }
+        }
+      }
+      const el = document.getElementById('feed-global');
+      if (el) el.innerHTML = '';
+    } catch (e) { }
 
     settingsManager.set('globalMergeHome', homeChecked);
 

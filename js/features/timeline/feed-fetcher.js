@@ -38,7 +38,7 @@ function matchesFilter(ev, filter) {
   return true;
 }
 
-export function updatePerFilterUntil(state, feedId, filters, eventsList) {
+export function updatePerFilterUntil(state, feedId, filters, eventsList, minScannedTs = null) {
   try {
     if (!state || !state.feeds || !state.feeds[feedId] || !Array.isArray(filters) || !filters.length) return;
     const feed = state.feeds[feedId];
@@ -55,9 +55,17 @@ export function updatePerFilterUntil(state, feedId, filters, eventsList) {
           }
         }
       }
+      if (minScannedTs != null) {
+        minTs = (minTs == null) ? minScannedTs : Math.min(minTs, minScannedTs);
+      }
       perFilter[i] = minTs;
     }
     feed.perFilterUntil = perFilter;
+    if (minScannedTs != null) {
+      feed.paginationUntil = (typeof feed.paginationUntil === 'number')
+        ? Math.min(feed.paginationUntil, minScannedTs)
+        : minScannedTs;
+    }
   } catch (e) { }
 }
 
@@ -67,7 +75,10 @@ export function applyPerFilterUntil(state, feedId, baseFilters, fallbackUntil = 
     const feed = state && state.feeds && state.feeds[feedId];
     const perFilterUntil = feed && Array.isArray(feed.perFilterUntil) ? feed.perFilterUntil : [];
     return baseFilters.map((filter, i) => {
-      const filterUntil = (perFilterUntil[i] != null) ? (perFilterUntil[i] - 1) : (fallbackUntil != null ? fallbackUntil - 1 : null);
+      let filterUntil = (perFilterUntil[i] != null) ? (perFilterUntil[i] - 1) : (fallbackUntil != null ? fallbackUntil - 1 : null);
+      if (typeof feed?.paginationUntil === 'number' && (filterUntil == null || feed.paginationUntil - 1 < filterUntil)) {
+        filterUntil = feed.paginationUntil - 1;
+      }
       const updated = Object.assign({}, filter);
       if (filterUntil != null) {
         updated.until = filterUntil;
@@ -167,9 +178,13 @@ export function setupFeedFetcher(opts) {
 
   let histFinished = false;
   let liveUnsub = null;
+  let minHistScannedTs = null;
 
   const absorbHistEvent = (ev, relay) => {
     if (!ev) return;
+    if (typeof ev.created_at === 'number') {
+      minHistScannedTs = (minHistScannedTs == null) ? ev.created_at : Math.min(minHistScannedTs, ev.created_at);
+    }
     if (ev.kind === 30315 || ev.kind === 9735) {
       try { if (typeof addToFeed === 'function') addToFeed(feedId, ev, null, relay); } catch (e) { }
       return;
@@ -204,7 +219,7 @@ export function setupFeedFetcher(opts) {
         } catch (e) { }
       }
     } catch (e) { }
-    try { updatePerFilterUntil(state, feedId, histFilters, state.feeds[feedId]?.list || []); } catch (e) { }
+    try { updatePerFilterUntil(state, feedId, histFilters, state.feeds[feedId]?.list || [], minHistScannedTs); } catch (e) { }
     try { if (typeof onHistBufferEnd === 'function') onHistBufferEnd(feedId, histFilters && histFilters.length > 0); } catch (e) { }
     try { if (typeof scheduleRender === 'function') scheduleRender(feedId); } catch (e) { }
     try { if (typeof onHistFinalize === 'function') onHistFinalize(); } catch (e) { }
@@ -341,7 +356,8 @@ export function fetchMore(opts) {
     startListLength = 0,
     eventsFetchLimit = 60,
     eventsTimeout = 10000,
-    onCollect = null
+    onCollect = null,
+    acceptEvent = null
   } = opts || {};
 
   const inFlightMap = getMoreInFlightMap(state);
@@ -355,15 +371,12 @@ export function fetchMore(opts) {
   // Promise を作成し、controller を関連付けて返す
   const p = new Promise((resolve) => {
     const moreBuffer = new Map();
-    const perRelayBuffers = new Map();
-    const perRelayEose = new Map();
     const relayList = Array.isArray(relays) && relays.length ? relays.slice() : getReadRelays(state.relays) || [];
     const perRelayUnsubs = new Set();
     const perRelayTimeout = Math.max(eventsTimeout || 10000, 3000);
-    const collectEvent = (ev) => {
-      try { if (ev && ev.id) moreBuffer.set(ev.id, ev); } catch (e) { }
-      try { if (typeof onCollect === 'function' && ev) onCollect(ev); } catch (e) { }
-    };
+    let settled = false;
+    let globalMinScannedTs = null;
+
     // 再入を避けつつ収集済み unsubscribe を安全に実行
     const cleanupAll = () => {
       try {
@@ -374,7 +387,7 @@ export function fetchMore(opts) {
         }
       } catch (e) { }
     };
-    let settled = false;
+
     const finalizeMore = () => {
       if (settled) return;
       settled = true;
@@ -399,6 +412,7 @@ export function fetchMore(opts) {
         for (const ev of Array.from(moreBuffer.values())) {
           try {
             if (ev && ev.id && !existingIds.has(ev.id)) {
+              if (typeof acceptEvent === 'function' && !acceptEvent(ev)) continue;
               existing.push(ev);
               existingIds.add(ev.id);
             }
@@ -417,8 +431,8 @@ export function fetchMore(opts) {
         appended = Math.max(0, keep.length - startListLength);
         total = keep.length;
       } catch (e) { }
-      try { updatePerFilterUntil(state, feedId, filters, state.feeds[feedId]?.list || []); } catch (e) { }
-      try { cleanupAll(); } catch (e) { }
+      try { updatePerFilterUntil(state, feedId, filters, state.feeds[feedId]?.list || [], globalMinScannedTs); } catch (e) { }
+      cleanupAll();
       // abort リスナーを解除
       try { if (abortListener && controller && controller.signal) controller.signal.removeEventListener('abort', abortListener); } catch (e) { }
       resolve({ appendedCount: appended, totalCount: total });
@@ -437,80 +451,113 @@ export function fetchMore(opts) {
     };
     try { controller.signal.addEventListener('abort', abortListener); } catch (e) { }
 
-    // リレーごと・フィルタごとに購読
-    if (!relayList.length) {
-      let unsubAll = null;
-      const doneRelays = new Set();
-      const relayCount = Array.isArray(relayList) ? relayList.length : 0;
-      try {
-        unsubAll = subOnce(state, feedId + '_more_multi', filters, (ev, relay, done) => {
-          collectEvent(ev);
-          try {
-            const r = relay || 'multi';
-            const pb = perRelayBuffers.get(r) || new Map();
-            if (ev && ev.id) pb.set(ev.id, ev);
-            perRelayBuffers.set(r, pb);
-            // 自分の kind7 をこのリレーが返した場合のログ用フック
-            if (ev && ev.kind === 7 && ev.pubkey && ev.pubkey === (localStorage.getItem('pubkey') || '')) {
-              // 何もしない
+    let currentFilters = filters;
+    let round = 0;
+    const maxRounds = (typeof acceptEvent === 'function') ? 5 : 1;
+
+    const runRound = () => {
+      if (settled || controller.signal.aborted) {
+        finalizeMore();
+        return;
+      }
+      round += 1;
+      let roundRawCount = 0;
+      let roundMinScannedTs = null;
+      let finishedSubs = 0;
+      let roundTimer = null;
+
+      const checkRoundDone = () => {
+        if (settled) return;
+        if (roundTimer) { clearTimeout(roundTimer); roundTimer = null; }
+        cleanupAll();
+
+        if (roundMinScannedTs != null) {
+          globalMinScannedTs = (globalMinScannedTs == null)
+            ? roundMinScannedTs
+            : Math.min(globalMinScannedTs, roundMinScannedTs);
+        }
+
+        // フィルタ通過イベントが1件以上あるか、リレーからの返却が0件（枯渇）、または最大走査ラウンドに達した場合は完了
+        if (moreBuffer.size > 0 || roundRawCount === 0 || round >= maxRounds || controller.signal.aborted || roundMinScannedTs == null) {
+          finalizeMore();
+        } else {
+          // 次のラウンド: until を roundMinScannedTs - 1 に更新してさらに過去を探索
+          currentFilters = currentFilters.map(f => {
+            const upd = Object.assign({}, f);
+            upd.until = roundMinScannedTs - 1;
+            return upd;
+          });
+          runRound();
+        }
+      };
+
+      if (!relayList.length) {
+        let unsubAll = null;
+        const doneRelays = new Set();
+        const relayCount = 0;
+        try {
+          const key = (round === 1) ? (feedId + '_more_multi') : (feedId + '_more_multi_' + round);
+          unsubAll = subOnce(state, key, currentFilters, (ev, relay, done) => {
+            if (ev && ev.id) {
+              roundRawCount += 1;
+              if (typeof ev.created_at === 'number') {
+                roundMinScannedTs = (roundMinScannedTs == null) ? ev.created_at : Math.min(roundMinScannedTs, ev.created_at);
+              }
+              if (typeof acceptEvent !== 'function' || acceptEvent(ev)) {
+                try { moreBuffer.set(ev.id, ev); } catch (e) { }
+                try { if (typeof onCollect === 'function') onCollect(ev); } catch (e) { }
+              }
             }
-          } catch (e) { }
-          try {
             if (done && relay) {
-              try { perRelayEose.set(relay, true); } catch (e) { }
               doneRelays.add(relay);
               if (relayCount === 0 || doneRelays.size >= relayCount) {
-                finalizeMore();
+                checkRoundDone();
               }
             }
-          } catch (e) { }
-        }, getReadRelays(state.relays));
-      } catch (e) { }
-      const to = setTimeout(() => { try { finalizeMore(); } catch (e) { } finally { try { if (typeof unsubAll === 'function') unsubAll(); } catch (ee) { } cleanupAll(); } }, perRelayTimeout);
-      // unsubscribe 関数とタイムアウト解除処理を登録
-      if (typeof unsubAll === 'function') perRelayUnsubs.add(() => { try { unsubAll(); } catch (e) { } });
-      perRelayUnsubs.add(() => { try { clearTimeout(to); } catch (e) { } });
-      return;
-    }
+          }, getReadRelays(state.relays));
+        } catch (e) { }
+        roundTimer = setTimeout(() => {
+          checkRoundDone();
+        }, perRelayTimeout);
+        if (typeof unsubAll === 'function') perRelayUnsubs.add(unsubAll);
+        return;
+      }
 
-    let finishedSubs = 0;
-    const expected = relayList.length;
-    if (expected === 0) {
-      finalizeMore();
-      return;
-    }
-    relayList.forEach(relay => {
-      try {
-        const key = feedId + '_more_' + relay;
-        const unsub = subOnce(state, key, filters, (ev, r, done) => {
-          collectEvent(ev);
-          try {
-            const rr = relay || r || 'unknown';
-            const pb = perRelayBuffers.get(rr) || new Map();
-            if (ev && ev.id) pb.set(ev.id, ev);
-            perRelayBuffers.set(rr, pb);
-            // リレーが自分の kind7 を返した場合のログ用フック
-            if (ev && ev.kind === 7 && ev.pubkey && ev.pubkey === (localStorage.getItem('pubkey') || '')) {
-              // 何もしない
-            }
-          } catch (e) { }
-          try {
-            if (done) {
-              try { finishedSubs += 1; } catch (e) { }
-              try { perRelayEose.set(relay, true); } catch (e) { }
-              if (finishedSubs >= expected) {
-                finalizeMore();
+      const expected = relayList.length;
+      relayList.forEach(relay => {
+        try {
+          const key = (round === 1) ? (feedId + '_more_' + relay) : (feedId + '_more_' + relay + '_' + round);
+          const unsub = subOnce(state, key, currentFilters, (ev, r, done) => {
+            if (ev && ev.id) {
+              roundRawCount += 1;
+              if (typeof ev.created_at === 'number') {
+                roundMinScannedTs = (roundMinScannedTs == null) ? ev.created_at : Math.min(roundMinScannedTs, ev.created_at);
+              }
+              if (typeof acceptEvent !== 'function' || acceptEvent(ev)) {
+                try { moreBuffer.set(ev.id, ev); } catch (e) { }
+                try { if (typeof onCollect === 'function') onCollect(ev); } catch (e) { }
               }
             }
-          } catch (e) { }
-        }, [relay]);
-        perRelayUnsubs.add(unsub);
-      } catch (e) { }
-    });
-    // セーフティタイムアウト
-    const to = setTimeout(() => { try { finalizeMore(); } catch (e) { } finally { cleanupAll(); } }, perRelayTimeout);
-    // cleanup 時にタイムアウト解除できるよう登録
-    perRelayUnsubs.add(() => { try { clearTimeout(to); } catch (e) { } });
+            if (done) {
+              finishedSubs += 1;
+              if (finishedSubs >= expected) {
+                checkRoundDone();
+              }
+            }
+          }, [relay]);
+          if (typeof unsub === 'function') perRelayUnsubs.add(unsub);
+        } catch (e) {
+          finishedSubs += 1;
+          if (finishedSubs >= expected) checkRoundDone();
+        }
+      });
+
+      roundTimer = setTimeout(() => {
+        checkRoundDone();
+      }, perRelayTimeout);
+    };
+
+    runRound();
   });
   // 呼び出し側が abort できるよう controller を返却 Promise に付与
   try { p.controller = controller; } catch (e) { }

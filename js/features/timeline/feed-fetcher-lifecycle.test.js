@@ -108,4 +108,71 @@ describe('feed fetcher logical keys', () => {
     afterSettle.controller.abort();
     await afterSettle;
   });
+
+  it('filters events using acceptEvent when provided', async () => {
+    const state = {
+      relays: ['wss://relay.example'],
+      feeds: { global: { list: [], map: new Map() } }
+    };
+    const options = {
+      state,
+      feedId: 'global',
+      filters: [{ kinds: [1], until: 100 }],
+      relays: ['wss://relay.example'],
+      startListLength: 0,
+      addToFeed: vi.fn(),
+      scheduleRender: vi.fn(),
+      acceptEvent: (ev) => ev && ev.content === 'allowed'
+    };
+
+    const promise = fetchMore(options);
+    const cb = mocks.subOnce.mock.calls[mocks.subOnce.mock.calls.length - 1][3];
+
+    // Emit one rejected event and one allowed event, then done
+    cb({ id: 'ev1', content: 'disallowed', created_at: 50 }, 'wss://relay.example', false);
+    cb({ id: 'ev2', content: 'allowed', created_at: 60 }, 'wss://relay.example', true);
+
+    const res = await promise;
+    expect(res.appendedCount).toBe(1);
+    expect(res.totalCount).toBe(1);
+    expect(state.feeds.global.list).toHaveLength(1);
+    expect(state.feeds.global.list[0].id).toBe('ev2');
+  });
+
+  it('advances until and scans next round when all events are filtered out by acceptEvent', async () => {
+    const state = {
+      relays: ['wss://relay.example'],
+      feeds: { global: { list: [], map: new Map() } }
+    };
+    const options = {
+      state,
+      feedId: 'global',
+      filters: [{ kinds: [1], until: 100 }],
+      relays: ['wss://relay.example'],
+      startListLength: 0,
+      addToFeed: vi.fn(),
+      scheduleRender: vi.fn(),
+      acceptEvent: (ev) => ev && ev.content === 'allowed'
+    };
+
+    const promise = fetchMore(options);
+    const cb1 = mocks.subOnce.mock.calls[mocks.subOnce.mock.calls.length - 1][3];
+
+    // Round 1 returns only rejected events (created_at: 80)
+    cb1({ id: 'ev1', content: 'disallowed', created_at: 80 }, 'wss://relay.example', true);
+
+    // This should trigger round 2 with until: 79
+    expect(mocks.subOnce).toHaveBeenCalledTimes(2);
+    expect(mocks.subOnce.mock.calls[1][2][0].until).toBe(79);
+
+    const cb2 = mocks.subOnce.mock.calls[1][3];
+    cb2({ id: 'ev2', content: 'allowed', created_at: 70 }, 'wss://relay.example', true);
+
+    const res = await promise;
+    expect(res.appendedCount).toBe(1);
+    expect(state.feeds.global.list).toHaveLength(1);
+    expect(state.feeds.global.list[0].id).toBe('ev2');
+    expect(state.feeds.global.paginationUntil).toBe(70);
+  });
 });
+

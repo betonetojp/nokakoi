@@ -25,6 +25,7 @@ import {
   buildHomeLoadMoreFilters as buildHomeLoadMoreFiltersImpl,
   buildOutgoingZapReceiptFilter
 } from './feed-filters.js';
+import { shouldDisplayGlobalEvent } from './lang-filter.js';
 
 // モジュール内の状態管理用変数
 let state = null;
@@ -286,6 +287,7 @@ export function isGlobalMergeKind(ev) {
 export function mirrorHomeEventToGlobal(ev) {
   if (settingsManager.get('globalMergeHome') !== true) return false;
   if (!ev?.id || !isGlobalMergeKind(ev)) return false;
+  if (!shouldDisplayGlobalEvent(ev, state, settingsManager)) return false;
   const gfeed = state.feeds['global'];
   if (!gfeed?.map || gfeed.map.has(ev.id)) return false;
   insertEventSorted(state, 'global', ev);
@@ -350,6 +352,7 @@ export function mergeFetchedIntoGlobalList(moreBuffer, startListLength) {
   }
   for (const ev of moreBuffer.values()) {
     if (!ev?.id || !isGlobalMergeKind(ev) || existingIds.has(ev.id)) continue;
+    if (!shouldDisplayGlobalEvent(ev, state, settingsManager)) continue;
     existing.push(ev);
     existingIds.add(ev.id);
   }
@@ -378,32 +381,13 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
     const listBeforeLen = gfeed.list?.length || 0;
     const oldestBefore = getFeedOldestCreatedAt(gfeed.list);
     const globalRelays = resolveGlobalRelays(settingsManager, state.relays);
-    const homeFilters = buildHomeLoadMoreFiltersForGlobalMerge(mergeUntil);
     const readRelays = getReadRelays(state.relays) || [];
+    const perRelayTimeout = Math.max(EVENTS_TIMEOUT, 10000);
     const moreBuffer = new Map();
     const perRelayUnsubs = new Set();
-    const perRelayTimeout = Math.max(EVENTS_TIMEOUT, 10000);
-    
-    const relayToFilters = new Map();
-    if (globalRelays.length > 0) {
-      globalRelays.forEach((relay) => {
-        if (!relayToFilters.has(relay)) relayToFilters.set(relay, []);
-        relayToFilters.get(relay).push({ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT, until: mergeUntil });
-      });
-    }
-    if (homeFilters.length > 0 && readRelays.length > 0) {
-      readRelays.forEach((relay) => {
-        if (!relayToFilters.has(relay)) relayToFilters.set(relay, []);
-        const arr = relayToFilters.get(relay);
-        homeFilters.forEach((filter) => arr.push(filter));
-      });
-    }
-    if (relayToFilters.size === 0) {
-      resolve({ madeProgress: false });
-      return;
-    }
-
     let settled = false;
+    let globalMinScannedTs = null;
+
     const cleanupAll = () => {
       try {
         for (const u of Array.from(perRelayUnsubs)) {
@@ -412,6 +396,7 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
         perRelayUnsubs.clear();
       } catch (e) { }
     };
+
     const finalize = () => {
       if (settled) return;
       settled = true;
@@ -421,29 +406,109 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
       const madeProgress = listAfterLen > listBeforeLen || listAfterLen > startListLength || (
         oldestAfter != null && (oldestBefore == null || oldestAfter < oldestBefore)
       );
-      cleanupAll();
-      resolve({ madeProgress });
-    };
-    let finishedSubs = 0;
-    const expected = relayToFilters.size;
-    for (const [relay, filtersList] of relayToFilters.entries()) {
-      try {
-        const key = 'merged_global_more_' + relay;
-        const unsub = subOnce(state, key, filtersList, (ev, r, done) => {
-          try { if (ev?.id && isGlobalMergeKind(ev)) moreBuffer.set(ev.id, ev); } catch (e) { }
-          if (done) {
-            finishedSubs += 1;
-            if (finishedSubs >= expected) finalize();
-          }
-        }, [relay]);
-        if (typeof unsub === 'function') perRelayUnsubs.add(unsub);
-      } catch (e) {
-        finishedSubs += 1;
-        if (finishedSubs >= expected) finalize();
+      if (globalMinScannedTs != null) {
+        gfeed.mergedPaginationUntil = globalMinScannedTs - 1;
       }
-    }
-    const to = setTimeout(() => { try { finalize(); } catch (e) { } }, perRelayTimeout);
-    perRelayUnsubs.add(() => { try { clearTimeout(to); } catch (e) { } });
+      cleanupAll();
+      resolve({
+        madeProgress,
+        minScannedTs: globalMinScannedTs,
+        appendedCount: Math.max(0, listAfterLen - listBeforeLen)
+      });
+    };
+
+    let currentMergeUntil = mergeUntil;
+    let round = 0;
+    const isLangFilterActive = settingsManager.get('globalLangFilterEnabled') === true;
+    const maxRounds = isLangFilterActive ? 5 : 1;
+
+    const runRound = () => {
+      if (settled) {
+        finalize();
+        return;
+      }
+      round += 1;
+      let roundRawCount = 0;
+      let roundMinScannedTs = null;
+
+      const homeFilters = buildHomeLoadMoreFiltersForGlobalMerge(currentMergeUntil);
+      const relayToFilters = new Map();
+      if (globalRelays.length > 0) {
+        globalRelays.forEach((relay) => {
+          if (!relayToFilters.has(relay)) relayToFilters.set(relay, []);
+          relayToFilters.get(relay).push({ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT, until: currentMergeUntil });
+        });
+      }
+      if (homeFilters.length > 0 && readRelays.length > 0) {
+        readRelays.forEach((relay) => {
+          if (!relayToFilters.has(relay)) relayToFilters.set(relay, []);
+          const arr = relayToFilters.get(relay);
+          homeFilters.forEach((filter) => arr.push(filter));
+        });
+      }
+      if (relayToFilters.size === 0) {
+        finalize();
+        return;
+      }
+
+      let finishedSubs = 0;
+      const expected = relayToFilters.size;
+      let roundTimer = null;
+
+      const checkRoundDone = () => {
+        if (settled) return;
+        if (roundTimer) { clearTimeout(roundTimer); roundTimer = null; }
+        cleanupAll();
+
+        if (roundMinScannedTs != null) {
+          globalMinScannedTs = (globalMinScannedTs == null)
+            ? roundMinScannedTs
+            : Math.min(globalMinScannedTs, roundMinScannedTs);
+        }
+
+        // フィルタ通過イベントがあるかチェック
+        let acceptedCount = 0;
+        for (const ev of moreBuffer.values()) {
+          if (ev && shouldDisplayGlobalEvent(ev, state, settingsManager)) acceptedCount += 1;
+        }
+
+        if (acceptedCount > 0 || roundRawCount === 0 || round >= maxRounds || roundMinScannedTs == null) {
+          finalize();
+        } else {
+          currentMergeUntil = roundMinScannedTs - 1;
+          runRound();
+        }
+      };
+
+      for (const [relay, filtersList] of relayToFilters.entries()) {
+        try {
+          const key = (round === 1) ? ('merged_global_more_' + relay) : ('merged_global_more_' + relay + '_' + round);
+          const unsub = subOnce(state, key, filtersList, (ev, r, done) => {
+            if (ev?.id && isGlobalMergeKind(ev)) {
+              roundRawCount += 1;
+              if (typeof ev.created_at === 'number') {
+                roundMinScannedTs = (roundMinScannedTs == null) ? ev.created_at : Math.min(roundMinScannedTs, ev.created_at);
+              }
+              moreBuffer.set(ev.id, ev);
+            }
+            if (done) {
+              finishedSubs += 1;
+              if (finishedSubs >= expected) checkRoundDone();
+            }
+          }, [relay]);
+          if (typeof unsub === 'function') perRelayUnsubs.add(unsub);
+        } catch (e) {
+          finishedSubs += 1;
+          if (finishedSubs >= expected) checkRoundDone();
+        }
+      }
+
+      roundTimer = setTimeout(() => {
+        checkRoundDone();
+      }, perRelayTimeout);
+    };
+
+    runRound();
   });
 }
 
@@ -521,6 +586,12 @@ export function addToFeed(feedId, ev, keepLatestCount = null, _relay = null) {
       } else if (feedId === 'home') {
         if (!isIncoming && !isOutgoing) return;
       } else {
+        return;
+      }
+    }
+
+    if (feedId === 'global') {
+      if (!shouldDisplayGlobalEvent(ev, state, settingsManager)) {
         return;
       }
     }
@@ -773,7 +844,9 @@ export function setupGlobalFeed() {
       relays,
       histEnabled: isActive,
       mergeHome,
-      showMusicStatus: settingsManager.get('showMusicStatus') !== false
+      showMusicStatus: settingsManager.get('showMusicStatus') !== false,
+      globalLangFilterEnabled: settingsManager.get('globalLangFilterEnabled'),
+      globalLangFilterSelected: settingsManager.get('globalLangFilterSelected')
     });
     if (sameFetcherConfig(state._globalFetcher, configKey)) return state._globalFetcher;
     stopFetcherSlot('_globalFetcher');
@@ -784,6 +857,7 @@ export function setupGlobalFeed() {
       liveFilters,
       relays: relays,
       addToFeed,
+      acceptHistEvent: (ev) => shouldDisplayGlobalEvent(ev, state, settingsManager),
       scheduleRender,
       eventsFetchLimit: EVENTS_FETCH_LIMIT,
       eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
@@ -1240,7 +1314,9 @@ export function restartFeeds(fullReset = false) {
     showMusicStatus: settingsManager && settingsManager.get('showMusicStatus'),
     showTimelineMedia: settingsManager && settingsManager.get('showTimelineMedia'),
     showOmochat: settingsManager && settingsManager.get('showOmochat'),
-    omochatRelays: getOmochatRelays()
+    omochatRelays: getOmochatRelays(),
+    globalLangFilterEnabled: settingsManager && settingsManager.get('globalLangFilterEnabled'),
+    globalLangFilterSelected: settingsManager && settingsManager.get('globalLangFilterSelected')
   });
   const now = Date.now();
   if (state && state._lastFeedRestart &&

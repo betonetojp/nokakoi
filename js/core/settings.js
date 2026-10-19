@@ -27,6 +27,8 @@ export class SettingsManager {
       encryptedNsec: null,
       globalRelay: getDefaultGlobalRelayByLang(),
       globalMergeHome: false,
+      globalLangFilterEnabled: false,
+      globalLangFilterSelected: ['jpn'],
       simpleDisplayMode: true,
       famicomMode: false,
       showAvatars: true,
