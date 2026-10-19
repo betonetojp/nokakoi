@@ -2,7 +2,7 @@
 // グローバルフィード用リレーセレクタ
 // ============================================================================
 
-import { t, applyTranslations } from '../../utils/i18n.js';
+import { t, getLang, applyTranslations } from '../../utils/i18n.js';
 import { loadRelaysForAccount } from '../../core/relay.js';
 import { SUPPORTED_LANGUAGES, shouldDisplayGlobalEvent } from '../timeline/lang-filter.js';
 
@@ -228,7 +228,7 @@ export function showGlobalRelaySelector(state, settingsManager, onSelect) {
 
   const langGrid = document.createElement('div');
   langGrid.style.display = 'grid';
-  langGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(110px, 1fr))';
+  langGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(120px, 1fr))';
   langGrid.style.gap = '6px';
   langGrid.style.maxHeight = '140px';
   langGrid.style.overflowY = 'auto';
@@ -237,7 +237,7 @@ export function showGlobalRelaySelector(state, settingsManager, onSelect) {
     ? settingsManager.get('globalLangFilterSelected')
     : ['jpn']);
 
-  const isEn = (typeof localStorage !== 'undefined' && localStorage.getItem('i18n_lang') === 'en');
+  const isEn = getLang() === 'en';
 
   const langCheckboxes = [];
   SUPPORTED_LANGUAGES.forEach(lang => {
@@ -247,6 +247,7 @@ export function showGlobalRelaySelector(state, settingsManager, onSelect) {
     lLabel.style.gap = '6px';
     lLabel.style.fontSize = '0.85em';
     lLabel.style.cursor = 'pointer';
+    lLabel.style.whiteSpace = 'nowrap';
 
     const lInput = document.createElement('input');
     lInput.type = 'checkbox';
@@ -256,7 +257,13 @@ export function showGlobalRelaySelector(state, settingsManager, onSelect) {
 
     const lSpan = document.createElement('span');
     const flagPrefix = lang.flag ? `${lang.flag} ` : (lang.code === 'und' ? '🌐 ' : '');
-    lSpan.textContent = `${flagPrefix}${isEn ? lang.nameEn : lang.nameJa}`;
+    if (flagPrefix) {
+      lSpan.appendChild(document.createTextNode(flagPrefix));
+    }
+    const lText = document.createElement('span');
+    lText.setAttribute('data-i18n', `globalRelay.lang_${lang.code}`);
+    lText.textContent = isEn ? lang.nameEn : lang.nameJa;
+    lSpan.appendChild(lText);
 
     lLabel.appendChild(lInput);
     lLabel.appendChild(lSpan);

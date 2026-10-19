@@ -9,8 +9,8 @@ import {
 
 describe('lang-filter', () => {
   describe('cleanTextForLangDetection', () => {
-    it('removes URLs and nostr mentions', () => {
-      const input = 'こんにちは！ https://example.com/pic.jpg nostr:npub1234567890 素敵ですね';
+    it('removes URLs, nostr mentions, and custom emoji shortcodes', () => {
+      const input = 'こんにちは！ https://example.com/pic.jpg nostr:npub1234567890 :blobcat_happy: :custom-emoji: 素敵ですね';
       const cleaned = cleanTextForLangDetection(input);
       expect(cleaned).toBe('こんにちは！ 素敵ですね');
     });
@@ -74,10 +74,18 @@ describe('lang-filter', () => {
       expect(detectLanguage('Das ist ein wunderbarer und sonniger Tag in Deutschland heute.')).toBe('deu');
     });
 
-    it('returns und for emoji/numbers only or URLs only', () => {
+    it('returns und for emoji/numbers only or URLs only or custom emojis only', () => {
       expect(detectLanguage('👍😊 🎉')).toBe('und');
       expect(detectLanguage('12345')).toBe('und');
       expect(detectLanguage('https://example.com')).toBe('und');
+      expect(detectLanguage(':blobcat: :party_parrot:')).toBe('und');
+      expect(detectLanguage(':custom_emoji-1:')).toBe('und');
+    });
+
+    it('detects language accurately when mixed with custom emoji shortcodes', () => {
+      expect(detectLanguage('了解 :blobcat_nod:')).toBe('jpn');
+      expect(detectLanguage(':blobcat_dance: おはようございます')).toBe('jpn');
+      expect(detectLanguage(':custom_emoji: Hello world from Nostr client')).toBe('eng');
     });
   });
 

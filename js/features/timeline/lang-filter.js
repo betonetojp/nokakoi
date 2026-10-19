@@ -48,8 +48,9 @@ export function getLanguageFlag(langCode) {
 export function cleanTextForLangDetection(content) {
   if (!content || typeof content !== 'string') return '';
   return content
-    .replace(/nostr:(npub1|nprofile1|note1|nevent1)\w+/gi, '')
+    .replace(/nostr:(?:npub1|nprofile1|note1|nevent1|naddr1|nsec1)[a-z0-9]+/gi, '')
     .replace(/https?:\/\/[^\s]+/gi, '')
+    .replace(/:[a-zA-Z0-9_+-]+:/g, '')
     .replace(/<[^>]+>/g, '')
     .replace(/[\s\r\n\t]+/g, ' ')
     .trim();
