@@ -46,9 +46,10 @@ describe('lang-filter', () => {
       expect(detectLanguage('これは日本語のテスト投稿です。')).toBe('jpn');
     });
 
-    it('detects kanji-only Japanese short phrases', () => {
-      expect(detectLanguage('本日晴天 乾杯！')).toBe('jpn');
-      expect(detectLanguage('帰宅 了解')).toBe('jpn');
+    it('returns und for ambiguous 2-character words and relies on franc for kanji without kana', () => {
+      expect(detectLanguage('乾杯')).toBe('und');
+      expect(detectLanguage('谢谢')).toBe('und');
+      expect(detectLanguage('谢谢大家')).toBe('zho');
     });
 
     it('detects Russian / Cyrillic text reliably', () => {
@@ -64,9 +65,9 @@ describe('lang-filter', () => {
       expect(detectLanguage('我们都是好朋友')).toBe('zho');
     });
 
-    it('detects English text and short english words', () => {
+    it('detects English text and returns und for very short acronyms like gm', () => {
       expect(detectLanguage('This is a longer English post for testing language detection in Nostr.')).toBe('eng');
-      expect(detectLanguage('gm')).toBe('eng');
+      expect(detectLanguage('gm')).toBe('und');
       expect(detectLanguage('Hello world')).toBe('nld'); // franc classifies short 'Hello world' as nld (in 14 langs)
     });
 
@@ -83,7 +84,7 @@ describe('lang-filter', () => {
     });
 
     it('detects language accurately when mixed with custom emoji shortcodes', () => {
-      expect(detectLanguage('了解 :blobcat_nod:')).toBe('jpn');
+      expect(detectLanguage('了解です :blobcat_nod:')).toBe('jpn');
       expect(detectLanguage(':blobcat_dance: おはようございます')).toBe('jpn');
       expect(detectLanguage(':custom_emoji: Hello world from Nostr client')).toBe('eng');
     });

@@ -78,29 +78,13 @@ export function detectLanguage(content) {
     return 'kor';
   }
 
-  // 4. 漢字のみ（ひらがな・カタカナなし）の判定
-  if (/[\u4E00-\u9FFF]/.test(text)) {
-    // 簡体字特有の文字が含まれていれば中国語
-    if (/[这们国点为发会经个时要过说]/i.test(text)) {
-      return 'zho';
-    }
-    // 短い漢字のみの投稿（「乾杯」「本日晴天」「帰宅」「了解」など）は日本語としても成立
-    const letters = text.replace(/[^\p{L}]/gu, '');
-    if (letters.length <= 6) {
-      return 'jpn';
-    }
-    return 'zho';
-  }
-
   // 文字が全くない（数字や絵文字・記号のみ）場合は判定不能（und）
   const lettersOnly = text.replace(/[^\p{L}]/gu, '');
   if (lettersOnly.length === 0) {
     return 'und';
   }
 
-  // 5. ラテン文字判定（非ASCII文字を含まない英数字・記号）
-  const isLatin = !/[^\x20-\x7E\s]/.test(text);
-
+  // それ以外（漢字のみ、ラテン文字等）はエンジン（franc）に任せる
   try {
     const code = franc(text, { minLength: 3, only: FRANC_14_LANGS });
     const canonical = CODE_TO_CANONICAL.get(code) || code;
@@ -108,11 +92,6 @@ export function detectLanguage(content) {
       return canonical;
     }
   } catch (e) { }
-
-  // franc で und だがラテン英数字のみの場合、短い英語（gm, hello 等）として扱う
-  if (isLatin) {
-    return 'eng';
-  }
 
   return 'und';
 }
