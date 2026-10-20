@@ -226,15 +226,11 @@ export function resolveGlobalRelays(settingsManager, stateRelays) {
 }
 
 /**
- * 認証済みホームの live 購読先を 1 リレーに絞る。
- * 複数候補がある場合はグローバル購読先と重ならない read リレーを優先する。
+ * 認証済みホームの live 購読先リレーを解決する。
+ * （リレー分断によるフォロイー投稿の受信漏れを防ぐため全Readリレーを対象とする）
  */
-export function selectHomeLiveRelays(readRelays, globalRelays) {
-  const reads = Array.from(new Set((Array.isArray(readRelays) ? readRelays : []).filter(Boolean)));
-  if (reads.length <= 1) return reads;
-  const normalizeRelay = url => String(url).replace(/\/+$/, '').toLowerCase();
-  const globalSet = new Set((Array.isArray(globalRelays) ? globalRelays : []).filter(Boolean).map(normalizeRelay));
-  return [reads.find(url => !globalSet.has(normalizeRelay(url))) || reads[0]];
+export function selectHomeLiveRelays(readRelays, _globalRelays = null) {
+  return Array.from(new Set((Array.isArray(readRelays) ? readRelays : []).filter(Boolean)));
 }
 
 /**

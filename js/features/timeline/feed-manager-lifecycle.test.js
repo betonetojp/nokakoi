@@ -239,7 +239,7 @@ describe('feed manager startup lifecycle', () => {
     expect(full.stopLive).not.toHaveBeenCalled();
   });
 
-  it('keeps home history on all read relays and avoids the global relay for live', () => {
+  it('keeps home history and live on all read relays even when global relay is specified', () => {
     const relayJp = 'wss://relay-jp.example';
     const relayUs = 'wss://relay-us.example';
     mocks.getReadRelays.mockReturnValue([relayJp, relayUs]);
@@ -269,7 +269,7 @@ describe('feed manager startup lifecycle', () => {
 
     const homeOptions = mocks.setupFeedFetcher.mock.calls.find(([opts]) => opts.feedId === 'home')[0];
     expect(homeOptions.relays).toEqual([relayJp, relayUs]);
-    expect(homeOptions.liveRelays).toEqual([relayUs]);
+    expect(homeOptions.liveRelays).toEqual([relayJp, relayUs]);
 
     const pFilter = homeOptions.liveFilters.find(f => Array.isArray(f['#p']));
     expect(pFilter.kinds).toContain(16);
