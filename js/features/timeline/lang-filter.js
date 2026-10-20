@@ -1,7 +1,7 @@
 import { franc } from 'franc-min';
 
 /**
- * kakoi 準拠の 14言語定義（国旗絵文字付き）
+ * 主要8言語定義（国旗絵文字付き）
  */
 export const SUPPORTED_LANGUAGES = [
   { code: 'jpn', nameJa: '日本語', nameEn: 'Japanese', flag: '🇯🇵' },
@@ -12,12 +12,6 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'fra', nameJa: 'フランス語', nameEn: 'French', flag: '🇫🇷' },
   { code: 'spa', nameJa: 'スペイン語', nameEn: 'Spanish', flag: '🇪🇸' },
   { code: 'por', nameJa: 'ポルトガル語', nameEn: 'Portuguese', flag: '🇧🇷' },
-  { code: 'ita', nameJa: 'イタリア語', nameEn: 'Italian', flag: '🇮🇹' },
-  { code: 'rus', nameJa: 'ロシア語', nameEn: 'Russian', flag: '🇷🇺' },
-  { code: 'nld', nameJa: 'オランダ語', nameEn: 'Dutch', flag: '🇳🇱' },
-  { code: 'nor', nameJa: 'ノルウェー語', nameEn: 'Norwegian', flag: '🇳🇴' },
-  { code: 'swe', nameJa: 'スウェーデン語', nameEn: 'Swedish', flag: '🇸🇪' },
-  { code: 'dan', nameJa: 'デンマーク語', nameEn: 'Danish', flag: '🇩🇰' },
   { code: 'und', nameJa: '未判定', nameEn: 'Undetermined', flag: null }
 ];
 
@@ -29,8 +23,8 @@ SUPPORTED_LANGUAGES.forEach(lang => {
   }
 });
 
-// franc に渡す対象言語リスト（14言語限定で識別精度を向上）
-const FRANC_14_LANGS = ['dan', 'deu', 'eng', 'fra', 'ita', 'jpn', 'kor', 'cmn', 'nld', 'nor', 'por', 'rus', 'spa', 'swe'];
+// franc に渡す対象言語リスト（主要8言語限定で識別精度を向上）
+const FRANC_8_LANGS = ['cmn', 'deu', 'eng', 'fra', 'jpn', 'kor', 'por', 'spa'];
 
 /**
  * 言語コードに対応する国旗絵文字を取得する
@@ -63,17 +57,12 @@ export function detectLanguage(content) {
   const text = cleanTextForLangDetection(content);
   if (!text) return 'und';
 
-  // 1. キリル文字 (ロシア語): 1文字でもキリル文字があればロシア語として扱う
-  if (/[\u0400-\u04FF]/.test(text)) {
-    return 'rus';
-  }
-
-  // 2. 日本語判定: ひらがなまたはカタカナが含まれる場合は確実に日本語
+  // 1. 日本語判定: ひらがなまたはカタカナが含まれる場合は確実に日本語
   if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) {
     return 'jpn';
   }
 
-  // 3. 韓国語判定: ハングルが含まれる場合は韓国語
+  // 2. 韓国語判定: ハングルが含まれる場合は韓国語
   if (/[\uAC00-\uD7AF\u1100-\u11FF]/.test(text)) {
     return 'kor';
   }
@@ -86,7 +75,7 @@ export function detectLanguage(content) {
 
   // それ以外（漢字のみ、ラテン文字等）はエンジン（franc）に任せる
   try {
-    const code = franc(text, { minLength: 3, only: FRANC_14_LANGS });
+    const code = franc(text, { minLength: 3, only: FRANC_8_LANGS });
     const canonical = CODE_TO_CANONICAL.get(code) || code;
     if (canonical && canonical !== 'und') {
       return canonical;

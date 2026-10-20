@@ -15,6 +15,7 @@ import { pickChannelRootId, scheduleChannelLabelUpdate } from '../../features/ch
 import { findEventById } from '../../core/state.js';
 import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
 import { t } from '../../utils/i18n.js';
+import { detectLanguage, getLanguageFlag } from '../../features/timeline/lang-filter.js';
 
 /**
  * イベント詳細モーダルを表示（タイムラインのkind:1表示と同じレイアウト・アクション）
@@ -278,9 +279,9 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
   const timeEl = modal.querySelector('#eventModalTime');
   timeEl.textContent = event.created_at ? fmtTime(event.created_at) : '';
 
-  // 古いクライアント名バッジがあれば削除
+  // 古いクライアント名バッジと言語バッジがあれば削除
   try {
-    const existingBadges = modal.querySelectorAll('.client-badge');
+    const existingBadges = modal.querySelectorAll('.client-badge, .lang-flag-badge');
     existingBadges.forEach(b => b.remove());
   } catch (e) { }
 
@@ -304,6 +305,33 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
             applyClientBadgeToContainer(modal);
           }
         }
+      }
+    }
+  } catch (e) { }
+
+  // kindバッジの右に判定言語の国旗絵文字を表示
+  try {
+    let contentToDetect = event.content || '';
+    if ((event.kind === 6 || event.kind === 16) && typeof contentToDetect === 'string' && contentToDetect.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(contentToDetect.trim());
+        if (parsed && typeof parsed.content === 'string') contentToDetect = parsed.content;
+      } catch (e) { }
+    }
+    const detectedLang = detectLanguage(contentToDetect);
+    const flag = getLanguageFlag(detectedLang);
+    if (flag) {
+      if (kindEl && kindEl.parentNode) {
+        const flagSpan = document.createElement('span');
+        flagSpan.className = 'lang-flag-badge';
+        flagSpan.textContent = flag;
+        flagSpan.title = detectedLang;
+        flagSpan.style.marginLeft = '4px';
+        flagSpan.style.marginRight = '2px';
+        flagSpan.style.cursor = 'default';
+        flagSpan.style.fontSize = '0.9em';
+        flagSpan.style.verticalAlign = 'middle';
+        kindEl.parentNode.insertBefore(flagSpan, kindEl.nextSibling);
       }
     }
   } catch (e) { }

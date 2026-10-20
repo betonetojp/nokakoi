@@ -328,6 +328,7 @@
   "auth.remove_passkey.title": "パスキーデータの削除",
   "auth.remove_passkey.message": "{device}のパスキーデータを削除しますか？\n削除しない場合、次回もパスキー認証（指紋/PIN/顔認証など）でログインできます。\n\n⚠️ 注意: パスキー自体は端末やブラウザのパスキー管理機能に保存されています。\n完全に削除するには、ご利用の端末やブラウザの設定からパスキー管理画面を開き、該当するパスキーを削除してください。",
   "feed.load_more": "もっと読む",
+  "feed.load_before": "{time} 以前を読み込む",
   "see_detail": "省略されています",
   "notification.new_item": "新しい通知",
   "nostrtools.not_loaded": "nostr-toolsが読み込めていません。ネットワークやCDNを確認してください。",

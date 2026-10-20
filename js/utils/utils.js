@@ -15,6 +15,7 @@ export {
   resolveThemeButtonBg,
   replaceBadgeEmoji,
   fmtTime,
+  formatLoadBeforeTime,
   truncateByBytes,
   truncateName,
   truncateByGraphemeVisible,

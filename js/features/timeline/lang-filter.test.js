@@ -26,8 +26,12 @@ describe('lang-filter', () => {
     it('returns flag emoji for supported language codes', () => {
       expect(getLanguageFlag('jpn')).toBe('🇯🇵');
       expect(getLanguageFlag('eng')).toBe('🇺🇸');
-      expect(getLanguageFlag('rus')).toBe('🇷🇺');
       expect(getLanguageFlag('kor')).toBe('🇰🇷');
+      expect(getLanguageFlag('deu')).toBe('🇩🇪');
+      expect(getLanguageFlag('fra')).toBe('🇫🇷');
+      expect(getLanguageFlag('spa')).toBe('🇪🇸');
+      expect(getLanguageFlag('por')).toBe('🇧🇷');
+      expect(getLanguageFlag('rus')).toBeNull();
       expect(getLanguageFlag('zho')).toBe('🇨🇳');
       expect(getLanguageFlag('cmn')).toBe('🇨🇳'); // alias
     });
@@ -52,9 +56,9 @@ describe('lang-filter', () => {
       expect(detectLanguage('谢谢大家')).toBe('zho');
     });
 
-    it('detects Russian / Cyrillic text reliably', () => {
-      expect(detectLanguage('Привет мир!')).toBe('rus');
-      expect(detectLanguage('да')).toBe('rus');
+    it('classifies Russian / Cyrillic text as und since rus is excluded', () => {
+      expect(detectLanguage('Привет мир!')).toBe('und');
+      expect(detectLanguage('да')).toBe('und');
     });
 
     it('detects Korean text with hangul', () => {
@@ -68,7 +72,7 @@ describe('lang-filter', () => {
     it('detects English text and returns und for very short acronyms like gm', () => {
       expect(detectLanguage('This is a longer English post for testing language detection in Nostr.')).toBe('eng');
       expect(detectLanguage('gm')).toBe('und');
-      expect(detectLanguage('Hello world')).toBe('nld'); // franc classifies short 'Hello world' as nld (in 14 langs)
+      expect(detectLanguage('Hello world')).toBe('eng'); // correctly classified as eng in 8 langs!
     });
 
     it('detects German text', () => {
@@ -91,6 +95,12 @@ describe('lang-filter', () => {
   });
 
   describe('SUPPORTED_LANGUAGES', () => {
+    it('defines 8 major languages plus und', () => {
+      expect(SUPPORTED_LANGUAGES).toHaveLength(9);
+      const codes = SUPPORTED_LANGUAGES.map(l => l.code);
+      expect(codes).toEqual(['jpn', 'eng', 'kor', 'zho', 'deu', 'fra', 'spa', 'por', 'und']);
+    });
+
     it('includes und with flag: null', () => {
       const und = SUPPORTED_LANGUAGES.find(l => l.code === 'und');
       expect(und).toBeDefined();

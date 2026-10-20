@@ -10,9 +10,31 @@ export function fmtTime(ts) {
     if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()) {
       return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
+    if (d.getFullYear() !== now.getFullYear()) {
+      return d.toLocaleString(undefined, { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
     return d.toLocaleString(undefined, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   } catch (e) {
     return d.toLocaleString();
+  }
+}
+
+export function formatLoadBeforeTime(ts) {
+  if (typeof ts !== 'number' || isNaN(ts) || ts <= 0) return '';
+  const d = new Date(ts * 1000);
+  try {
+    const now = new Date();
+    const isCurrentYear = d.getFullYear() === now.getFullYear();
+    const month = d.getMonth() + 1;
+    const date = d.getDate();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    if (isCurrentYear) {
+      return `${month}/${date} ${hours}:${minutes}`;
+    }
+    return `${d.getFullYear()}/${month}/${date} ${hours}:${minutes}`;
+  } catch (e) {
+    return '';
   }
 }
 

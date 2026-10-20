@@ -172,4 +172,38 @@ describe('showEventModal for kind:40 and kind:30030', () => {
     expect(inlineImg).not.toBeNull();
     expect(inlineImg.getAttribute('src')).toBe('https://example.com/sample.png');
   });
+
+  it('renders language flag badge next to kind button for Japanese event and cleans up on next event', () => {
+    const jaEvent = {
+      id: 'ja-event-1',
+      pubkey: '1111111111111111111111111111111111111111111111111111111111111111',
+      kind: 1,
+      created_at: 1700000000,
+      content: 'こんにちは、世界！今日も良い天気ですね。',
+      tags: []
+    };
+    const state = { profiles: new Map() };
+    showEventModal(jaEvent, state, {}, null, null, null, {}, {});
+
+    const flagBadge = modal.querySelector('.lang-flag-badge');
+    expect(flagBadge).not.toBeNull();
+    expect(flagBadge.textContent).toBe('🇯🇵');
+    expect(flagBadge.title).toBe('jpn');
+
+    // Opening another event (English) cleans up the old badge and sets new one
+    const enEvent = {
+      id: 'en-event-1',
+      pubkey: '1111111111111111111111111111111111111111111111111111111111111111',
+      kind: 1,
+      created_at: 1700000000,
+      content: 'Hello world, this is a wonderful sunny day with english words.',
+      tags: []
+    };
+    showEventModal(enEvent, state, {}, null, null, null, {}, {});
+
+    const allBadges = modal.querySelectorAll('.lang-flag-badge');
+    expect(allBadges.length).toBe(1);
+    expect(allBadges[0].textContent).toBe('🇺🇸');
+    expect(allBadges[0].title).toBe('eng');
+  });
 });

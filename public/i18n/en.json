@@ -330,6 +330,7 @@
   "auth.remove_passkey.title": "Remove passkey data",
   "auth.remove_passkey.message": "Remove passkey data for {device}? If not removed, you can still login with passkey (fingerprint/PIN/face) next time.\n\nNote: passkeys are stored by your device/browser. To completely remove, use your device or browser passkey management.",
   "feed.load_more": "Load more",
+  "feed.load_before": "Load before {time}",
   "see_detail": "Omitted",
   "notification.new_item": "New notification",
   "nostrtools.not_loaded": "nostr-tools not loaded. Check network or CDN.",

@@ -473,7 +473,7 @@ export function fetchMore(opts) {
         const rawEvents = Array.from(roundRawMap.values());
         roundRawCount = rawEvents.length;
 
-        // 全リレーから集まった生イベントを新しい順にソートし、上位 eventsFetchLimit (30件) を抽出
+        // 全リレーから集まった生イベントを新しい順にソートし、上位 eventsFetchLimit (50件) を抽出
         rawEvents.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
         const topBatch = rawEvents.slice(0, eventsFetchLimit);
 

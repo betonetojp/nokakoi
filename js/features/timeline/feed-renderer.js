@@ -13,7 +13,7 @@ import { buildOutgoingZapReceiptFilter } from './feed-filters.js';
 import { shouldDisplayGlobalEvent } from './lang-filter.js';
 import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } from '../../utils/url-parser.js';
 import { t } from '../../utils/i18n.js';
-import { $ } from '../../utils/utils.js';
+import { $, formatLoadBeforeTime } from '../../utils/utils.js';
 import { getSelectedEventEl, setSelectedEventEl } from '../../ui/keyboard-shortcuts.js';
 import {
   getScrollAnchor,
@@ -25,6 +25,25 @@ import {
 export const feedLoadState = {};
 export const userKind7Memory = new Map();
 try { window.userKind7Memory = userKind7Memory; } catch (e) { }
+
+export function getLoadMoreLabel(feedId, state = _state, options = _options) {
+  try {
+    const isMergedGlobal = (feedId === 'global' && options?.settingsManager?.get('globalMergeHome') === true);
+    const feed = state?.feeds?.[feedId];
+    const untilTs = isMergedGlobal ? feed?.mergedPaginationUntil : feed?.paginationUntil;
+    if (typeof untilTs === 'number' && !isNaN(untilTs) && untilTs > 0) {
+      const formatted = formatLoadBeforeTime(untilTs);
+      if (formatted) {
+        const translated = t('feed.load_before', { time: formatted });
+        if (translated && translated !== 'feed.load_before') {
+          return translated;
+        }
+        return `${formatted} 以前を読み込む`;
+      }
+    }
+  } catch (e) { }
+  return t('feed.load_more') || 'もっと読む';
+}
 
 const _renderTimers = {};
 let _state = null;
@@ -761,7 +780,7 @@ export function renderFeed(id = 'global', force = false) {
     bottomBar = document.createElement('button');
     bottomBar.type = 'button';
     bottomBar.className = 'feed-bar feed-bar-bottom accent-center load-more-btn' + (isAutoMode ? ' is-loading-auto' : '');
-    bottomBar.textContent = isAutoMode ? t('loading') : (isLoadingMore ? t('loading') : t('feed.load_more'));
+    bottomBar.textContent = isAutoMode ? t('loading') : (isLoadingMore ? t('loading') : getLoadMoreLabel(id, _state, _options));
     bottomBar.dataset.autoLoad = isAutoMode ? '1' : '0';
 
     if (_options.setupInfiniteScrollObserver) {
@@ -869,7 +888,7 @@ export function renderFeed(id = 'global', force = false) {
             if (bottomBar) {
               if (feedLoadState[id].autoFetchFailed) {
                 bottomBar.classList.remove('is-loading-auto');
-                bottomBar.textContent = t('feed.load_more');
+                bottomBar.textContent = getLoadMoreLabel(id, _state, _options);
                 bottomBar.dataset.autoLoad = '0';
               } else {
                 bottomBar.classList.add('is-loading-auto');
@@ -978,7 +997,7 @@ export function renderFeed(id = 'global', force = false) {
             startListLength
           });
           try { feedLoadState[id].loadingMore = false; } catch (ee) { }
-          try { if (bottomBar) bottomBar.textContent = t('feed.load_more'); } catch (ee) { }
+          try { if (bottomBar) bottomBar.textContent = getLoadMoreLabel(id, _state, _options); } catch (ee) { }
         }
       } catch (err) {
         console.error('[FeedRenderer] bottomBar.onclick crash:', err);
@@ -987,7 +1006,7 @@ export function renderFeed(id = 'global', force = false) {
           listLength: Array.isArray(feed && feed.list) ? feed.list.length : 0
         });
         try { feedLoadState[id].loadingMore = false; } catch (ee) { }
-        try { if (bottomBar) bottomBar.textContent = t('feed.load_more'); } catch (ee) { }
+        try { if (bottomBar) bottomBar.textContent = getLoadMoreLabel(id, _state, _options); } catch (ee) { }
       }
     };
   }
