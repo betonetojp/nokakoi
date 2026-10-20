@@ -67,7 +67,10 @@ export function applyPerFilterUntil(state, feedId, baseFilters, fallbackUntil = 
     const feed = state && state.feeds && state.feeds[feedId];
     const perFilterUntil = feed && Array.isArray(feed.perFilterUntil) ? feed.perFilterUntil : [];
     return baseFilters.map((filter, i) => {
-      const filterUntil = (perFilterUntil[i] != null) ? (perFilterUntil[i] - 1) : (fallbackUntil != null ? fallbackUntil - 1 : null);
+      let filterUntil = (perFilterUntil[i] != null) ? (perFilterUntil[i] - 1) : (fallbackUntil != null ? fallbackUntil - 1 : null);
+      if (typeof feed?.paginationUntil === 'number' && (filterUntil == null || feed.paginationUntil < filterUntil)) {
+        filterUntil = feed.paginationUntil;
+      }
       const updated = Object.assign({}, filter);
       if (filterUntil != null) {
         updated.until = filterUntil;
@@ -417,6 +420,16 @@ export function fetchMore(opts) {
         total = keep.length;
       } catch (e) { }
       try { updatePerFilterUntil(state, feedId, filters, state.feeds[feedId]?.list || []); } catch (e) { }
+      try {
+        const feed = state && state.feeds && state.feeds[feedId];
+        if (feed) {
+          if (appended > 0) {
+            delete feed.paginationUntil;
+          } else if (typeof globalMinScannedTs === 'number') {
+            feed.paginationUntil = globalMinScannedTs - 1;
+          }
+        }
+      } catch (e) { }
       cleanupAll();
       // abort リスナーを解除
       try { if (abortListener && controller && controller.signal) controller.signal.removeEventListener('abort', abortListener); } catch (e) { }
@@ -448,6 +461,7 @@ export function fetchMore(opts) {
       round += 1;
       let roundRawCount = 0;
       let roundMinScannedTs = null;
+      const roundRawMap = new Map();
       let finishedSubs = 0;
       let roundTimer = null;
 
@@ -455,6 +469,28 @@ export function fetchMore(opts) {
         if (settled) return;
         if (roundTimer) { clearTimeout(roundTimer); roundTimer = null; }
         cleanupAll();
+
+        const rawEvents = Array.from(roundRawMap.values());
+        roundRawCount = rawEvents.length;
+
+        // 全リレーから集まった生イベントを新しい順にソートし、上位 eventsFetchLimit (30件) を抽出
+        rawEvents.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+        const topBatch = rawEvents.slice(0, eventsFetchLimit);
+
+        if (topBatch.length > 0) {
+          const lastEv = topBatch[topBatch.length - 1];
+          if (typeof lastEv.created_at === 'number') {
+            roundMinScannedTs = lastEv.created_at;
+          }
+        }
+
+        // 上位30件の中から acceptEvent を通過したものをバッファに追加
+        for (const ev of topBatch) {
+          if (typeof acceptEvent !== 'function' || acceptEvent(ev)) {
+            try { moreBuffer.set(ev.id, ev); } catch (e) { }
+            try { if (typeof onCollect === 'function') onCollect(ev); } catch (e) { }
+          }
+        }
 
         if (roundMinScannedTs != null) {
           globalMinScannedTs = (globalMinScannedTs == null)
@@ -484,14 +520,7 @@ export function fetchMore(opts) {
           const key = (round === 1) ? (feedId + '_more_multi') : (feedId + '_more_multi_' + round);
           unsubAll = subOnce(state, key, currentFilters, (ev, relay, done) => {
             if (ev && ev.id) {
-              roundRawCount += 1;
-              if (typeof ev.created_at === 'number') {
-                roundMinScannedTs = (roundMinScannedTs == null) ? ev.created_at : Math.min(roundMinScannedTs, ev.created_at);
-              }
-              if (typeof acceptEvent !== 'function' || acceptEvent(ev)) {
-                try { moreBuffer.set(ev.id, ev); } catch (e) { }
-                try { if (typeof onCollect === 'function') onCollect(ev); } catch (e) { }
-              }
+              roundRawMap.set(ev.id, ev);
             }
             if (done && relay) {
               doneRelays.add(relay);
@@ -514,14 +543,7 @@ export function fetchMore(opts) {
           const key = (round === 1) ? (feedId + '_more_' + relay) : (feedId + '_more_' + relay + '_' + round);
           const unsub = subOnce(state, key, currentFilters, (ev, r, done) => {
             if (ev && ev.id) {
-              roundRawCount += 1;
-              if (typeof ev.created_at === 'number') {
-                roundMinScannedTs = (roundMinScannedTs == null) ? ev.created_at : Math.min(roundMinScannedTs, ev.created_at);
-              }
-              if (typeof acceptEvent !== 'function' || acceptEvent(ev)) {
-                try { moreBuffer.set(ev.id, ev); } catch (e) { }
-                try { if (typeof onCollect === 'function') onCollect(ev); } catch (e) { }
-              }
+              roundRawMap.set(ev.id, ev);
             }
             if (done) {
               finishedSubs += 1;

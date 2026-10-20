@@ -777,7 +777,7 @@ export function renderFeed(id = 'global', force = false) {
       try {
         const isManual = clickEvent?.isTrusted === true;
         const listForClick = feed.list || [];
-        const hasPagination = Array.isArray(feed.perFilterUntil) && feed.perFilterUntil.some(t => t != null);
+        const hasPagination = (typeof feed.paginationUntil === 'number') || (Array.isArray(feed.perFilterUntil) && feed.perFilterUntil.some(t => t != null));
         if (!listForClick.length && !hasPagination && id !== 'global') {
           return;
         }
@@ -800,7 +800,9 @@ export function renderFeed(id = 'global', force = false) {
         };
 
         let untilFallback = Math.floor(Date.now() / 1000);
-        if (oldest && isValidTimestamp(oldest.created_at)) {
+        if (typeof feed.paginationUntil === 'number' && isValidTimestamp(feed.paginationUntil)) {
+          untilFallback = feed.paginationUntil;
+        } else if (oldest && isValidTimestamp(oldest.created_at)) {
           untilFallback = oldest.created_at;
         } else {
           const validEvent = listForClick.slice().reverse().find(e => e && isValidTimestamp(e.created_at));

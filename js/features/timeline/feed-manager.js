@@ -408,6 +408,8 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
       );
       if (madeProgress) {
         delete gfeed.mergedPaginationUntil;
+      } else if (typeof globalMinScannedTs === 'number') {
+        gfeed.mergedPaginationUntil = globalMinScannedTs - 1;
       }
       cleanupAll();
       resolve({
@@ -430,6 +432,7 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
       round += 1;
       let roundRawCount = 0;
       let roundMinScannedTs = null;
+      const roundRawMap = new Map();
 
       const homeFilters = buildHomeLoadMoreFiltersForGlobalMerge(currentMergeUntil);
       const relayToFilters = new Map();
@@ -460,6 +463,25 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
         if (roundTimer) { clearTimeout(roundTimer); roundTimer = null; }
         cleanupAll();
 
+        const rawEvents = Array.from(roundRawMap.values());
+        roundRawCount = rawEvents.length;
+
+        // 全リレーから集まった生イベントを新しい順にソートし、上位 EVENTS_FETCH_LIMIT (30件) を抽出
+        rawEvents.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+        const topBatch = rawEvents.slice(0, EVENTS_FETCH_LIMIT);
+
+        if (topBatch.length > 0) {
+          const lastEv = topBatch[topBatch.length - 1];
+          if (typeof lastEv.created_at === 'number') {
+            roundMinScannedTs = lastEv.created_at;
+          }
+        }
+
+        // 上位30件を moreBuffer に格納
+        for (const ev of topBatch) {
+          moreBuffer.set(ev.id, ev);
+        }
+
         if (roundMinScannedTs != null) {
           globalMinScannedTs = (globalMinScannedTs == null)
             ? roundMinScannedTs
@@ -485,11 +507,7 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
           const key = (round === 1) ? ('merged_global_more_' + relay) : ('merged_global_more_' + relay + '_' + round);
           const unsub = subOnce(state, key, filtersList, (ev, r, done) => {
             if (ev?.id && isGlobalMergeKind(ev)) {
-              roundRawCount += 1;
-              if (typeof ev.created_at === 'number') {
-                roundMinScannedTs = (roundMinScannedTs == null) ? ev.created_at : Math.min(roundMinScannedTs, ev.created_at);
-              }
-              moreBuffer.set(ev.id, ev);
+              roundRawMap.set(ev.id, ev);
             }
             if (done) {
               finishedSubs += 1;

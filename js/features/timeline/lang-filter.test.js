@@ -125,12 +125,27 @@ describe('lang-filter', () => {
       expect(shouldDisplayGlobalEvent(ev, mockState, settings)).toBe(true);
     });
 
-    it('always allows user own posts even in different languages or when undetermined', () => {
+    it('filters user own posts by language when mergeHome is false', () => {
       const settings = createSettings(true, ['jpn'], false);
-      const ev1 = { pubkey: 'mypubkey123', content: 'This is an English post written by myself' };
-      const ev2 = { pubkey: 'mypubkey123', content: '👍🎉' };
-      expect(shouldDisplayGlobalEvent(ev1, mockState, settings)).toBe(true);
-      expect(shouldDisplayGlobalEvent(ev2, mockState, settings)).toBe(true);
+      const evEnglish = { pubkey: 'mypubkey123', content: 'This is an English post written by myself' };
+      const evJapanese = { pubkey: 'mypubkey123', content: 'これは自分で書いた日本語の投稿です' };
+      expect(shouldDisplayGlobalEvent(evEnglish, mockState, settings)).toBe(false);
+      expect(shouldDisplayGlobalEvent(evJapanese, mockState, settings)).toBe(true);
+    });
+
+    it('allows user own posts when mergeHome is true and user follows themselves', () => {
+      const stateWithSelfFollow = {
+        ...mockState,
+        feeds: {
+          home: {
+            ...mockState.feeds.home,
+            followSet: new Set([...mockState.feeds.home.followSet, 'mypubkey123'])
+          }
+        }
+      };
+      const settings = createSettings(true, ['jpn'], true);
+      const ev = { pubkey: 'mypubkey123', content: 'This is an English post written by myself' };
+      expect(shouldDisplayGlobalEvent(ev, stateWithSelfFollow, settings)).toBe(true);
     });
 
     it('allows followee posts regardless of language when mergeHome is true', () => {

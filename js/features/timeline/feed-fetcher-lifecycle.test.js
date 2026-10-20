@@ -174,5 +174,77 @@ describe('feed fetcher logical keys', () => {
     expect(state.feeds.global.list[0].id).toBe('ev2');
     expect(state.feeds.global.perFilterUntil[0]).toBe(70);
   });
-});
+  it('bounds round until by the 30th raw event, ignoring outlier events beyond limit', async () => {
+    const state = {
+      relays: ['wss://busy.example', 'wss://deserted.example'],
+      feeds: { global: { list: [], map: new Map() } }
+    };
+    const options = {
+      state,
+      feedId: 'global',
+      filters: [{ kinds: [1], until: 1000 }],
+      relays: ['wss://busy.example', 'wss://deserted.example'],
+      startListLength: 0,
+      addToFeed: vi.fn(),
+      scheduleRender: vi.fn(),
+      eventsFetchLimit: 5,
+      acceptEvent: (ev) => ev && ev.content === 'allowed'
+    };
 
+    const promise = fetchMore(options);
+
+    const cbBusy = mocks.subOnce.mock.calls[0][3];
+    const cbDeserted = mocks.subOnce.mock.calls[1][3];
+
+    for (let i = 0; i < 5; i++) {
+      cbBusy({ id: 'busy_' + i, content: 'disallowed', created_at: 900 - i * 10 }, 'wss://busy.example', false);
+    }
+    cbDeserted({ id: 'deserted_1', content: 'disallowed', created_at: 100 }, 'wss://deserted.example', true);
+    cbBusy(null, 'wss://busy.example', true);
+
+    expect(mocks.subOnce).toHaveBeenCalledTimes(4);
+    const round2Filter = mocks.subOnce.mock.calls[2][2][0];
+    expect(round2Filter.until).toBe(859);
+
+    const cbBusy2 = mocks.subOnce.mock.calls[2][3];
+    const cbDeserted2 = mocks.subOnce.mock.calls[3][3];
+    cbBusy2({ id: 'ev_win', kind: 1, content: 'allowed', created_at: 800 }, 'wss://busy.example', true);
+    cbDeserted2(null, 'wss://deserted.example', true);
+
+    const res = await promise;
+    expect(res.appendedCount).toBe(1);
+    expect(state.feeds.global.list[0].id).toBe('ev_win');
+  });
+
+  it('saves paginationUntil when all rounds return 0 accepted events, and applyPerFilterUntil uses it', async () => {
+    const state = {
+      relays: ['wss://relay.example'],
+      feeds: { global: { list: [], map: new Map() } }
+    };
+    const options = {
+      state,
+      feedId: 'global',
+      filters: [{ kinds: [1], until: 1000 }],
+      relays: ['wss://relay.example'],
+      startListLength: 0,
+      addToFeed: vi.fn(),
+      scheduleRender: vi.fn(),
+      eventsFetchLimit: 2,
+      acceptEvent: () => false
+    };
+
+    const promise = fetchMore(options);
+
+    for (let r = 0; r < 5; r++) {
+      const cb = mocks.subOnce.mock.calls[r][3];
+      cb({ id: 'ev_r' + r, content: 'rejected', created_at: 900 - r * 100 }, 'wss://relay.example', true);
+    }
+
+    const res = await promise;
+    expect(res.appendedCount).toBe(0);
+    expect(state.feeds.global.paginationUntil).toBe(499);
+
+    const nextFilters = applyPerFilterUntil(state, 'global', [{ kinds: [1] }], 1000);
+    expect(nextFilters[0].until).toBe(499);
+  });
+});

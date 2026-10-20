@@ -115,14 +115,11 @@ export function shouldDisplayGlobalEvent(ev, state, settingsManager) {
   const enabled = rawEnabled === true || rawEnabled === 'true';
   if (!enabled) return true;
 
-  // 自分の投稿チェック（常に表示）
-  const myPubkey = (state?.pubkey || (typeof localStorage !== 'undefined' ? localStorage.getItem('pubkey') : null) || '').toLowerCase();
-  const evPubkey = (ev.pubkey || '').toLowerCase();
-  if (myPubkey && evPubkey && myPubkey === evPubkey) return true;
-
   // フォロイーチェック: ホームマージ有効時のみ言語判定から除外（常に表示）
+  // ※自分を特別扱いしたい場合は自分をフォローしてホームマージをONにすることで同等に扱う
   const mergeHome = settingsManager.get('globalMergeHome') === true;
   const homeFeed = state?.feeds?.home;
+  const evPubkey = (ev.pubkey || '').toLowerCase();
   if (mergeHome && homeFeed && evPubkey) {
     if (homeFeed.followSet && homeFeed.followSet.has(evPubkey)) return true;
     if (Array.isArray(homeFeed.follows) && homeFeed.follows.some(pk => pk && pk.toLowerCase() === evPubkey)) return true;
