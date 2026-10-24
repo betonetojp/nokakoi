@@ -71,13 +71,24 @@ export function setLang(lang) {
   try { localStorage.setItem('lang', lang); } catch (e) { }
 }
 
+const BUILTIN_FALLBACKS = {
+  'repost.label': '{author} をリポスト',
+  'reply.label': '{author} に返信',
+  'reaction.label': '{author} にリアクション',
+  'quote.label': '{author} を引用',
+  'article.quote_label': '記事',
+  'channel.quote_label': 'チャンネル',
+  'emoji.pack_quote_label': '絵文字パック',
+  'repost': 'リポスト',
+  'reply': '返信'
+};
+
 export function t(key, params) {
   const lang = getLang();
-  // DICTS が未ロードの場合は key をそのまま返す
-  if (!DICTS) {
-    return key;
+  let s = (DICTS && DICTS[lang] && DICTS[lang][key]) ? DICTS[lang][key] : (DICTS && DICTS['en'] && DICTS['en'][key]);
+  if (!s) {
+    s = BUILTIN_FALLBACKS[key] || key;
   }
-  let s = (DICTS[lang] && DICTS[lang][key]) ? DICTS[lang][key] : (DICTS['en'][key] || key);
   if (params && typeof params === 'object') {
     for (const k of Object.keys(params)) {
       if (typeof s.replaceAll === 'function') {

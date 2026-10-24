@@ -4,7 +4,7 @@
   contain: layout;
   scroll-margin-top: 50px;
   scroll-margin-bottom: 80px;
-  transition: background-color 0.2s ease, border-color 0.2s ease, padding 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 .event.event-selected {
   background-color: var(--panel);
@@ -267,6 +267,7 @@ evhead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   background: #000;
   cursor: pointer;
   position: relative;
+  min-height: 120px;
 }
 .media-inline img,
 .media-inline video {

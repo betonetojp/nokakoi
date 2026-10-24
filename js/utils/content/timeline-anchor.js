@@ -48,6 +48,48 @@ export function clearAnchorMaintenance() {
   } catch (e) { }
 }
 
+export function isScrollAnchoringSupported() {
+  try {
+    return typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('overflow-anchor', 'auto');
+  } catch (e) {
+    return false;
+  }
+}
+
+export function isBackScrolling(container) {
+  try {
+    if (typeof window === 'undefined') return false;
+    const feed = resolveActiveFeed(container) || document.querySelector('.feed.active');
+    if (!feed) return false;
+    const prevScrollY = window.scrollY || 0;
+    if (prevScrollY <= 0) return false;
+
+    const tabsBar = document.querySelector('.tabs');
+    const tabsBarHeight = tabsBar ? tabsBar.getBoundingClientRect().height : 0;
+    const feedRect = feed.getBoundingClientRect();
+    const tabTopPos = Math.max(0, Math.round(feedRect.top + prevScrollY - tabsBarHeight));
+    return prevScrollY > tabTopPos;
+  } catch (e) {
+    return false;
+  }
+}
+
+export function updateBackScrollingState(container) {
+  try {
+    const feed = resolveActiveFeed(container) || document.querySelector('.feed.active');
+    if (!feed) return false;
+    const back = isBackScrolling(feed);
+    if (back) {
+      feed.classList.add('back-scrolling');
+    } else {
+      feed.classList.remove('back-scrolling');
+    }
+    return back;
+  } catch (e) {
+    return false;
+  }
+}
+
 export function applyTimelineAnchorDrift(anchor, container) {
   try {
     if (!anchor || typeof window === 'undefined' || typeof anchor.top !== 'number') return false;
@@ -69,14 +111,7 @@ export function captureTimelineAnchor(container) {
     const feed = resolveActiveFeed(container);
     if (!feed) return null;
 
-    const prevScrollY = window.scrollY || 0;
-    if (prevScrollY <= 0) return null;
-
-    const tabsBar = document.querySelector('.tabs');
-    const tabsBarHeight = tabsBar ? tabsBar.getBoundingClientRect().height : 0;
-    const feedRect = feed.getBoundingClientRect();
-    const tabTopPos = Math.max(0, Math.round(feedRect.top + prevScrollY - tabsBarHeight));
-    if (prevScrollY <= tabTopPos) return null;
+    if (!isBackScrolling(feed)) return null;
 
     const events = feed.querySelectorAll('.event[data-event-id]');
     for (const ev of events) {

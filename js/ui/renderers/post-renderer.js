@@ -611,7 +611,7 @@ function bindProfileClickHandlers(div, ev, state, nip19, settings, settingsManag
     }
   }
 
-  const quoteLabelEls = div.querySelectorAll('.event-quote-label.name[data-pubkey]');
+  const quoteLabelEls = div.querySelectorAll('.event-quote-label[data-pubkey]');
   quoteLabelEls.forEach(labelEl => {
     labelEl.onclick = function () {
       const pubkey = labelEl.getAttribute('data-pubkey');
@@ -1297,15 +1297,34 @@ try {
 
         document.querySelectorAll('.reply-to-author').forEach(el => {
           try {
-            const nameEl = el.querySelector('.reply-author-name');
-            const name = nameEl ? nameEl.textContent : el.textContent || '';
             const parent = el.closest('.reply-to');
             if (parent && parent.classList.contains('zap')) {
               return;
             }
-            if (parent && parent.classList.contains('repost')) {
+            const pk = el.getAttribute('data-pubkey');
+            let authorName = '';
+            if (pk && window.__nostrState) {
+              import('../../features/profile/profile.js').then(({ displayName }) => {
+                authorName = displayName(window.__nostrState, pk);
+                if (authorName) {
+                  let label;
+                  if (parent.classList.contains('repost')) {
+                    label = t('repost.label', { author: escapeHtml(authorName) });
+                  } else if (parent.classList.contains('reaction')) {
+                    label = t('reaction.label', { author: escapeHtml(authorName) });
+                  } else {
+                    label = t('reply.label', { author: escapeHtml(authorName) });
+                  }
+                  el.innerHTML = '<span>' + replaceBadgeEmoji(label) + '</span>';
+                }
+              }).catch(() => { });
+              return;
+            }
+            const nameEl = el.querySelector('.reply-author-name');
+            const name = nameEl ? nameEl.textContent : el.textContent || '';
+            if (parent.classList.contains('repost')) {
               el.innerHTML = '<span class="reply-author-name">' + replaceBadgeEmoji(escapeHtml(name)) + '</span> ' + '<span>' + t('repost') + '</span>';
-            } else if (parent && parent.querySelector('.reply-marker') && parent.querySelector('.reply-marker').innerText.trim()) {
+            } else if (parent.querySelector('.reply-marker') && parent.querySelector('.reply-marker').innerText.trim()) {
               el.innerHTML = '<span class="reply-author-name">' + replaceBadgeEmoji(escapeHtml(name)) + '</span> ' + '<span>' + t('reaction.button.title') + '</span>';
             } else {
               el.innerHTML = '<span class="reply-author-name">' + replaceBadgeEmoji(escapeHtml(name)) + '</span> ' + '<span>' + t('reply') + '</span>';

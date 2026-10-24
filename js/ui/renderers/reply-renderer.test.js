@@ -8,7 +8,22 @@ vi.mock('../../features/profile/profile.js', () => ({
     if (pk === 'recipient') return 'アリス';
     if (pk === 'eadef7c9066f48df0f96f7a07778bc024c0f7f7332e98d6cad0d550b2ed2623a') return '\u200B📛お気に入り';
     return pk || '';
-  }
+  },
+  npubShort: (pk) => (pk && pk.length > 12 ? pk.slice(0, 12) + '…' : pk || '')
+}));
+
+vi.mock('../../utils/i18n.js', () => ({
+  t: (key, params) => {
+    if (key === 'repost.label' && params && params.author) return `${params.author} をリポスト`;
+    if (key === 'reply.label' && params && params.author) return `${params.author} に返信`;
+    if (key === 'reaction.label' && params && params.author) return `${params.author} にリアクション`;
+    if (params && typeof params === 'object') {
+      return Object.entries(params).reduce((acc, [k, v]) => acc.replace(`{${k}}`, v), key);
+    }
+    return key;
+  },
+  initI18n: () => Promise.resolve(),
+  applyTranslations: () => Promise.resolve()
 }));
 
 vi.mock('../../core/state.js', () => ({
@@ -155,5 +170,57 @@ describe('profile zap receipt cards', () => {
     expect(html).toContain('src="https://example.com/nan.png"');
     expect(html).toContain('article-quote-fade');
   });
-});
+  it('renders kind:6 repost placeholder with shortened npub when original event is not yet cached but p tag exists', async () => {
+    const { findEventById } = await import('../../core/state.js');
+    findEventById.mockReset();
+    findEventById.mockReturnValue(null);
+    const repostEvent = {
+      id: 'repost-ev-1',
+      kind: 6,
+      pubkey: 'reposter-pk',
+      content: '',
+      tags: [
+        ['e', 'orig-ev-123456789012', 'wss://relay.example.com'],
+        ['p', '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef']
+      ]
+    };
 
+    const html = renderReplyContext({ profiles: new Map() }, repostEvent, null, {});
+    expect(html).toContain('reply-to repost');
+    expect(html).toContain('data-pubkey="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"');
+    expect(html).toContain('data-event-id="orig-ev-123456789012"');
+    expect(html).toContain('0123456789ab…');
+  });
+
+  it('renders kind:6 repost with original event content and author display name when cached', async () => {
+    const { findEventById } = await import('../../core/state.js');
+    findEventById.mockImplementation((_state, id) => {
+      if (id === 'cached-orig-id') {
+        return {
+          id: 'cached-orig-id',
+          pubkey: 'recipient',
+          kind: 1,
+          content: 'こんにちは世界',
+          tags: []
+        };
+      }
+      return null;
+    });
+
+    const repostEvent = {
+      id: 'repost-ev-2',
+      kind: 6,
+      pubkey: 'reposter-pk',
+      content: '',
+      tags: [
+        ['e', 'cached-orig-id']
+      ]
+    };
+
+    const html = renderReplyContext({ profiles: new Map() }, repostEvent, null, {});
+    expect(html).toContain('reply-to repost');
+    expect(html).toContain('data-pubkey="recipient"');
+    expect(html).toContain('アリス');
+    expect(html).toContain('こんにちは世界');
+  });
+});

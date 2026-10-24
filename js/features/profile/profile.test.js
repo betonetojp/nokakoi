@@ -162,6 +162,43 @@ describe('updateAvatarDom and updateNameDom', () => {
     expect(avatar).not.toBeNull();
     expect(avatar.src).toBe('https://example.com/alice.png');
   });
+
+  it('updateNameDom updates .reply-to-author and .event-quote-label elements with fetched name', () => {
+    document.body.innerHTML = `
+      <div class="event" data-kind="6" data-pubkey="reposter">
+        <div class="reply-to repost">
+          <span class="reply-to-author" data-pubkey="pk_author"><span>npub1... をリポスト</span></span>
+        </div>
+      </div>
+      <div class="event" data-kind="1" data-pubkey="quoter">
+        <div class="event-quote">
+          <span class="event-quote-label" data-pubkey="pk_author">npub1... を引用</span>
+        </div>
+      </div>
+      <div class="event" data-kind="1" data-pubkey="article_quoter">
+        <div class="event-quote article-quote">
+          <span class="event-quote-label" data-pubkey="pk_author">記事 by npub1...</span>
+        </div>
+      </div>
+    `;
+
+    const state = {
+      profiles: new Map([
+        ['pk_author', { display_name: 'Bob', loaded: true }]
+      ])
+    };
+
+    updateNameDom(state, 'pk_author', { npubEncode: (pk) => pk });
+
+    const repostAuthor = document.querySelector('.reply-to-author[data-pubkey="pk_author"]');
+    expect(repostAuthor.textContent).toContain('Bob');
+
+    const quoteLabel = document.querySelector('.event-quote:not(.article-quote) .event-quote-label[data-pubkey="pk_author"]');
+    expect(quoteLabel.textContent).toContain('Bob');
+
+    const articleQuoteLabel = document.querySelector('.article-quote .event-quote-label[data-pubkey="pk_author"]');
+    expect(articleQuoteLabel.textContent).toContain('Bob');
+  });
 });
 
 describe('getProfileLightningAddress', () => {

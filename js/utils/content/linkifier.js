@@ -173,7 +173,7 @@ export function linkifyText(text, emojiTags = [], options = {}) {
             if (isImage) {
               lineParts.push(
                 '<span class="media-inline media-link" data-url="' + safeUrl + '" data-type="' + type + '" title="' + safeUrl + '">' +
-                '<img src="' + safeUrl + '" alt="' + escapeHtml(t('media.image')) + '" loading="lazy">' +
+                '<img src="' + safeUrl + '" alt="' + escapeHtml(t('media.image')) + '" loading="lazy" decoding="async">' +
                 '</span>'
               );
             } else {
@@ -219,7 +219,7 @@ export function linkifyText(text, emojiTags = [], options = {}) {
               continue;
             }
             const imgHtml = '<span class="emoji-wrap" style="display:inline-block;line-height:1;margin:0;padding:0;vertical-align:middle;max-width:100%;">' +
-              '<img src="' + escapeHtml(safeUrl) + '" alt="' + escapeHtml(m.text) + '" class="custom-emoji" style="max-width:100%;"/>' +
+              '<img src="' + escapeHtml(safeUrl) + '" alt="' + escapeHtml(m.text) + '" class="custom-emoji" style="max-width:100%;" loading="lazy" decoding="async"/>' +
               '</span>';
             emojiSeq.push(imgHtml);
           } else {

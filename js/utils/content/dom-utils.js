@@ -738,18 +738,21 @@ export async function renderChannelQuote(state, event, nip19) {
     ? `<img src="${escapeHtml(picture)}" class="channel-quote-picture" alt="" loading="lazy" />`
     : `<div class="channel-quote-picture-placeholder">💬</div>`;
 
-  const { displayName } = await import('../../features/profile/profile.js');
-  const author = displayName(state, event.pubkey, nip19);
+  const { displayName, npubShort } = await import('../../features/profile/profile.js');
+  let author = displayName(state, event.pubkey, nip19);
+  if (!author || (typeof author === 'string' && /^[0-9a-f]{64}$/i.test(author))) {
+    author = npubShort(event.pubkey, nip19);
+  }
 
   const baseLabel = replaceBadgeEmoji(t('channel.quote_label') || 'チャンネル');
-  const labelText = author ? `${baseLabel} <small class="muted">by ${escapeHtml(author)}</small>` : baseLabel;
+  const labelText = author ? `${baseLabel} <small class="muted">by ${replaceBadgeEmoji(escapeHtml(author))}</small>` : baseLabel;
   const openBtnText = escapeHtml(t('channel.open_btn') || 'チャンネルを開く');
   const aboutHtml = about ? linkifyText(about, event.tags || [], { inlineMedia: false }) : '';
 
   return '<div class="event-quote channel-quote" data-channel-id="' + escapeHtml(rootId) + '" data-event-id="' + escapeHtml(event.id || '') + '">' +
     '<div class="event-quote-header">' +
     '<span class="reply-marker">💬</span>' +
-    '<span class="event-quote-label">' + labelText + '</span>' +
+    '<span class="event-quote-label" data-pubkey="' + escapeHtml(event.pubkey || '') + '">' + labelText + '</span>' +
     '</div>' +
     '<div class="channel-quote-body">' +
     picHtml +
@@ -766,8 +769,11 @@ export async function renderChannelQuote(state, event, nip19) {
  * kind:30030 カスタム絵文字パックの引用カードを描画
  */
 export async function renderEmojiPackQuote(state, event, nip19) {
-  const { displayName } = await import('../../features/profile/profile.js');
-  const author = displayName(state, event.pubkey, nip19);
+  const { displayName, npubShort } = await import('../../features/profile/profile.js');
+  let author = displayName(state, event.pubkey, nip19);
+  if (!author || (typeof author === 'string' && /^[0-9a-f]{64}$/i.test(author))) {
+    author = npubShort(event.pubkey, nip19);
+  }
 
   const titleTag = Array.isArray(event.tags) ? event.tags.find(t => Array.isArray(t) && t[0] === 'title') : null;
   const dTag = Array.isArray(event.tags) ? event.tags.find(t => Array.isArray(t) && t[0] === 'd') : null;
@@ -800,7 +806,7 @@ export async function renderEmojiPackQuote(state, event, nip19) {
   return '<div class="event-quote emoji-pack-quote" data-event-id="' + escapeHtml(event.id || '') + '">' +
     '<div class="event-quote-header">' +
     '<span class="reply-marker">🎨</span>' +
-    '<span class="event-quote-label">' + labelText + '</span>' +
+    '<span class="event-quote-label" data-pubkey="' + escapeHtml(event.pubkey || '') + '">' + labelText + '</span>' +
     '</div>' +
     '<div class="emoji-pack-body">' +
     (desc ? '<div class="emoji-pack-desc">' + escapeHtml(desc) + '</div>' : '') +
@@ -883,11 +889,14 @@ export function renderArticlePreviewHtml(event, options = {}) {
  * @returns {Promise<string>}
  */
 export async function renderArticleQuote(state, event, nip19, settings) {
-  const { displayName } = await import('../../features/profile/profile.js');
-  const author = displayName(state, event.pubkey, nip19);
+  const { displayName, npubShort } = await import('../../features/profile/profile.js');
+  let author = displayName(state, event.pubkey, nip19);
+  if (!author || (typeof author === 'string' && /^[0-9a-f]{64}$/i.test(author))) {
+    author = npubShort(event.pubkey, nip19);
+  }
 
   const baseLabel = replaceBadgeEmoji(t('article.quote_label') || '記事');
-  const labelText = author ? `${baseLabel} <small class="muted">by ${escapeHtml(author)}</small>` : baseLabel;
+  const labelText = author ? `${baseLabel} <small class="muted">by ${replaceBadgeEmoji(escapeHtml(author))}</small>` : baseLabel;
 
   // settings で showTimelineMedia が明示的に false の場合のみ非表示（未指定・未設定時は許可）
   const inlineMedia = settings && settings.showTimelineMedia === false ? false : true;
@@ -896,14 +905,14 @@ export async function renderArticleQuote(state, event, nip19, settings) {
   return '<div class="event-quote article-quote" data-event-id="' + escapeHtml(event.id || '') + '">' +
     '<div class="event-quote-header">' +
     '<span class="reply-marker">📄</span>' +
-    '<span class="event-quote-label">' + labelText + '</span>' +
+    '<span class="event-quote-label" data-pubkey="' + escapeHtml(event.pubkey || '') + '">' + labelText + '</span>' +
     '</div>' +
     innerHtml +
     '</div>';
 }
 
 export async function renderEventQuote(state, event, nip19, _settings = {}) {
-  const { displayName } = await import('../../features/profile/profile.js');
+  const { displayName, npubShort } = await import('../../features/profile/profile.js');
   let author;
   if (event && event.kind === 20000) {
     const pk = event.pubkey || '';
@@ -913,6 +922,9 @@ export async function renderEventQuote(state, event, nip19, _settings = {}) {
     author = nName || hash;
   } else {
     author = displayName(state, event.pubkey, nip19);
+    if (!author || (typeof author === 'string' && /^[0-9a-f]{64}$/i.test(author))) {
+      author = npubShort(event.pubkey, nip19);
+    }
   }
   const content = event.content || '';
   let quoteContentHtml;

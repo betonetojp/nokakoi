@@ -12,6 +12,8 @@ import { EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT, EVENTS_MAX } from '../../config/con
 import { buildOutgoingZapReceiptFilter } from './feed-filters.js';
 import { shouldDisplayGlobalEvent } from './lang-filter.js';
 import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } from '../../utils/url-parser.js';
+import { isBackScrolling, updateBackScrollingState } from '../../utils/content/timeline-anchor.js';
+import { reconcileFeedDom } from './feed-diff.js';
 import { t } from '../../utils/i18n.js';
 import { $, formatLoadBeforeTime } from '../../utils/utils.js';
 import { getSelectedEventEl, setSelectedEventEl } from '../../ui/keyboard-shortcuts.js';
@@ -56,6 +58,16 @@ let _purgeBatchRaf = 0;
 let _heightReleaseRaf = 0;
 const _pendingPurges = new Set();
 const _pendingRestores = new Set();
+const _pendingFeedRenders = new Set();
+
+function flushPendingFeedRendersWhenIdle() {
+  if (_pendingFeedRenders.size === 0) return;
+  const feedIds = Array.from(_pendingFeedRenders);
+  _pendingFeedRenders.clear();
+  for (const feedId of feedIds) {
+    try { renderFeed(feedId); } catch (e) { }
+  }
+}
 /** @type {{ node: Element, wasAboveViewport: boolean }[]} */
 const _pendingHeightReleases = [];
 /** eventId → 最後の復元タイムスタンプ（連続する再パージに対するヒステリシス） */
@@ -168,12 +180,18 @@ function initScrollListener() {
   window.__nokakoiScrollListenerInitialized = true;
 
   window.addEventListener('scroll', () => {
+    try {
+      const activeFeed = document.querySelector('.feed.active');
+      if (activeFeed) updateBackScrollingState(activeFeed);
+    } catch (e) { }
+
     if (isProgrammaticScroll()) return;
     _isScrolling = true;
     if (_scrollTimeout) clearTimeout(_scrollTimeout);
     _scrollTimeout = setTimeout(() => {
       _isScrolling = false;
       flushPendingPurgesWhenIdle();
+      flushPendingFeedRendersWhenIdle();
     }, DOM_PURGE_IDLE_MS);
   }, { passive: true });
 }
@@ -632,31 +650,6 @@ export function captureFeedUiStateFromDom(feedId, feedEl) {
   } catch (e) { }
 }
 
-function classifyIncrementalRender(domIds, eventsToRender) {
-  const renderIds = (eventsToRender || []).map(e => e && e.id).filter(Boolean);
-  if (!domIds.length || !renderIds.length) return 'full';
-  if (new Set(domIds).size !== domIds.length) return 'full';
-
-  const firstDomId = domIds[0];
-  const firstIdx = renderIds.indexOf(firstDomId);
-  if (firstIdx < 0) return 'full';
-
-  const prefixOk = domIds.length <= renderIds.length
-    && domIds.every((id, i) => renderIds[i] === id);
-  if (prefixOk && renderIds.length > domIds.length) return 'append';
-
-  if (firstIdx > 0) {
-    const suffixOk = domIds.every((id, i) => renderIds[firstIdx + i] === id);
-    if (suffixOk) return 'prepend';
-  }
-
-  if (domIds.length === renderIds.length && domIds.every((id, i) => id === renderIds[i])) {
-    return 'noop';
-  }
-
-  return 'full';
-}
-
 export function applyStoredReactionToNode(eventId, node) {
   if (!_state || !_options) return;
   try {
@@ -681,6 +674,14 @@ export function applyStoredReactionToNode(eventId, node) {
 
 export function scheduleRender(id, delay = 50) {
   try {
+    const el = $('#feed-' + id);
+    const isActiveFeed = el && el.classList.contains('active');
+    // ユーザーが遡行スクロールしている最中の新着は、スクロール停止までバッファリングして慣性スクロール停止を防ぐ
+    if (_isScrolling && isActiveFeed && isBackScrolling(el)) {
+      _pendingFeedRenders.add(id);
+      return;
+    }
+
     if (_renderTimers[id]) {
       clearTimeout(_renderTimers[id]);
     }
@@ -720,6 +721,7 @@ export function renderFeed(id = 'global', force = false) {
     } catch (e) { }
   }
   captureFeedUiStateFromDom(id, el);
+
 
   const addNotifyDot = () => {
     try {
@@ -1011,78 +1013,52 @@ export function renderFeed(id = 'global', force = false) {
     };
   }
 
+  const prevTopId = el.dataset.topEventId || '';
+  const scrollAnchor = (isActiveFeed && isBackScrollingActiveFeed)
+    ? captureTimelineAnchor(el)
+    : null;
+
   if (!force) {
     try {
-      const existingEvents = Array.from(el.querySelectorAll('.event'));
-      const domIds = existingEvents.map(n => n.dataset.eventId).filter(Boolean);
-      const mode = classifyIncrementalRender(domIds, eventsToRender);
-      if (mode === 'noop') {
-        finalizeTopEventMarker();
-        return;
-      }
-      if (mode === 'prepend') {
-        const firstExistingIdx = eventsToRender.findIndex(e => e && e.id === domIds[0]);
-        if (firstExistingIdx > 0) {
-          const scrollAnchor = (isActiveFeed && isBackScrollingActiveFeed)
-            ? captureTimelineAnchor(el)
-            : null;
-          const obs = getDomPurgeObserver();
-          const anchorNode = existingEvents[0];
-          for (let i = firstExistingIdx - 1; i >= 0; i--) {
-            const node = buildEventNode(eventsToRender[i], id);
-            if (node) {
-              el.insertBefore(node, anchorNode);
-              if (obs) obs.observe(node);
-            }
-          }
-          const existingBottom = el.querySelector('.feed-bar-bottom');
-          if (existingBottom) existingBottom.remove();
-          if (bottomBar) el.appendChild(bottomBar);
+      const obs = getDomPurgeObserver();
+      const newTopId = eventsToRender.length > 0 ? eventsToRender[0].id : '';
+      const isTopChanged = newTopId && prevTopId && newTopId !== prevTopId;
+      const shouldAnimate = !isBackScrollingActiveFeed && isTopChanged && (!_options?.settingsManager || !_options.settingsManager.get('disableBlink'));
 
-          if (scrollAnchor) {
-            try { restoreTimelineAnchor(scrollAnchor, el); } catch (e) { }
-            try { addNotifyDot(); } catch (e) { }
-            try {
-              if (!_options.settingsManager.get('disableBlink')) {
-                const topBtn = document.getElementById('scrollToTopBtn');
-                if (topBtn) {
-                  topBtn.classList.add('has-new');
-                  topBtn.hidden = false;
-                }
+      const res = reconcileFeedDom({
+        container: el,
+        eventsToRender,
+        buildNode: (ev, fid) => buildEventNode(ev, fid),
+        feedId: id,
+        obs,
+        bottomBar,
+        scrollSentinel,
+        animateNewItems: shouldAnimate
+      });
+
+      if (res.modified) {
+        if (scrollAnchor) {
+          try { restoreTimelineAnchor(scrollAnchor, el); } catch (e) { }
+        }
+        if (isActiveFeed && isBackScrollingActiveFeed && isTopChanged) {
+          try { addNotifyDot(); } catch (e) { }
+          try {
+            if (!_options.settingsManager.get('disableBlink')) {
+              const topBtn = document.getElementById('scrollToTopBtn');
+              if (topBtn) {
+                topBtn.classList.add('has-new');
+                topBtn.hidden = false;
               }
-            } catch (e) { }
-          }
-
-          finalizeTopEventMarker();
-          return;
-        }
-      }
-      if (mode === 'append') {
-        const startIdx = domIds.length;
-        const obs = getDomPurgeObserver();
-        for (let i = startIdx; i < eventsToRender.length; i++) {
-          const node = buildEventNode(eventsToRender[i], id);
-          if (node) {
-            if (bottomBar) {
-              const currentBottom = el.querySelector('.feed-bar-bottom');
-              if (currentBottom) el.insertBefore(node, currentBottom);
-              else el.appendChild(node);
-            } else {
-              el.appendChild(node);
             }
-            if (obs) obs.observe(node);
-          }
+          } catch (e) { }
         }
-        const existingSentinel = el.querySelector('.feed-scroll-sentinel');
-        if (existingSentinel) existingSentinel.remove();
-        const existingBottom = el.querySelector('.feed-bar-bottom');
-        if (existingBottom) existingBottom.remove();
-        if (scrollSentinel) el.appendChild(scrollSentinel);
-        if (bottomBar) el.appendChild(bottomBar);
-        finalizeTopEventMarker();
-        return;
       }
-    } catch (e) { }
+
+      finalizeTopEventMarker();
+      return;
+    } catch (e) {
+      console.warn('[FeedRenderer] 差分描画に失敗したため全件描画にフォールバックします:', e);
+    }
   }
 
   const frag = document.createDocumentFragment();
@@ -1093,10 +1069,7 @@ export function renderFeed(id = 'global', force = false) {
   if (scrollSentinel) frag.appendChild(scrollSentinel);
   if (bottomBar) frag.appendChild(bottomBar);
 
-  const prevTopId = el.dataset.topEventId || '';
-  const scrollAnchor = (isActiveFeed && isBackScrollingActiveFeed)
-    ? captureTimelineAnchor(el)
-    : null;
+  // full render fallback
   const selectedEventId = (() => {
     try {
       const selectedEl = getSelectedEventEl();

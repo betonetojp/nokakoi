@@ -5,6 +5,7 @@
 import { profileIndexerRelays } from '../../core/relay.js';
 import { truncateName, escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
+import { t } from '../../utils/i18n.js';
 
 import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
 import { updateEventMuteDom } from '../../ui/renderers/render-helpers.js';
@@ -422,7 +423,14 @@ export function displayName(state, pubkey, nip19) {
  * pubkeyの名前をDOMに反映
  */
 export function updateNameDom(state, pubkey, nip19) {
-  const nodes = document.querySelectorAll('.name[data-pubkey="' + pubkey + '"]');
+  if (!pubkey) return;
+  const lowerPk = typeof pubkey === 'string' ? pubkey.toLowerCase() : '';
+  const pkFilter = (el) => {
+    const attr = el.getAttribute('data-pubkey');
+    return attr === pubkey || (lowerPk && attr && attr.toLowerCase() === lowerPk);
+  };
+
+  const nodes = Array.from(document.querySelectorAll('.name[data-pubkey]')).filter(pkFilter);
   const names = displayNameWithUsername(state, pubkey, nip19, { noTruncate: true });
 
   nodes.forEach(function (el) {
@@ -468,6 +476,67 @@ export function updateNameDom(state, pubkey, nip19) {
       try {
         updateEventMuteDom(eventEl, state);
       } catch (e) { }
+    }
+  });
+
+  // リポスト / 返信 / リアクションの作者名 (.reply-to-author[data-pubkey]) の更新
+  const replyAuthorNodes = Array.from(document.querySelectorAll('.reply-to-author[data-pubkey]')).filter(pkFilter);
+  replyAuthorNodes.forEach(function (el) {
+    const parent = el.closest('.reply-to');
+    if (!parent || parent.classList.contains('zap')) return;
+    const authorName = names.main || '';
+    if (!authorName) return;
+
+    let label;
+    if (parent.classList.contains('repost')) {
+      label = t('repost.label', { author: escapeHtml(authorName) });
+    } else if (parent.classList.contains('reaction')) {
+      label = t('reaction.label', { author: escapeHtml(authorName) });
+    } else {
+      label = t('reply.label', { author: escapeHtml(authorName) });
+    }
+    el.innerHTML = '<span>' + replaceBadgeEmoji(label) + '</span>';
+  });
+
+  // 引用ヘッダー (.event-quote-label[data-pubkey]) の更新
+  const quoteLabelNodes = Array.from(document.querySelectorAll('.event-quote-label[data-pubkey]')).filter(pkFilter);
+  quoteLabelNodes.forEach(function (el) {
+    const quoteEl = el.closest('.event-quote');
+    const authorName = names.main || '';
+    if (!authorName) return;
+
+    if (quoteEl && quoteEl.classList.contains('article-quote')) {
+      const baseLabel = replaceBadgeEmoji(t('article.quote_label') || '記事');
+      el.innerHTML = `${baseLabel} <small class="muted">by ${replaceBadgeEmoji(escapeHtml(authorName))}</small>`;
+    } else if (quoteEl && quoteEl.classList.contains('channel-quote')) {
+      const baseLabel = replaceBadgeEmoji(t('channel.quote_label') || 'チャンネル');
+      el.innerHTML = `${baseLabel} <small class="muted">by ${replaceBadgeEmoji(escapeHtml(authorName))}</small>`;
+    } else if (quoteEl && quoteEl.classList.contains('emoji-pack-quote')) {
+      const titleEl = quoteEl.querySelector('.emoji-pack-title');
+      const title = titleEl ? titleEl.textContent.replace(/^✨\s*/, '').trim() : (t('emoji.pack_quote_label') || '絵文字パック');
+      el.innerHTML = replaceBadgeEmoji(escapeHtml(title) + ' <small class="muted">by ' + escapeHtml(authorName) + '</small>');
+    } else {
+      const quotedLabel = replaceBadgeEmoji(t('quote.label', { author: escapeHtml(authorName) }));
+      el.innerHTML = quotedLabel;
+    }
+  });
+
+  // チャンネル作成者情報 (#channelInfoCreatorRow[data-pubkey]) の更新
+  const creatorRows = Array.from(document.querySelectorAll('.channel-info-creator-row[data-pubkey]')).filter(pkFilter);
+  creatorRows.forEach(function (row) {
+    const mainEl = row.querySelector('.channel-info-creator-main');
+    if (mainEl && names.main) mainEl.innerHTML = replaceBadgeEmoji(escapeHtml(names.main));
+    let subEl = row.querySelector('.channel-info-creator-sub');
+    if (names.sub) {
+      if (!subEl) {
+        subEl = document.createElement('span');
+        subEl.className = 'channel-info-creator-sub';
+        const namesContainer = row.querySelector('.channel-info-creator-names');
+        if (namesContainer) namesContainer.appendChild(subEl);
+      }
+      subEl.textContent = '@' + names.sub;
+    } else if (subEl) {
+      subEl.remove();
     }
   });
 
