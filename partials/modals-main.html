@@ -74,12 +74,6 @@
             <span data-i18n="showHomeReactions">ホームにリアクションを表示</span>
           </label>
         </div>
-        <div class="mt-8">
-          <label class="setting-row-clickable">
-            <input type="checkbox" id="homeDisplayQuickDeltaCheck">
-            <span data-i18n="showReceivedDelta">live受信時の端末時計との差分を表示</span>
-          </label>
-        </div>
         <div class="mt-12 mb-8 flex-col gap-8 items-start">
           <button id="openFollowEditModalQuickBtn" type="button" class="w-auto" data-i18n="editor.follow.title">フォローリスト編集</button>
           <button id="openMuteEditModalQuickBtn" type="button" class="w-auto" data-i18n="editor.mute.title">ミュートリスト編集</button>
@@ -89,6 +83,30 @@
             <input type="checkbox" id="homeDisplayQuickMuteCheck">
             <span data-i18n="mute.apply">ミュートを適用</span>
           </label>
+          <div id="homeDisplayQuickMuteChildren" class="mt-8 flex-col items-start d-none" hidden>
+            <div class="mt-4 flex-row">
+              <label class="setting-row-clickable">
+                <input type="checkbox" id="homeDisplayQuickMuteKind0Check">
+                <span data-i18n="mute.apply_kind0">プロフィール（名前・自己紹介）にもミュートを適用</span>
+              </label>
+            </div>
+            <div class="d-block">
+              <label class="d-block mt-4 setting-row-clickable">
+                <input type="radio" name="homeDisplayQuickMuteDisplayMode" value="hide" id="homeDisplayQuickMuteModeHide">
+                <span data-i18n="mute.mode.hide">ミュート対象を表示しない</span>
+              </label>
+              <label class="d-block mt-4 setting-row-clickable">
+                <input type="radio" name="homeDisplayQuickMuteDisplayMode" value="collapse" id="homeDisplayQuickMuteModeCollapse">
+                <span data-i18n="mute.mode.collapse">ミュート対象を折りたたんで表示</span>
+              </label>
+            </div>
+            <div id="homeDisplayQuickMuteHidePublicWrap" class="mt-4 ml-16 flex-row">
+              <label class="setting-row-clickable" id="homeDisplayQuickMuteHidePublicLabel">
+                <input type="checkbox" id="homeDisplayQuickMuteHidePublicCheck">
+                <span data-i18n="mute.hide_public">公開ミュートを完全に非表示</span>
+              </label>
+            </div>
+          </div>
         </div>
         <div class="row mt-16">
           <button id="homeDisplayQuickCloseBtn" class="secondary" type="button" data-i18n="close">閉じる</button>

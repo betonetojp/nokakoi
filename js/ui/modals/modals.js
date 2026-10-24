@@ -8,11 +8,40 @@ import { DEFAULT_OMOCHAT_RELAYS } from '../../config/constants.js';
 import { attachEmojiShortcodeSuggest } from '../../features/emoji/emoji-shortcode-suggest.js';
 import { registerTextShortcodeVariant } from '../../features/emoji/custom-emoji-store.js';
 import { getClosestRelays } from '../../features/relay/geo-relay-directory.js';
+import { bringModalToFront } from '../setup/modal-helper.js';
 
 const HIDDEN_TAG_CHARS_RE = /[\u{E00F0}-\u{E01EF}]+/gu;
 const RECENT_REACTIONS_KEY = 'recentReactions';
 const MAX_RECENT_REACTIONS = 24;
 let reactionShortcodeSuggest = null;
+
+function bringModalTop(modal) {
+  if (!modal) return;
+  try {
+    if (typeof bringModalToFront === 'function') {
+      bringModalToFront(modal);
+      return;
+    }
+    if (typeof window !== 'undefined' && typeof window.bringModalToFront === 'function') {
+      window.bringModalToFront(modal);
+      return;
+    }
+  } catch (e) { }
+  try {
+    const modals = Array.from(document.querySelectorAll('.modal'));
+    let maxZ = 250;
+    modals.forEach(m => {
+      if (!m.hidden && m !== modal) {
+        const rawZ = (typeof window !== 'undefined' && window.getComputedStyle ? window.getComputedStyle(m).zIndex : '') || m.style?.zIndex;
+        const z = parseInt(rawZ, 10);
+        if (!isNaN(z) && z > maxZ) maxZ = z;
+      }
+    });
+    modal.style.zIndex = String(maxZ + 1);
+  } catch (e) {
+    modal.style.zIndex = '9999';
+  }
+}
 
 function countGraphemeClusters(text) {
   if (!text) return 0;
@@ -281,15 +310,7 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
   // モーダル内の固定ラベルに翻訳を適用（再 dispatch なし）
   try { if (typeof applyTranslations === 'function') applyTranslations(modal, true); } catch (e) { }
 
-  // ヘルパーがあれば最前面へ、なければ高い z-index を設定
-  try {
-    if (typeof window !== 'undefined' && typeof window.bringModalToFront === 'function') {
-      try { window.bringModalToFront(modal); } catch (e) { /* 無視 */ }
-    } else {
-      // フォールバック: このモーダルを他より前面にする
-      modal.style.zIndex = '9999';
-    }
-  } catch (e) { /* 無視 */ }
+  bringModalTop(modal);
 
   // ステータスクリア
   if (statusEl) statusEl.textContent = '';
@@ -448,6 +469,21 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
       }
     };
   });
+
+  // セクシー餃子（ステガノグラフィ）ボタンセットアップ
+  const steganographyBtn = modal.querySelector('#reactionSteganographyBtn');
+  if (steganographyBtn) {
+    steganographyBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showHiddenTagCharModal((encoded) => {
+        input.value = encoded;
+        updateReactionPreview(modal, input);
+        if (statusEl) statusEl.textContent = '';
+        input.focus();
+      });
+    };
+  }
 
   // 保存ボタン
   saveBtn.onclick = async (e) => {
@@ -608,14 +644,7 @@ export function showConfirmModal(title, message, onYes, onNo) {
   // モーダル固定ラベルへ翻訳を適用
   try { if (typeof applyTranslations === 'function') applyTranslations(modal, true); } catch (e) { }
 
-  // 確認モーダルを最前面に（利用可能ならグローバルヘルパーを使用）
-  try {
-    if (typeof window !== 'undefined' && typeof window.bringModalToFront === 'function') {
-      try { window.bringModalToFront(modal); } catch (e) { /* 無視 */ }
-    } else {
-      modal.style.zIndex = '9999';
-    }
-  } catch (e) { /* 無視 */ }
+  bringModalTop(modal);
 
   modal.hidden = false;
   yesBtn.focus();
@@ -687,13 +716,7 @@ export function showAlertModal(title, message, onOk) {
   messageEl.textContent = message;
   if (noBtn) noBtn.hidden = true;
 
-  try {
-    if (typeof window !== 'undefined' && typeof window.bringModalToFront === 'function') {
-      window.bringModalToFront(modal);
-    } else {
-      modal.style.zIndex = '9999';
-    }
-  } catch (e) {}
+  bringModalTop(modal);
 
   modal.hidden = false;
   yesBtn.focus();
@@ -750,13 +773,7 @@ export function showOmochatSettingsModal(settingsManager) {
   try { if (typeof applyTranslations === 'function') applyTranslations(modal, true); } catch (e) { }
 
   // 最前面へ
-  try {
-    if (typeof window !== 'undefined' && typeof window.bringModalToFront === 'function') {
-      try { window.bringModalToFront(modal); } catch (e) { }
-    } else {
-      modal.style.zIndex = '9999';
-    }
-  } catch (e) { }
+  bringModalTop(modal);
 
   const close = () => {
     modal.hidden = true;
@@ -1160,13 +1177,7 @@ export function showHiddenTagCharModal(onConfirm) {
   };
 
   // 前面化
-  try {
-    if (typeof window !== 'undefined' && typeof window.bringModalToFront === 'function') {
-      window.bringModalToFront(modal);
-    } else {
-      modal.style.zIndex = '9999';
-    }
-  } catch (e) { }
+  bringModalTop(modal);
 
   // 翻訳適用
   try { if (typeof applyTranslations === 'function') applyTranslations(modal, true); } catch (e) { }
@@ -1207,6 +1218,7 @@ export function showHiddenTagCharModal(onConfirm) {
         onConfirm(encoded);
       }
       modal.hidden = true;
+      try { modal.style.zIndex = ''; } catch (e) { }
     } catch (e) {
       console.warn('[Modals] エンコード失敗', e);
       if (statusEl) statusEl.textContent = t('steganography.error.encode_failed');
@@ -1217,6 +1229,7 @@ export function showHiddenTagCharModal(onConfirm) {
   if (closeBtn) {
     closeBtn.onclick = () => {
       modal.hidden = true;
+      try { modal.style.zIndex = ''; } catch (e) { }
     };
   }
 
@@ -1226,7 +1239,7 @@ export function showHiddenTagCharModal(onConfirm) {
       e.preventDefault();
       modal.hidden = true;
       if (statusEl) statusEl.textContent = '';
-      try { if (!window.bringModalToFront) modal.style.zIndex = ''; } catch (e) { }
+      try { modal.style.zIndex = ''; } catch (e) { }
     }
   };
 }

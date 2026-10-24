@@ -165,44 +165,6 @@ describe('openUserFollowListModal', () => {
     isAvatarsEnabled.mockReturnValue(true);
   });
 
-  it('initializes purgeObserver when isDomPurgeEnabled is true', async () => {
-    const { isDomPurgeEnabled } = await import('./profile.js');
-    isDomPurgeEnabled.mockReturnValue(true);
-
-    const observeFn = vi.fn();
-    const disconnectFn = vi.fn();
-    const mockObserver = vi.fn().mockImplementation(function (callback) {
-      return {
-        observe: observeFn,
-        unobserve: vi.fn(),
-        disconnect: disconnectFn
-      };
-    });
-    vi.stubGlobal('IntersectionObserver', mockObserver);
-
-    const state = {
-      pubkey: 'my_pubkey',
-      profiles: new Map([['pk_alice', { name: 'Alice' }]])
-    };
-    const cachedKind3 = {
-      kind: 3,
-      tags: [['p', 'pk_alice']]
-    };
-
-    await openUserFollowListModal(state, 'target_user_pk', null, cachedKind3);
-
-    // Observer should have been called and observed the row
-    expect(observeFn).toHaveBeenCalled();
-
-    // Closing modal should disconnect observer
-    const closeBtn = document.getElementById('userFollowListClose');
-    closeBtn.click();
-    expect(disconnectFn).toHaveBeenCalled();
-
-    isDomPurgeEnabled.mockReturnValue(false);
-    vi.unstubAllGlobals();
-  });
-
   it('calls updateFollowButtonState with signal to allow queued checks and cancel on close', async () => {
     const { updateFollowButtonState, clearMutualQueue } = await import('./follow-editor.js');
     updateFollowButtonState.mockClear();
@@ -231,7 +193,7 @@ describe('openUserFollowListModal', () => {
     expect(clearMutualQueue).toHaveBeenCalled();
   });
 
-  it('does not enable DOM purge when isDomPurgeEnabled is false even for large lists', async () => {
+  it('does not observe rows for DOM purging even for large lists', async () => {
     const { isDomPurgeEnabled } = await import('./profile.js');
     isDomPurgeEnabled.mockReturnValue(false);
 

@@ -21,7 +21,7 @@ export function setupInfiniteScrollObserver() {
     });
   }, {
     root: null,
-    rootMargin: '1000px 0px 1000px 0px',
+    rootMargin: '800px 0px 800px 0px',
     threshold: 0
   });
 

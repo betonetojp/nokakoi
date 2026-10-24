@@ -75,7 +75,6 @@ export class SettingsManager {
       omochatComputedRelays: [],
       nip46Relays: DEFAULT_NIP46_RELAYS.slice(),
       previewMaxLength: MAX_PREVIEW_LENGTH,
-      useDomPurge: false,
       maxEvents: 500,
       nip46RemotePubkey: null,
       nip46Secret: null,

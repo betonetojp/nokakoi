@@ -5,6 +5,7 @@
 #eventModal { z-index: 200; }
 #profileModal { z-index: 250; }
 #jsonModal { z-index: 300; }
+#steganographyModal { z-index: 350; }
 /* event detail から開く media modal を他モーダルより前面にする */
 #mediaModal { z-index: 400; }
 

@@ -4,10 +4,8 @@
 
 import { showToast } from '../utils/utils.js';
 import { t } from '../utils/i18n.js';
-import { restoreDomPurgeAround } from '../features/timeline/feed-renderer.js';
 import {
   getScrollAnchor,
-  getSettingsManager,
   setProgrammaticScroll
 } from '../core/app-context.js';
 
@@ -35,19 +33,7 @@ export function setupScrollToTopButton() {
   let _desiredTabTop = null;
   let pendingSecondClickTimer = null;
 
-  const getUseDomPurge = () => {
-    try {
-      const sm = getSettingsManager();
-      if (sm && typeof sm.get === 'function') {
-        return sm.get('useDomPurge') === true;
-      }
-      const raw = localStorage.getItem('appSettings');
-      const obj = raw ? JSON.parse(raw) : {};
-      return obj.useDomPurge === true;
-    } catch (e) {
-      return false;
-    }
-  };
+
 
   const getScrollTop = () => {
     try { return window.scrollY ?? document.documentElement.scrollTop ?? 0; } catch (e) { return 0; }
@@ -84,15 +70,7 @@ export function setupScrollToTopButton() {
     } catch (e) {
       try { window.scrollTo(tabTop, 0); } catch (ee) { }
     }
-    // ジャンプ後、ビューポート付近のパージされた投稿を実体化し、"上部"が空のシェルのままでないようにする。
-    try {
-      const feed = document.querySelector('.feed.active');
-      if (feed && getUseDomPurge()) {
-        requestAnimationFrame(() => {
-          try { restoreDomPurgeAround(feed); } catch (e) { }
-        });
-      }
-    } catch (e) { }
+
     return tabTop;
   }
 
@@ -300,8 +278,7 @@ export function setupScrollToTopButton() {
           try { if (pos.left) { button.style.left = pos.left; button.style.bottom = pos.bottom; button.style.transform = pos.transform || 'none'; } } catch (e) { }
         }, 120);
       } else {
-        const behavior = getUseDomPurge() ? 'auto' : 'smooth';
-        scrollToTabTop(behavior);
+        scrollToTabTop('smooth');
       }
     } else if (hasMoved) {
       saveButtonPosition({ left: button.style.left, bottom: button.style.bottom });
@@ -358,8 +335,7 @@ export function setupScrollToTopButton() {
       return;
     }
 
-    const behavior = getUseDomPurge() ? 'auto' : 'smooth';
-    scrollToTabTop(behavior);
+    scrollToTabTop('smooth');
   }
 
   button.addEventListener('click', () => { if (isDragging) return; activateButtonAction(); });

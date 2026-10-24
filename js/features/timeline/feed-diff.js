@@ -214,8 +214,13 @@ export function reconcileFeedDom({
   return { modified: true, prependedCount, appendedCount, removedCount };
 }
 
+/** 先行読み込みを発火させる「末尾からのイベント件数」（高速スクロールでも間に合うよう余裕を持たせる） */
+export const PRELOAD_EVENT_OFFSET = 20;
+
 /**
- * センチネルとボトムバーの位置を常にコンテナの末尾に整え、余分なものは確実に削除する
+ * センチネルとボトムバーの位置を整え、余分なものは確実に削除する。
+ * センチネルは末尾から一定件数（PRELOAD_EVENT_OFFSET件）手前のイベント直前に挿入することで、
+ * 最下部に到達する前に先行して次ページを自動読み込みする。
  */
 function syncBottomControls(container, scrollSentinel, bottomBar) {
   const existingSentinels = Array.from(container.querySelectorAll('.feed-scroll-sentinel'));
@@ -228,11 +233,19 @@ function syncBottomControls(container, scrollSentinel, bottomBar) {
     if (b !== bottomBar) b.remove();
   }
 
-  if (scrollSentinel) {
-    container.appendChild(scrollSentinel);
-  }
-
   if (bottomBar) {
     container.appendChild(bottomBar);
+  }
+
+  if (scrollSentinel) {
+    const events = container.querySelectorAll('.event');
+    if (events.length >= PRELOAD_EVENT_OFFSET) {
+      const targetIndex = events.length - PRELOAD_EVENT_OFFSET;
+      container.insertBefore(scrollSentinel, events[targetIndex]);
+    } else if (bottomBar) {
+      container.insertBefore(scrollSentinel, bottomBar);
+    } else {
+      container.appendChild(scrollSentinel);
+    }
   }
 }

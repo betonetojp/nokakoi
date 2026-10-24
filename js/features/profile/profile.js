@@ -623,19 +623,9 @@ export function isAvatarsEnabled(state) {
 }
 
 /**
- * アプリ設定のDOMパージ有効フラグを取得
+ * アプリ設定のDOMパージ有効フラグを取得 (非推奨・常に無効)
  */
-export function isDomPurgeEnabled(state) {
-  if (state && state.settings && typeof state.settings.get === 'function') {
-    return state.settings.get('useDomPurge') === true;
-  }
-  try {
-    const saved = localStorage.getItem('appSettings');
-    if (saved) {
-      const s = JSON.parse(saved);
-      if (s.useDomPurge === true) return true;
-    }
-  } catch (e) { }
+export function isDomPurgeEnabled() {
   return false;
 }
 

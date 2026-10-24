@@ -1206,30 +1206,32 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
     }
   } catch (e) { }
 
-  // kindバッジの右に判定言語の国旗絵文字を表示
+  // kindバッジの右に判定言語の国旗絵文字を表示（グローバルタブのみ）
   try {
-    let contentToDetect = ev.content || '';
-    if ((ev.kind === 6 || ev.kind === 16) && typeof contentToDetect === 'string' && contentToDetect.trim().startsWith('{')) {
-      try {
-        const parsed = JSON.parse(contentToDetect.trim());
-        if (parsed && typeof parsed.content === 'string') contentToDetect = parsed.content;
-      } catch (e) { }
-    }
-    const detectedLang = detectLanguage(contentToDetect);
-    const flag = getLanguageFlag(detectedLang);
-    if (flag) {
-      const kindBtnEl = div.querySelector('.btn-kind');
-      if (kindBtnEl && kindBtnEl.parentNode) {
-        const flagSpan = document.createElement('span');
-        flagSpan.className = 'lang-flag-badge';
-        flagSpan.textContent = flag;
-        flagSpan.title = detectedLang;
-        flagSpan.style.marginLeft = '4px';
-        flagSpan.style.marginRight = '2px';
-        flagSpan.style.cursor = 'default';
-        flagSpan.style.fontSize = '0.9em';
-        flagSpan.style.verticalAlign = 'middle';
-        kindBtnEl.parentNode.insertBefore(flagSpan, kindBtnEl.nextSibling);
+    if (feedId === 'global') {
+      let contentToDetect = ev.content || '';
+      if ((ev.kind === 6 || ev.kind === 16) && typeof contentToDetect === 'string' && contentToDetect.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(contentToDetect.trim());
+          if (parsed && typeof parsed.content === 'string') contentToDetect = parsed.content;
+        } catch (e) { }
+      }
+      const detectedLang = detectLanguage(contentToDetect);
+      const flag = getLanguageFlag(detectedLang);
+      if (flag) {
+        const kindBtnEl = div.querySelector('.btn-kind');
+        if (kindBtnEl && kindBtnEl.parentNode) {
+          const flagSpan = document.createElement('span');
+          flagSpan.className = 'lang-flag-badge';
+          flagSpan.textContent = flag;
+          flagSpan.title = detectedLang;
+          flagSpan.style.marginLeft = '4px';
+          flagSpan.style.marginRight = '2px';
+          flagSpan.style.cursor = 'default';
+          flagSpan.style.fontSize = '0.9em';
+          flagSpan.style.verticalAlign = 'middle';
+          kindBtnEl.parentNode.insertBefore(flagSpan, kindBtnEl.nextSibling);
+        }
       }
     }
   } catch (e) { }

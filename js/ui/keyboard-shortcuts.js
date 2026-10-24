@@ -66,12 +66,9 @@ export function setupKeyboardShortcuts(state, options) {
     }
     const activeFeed = document.querySelector('.feed.active');
     if (!activeFeed) return [];
-    const useDomPurge = options && options.settingsManager && options.settingsManager.get('useDomPurge') === true;
     return Array.from(activeFeed.querySelectorAll('.event')).filter(el =>
       el.style.display !== 'none' &&
-      !el.classList.contains('muted-hidden') &&
-      // プレースホルダーにはアクションがないため、DOMパージ有効時はスキップする。
-      !(useDomPurge && el.classList.contains('event-placeholder'))
+      !el.classList.contains('muted-hidden')
     );
   }
 
@@ -90,21 +87,12 @@ export function setupKeyboardShortcuts(state, options) {
   function jumpToFeedBoundary(which) {
     const all = getFeedEventsIncludingPlaceholders();
     if (!all.length) return;
-    let target = which === 'last' ? all[all.length - 1] : all[0];
-    const ensure = options && typeof options.ensureEventRestored === 'function'
-      ? options.ensureEventRestored
-      : null;
-    if (ensure && target && target.classList && target.classList.contains('event-placeholder')) {
-      const restored = ensure(target);
-      if (restored) target = restored;
-    }
-    const useDomPurge = options && options.settingsManager && options.settingsManager.get('useDomPurge') === true;
-    setSelectedEventEl(target, { smooth: !useDomPurge });
+    const target = which === 'last' ? all[all.length - 1] : all[0];
+    setSelectedEventEl(target, { smooth: true });
   }
 
   function selectEvent(el) {
-    const useDomPurge = options && options.settingsManager && options.settingsManager.get('useDomPurge') === true;
-    setSelectedEventEl(el, useDomPurge ? { smooth: false } : undefined);
+    setSelectedEventEl(el);
   }
 
   async function openEventDetailByReference(refEl) {

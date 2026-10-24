@@ -6,7 +6,7 @@
 import { t } from '../../utils/i18n.js';
 import { getNip19, getSimplePool } from '../../core/nostr-compat.js';
 import { getReadRelays, relayConnect, profileIndexerRelays } from '../../core/relay.js';
-import { displayNameWithUsername, saveProfilesBatchToCache, isAvatarsEnabled, isDomPurgeEnabled } from './profile.js';
+import { displayNameWithUsername, saveProfilesBatchToCache, isAvatarsEnabled } from './profile.js';
 import { updateFollowButtonState, toggleFollowUser, clearMutualQueue } from './follow-editor.js';
 import { bringModalToFront } from '../../ui/setup/modal-helper.js';
 
@@ -107,7 +107,6 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
   const abortSignal = modalAbortController.signal;
 
   let listObserver = null;
-  let purgeObserver = null;
   let currentLoadMore = null;
   let isModalActive = true;
   let listEl = null;
@@ -123,10 +122,6 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
     if (listObserver) {
       try { listObserver.disconnect(); } catch (e) { }
       listObserver = null;
-    }
-    if (purgeObserver) {
-      try { purgeObserver.disconnect(); } catch (e) { }
-      purgeObserver = null;
     }
     currentLoadMore = null;
     if (listEl) listEl.onscroll = null;
@@ -248,45 +243,6 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
   listEl = document.createElement('div');
   listEl.className = 'editor-list';
 
-  // DOMパージ（画面外要素のプレースホルダー置換によるメモリ節約。ユーザー設定に準拠）
-  const useDomPurge = isDomPurgeEnabled(state);
-  if (useDomPurge && typeof IntersectionObserver !== 'undefined') {
-    purgeObserver = new IntersectionObserver((entries) => {
-      if (!isModalActive) return;
-      for (const entry of entries) {
-        const el = entry.target;
-        if (!el || !el.isConnected) continue;
-        const pk = el.dataset.pk;
-        if (!pk) continue;
-
-        if (entry.isIntersecting) {
-          // 画面内またはマージン内に戻ったプレースホルダーを実DOMに復元
-          if (el.classList.contains('editor-list-placeholder')) {
-            const newRow = renderItem(pk);
-            purgeObserver.unobserve(el);
-            el.replaceWith(newRow);
-            purgeObserver.observe(newRow);
-          }
-        } else {
-          // 画面外かつマージンを超えた実DOMをプレースホルダーに置換
-          if (!el.classList.contains('editor-list-placeholder') && el.classList.contains('editor-list-item')) {
-            const height = el.offsetHeight > 0 ? el.offsetHeight : 49;
-            const placeholder = document.createElement('div');
-            placeholder.className = 'editor-list-item editor-list-placeholder';
-            placeholder.dataset.pk = pk;
-            placeholder.style.height = `${height}px`;
-            placeholder.style.boxSizing = 'border-box';
-            purgeObserver.unobserve(el);
-            el.replaceWith(placeholder);
-            purgeObserver.observe(placeholder);
-          }
-        }
-      }
-    }, {
-      root: listEl,
-      rootMargin: '600px 0px 600px 0px'
-    });
-  }
 
   let renderedIndex = 0;
 
@@ -397,9 +353,6 @@ export async function openUserFollowListModal(state, targetPubkey, targetProfile
       const row = renderItem(pk);
       rows.push(row);
       listEl.appendChild(row);
-      if (purgeObserver) {
-        purgeObserver.observe(row);
-      }
     });
     renderedIndex += nextBatch.length;
 

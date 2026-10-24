@@ -73,7 +73,6 @@
   "showCustomEmoji": "Show custom emoji",
   "autoExpandSteganography": "Auto-expand Steganography",
   "showMusicStatus": "Show Now Playing",
-  "useDomPurge": "Enable DOM purging (Experimental: Saves memory, but may cause scrolling jitter)",
   "showOmochat": "Show omochat tab",
   "showHomeOmochat": "Show omochat in home",
   "showHomeReactions": "Show reactions from follows in home",

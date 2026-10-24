@@ -630,17 +630,5 @@ export async function initApp() {
         };
       }
     });
-
-    // 「ミュートを適用」チェックボックスの相互同期
-    const displayMuteCheck = document.getElementById('displayMuteCheck');
-    const quickMuteCheck = document.getElementById('homeDisplayQuickMuteCheck');
-    if (displayMuteCheck && quickMuteCheck) {
-      displayMuteCheck.onchange = () => {
-        quickMuteCheck.checked = displayMuteCheck.checked;
-      };
-      quickMuteCheck.onchange = () => {
-        displayMuteCheck.checked = quickMuteCheck.checked;
-      };
-    }
   } catch (e) {}
 }

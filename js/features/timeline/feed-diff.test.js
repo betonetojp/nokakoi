@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { reconcileFeedDom } from './feed-diff.js';
+import { reconcileFeedDom, PRELOAD_EVENT_OFFSET } from './feed-diff.js';
 
 describe('reconcileFeedDom', () => {
   function createTestNode(id, text = '') {
@@ -201,5 +201,30 @@ describe('reconcileFeedDom', () => {
     expect(container.querySelectorAll('.feed-bar-bottom').length).toBe(0);
     expect(container.children.length).toBe(1);
     expect(container.children[0]).toBe(n1);
+  });
+
+  it('places scrollSentinel PRELOAD_EVENT_OFFSET items before the end when there are enough items', () => {
+    const container = document.createElement('div');
+    const sentinel = document.createElement('div');
+    sentinel.className = 'feed-scroll-sentinel';
+    const bottomBar = document.createElement('button');
+    bottomBar.className = 'feed-bar feed-bar-bottom';
+
+    const totalItems = PRELOAD_EVENT_OFFSET + 5;
+    const events = Array.from({ length: totalItems }, (_, i) => ({ id: `id-${i}` }));
+    reconcileFeedDom({
+      container,
+      eventsToRender: events,
+      buildNode: mockBuildNode,
+      scrollSentinel: sentinel,
+      bottomBar
+    });
+
+    const eventNodes = container.querySelectorAll('.event');
+    expect(eventNodes.length).toBe(totalItems);
+    // container children: items 0..4 (5 items), sentinel (1 item), items 5..totalItems-1 (PRELOAD_EVENT_OFFSET items), bottomBar (1 item)
+    expect(container.children[5]).toBe(sentinel);
+    expect(container.children[6].dataset.eventId).toBe('id-5');
+    expect(container.lastElementChild).toBe(bottomBar);
   });
 });

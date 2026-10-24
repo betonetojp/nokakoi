@@ -871,6 +871,10 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         kind0Checkbox.addEventListener('change', function () {
           try {
             setMuteSetting('mute_apply_kind0', kind0Checkbox.checked ? '1' : '0');
+            try {
+              const quickKind0 = document.getElementById('homeDisplayQuickMuteKind0Check');
+              if (quickKind0) quickKind0.checked = kind0Checkbox.checked;
+            } catch (e) { }
             refreshAllMuteSettings();
           } catch (e) { console.warn('[Mute] kind0 保存に失敗', e); }
         });
@@ -918,6 +922,10 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         hidePublicCheckbox.addEventListener('change', function () {
           try {
             setMuteSetting('mute_hide_public', hidePublicCheckbox.checked ? '1' : '0');
+            try {
+              const quickHidePublic = document.getElementById('homeDisplayQuickMuteHidePublicCheck');
+              if (quickHidePublic) quickHidePublic.checked = hidePublicCheckbox.checked;
+            } catch (e) { }
             refreshAllMuteSettings();
           } catch (e) { console.warn('[Mute] hide_public 保存に失敗', e); }
         });
@@ -925,6 +933,20 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         const saveMode = function (v) {
           try {
             setMuteSetting('mute_display_mode', v || 'collapse');
+            try {
+              const quickHide = document.getElementById('homeDisplayQuickMuteModeHide');
+              const quickCollapse = document.getElementById('homeDisplayQuickMuteModeCollapse');
+              if (quickHide) quickHide.checked = v === 'hide';
+              if (quickCollapse) quickCollapse.checked = v === 'collapse';
+              const quickHidePublicCheck = document.getElementById('homeDisplayQuickMuteHidePublicCheck');
+              const quickHidePublicLabel = document.getElementById('homeDisplayQuickMuteHidePublicLabel');
+              if (quickHidePublicCheck && quickHidePublicLabel) {
+                const isCollapse = v === 'collapse';
+                quickHidePublicCheck.disabled = !isCollapse;
+                quickHidePublicLabel.style.opacity = isCollapse ? '1' : '0.5';
+                quickHidePublicLabel.style.pointerEvents = isCollapse ? 'auto' : 'none';
+              }
+            } catch (e) { }
             refreshAllMuteSettings('mute.mode.saved');
           } catch (e) { console.warn('[Mute] モード保存に失敗', e); }
         };
@@ -962,6 +984,11 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
             try {
               const quickMuteCheck = document.getElementById('homeDisplayQuickMuteCheck');
               if (quickMuteCheck) quickMuteCheck.checked = applyCheckbox.checked;
+              const quickMuteChildren = document.getElementById('homeDisplayQuickMuteChildren');
+              if (quickMuteChildren) {
+                quickMuteChildren.hidden = !applyCheckbox.checked;
+                quickMuteChildren.classList.toggle('d-none', !applyCheckbox.checked);
+              }
             } catch (e) { }
 
             try { modeWrap.classList.toggle('d-none', !applyCheckbox.checked); } catch (e) { }
