@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest';
-import { pickETagEventId, pickETagWithHint } from './render-helpers.js';
+import { pickETagEventId, pickETagWithHint, pickReplyTargetPubkey } from './render-helpers.js';
 
 describe('render-helpers pickETag functions', () => {
   describe('kind: 1111 (NIP-22 comments)', () => {
@@ -85,6 +85,94 @@ describe('render-helpers pickETag functions', () => {
 
       expect(pickETagEventId(ev)).toBe('replyId456');
       expect(pickETagWithHint(ev).eventId).toBe('replyId456');
+    });
+
+    it('picks last reply marker when multiple reply markers or 3-element / 5-element swapped markers exist', () => {
+      const threeElemReversed = {
+        kind: 1,
+        content: 'reply',
+        tags: [
+          ['e', 'replyId456', 'reply'],
+          ['e', 'rootId123', 'root']
+        ]
+      };
+      expect(pickETagEventId(threeElemReversed)).toBe('replyId456');
+      expect(pickETagWithHint(threeElemReversed)).toEqual({
+        eventId: 'replyId456',
+        relayHint: '',
+        pubkey: ''
+      });
+
+      const swappedFiveElem = {
+        kind: 1,
+        content: 'reply',
+        tags: [
+          ['e', 'replyId456', 'wss://relay.example.com', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'reply'],
+          ['e', 'rootId123', 'wss://relay.example.com', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'root']
+        ]
+      };
+      expect(pickETagWithHint(swappedFiveElem)).toEqual({
+        eventId: 'replyId456',
+        relayHint: 'wss://relay.example.com',
+        pubkey: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+      });
+
+      const multiReply = {
+        kind: 1,
+        content: 'deep reply',
+        tags: [
+          ['e', 'rootId123', '', 'root'],
+          ['e', 'parent1', '', 'reply'],
+          ['e', 'immediateParent2', 'wss://yabu.me', 'reply']
+        ]
+      };
+      expect(pickETagWithHint(multiReply).eventId).toBe('immediateParent2');
+    });
+
+    it('resolves reply target pubkey instead of root pubkey when both root and reply tags exist', () => {
+      const rootPk = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+      const replyPk = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+
+      // Standard NIP-10: root p-tag copied first, reply target p-tag appended last
+      const nip10Reply = {
+        kind: 1,
+        content: '返信の返信',
+        tags: [
+          ['e', 'rootId123', 'wss://yabu.me', 'root'],
+          ['e', 'replyId456', 'wss://yabu.me', 'reply'],
+          ['p', rootPk],
+          ['p', replyPk]
+        ]
+      };
+      expect(pickReplyTargetPubkey(nip10Reply)).toBe(replyPk);
+
+      // Reverse p-tag order when root event pubkey is known on root tag
+      const reversePTagReply = {
+        kind: 1,
+        content: '逆順pタグ',
+        tags: [
+          ['e', 'rootId123', 'wss://yabu.me', 'root', rootPk],
+          ['e', 'replyId456', 'wss://yabu.me', 'reply'],
+          ['p', replyPk],
+          ['p', rootPk]
+        ]
+      };
+      expect(pickReplyTargetPubkey(reversePTagReply)).toBe(replyPk);
+
+      // NIP-22 kind:1111: uppercase P is root, lowercase p is parent reply
+      const nip22Reply = {
+        kind: 1111,
+        content: 'NIP-22返信',
+        tags: [
+          ['E', 'rootId123', 'wss://yabu.me', rootPk],
+          ['K', '1'],
+          ['P', rootPk],
+          ['e', 'replyId456', 'wss://yabu.me'],
+          ['k', '1111'],
+          ['p', replyPk]
+        ]
+      };
+      expect(pickReplyTargetPubkey(nip22Reply)).toBe(replyPk);
     });
   });
 

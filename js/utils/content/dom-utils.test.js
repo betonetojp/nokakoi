@@ -13,7 +13,7 @@ vi.mock('../i18n.js', () => ({
   applyTranslations: () => Promise.resolve(),
 }));
 
-import { updateNostrNpubLinks, renderChannelQuote, renderEmojiPackQuote, renderArticleQuote, resolveAndRenderQuote } from './dom-utils.js';
+import { updateNostrNpubLinks, renderChannelQuote, renderEmojiPackQuote, renderArticleQuote, resolveAndRenderQuote, fitCustomEmoji } from './dom-utils.js';
 
 describe('updateNostrNpubLinks', () => {
   beforeEach(() => {
@@ -332,6 +332,49 @@ describe('renderArticleQuote', () => {
     // カスタム絵文字は表示される
     expect(html).toContain('class="custom-emoji"');
     expect(html).toContain('src="https://example.com/nan.webp"');
+  });
+});
+
+describe('fitCustomEmoji', () => {
+  it('does not call getBoundingClientRect or collapse emoji-wrap height to 0px when offscreen/unloaded', () => {
+    vi.useFakeTimers();
+    try {
+      const container = document.createElement('div');
+      container.innerHTML = [
+        '<div class="emoji-line"><span class="emoji-wrap"><img class="custom-emoji" src="https://example.com/a.webp" /></span></div>',
+        '<p><span class="emoji-wrap"><img class="custom-emoji" src="https://example.com/b.webp" /></span></p>'
+      ].join('');
+
+      const imgs = Array.from(container.querySelectorAll('img.custom-emoji'));
+      const rectSpies = imgs.map(img => vi.spyOn(img, 'getBoundingClientRect'));
+
+      fitCustomEmoji(container, 28);
+      vi.advanceTimersByTime(350);
+
+      for (const spy of rectSpies) {
+        expect(spy).not.toHaveBeenCalled();
+      }
+
+      const wraps = Array.from(container.querySelectorAll('.emoji-wrap'));
+      for (const wrap of wraps) {
+        expect(wrap.style.height).toBe('');
+        expect(wrap.style.display).toBe('inline-block');
+      }
+      expect(imgs[0].style.maxHeight).toBe('28px');
+      expect(imgs[1].style.maxHeight).toBe('28px');
+
+      // 画像ロード完了後（縦長: naturalWidth <= naturalHeight）も getBoundingClientRect なしでサイズ反映される
+      Object.defineProperty(imgs[0], 'naturalWidth', { value: 64, configurable: true });
+      Object.defineProperty(imgs[0], 'naturalHeight', { value: 96, configurable: true });
+      imgs[0].dispatchEvent(new Event('load'));
+
+      expect(rectSpies[0]).not.toHaveBeenCalled();
+      expect(imgs[0].style.width).toBe('28px');
+      expect(imgs[0].style.maxHeight).toBe('');
+      expect(wraps[0].style.height).toBe('');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

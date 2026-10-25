@@ -4,6 +4,7 @@ import { VERSION } from '../../config/version.js';
 import { signer } from '../../core/signer.js';
 import { setupInfoHubModal } from './info-hub.js';
 import { getAppState, getBuildInfo, getRelayDebugInfo } from '../../core/app-context.js';
+import { getTimelinePerfSnapshot } from '../../features/timeline/perf-monitor.js';
 
 export function setupDebugModal(state, settings) {
   const setup = () => {
@@ -146,6 +147,9 @@ export function setupDebugModal(state, settings) {
         relaySummary,
         relayStats: { totalRelays, connectedRelays, subscribeQueueLength },
         relayDebugInfo,
+        timelinePerf: (() => {
+          try { return getTimelinePerfSnapshot(); } catch (e) { return null; }
+        })(),
         lastAction: (() => {
           const act = window.__nokakoiLastAction || null;
           if (!act) return null;

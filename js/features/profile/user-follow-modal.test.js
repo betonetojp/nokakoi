@@ -33,8 +33,7 @@ vi.mock('./profile.js', () => ({
   loadProfile: vi.fn(async (state, pk) => ({ name: `User_${pk}`, picture: 'https://example.com/pic.png' })),
   saveProfileToCache: vi.fn(),
   saveProfilesBatchToCache: vi.fn(),
-  isAvatarsEnabled: vi.fn(() => true),
-  isDomPurgeEnabled: vi.fn(() => false)
+  isAvatarsEnabled: vi.fn(() => true)
 }));
 
 vi.mock('./follow-editor.js', () => ({
@@ -193,10 +192,7 @@ describe('openUserFollowListModal', () => {
     expect(clearMutualQueue).toHaveBeenCalled();
   });
 
-  it('does not observe rows for DOM purging even for large lists', async () => {
-    const { isDomPurgeEnabled } = await import('./profile.js');
-    isDomPurgeEnabled.mockReturnValue(false);
-
+  it('does not observe list item rows with IntersectionObserver even for large lists', async () => {
     const observeFn = vi.fn();
     const disconnectFn = vi.fn();
     const mockObserver = vi.fn().mockImplementation(() => ({

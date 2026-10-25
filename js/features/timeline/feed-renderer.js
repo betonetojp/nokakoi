@@ -11,17 +11,16 @@ import { canStartMore, markMoreFinished, markMoreStarted } from './feed-more-pol
 import { EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT, EVENTS_MAX } from '../../config/constants.js';
 import { buildOutgoingZapReceiptFilter } from './feed-filters.js';
 import { shouldDisplayGlobalEvent } from './lang-filter.js';
-import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } from '../../utils/url-parser.js';
+import { captureTimelineAnchor, restoreTimelineAnchor } from '../../utils/url-parser.js';
 import { isBackScrolling, updateBackScrollingState } from '../../utils/content/timeline-anchor.js';
 import { reconcileFeedDom, PRELOAD_EVENT_OFFSET } from './feed-diff.js';
+import { initTimelinePerfMonitor, recordFeedRender } from './perf-monitor.js';
 import { t } from '../../utils/i18n.js';
 import { $, formatLoadBeforeTime } from '../../utils/utils.js';
 import { getSelectedEventEl, setSelectedEventEl } from '../../ui/keyboard-shortcuts.js';
 import {
-  getScrollAnchor,
   isDebugEnabled,
-  isProgrammaticScroll,
-  setProgrammaticScroll
+  isProgrammaticScroll
 } from '../../core/app-context.js';
 
 export const feedLoadState = {};
@@ -84,9 +83,6 @@ function initScrollListener() {
   }, { passive: true });
 }
 
-/** 互換性のための空関数 */
-export function teardownDomPurge() {}
-
 function debugFeed(...args) {
   try {
     if (isDebugEnabled()) {
@@ -116,19 +112,6 @@ function buildEventNode(eventObj, feedId) {
   return node;
 }
 
-/** 互換性のための空関数 */
-function getDomPurgeObserver() {
-  return null;
-}
-
-/** 互換性のための関数（パージ無効化に伴い el をそのまま返す） */
-export function ensureEventRestored(el) {
-  return el || null;
-}
-
-/** 互換性のための空関数 */
-export function restoreDomPurgeAround() {}
-
 // 無限スクロールオブザーバー
 let _infiniteScrollObserver = null;
 
@@ -137,6 +120,7 @@ export function initFeedRenderer(state, options) {
   _options = options;
   _infiniteScrollObserver = options.getInfiniteScrollObserver ? options.getInfiniteScrollObserver() : null;
   initScrollListener();
+  initTimelinePerfMonitor();
 }
 
 export function setInfiniteScrollObserver(obs) {
@@ -230,6 +214,9 @@ export function renderFeed(id = 'global', force = false) {
   }
   const el = $('#feed-' + id);
   if (!el) return;
+  const perfStartMs = (isDebugEnabled() && typeof performance !== 'undefined' && typeof performance.now === 'function')
+    ? performance.now()
+    : null;
   const feed = _state.feeds[id];
   const loadSt = feedLoadState[id] || {};
   if (loadSt.preferFullRender) {
@@ -582,6 +569,13 @@ export function renderFeed(id = 'global', force = false) {
       }
 
       finalizeTopEventMarker();
+      if (perfStartMs !== null) {
+        recordFeedRender({
+          feedId: id,
+          mode: res.modified ? 'diff' : 'noop',
+          durationMs: performance.now() - perfStartMs
+        });
+      }
       return;
     } catch (e) {
       console.warn('[FeedRenderer] 差分描画に失敗したため全件描画にフォールバックします:', e);
@@ -661,4 +655,11 @@ export function renderFeed(id = 'global', force = false) {
   }
 
   finalizeTopEventMarker();
+  if (perfStartMs !== null) {
+    recordFeedRender({
+      feedId: id,
+      mode: 'full',
+      durationMs: performance.now() - perfStartMs
+    });
+  }
 }

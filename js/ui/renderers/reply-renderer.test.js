@@ -223,4 +223,72 @@ describe('profile zap receipt cards', () => {
     expect(html).toContain('アリス');
     expect(html).toContain('こんにちは世界');
   });
+
+  it('uses reply target author and eventId (not root) on unresolved reply card when both root and reply tags exist', async () => {
+    const { findEventById } = await import('../../core/state.js');
+    findEventById.mockImplementation((_state, id) => {
+      if (id === 'root-ev-id') {
+        return {
+          id: 'root-ev-id',
+          pubkey: 'sender',
+          kind: 1,
+          content: 'これはroot投稿',
+          tags: []
+        };
+      }
+      return null;
+    });
+
+    const threadReplyEv = {
+      id: 'thread-reply-1',
+      kind: 1,
+      pubkey: 'replier-pk',
+      content: '枝への返信です',
+      tags: [
+        ['e', 'root-ev-id', 'wss://yabu.me', 'root'],
+        ['e', 'reply-ev-id', 'wss://yabu.me', 'reply'],
+        ['p', 'sender'],     // root author ('べったん')
+        ['p', 'recipient']   // reply target author ('アリス')
+      ]
+    };
+
+    const html = renderReplyContext({ profiles: new Map() }, threadReplyEv, null, {});
+    expect(html).toContain('data-event-id="reply-ev-id"');
+    expect(html).toContain('data-pubkey="recipient"');
+    expect(html).toContain('アリス に返信');
+    expect(html).not.toContain('べったん に返信');
+  });
+
+  it('renders reply event content (not root content) when both root and reply events are cached', async () => {
+    const { findEventById } = await import('../../core/state.js');
+    findEventById.mockImplementation((_state, id) => {
+      if (id === 'root-ev-id') {
+        return { id: 'root-ev-id', pubkey: 'sender', kind: 1, content: 'ROOT本文', tags: [] };
+      }
+      if (id === 'reply-ev-id') {
+        return { id: 'reply-ev-id', pubkey: 'recipient', kind: 1, content: 'REPLY親本文', tags: [] };
+      }
+      return null;
+    });
+
+    const threadReplyEv = {
+      id: 'thread-reply-2',
+      kind: 1,
+      pubkey: 'replier-pk',
+      content: '枝への返信2',
+      tags: [
+        ['e', 'root-ev-id', 'wss://yabu.me', 'root'],
+        ['e', 'reply-ev-id', 'wss://yabu.me', 'reply'],
+        ['p', 'sender'],
+        ['p', 'recipient']
+      ]
+    };
+
+    const html = renderReplyContext({ profiles: new Map() }, threadReplyEv, null, {});
+    expect(html).toContain('data-event-id="reply-ev-id"');
+    expect(html).toContain('data-pubkey="recipient"');
+    expect(html).toContain('アリス に返信');
+    expect(html).toContain('REPLY親本文');
+    expect(html).not.toContain('ROOT本文');
+  });
 });

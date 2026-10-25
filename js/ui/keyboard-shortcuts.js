@@ -72,7 +72,7 @@ export function setupKeyboardShortcuts(state, options) {
     );
   }
 
-  function getFeedEventsIncludingPlaceholders() {
+  function getFeedEvents() {
     const topModal = getTopShortcutModal();
     if (topModal && (topModal.id === 'eventModal' || topModal.id === 'profileModal')) {
       return getVisibleEvents();
@@ -85,7 +85,7 @@ export function setupKeyboardShortcuts(state, options) {
   }
 
   function jumpToFeedBoundary(which) {
-    const all = getFeedEventsIncludingPlaceholders();
+    const all = getFeedEvents();
     if (!all.length) return;
     const target = which === 'last' ? all[all.length - 1] : all[0];
     setSelectedEventEl(target, { smooth: true });

@@ -11,7 +11,7 @@
  * @param {Array<Object>} params.eventsToRender 描画すべきイベントオブジェクト配列
  * @param {Function} params.buildNode イベントノード生成関数 (eventObj, feedId) => HTMLElement|null
  * @param {string} [params.feedId] フィードID
- * @param {IntersectionObserver} [params.obs] DOMパージ等のオブザーバー
+ * @param {IntersectionObserver} [params.obs] 要素監視用オブザーバー
  * @param {HTMLElement} [params.bottomBar] ページネーション読み込みボタン
  * @param {HTMLElement} [params.scrollSentinel] 無限スクロール用センチネル
  * @param {boolean} [params.animateNewItems=false] 先頭に追加される新着要素にアニメーションを付与するか

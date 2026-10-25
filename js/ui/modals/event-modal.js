@@ -12,7 +12,7 @@ import { renderMarkdownWithCustomEmojis } from '../../utils/markdown.js';
 import { setupReactButton, setupRepostButton, setupReplyButton, renderReplyContext, applyClientBadgeToContainer } from '../renderer.js';
 import { renderChannelContext, bindChannelLabelClickHandler } from '../renderers/channel-renderer.js';
 import { pickChannelRootId, scheduleChannelLabelUpdate } from '../../features/channel/channel.js';
-import { findEventById } from '../../core/state.js';
+import { findEventById, cacheEvent } from '../../core/state.js';
 import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
 import { t } from '../../utils/i18n.js';
 import { detectLanguage, getLanguageFlag } from '../../features/timeline/lang-filter.js';
@@ -24,6 +24,9 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
   // フォールバックでグローバルstate/nip19を使う
   if (!state) state = window.__nostrState;
   if (!nip19) nip19 = getNip19Compat() || null;
+  if (state && event && event.id && !findEventById(state, event.id)) {
+    try { cacheEvent(state, event); } catch (_e) { }
+  }
   try { window.__nokakoiEventModalEvent = event || null; } catch (e) { }
 
   async function openReferencedEventById(eventId, relayHints) {
@@ -42,6 +45,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       if (!relays || relays.length === 0) return;
       const fetched = await state.pool.get(relays, { ids: [eventId] });
       if (fetched) {
+        try { cacheEvent(state, fetched); } catch (_e) { }
         showEventModal(fetched, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
       }
     } catch (e) { }
@@ -63,15 +67,15 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       replyAuthorEls.forEach(el => {
         el.onclick = function (e) {
           e.stopPropagation();
-          const pubkey = el.getAttribute('data-pubkey');
-          if (pubkey) {
-            openProfileByPubkey(pubkey);
-            return;
-          }
           const eventId = el.getAttribute('data-event-id');
           const relayHint = el.getAttribute('data-relay-hint') || '';
           if (eventId) {
             openReferencedEventById(eventId, relayHint ? [relayHint] : []);
+            return;
+          }
+          const pubkey = el.getAttribute('data-pubkey');
+          if (pubkey) {
+            openProfileByPubkey(pubkey);
           }
         };
       });

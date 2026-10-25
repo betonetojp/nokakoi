@@ -30,7 +30,7 @@ import { setupPostLinkUI, updatePostLinkButtonAndModal } from '../features/post/
 import { setupEhagakiPublicChatsPicker } from '../ui/ehagaki-public-chats-picker.js';
 import { t, detectBrowserLang, initI18n, applyTranslations } from '../utils/i18n.js';
 import { setupKeyboardShortcuts } from '../ui/keyboard-shortcuts.js';
-import { initFeedRenderer, renderFeed, ensureEventRestored } from '../features/timeline/feed-renderer.js';
+import { initFeedRenderer, renderFeed } from '../features/timeline/feed-renderer.js';
 import { shouldConnectOmochatOnBoot } from '../features/timeline/omochat-lifecycle.js';
 import { getInfiniteScrollObserver, setupInfiniteScrollObserver } from '../boot/infinite-scroll.js';
 import {
@@ -482,8 +482,7 @@ export async function initApp() {
       $$,
       getNip19,
       settings,
-      settingsManager,
-      ensureEventRestored
+      settingsManager
     });
   } catch (e) {
     console.warn('[Main] setupKeyboardShortcuts に失敗', e);

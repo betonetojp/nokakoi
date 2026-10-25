@@ -2,7 +2,7 @@ import { escapeHtml, fmtTime, processHiddenTagChars, buildReactionEmojiTags, rep
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { showZapModal } from '../modals/zap-modal.js';
 import { sendZap, getEventDisplayPubkey } from '../../features/zap/zap.js';
-import { findEventById } from '../../core/state.js';
+import { findEventById, cacheEvent } from '../../core/state.js';
 import { displayNameWithUsername, getProfileLightningAddress } from '../../features/profile/profile.js';
 import { showReactionModal, showConfirmModal } from '../modals/modals.js';
 import { linkifyText, updateNostrNpubLinks, updateNostrNoteLinks, fitCustomEmoji, getPreviewWithFullLinksAndEmojis, getEffectiveTextLength } from '../../utils/url-parser.js';
@@ -578,14 +578,7 @@ function bindProfileClickHandlers(div, ev, state, nip19, settings, settingsManag
 
   const replyToAuthorEl = div.querySelector('.reply-to-author[data-pubkey], .reply-to-author[data-event-id]');
   if (replyToAuthorEl) {
-    if (replyToAuthorEl.hasAttribute('data-pubkey')) {
-      replyToAuthorEl.onclick = function () {
-        const pubkey = replyToAuthorEl.getAttribute('data-pubkey');
-        if (pubkey) {
-          invokeShowProfileModalProxy(pubkey);
-        }
-      };
-    } else if (replyToAuthorEl.hasAttribute('data-event-id')) {
+    if (replyToAuthorEl.hasAttribute('data-event-id')) {
       replyToAuthorEl.onclick = async function () {
         const eventId = replyToAuthorEl.getAttribute('data-event-id');
         if (eventId && state && state.pool) {
@@ -604,8 +597,16 @@ function bindProfileClickHandlers(div, ev, state, nip19, settings, settingsManag
             event = await state.pool.get(relays, { ids: [eventId] });
           }
           if (event) {
+            try { cacheEvent(state, event); } catch (_e) { }
             showEventModal(event, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
           }
+        }
+      };
+    } else if (replyToAuthorEl.hasAttribute('data-pubkey')) {
+      replyToAuthorEl.onclick = function () {
+        const pubkey = replyToAuthorEl.getAttribute('data-pubkey');
+        if (pubkey) {
+          invokeShowProfileModalProxy(pubkey);
         }
       };
     }
@@ -816,7 +817,8 @@ function bindContentClickHandlers(div, ev, state, nip19, settings, settingsManag
       } catch (err) { }
       e.stopPropagation();
       const { eventId: targetId, relayHint } = pickETagWithHint(ev);
-      const effectiveTargetId = targetId || ev.id;
+      const attrEventId = el.getAttribute('data-event-id');
+      const effectiveTargetId = attrEventId || targetId || ev.id;
       const cachedEv = findEventById(state, effectiveTargetId);
       if (cachedEv) {
         showEventModal(cachedEv, state, nip19, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
@@ -1041,6 +1043,9 @@ function bindEventListeners(div, ev, state, nip19, settings, settingsManager, re
 }
 
 export function renderEvent(state, ev, nip19, settings, settingsManager, reactToEvent, replyToEvent, repostEvent, feedId = null) {
+  if (state && ev && ev.id && !findEventById(state, ev.id)) {
+    try { cacheEvent(state, ev); } catch (_e) { }
+  }
   const div = buildEventContainer(ev);
   if (settings && (settings.ignoreMuteApply === true || settings.disableMuteApply === true)) {
     div.dataset.ignoreMuteApply = 'true';

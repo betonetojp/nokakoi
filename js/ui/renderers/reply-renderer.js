@@ -5,7 +5,7 @@ import { escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
 import { linkifyText, getEffectiveTextLength, getPreviewWithFullLinksAndEmojis, getNip19 } from '../../utils/url-parser.js';
 import { t } from '../../utils/i18n.js';
 import { MAX_PREVIEW_LINES } from '../../config/constants.js';
-import { pickETagWithHint, resolvePreviewMaxLength } from './render-helpers.js';
+import { pickETagWithHint, pickReplyTargetPubkey, resolvePreviewMaxLength } from './render-helpers.js';
 import { formatReaction } from './reaction-renderer.js';
 import { renderArticlePreviewHtml } from '../../utils/content/dom-utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
@@ -170,8 +170,7 @@ export function renderReplyContext(state, ev, nip19, settings) {
       );
     }
 
-    const pTag = (ev.tags || []).find(t => Array.isArray(t) && (t[0] === 'p' || t[0] === 'P') && t[1]);
-    const targetPubkey = pTag ? pTag[1] : '';
+    const targetPubkey = pickReplyTargetPubkey(ev, state, nip19 || getNip19());
     let authorDisplay = '';
     if (targetPubkey) {
       const authorName = displayName(state, targetPubkey, nip19);

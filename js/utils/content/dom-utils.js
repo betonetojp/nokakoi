@@ -335,10 +335,11 @@ export async function updateReplyContexts(container, state, nip19, settings, set
         const ownerEv = findEventById(state, ownerEventId);
         if (!ownerEv) continue;
 
+        const inEventModal = !!(replyEl.closest && replyEl.closest('#eventModal'));
         const newHtml = renderReplyContext(state, ownerEv, nip19, {
           ...(settings || {}),
           settingsManager,
-          isModal: false,
+          isModal: inEventModal,
           showTimelineMedia: true
         });
 
@@ -965,7 +966,7 @@ export function fitCustomEmoji(container, shortSidePx = 28) {
     const imgs = container.querySelectorAll('img.custom-emoji');
     imgs.forEach(img => {
       try {
-        const wrap = img.closest('.emoji-wrap') || img.parentElement;
+        const wrap = img.closest('.emoji-wrap');
         const applySizing = () => {
           try {
             const inlineGroup = img.closest('.emoji-inline-group');
@@ -993,6 +994,7 @@ export function fitCustomEmoji(container, shortSidePx = 28) {
               img.style.padding = '0';
               img.style.lineHeight = '1';
               if (wrap) {
+                wrap.style.height = '';
                 wrap.style.maxWidth = '100%';
                 wrap.style.display = 'inline-block';
                 wrap.style.margin = '0';
@@ -1007,10 +1009,10 @@ export function fitCustomEmoji(container, shortSidePx = 28) {
                 img.style.height = 'auto';
                 img.style.maxHeight = effectiveShort + 'px';
                 img.style.width = 'auto';
-                if (wrap) wrap.style.height = img.getBoundingClientRect().height + 'px';
               } else if (nw <= nh) {
                 img.style.width = effectiveShort + 'px';
                 img.style.height = 'auto';
+                img.style.maxHeight = '';
               } else {
                 img.style.height = 'auto';
                 img.style.maxHeight = effectiveShort + 'px';
@@ -1023,15 +1025,13 @@ export function fitCustomEmoji(container, shortSidePx = 28) {
               img.style.objectFit = 'contain';
               img.style.maxWidth = '100%';
               if (wrap) {
+                wrap.style.height = '';
                 wrap.style.maxWidth = '100%';
-                const rect = img.getBoundingClientRect();
-                if (rect && rect.height) {
-                  wrap.style.height = rect.height + 'px';
-                  wrap.style.display = 'inline-block';
-                  wrap.style.margin = '0';
-                  wrap.style.padding = '0';
-                  wrap.style.verticalAlign = 'top';
-                }
+                wrap.style.display = 'inline-block';
+                wrap.style.margin = '0';
+                wrap.style.padding = '0';
+                wrap.style.lineHeight = '0';
+                wrap.style.verticalAlign = 'top';
               }
             } else {
               const maxEmH = 3.6;
@@ -1041,7 +1041,6 @@ export function fitCustomEmoji(container, shortSidePx = 28) {
                 img.style.height = 'auto';
                 img.style.maxHeight = (effectiveShort * 1.0) + 'px';
                 img.style.width = 'auto';
-                if (wrap) wrap.style.height = img.getBoundingClientRect().height + 'px';
               } else if (nw <= nh) {
                 img.style.width = effectiveShort + 'px';
                 img.style.height = 'auto';
@@ -1055,13 +1054,11 @@ export function fitCustomEmoji(container, shortSidePx = 28) {
               img.style.objectFit = 'contain';
               img.style.maxWidth = '100%';
               if (wrap) {
+                wrap.style.height = '';
                 wrap.style.maxWidth = '100%';
-                const rect = img.getBoundingClientRect();
-                if (rect && rect.height) {
-                  wrap.style.height = rect.height + 'px';
-                  wrap.style.display = 'inline-block';
-                  wrap.style.verticalAlign = 'top';
-                }
+                wrap.style.display = 'inline-block';
+                wrap.style.lineHeight = '0';
+                wrap.style.verticalAlign = 'top';
               }
             }
           } catch (e) { }

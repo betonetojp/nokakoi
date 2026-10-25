@@ -33,8 +33,7 @@ vi.mock('./feed-renderer.js', () => ({
   renderFeed: vi.fn(),
   scheduleRender: vi.fn(),
   userKind7Memory: new Map(),
-  feedLoadState: {},
-  ensureEventRestored: vi.fn()
+  feedLoadState: {}
 }));
 vi.mock('../channel/channel.js', () => ({ pickChannelRootId: vi.fn(), prefetchChannelMetadata: vi.fn() }));
 vi.mock('../profile/profile.js', () => ({

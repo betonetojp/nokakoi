@@ -26,6 +26,7 @@ import {
   buildOutgoingZapReceiptFilter
 } from './feed-filters.js';
 import { shouldDisplayGlobalEvent } from './lang-filter.js';
+import { pickETagEventId } from '../../ui/renderers/render-helpers.js';
 
 // モジュール内の状態管理用変数
 let state = null;
@@ -666,8 +667,7 @@ export function addToFeed(feedId, ev, keepLatestCount = null, _relay = null) {
       if (ev && ev.kind === 7) {
         const myPub = localStorage.getItem('pubkey');
         if (myPub && ev.pubkey === myPub) {
-          const eTag = (ev.tags || []).find(t => Array.isArray(t) && t[0] === 'e' && t[1]);
-          const targetId = eTag && eTag[1];
+          const targetId = pickETagEventId(ev);
           if (targetId) {
             const reactionEmojiTags = (ev.tags || []).filter(t => Array.isArray(t) && t[0] === 'emoji' && t.length >= 3);
             const storedReaction = reactionEmojiTags.length ? { content: ev.content || '', emojiTags: reactionEmojiTags } : (ev.content || '');

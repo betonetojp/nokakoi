@@ -30,134 +30,203 @@ export async function loadClientsMap() {
   return __clientsMapPromise;
 }
 
-export function pickETagEventId(ev) {
-  if (!ev || !Array.isArray(ev.tags)) return null;
-  const eTags = (ev.tags || []).filter(t => t && (t[0] === 'e' || t[0] === 'E') && t[1]);
-  if (!eTags || eTags.length === 0) return null;
+const KNOWN_E_MARKERS = new Set(['root', 'reply', 'mention']);
+const HEX64_RE = /^[0-9a-f]{64}$/i;
 
-  if (ev.kind === 7 || ev.kind === 9735) {
-    return eTags[eTags.length - 1][1];
-  }
+function normalizeMarker(val) {
+  if (typeof val !== 'string') return '';
+  const lower = val.trim().toLowerCase();
+  return KNOWN_E_MARKERS.has(lower) ? lower : '';
+}
 
-  if (ev.kind === 1111) {
-    const parentTag = eTags.filter(t => t[0] === 'e').pop();
-    if (parentTag) return parentTag[1];
-    const rootTag = eTags.find(t => t[0] === 'E');
-    if (rootTag) return rootTag[1];
-    return eTags[eTags.length - 1][1];
-  }
+function normalizeHexPubkey(val) {
+  if (typeof val !== 'string') return '';
+  const trimmed = val.trim();
+  return HEX64_RE.test(trimmed) ? trimmed : '';
+}
 
-  if (ev.kind === 42) {
-    for (const t of eTags) {
-      if ((t[3] || '').toString().toLowerCase() === 'reply') return t[1];
-    }
-    const rootTag = eTags.find(t => (t[3] || '').toString().toLowerCase() === 'root');
-    const unmarked = eTags.filter(t => {
-      const rawMarker = (t[3] || '').toString().toLowerCase();
-      return rawMarker !== 'root' && rawMarker !== 'reply' && rawMarker !== 'mention';
-    });
-    if (rootTag) {
-      if (unmarked.length > 0) return unmarked[unmarked.length - 1][1];
-      return null;
-    }
-    if (unmarked.length >= 2) {
-      return unmarked[unmarked.length - 1][1];
-    }
+export function parseETagEntry(tag) {
+  if (!Array.isArray(tag) || (tag[0] !== 'e' && tag[0] !== 'E') || !tag[1]) {
     return null;
   }
+  const tagName = tag[0];
+  const eventId = String(tag[1]);
+  const raw2 = tag[2] != null ? String(tag[2]).trim() : '';
+  const raw3 = tag[3] != null ? String(tag[3]).trim() : '';
+  const raw4 = tag[4] != null ? String(tag[4]).trim() : '';
 
-  for (const t of eTags) {
-    try {
-      if ((t[3] || '').toString().toLowerCase() === 'reply') return t[1];
-    } catch (e) { }
-  }
+  const marker = tagName === 'E'
+    ? (normalizeMarker(raw3) || normalizeMarker(raw4) || normalizeMarker(raw2) || 'root')
+    : (normalizeMarker(raw3) || normalizeMarker(raw4) || normalizeMarker(raw2));
 
-  let rootId = null;
-  const unmarked = [];
-  for (const t of eTags) {
-    try {
-      const rawMarker = (t[3] || '').toString().toLowerCase();
-      const isKnownMarker = rawMarker === 'root' || rawMarker === 'reply' || rawMarker === 'mention';
-      if (rawMarker === 'root' || t[0] === 'E') rootId = t[1];
-      if (!isKnownMarker && t[0] === 'e') unmarked.push(t[1]);
-    } catch (e) { }
-  }
+  const relayHint = (raw2 && !normalizeMarker(raw2) && !normalizeHexPubkey(raw2))
+    ? raw2
+    : '';
 
-  if (rootId && unmarked.length > 0) return unmarked[unmarked.length - 1];
-  if (rootId) return rootId;
-  return eTags[eTags.length - 1][1];
+  const pubkey = normalizeHexPubkey(raw4) || normalizeHexPubkey(raw3) || normalizeHexPubkey(raw2);
+
+  return { tagName, eventId, relayHint, marker, pubkey };
 }
 
 export function pickETagWithHint(ev) {
-  if (!ev || !Array.isArray(ev.tags)) return { eventId: null, relayHint: '' };
-  const eTags = (ev.tags || []).filter(t => t && (t[0] === 'e' || t[0] === 'E') && t[1]);
-  if (!eTags || eTags.length === 0) return { eventId: null, relayHint: '' };
+  if (!ev || !Array.isArray(ev.tags)) return { eventId: null, relayHint: '', pubkey: '' };
+  const parsed = ev.tags.map(parseETagEntry).filter(Boolean);
+  if (parsed.length === 0) return { eventId: null, relayHint: '', pubkey: '' };
 
-  if (ev.kind === 7) {
-    const tag = eTags[eTags.length - 1];
-    return { eventId: tag[1], relayHint: tag[2] || '' };
+  if (ev.kind === 7 || ev.kind === 9735) {
+    const replyMarked = parsed.filter(t => t.marker === 'reply').pop();
+    if (replyMarked) {
+      return { eventId: replyMarked.eventId, relayHint: replyMarked.relayHint, pubkey: replyMarked.pubkey };
+    }
+    const nonRootMention = parsed.filter(t => t.tagName === 'e' && t.marker !== 'root' && t.marker !== 'mention').pop();
+    if (nonRootMention) {
+      return { eventId: nonRootMention.eventId, relayHint: nonRootMention.relayHint, pubkey: nonRootMention.pubkey };
+    }
+    const last = parsed[parsed.length - 1];
+    return { eventId: last.eventId, relayHint: last.relayHint, pubkey: last.pubkey };
   }
 
   if (ev.kind === 1111) {
-    const parentTag = eTags.filter(t => t[0] === 'e').pop();
+    const lowerETags = parsed.filter(t => t.tagName === 'e');
+    const replyMarked = lowerETags.filter(t => t.marker === 'reply').pop();
+    if (replyMarked) {
+      return { eventId: replyMarked.eventId, relayHint: replyMarked.relayHint, pubkey: replyMarked.pubkey };
+    }
+    const parentTag = lowerETags.filter(t => t.marker !== 'root' && t.marker !== 'mention').pop()
+      || lowerETags[lowerETags.length - 1];
     if (parentTag) {
-      return { eventId: parentTag[1], relayHint: parentTag[2] || '' };
+      return { eventId: parentTag.eventId, relayHint: parentTag.relayHint, pubkey: parentTag.pubkey };
     }
-    const rootTag = eTags.find(t => t[0] === 'E');
+    const rootTag = parsed.find(t => t.tagName === 'E');
     if (rootTag) {
-      return { eventId: rootTag[1], relayHint: rootTag[2] || '' };
+      return { eventId: rootTag.eventId, relayHint: rootTag.relayHint, pubkey: rootTag.pubkey };
     }
-    const fallbackTag = eTags[eTags.length - 1];
-    return { eventId: fallbackTag[1], relayHint: fallbackTag[2] || '' };
+    const fallbackTag = parsed[parsed.length - 1];
+    return { eventId: fallbackTag.eventId, relayHint: fallbackTag.relayHint, pubkey: fallbackTag.pubkey };
   }
 
   if (ev.kind === 42) {
-    for (const t of eTags) {
-      if ((t[3] || '').toString().toLowerCase() === 'reply') return { eventId: t[1], relayHint: t[2] || '' };
+    const replyMarked = parsed.filter(t => t.marker === 'reply').pop();
+    if (replyMarked) {
+      return { eventId: replyMarked.eventId, relayHint: replyMarked.relayHint, pubkey: replyMarked.pubkey };
     }
-    const rootTag = eTags.find(t => (t[3] || '').toString().toLowerCase() === 'root');
-    const unmarked = eTags.filter(t => {
-      const rawMarker = (t[3] || '').toString().toLowerCase();
-      return rawMarker !== 'root' && rawMarker !== 'reply' && rawMarker !== 'mention';
-    });
+    const rootTag = parsed.find(t => t.marker === 'root');
+    const unmarked = parsed.filter(t => t.tagName === 'e' && !t.marker);
     if (rootTag) {
       if (unmarked.length > 0) {
         const tag = unmarked[unmarked.length - 1];
-        return { eventId: tag[1], relayHint: tag[2] || '' };
+        return { eventId: tag.eventId, relayHint: tag.relayHint, pubkey: tag.pubkey };
       }
-      return { eventId: null, relayHint: '' };
+      return { eventId: null, relayHint: '', pubkey: '' };
     }
     if (unmarked.length >= 2) {
       const tag = unmarked[unmarked.length - 1];
-      return { eventId: tag[1], relayHint: tag[2] || '' };
+      return { eventId: tag.eventId, relayHint: tag.relayHint, pubkey: tag.pubkey };
     }
-    return { eventId: null, relayHint: '' };
+    return { eventId: null, relayHint: '', pubkey: '' };
   }
 
-  for (const t of eTags) {
-    try {
-      if ((t[3] || '').toString().toLowerCase() === 'reply') return { eventId: t[1], relayHint: t[2] || '' };
-    } catch (e) { }
+  const replyMarked = parsed.filter(t => t.marker === 'reply').pop();
+  if (replyMarked) {
+    return { eventId: replyMarked.eventId, relayHint: replyMarked.relayHint, pubkey: replyMarked.pubkey };
   }
 
-  let rootTag = null;
-  const unmarked = [];
-  for (const t of eTags) {
-    try {
-      const rawMarker = (t[3] || '').toString().toLowerCase();
-      const isKnownMarker = rawMarker === 'root' || rawMarker === 'reply' || rawMarker === 'mention';
-      if (rawMarker === 'root' || t[0] === 'E') rootTag = t;
-      if (!isKnownMarker && t[0] === 'e') unmarked.push(t);
-    } catch (e) { }
-  }
+  const rootTags = parsed.filter(t => t.marker === 'root' || t.tagName === 'E');
+  const unmarked = parsed.filter(t => t.tagName === 'e' && !t.marker);
 
-  if (rootTag && unmarked.length > 0) {
+  if (unmarked.length > 0) {
     const tag = unmarked[unmarked.length - 1];
-    return { eventId: tag[1], relayHint: tag[2] || '' };
+    return { eventId: tag.eventId, relayHint: tag.relayHint, pubkey: tag.pubkey };
   }
-  if (rootTag) return { eventId: rootTag[1], relayHint: rootTag[2] || '' };
-  const tag = eTags[eTags.length - 1];
-  return { eventId: tag[1], relayHint: tag[2] || '' };
+  if (rootTags.length > 0) {
+    const tag = rootTags[rootTags.length - 1];
+    return { eventId: tag.eventId, relayHint: tag.relayHint, pubkey: tag.pubkey };
+  }
+  const tag = parsed[parsed.length - 1];
+  return { eventId: tag.eventId, relayHint: tag.relayHint, pubkey: tag.pubkey };
+}
+
+export function pickETagEventId(ev) {
+  return pickETagWithHint(ev).eventId;
+}
+
+function extractInlineMentionPubkeys(content, nip19) {
+  const set = new Set();
+  if (!content || typeof content !== 'string' || !nip19 || typeof nip19.decode !== 'function') {
+    return set;
+  }
+  const matches = content.match(/(?:nostr:)?(?:npub1|nprofile1)[02-9ac-hj-np-z]+/gi) || [];
+  for (const raw of matches) {
+    try {
+      const token = raw.replace(/^nostr:/i, '');
+      const decoded = nip19.decode(token);
+      if (decoded?.type === 'npub' && typeof decoded.data === 'string') {
+        set.add(decoded.data.toLowerCase());
+      } else if (decoded?.type === 'nprofile' && decoded.data?.pubkey) {
+        set.add(String(decoded.data.pubkey).toLowerCase());
+      }
+    } catch (_e) { }
+  }
+  return set;
+}
+
+export function pickReplyTargetPubkey(ev, state = null, nip19 = null) {
+  if (!ev || !Array.isArray(ev.tags)) return '';
+
+  const picked = pickETagWithHint(ev);
+  if (picked.pubkey) {
+    return picked.pubkey;
+  }
+
+  const lowerPTags = ev.tags
+    .filter(t => Array.isArray(t) && t[0] === 'p' && t[1])
+    .map(t => String(t[1]).trim())
+    .filter(Boolean);
+  const upperPTags = ev.tags
+    .filter(t => Array.isArray(t) && t[0] === 'P' && t[1])
+    .map(t => String(t[1]).trim())
+    .filter(Boolean);
+
+  if (ev.kind === 1111) {
+    if (lowerPTags.length > 0) return lowerPTags[lowerPTags.length - 1];
+    if (upperPTags.length > 0) return upperPTags[upperPTags.length - 1];
+    return '';
+  }
+
+  const pTags = lowerPTags.length > 0 ? lowerPTags : upperPTags;
+  if (pTags.length === 0) return '';
+  if (pTags.length === 1) return pTags[0];
+
+  const inlineMentions = extractInlineMentionPubkeys(ev.content, nip19);
+  const threadPTags = inlineMentions.size > 0
+    ? pTags.filter(pk => !inlineMentions.has(pk.toLowerCase()))
+    : pTags;
+  const candidates = threadPTags.length > 0 ? threadPTags : pTags;
+
+  const parsedETags = ev.tags.map(parseETagEntry).filter(Boolean);
+  const rootTag = parsedETags.find(t => t.marker === 'root' || t.tagName === 'E')
+    || (parsedETags.length >= 2 && !parsedETags[0].marker ? parsedETags[0] : null);
+  const rootId = rootTag ? rootTag.eventId : null;
+
+  if (rootId && picked.eventId && rootId !== picked.eventId) {
+    let rootPubkey = rootTag?.pubkey || '';
+    if (!rootPubkey && state) {
+      try {
+        const rootEv = findEventById(state, rootId);
+        if (rootEv?.pubkey) rootPubkey = rootEv.pubkey;
+      } catch (_e) { }
+    }
+    if (rootPubkey) {
+      const rootLower = rootPubkey.toLowerCase();
+      const rootOccurrences = candidates.filter(pk => pk.toLowerCase() === rootLower).length;
+      const nonRoot = candidates.filter(pk => pk.toLowerCase() !== rootLower);
+      if (rootOccurrences === 1 && nonRoot.length > 0) {
+        return nonRoot[nonRoot.length - 1];
+      }
+    }
+  }
+
+  return candidates[candidates.length - 1];
 }
 
 export function pickLastETagEventId(ev) {

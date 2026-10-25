@@ -623,13 +623,6 @@ export function isAvatarsEnabled(state) {
 }
 
 /**
- * アプリ設定のDOMパージ有効フラグを取得 (非推奨・常に無効)
- */
-export function isDomPurgeEnabled() {
-  return false;
-}
-
-/**
  * pubkeyのアバター画像をDOMに反映
  */
 export function updateAvatarDom(state, pubkey) {
