@@ -25,9 +25,10 @@ describe('feed filters', () => {
         authors: ['alice', 'bob'],
         limit: EVENTS_FETCH_LIMIT
       },
-      { kinds: [1, 6, 7, 1111, 9735], '#p': ['me'], limit: EVENTS_FETCH_LIMIT },
+      { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': ['me'], limit: EVENTS_FETCH_LIMIT },
+      { kinds: [1111], '#P': ['me'], limit: EVENTS_FETCH_LIMIT },
       { kinds: [9735], '#P': ['me'], limit: EVENTS_FETCH_LIMIT },
-      { kinds: [7, 42, 16], authors: ['me'], limit: EVENTS_FETCH_LIMIT }
+      { kinds: [7, 42, 16, 1111], authors: ['me'], limit: EVENTS_FETCH_LIMIT }
     ]);
   });
 
@@ -58,9 +59,12 @@ describe('feed filters', () => {
     const settings = { get: vi.fn(key => key === 'showHomeRepost16') };
     const filters = buildHomeLoadMoreFilters(state, settings, 123);
 
-    expect(filters).toHaveLength(5);
+    expect(filters).toHaveLength(6);
     expect(filters.every(filter => filter.until === 123)).toBe(true);
-    expect(filters[2]).toEqual({ kinds: [9735], '#P': ['me'], limit: EVENTS_FETCH_LIMIT, until: 123 });
-    expect(filters[4].kinds).toEqual([16]);
+    expect(filters[1].kinds).toEqual([1, 6, 7, 16, 42, 1111, 9735]);
+    expect(filters[2]).toEqual({ kinds: [1111], '#P': ['me'], limit: EVENTS_FETCH_LIMIT, until: 123 });
+    expect(filters[3]).toEqual({ kinds: [9735], '#P': ['me'], limit: EVENTS_FETCH_LIMIT, until: 123 });
+    expect(filters[4]).toEqual({ kinds: [7, 42, 16, 1111], authors: ['me'], limit: EVENTS_FETCH_LIMIT, until: 123 });
+    expect(filters[5].kinds).toEqual([16]);
   });
 });

@@ -1,5 +1,6 @@
 import {
   getScrollAnchor,
+  isUserScrolling,
   setProgrammaticScroll,
   setScrollAnchor
 } from '../../core/app-context.js';
@@ -141,7 +142,13 @@ export function restoreTimelineAnchor(anchor, container, options) {
     }, Math.max(0, maintainMs));
 
     const runApply = () => {
-      try { applyTimelineAnchorDrift(anchor, container); } catch (e) { }
+      try {
+        if (isUserScrolling()) {
+          clearAnchorMaintenance();
+          return;
+        }
+        applyTimelineAnchorDrift(anchor, container);
+      } catch (e) { }
     };
 
     try {
@@ -159,13 +166,15 @@ export function restoreTimelineAnchor(anchor, container, options) {
         const anchorEl = findTimelineAnchorElement(anchor, container);
         if (anchorEl) {
           _anchorMaintainObserver = new ResizeObserver(() => {
-            try { applyTimelineAnchorDrift(anchor, container); } catch (e) { }
+            try {
+              if (isUserScrolling()) {
+                clearAnchorMaintenance();
+                return;
+              }
+              applyTimelineAnchorDrift(anchor, container);
+            } catch (e) { }
           });
           _anchorMaintainObserver.observe(anchorEl);
-          const feed = anchorEl.closest('.feed');
-          if (feed && feed !== anchorEl) {
-            _anchorMaintainObserver.observe(feed);
-          }
         }
       } catch (e) {
         if (_anchorMaintainObserver) {
@@ -179,8 +188,50 @@ export function restoreTimelineAnchor(anchor, container, options) {
   }
 }
 
+export function replaceElementPreservingAnchor(oldEl, newEl, container) {
+  if (!oldEl || !oldEl.parentNode || !newEl) return false;
+  const activeFeed = resolveActiveFeed(container);
+  if (!activeFeed) {
+    oldEl.parentNode.replaceChild(newEl, oldEl);
+    return true;
+  }
+
+  updateBackScrollingState(activeFeed);
+  if (isUserScrolling()) {
+    oldEl.parentNode.replaceChild(newEl, oldEl);
+    return true;
+  }
+
+  if (isScrollAnchoringSupported() && activeFeed.classList && activeFeed.classList.contains('back-scrolling')) {
+    const anchor = captureTimelineAnchor(activeFeed);
+    oldEl.parentNode.replaceChild(newEl, oldEl);
+    if (anchor && !isUserScrolling()) {
+      const adjusted = applyTimelineAnchorDrift(anchor, activeFeed);
+      if (adjusted) {
+        setTimeout(() => {
+          try {
+            if (!getScrollAnchor()) setProgrammaticScroll(false);
+          } catch (e) { }
+        }, 0);
+      }
+    }
+    return true;
+  }
+
+  const anchor = captureTimelineAnchor(activeFeed);
+  oldEl.parentNode.replaceChild(newEl, oldEl);
+  if (anchor && !isUserScrolling()) {
+    restoreTimelineAnchor(anchor, activeFeed, { maintainMs: 50 });
+  }
+  return true;
+}
+
 export function followUpTimelineAnchor(container) {
   try {
+    if (isUserScrolling()) {
+      clearAnchorMaintenance();
+      return;
+    }
     const anchor = getScrollAnchor();
     if (!anchor) return;
     applyTimelineAnchorDrift(anchor, container);

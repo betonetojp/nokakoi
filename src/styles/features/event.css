@@ -1349,3 +1349,10 @@ button.muted-fold-expand-btn:hover:not(:disabled),
   display: inline-flex;
   align-items: center;
 }
+.cw-embedded-fold-bar {
+  padding: 5px 8px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  white-space: normal;
+  cursor: default;
+}

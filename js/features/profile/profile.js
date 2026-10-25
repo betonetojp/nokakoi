@@ -540,6 +540,50 @@ export function updateNameDom(state, pubkey, nip19) {
     }
   });
 
+  // 投稿欄の返信/引用コンテキスト作者名 (.reply-author[data-pubkey]) の更新
+  try {
+    const composerAuthors = Array.from(document.querySelectorAll('#replyContextContent .reply-author[data-pubkey]')).filter(pkFilter);
+    composerAuthors.forEach(function (el) {
+      if (names.main) {
+        el.innerHTML = replaceBadgeEmoji(escapeHtml(names.main));
+      }
+    });
+  } catch (e) { }
+
+  // 開いているプロフィールモーダル (#profileModal[data-pubkey]) の動的更新
+  try {
+    const profileModal = document.getElementById('profileModal');
+    if (profileModal && !profileModal.hidden && pkFilter(profileModal)) {
+      const prof = lookupProfile(state, pubkey);
+      const modalDisplayNameEl = document.getElementById('profileDisplayName');
+      if (modalDisplayNameEl && prof) {
+        const dName = prof.display_name || prof.name || 'Unknown';
+        let html = '';
+        try {
+          const pet = (state && state.followPetnames && state.followPetnames.get && (state.followPetnames.get(pubkey) || (lowerPk ? state.followPetnames.get(lowerPk) : ''))) || '';
+          if (pet && String(pet).trim()) {
+            html += '<span class="petname"><span class="icon petname-badge" role="img" aria-label="Badge"></span>' + escapeHtml(String(pet).trim()) + '</span>';
+          }
+        } catch (_e) { }
+        html += '<span class="profile-display-name-text" title="' + escapeHtml(dName) + '">' + escapeHtml(dName) + '</span>';
+        modalDisplayNameEl.innerHTML = html;
+      }
+      const modalUsernameEl = document.getElementById('profileUsername');
+      if (modalUsernameEl && prof) {
+        const uName = prof.name || '';
+        if (uName) {
+          modalUsernameEl.textContent = '@' + uName;
+          modalUsernameEl.title = uName;
+          modalUsernameEl.classList.remove('d-none');
+        } else {
+          modalUsernameEl.textContent = '';
+          modalUsernameEl.removeAttribute('title');
+          modalUsernameEl.classList.add('d-none');
+        }
+      }
+    }
+  } catch (e) { }
+
   try {
     updateAvatarDom(state, pubkey);
   } catch (e) { }
@@ -627,13 +671,51 @@ export function isAvatarsEnabled(state) {
  */
 export function updateAvatarDom(state, pubkey) {
   if (!pubkey) return;
-  if (!isAvatarsEnabled(state)) return;
+  const lowerPk = typeof pubkey === 'string' ? pubkey.toLowerCase() : '';
+  const pkFilter = (el) => {
+    const attr = el.getAttribute('data-pubkey');
+    return attr === pubkey || (lowerPk && attr && attr.toLowerCase() === lowerPk);
+  };
 
-  const prof = state && state.profiles ? state.profiles.get(pubkey) : null;
+  const prof = lookupProfile(state, pubkey);
   const avatarUrl = sanitizeUrlCandidate((prof && prof.picture) || '') || '';
   if (!avatarUrl) return;
 
-  const nodes = document.querySelectorAll('.name[data-pubkey="' + pubkey + '"]');
+  // プロフィールモーダル自体のアイコンは showAvatars 設定に関わらず更新
+  try {
+    const profileModal = document.getElementById('profileModal');
+    if (profileModal && !profileModal.hidden && pkFilter(profileModal)) {
+      const picEl = document.getElementById('profilePicture');
+      if (picEl) {
+        if (picEl.src !== avatarUrl) picEl.src = avatarUrl;
+        picEl.classList.remove('d-none');
+        picEl.onerror = function () { picEl.classList.add('d-none'); };
+      }
+    }
+  } catch (e) { }
+
+  // チャンネル情報モーダル作成者アイコン (#channelInfoCreatorRow[data-pubkey]) の更新
+  try {
+    const creatorRows = Array.from(document.querySelectorAll('.channel-info-creator-row[data-pubkey]')).filter(pkFilter);
+    creatorRows.forEach(function (row) {
+      const curAvatar = row.querySelector('.channel-info-creator-avatar');
+      if (!curAvatar) return;
+      if (curAvatar.tagName === 'IMG') {
+        if (curAvatar.src !== avatarUrl) curAvatar.src = avatarUrl;
+      } else {
+        const img = document.createElement('img');
+        img.src = avatarUrl;
+        img.alt = 'avatar';
+        img.className = 'channel-info-creator-avatar';
+        img.loading = 'lazy';
+        row.replaceChild(img, curAvatar);
+      }
+    });
+  } catch (e) { }
+
+  if (!isAvatarsEnabled(state)) return;
+
+  const nodes = Array.from(document.querySelectorAll('.name[data-pubkey]')).filter(pkFilter);
   nodes.forEach(function (el) {
     // kind:20000(omochat) はアバター画像を表示しない
     const eventEl = el.closest('.event[data-kind]');

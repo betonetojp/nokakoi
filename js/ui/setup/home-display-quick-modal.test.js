@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { showHomeDisplayQuickModal, setupDisplaySettings } from './display-settings.js';
 import { getMuteSetting, setMuteSetting } from '../../features/mute/mute.js';
+import { evaluateMuteState, invalidateMuteConfigCache } from '../renderers/render-helpers.js';
 
 describe('Home Display Quick Settings Modal', () => {
   let settingsManager;
@@ -156,5 +157,27 @@ describe('Home Display Quick Settings Modal', () => {
     expect(getMuteSetting('mute_hide_public')).toBe('1');
     expect(normalHidePublicCheck.checked).toBe(true);
     expect(restartFeedsMock).toHaveBeenCalled();
+  });
+
+  it('invalidates cached mute config and toggles #muteModeWrap when quick mute checkbox changes', () => {
+    document.body.insertAdjacentHTML('beforeend', '<div id="muteModeWrap"></div>');
+    invalidateMuteConfigCache();
+    expect(evaluateMuteState({}, 'pk', 'text').muteApply).toBe(true);
+
+    showHomeDisplayQuickModal();
+    const muteCheck = document.getElementById('homeDisplayQuickMuteCheck');
+    const modeWrap = document.getElementById('muteModeWrap');
+
+    muteCheck.checked = false;
+    muteCheck.dispatchEvent(new Event('change'));
+
+    expect(evaluateMuteState({}, 'pk', 'text').muteApply).toBe(false);
+    expect(modeWrap.classList.contains('d-none')).toBe(true);
+
+    muteCheck.checked = true;
+    muteCheck.dispatchEvent(new Event('change'));
+
+    expect(evaluateMuteState({}, 'pk', 'text').muteApply).toBe(true);
+    expect(modeWrap.classList.contains('d-none')).toBe(false);
   });
 });

@@ -5,10 +5,10 @@ import { t } from '../i18n.js';
 import { MAX_PREVIEW_LENGTH, MAX_PREVIEW_LINES } from '../../config/constants.js';
 import { findEventById } from '../../core/state.js';
 import { getNip19, linkifyText } from './linkifier.js';
-import { captureTimelineAnchor, restoreTimelineAnchor, followUpTimelineAnchor } from './timeline-anchor.js';
+import { followUpTimelineAnchor, replaceElementPreservingAnchor } from './timeline-anchor.js';
 import { resolveQuoteRelays, fetchQuoteEventById, fetchQuoteEventByNaddr, prefetchQuotesForElements, sanitizeRelays } from './quote-resolver.js';
 import { getEffectiveTextLength, getPreviewWithFullLinksAndEmojis } from './text-preview.js';
-import { evaluateMuteState, updateEventMuteDom } from '../../ui/renderers/render-helpers.js';
+import { evaluateMuteState, updateEventMuteDom, wrapWithEmbeddedCwHtml, bindEmbeddedCwHandlers } from '../../ui/renderers/render-helpers.js';
 import { renderArticleMarkdownPreviewSync } from '../markdown.js';
 
 export const NOSTR_QUOTE_RECURSION_MAX_DEPTH = 2;
@@ -350,19 +350,18 @@ export async function updateReplyContexts(container, state, nip19, settings, set
         const newReplyEl = tempDiv.firstElementChild;
         if (newReplyEl && replyEl.parentNode) {
           const ownerEventEl = replyEl.closest ? replyEl.closest('.event') : null;
-          const isFolded = replyEl.classList.contains('d-none') || (ownerEventEl && (ownerEventEl.classList.contains('muted-event') || !!ownerEventEl.querySelector('.muted-fold-bar')));
+          const isFolded = replyEl.classList.contains('d-none') || (ownerEventEl && (ownerEventEl.classList.contains('muted-event') || !!ownerEventEl.querySelector('.muted-fold-bar:not(.cw-fold-bar)')));
           if (isFolded) {
             newReplyEl.classList.add('d-none');
           }
-          const anchor = captureTimelineAnchor(container);
-          replyEl.parentNode.replaceChild(newReplyEl, replyEl);
-          restoreTimelineAnchor(anchor, container);
+          replaceElementPreservingAnchor(replyEl, newReplyEl, container);
           if (ownerEventEl) {
             try { updateEventMuteDom(ownerEventEl, state, settings); } catch (e) { }
           }
           try { updateNostrNpubLinks(newReplyEl); } catch (e) { }
           try { processHiddenTagChars(newReplyEl); } catch (e) { }
           try { fitCustomEmoji(newReplyEl, 18); } catch (e) { }
+          try { bindEmbeddedCwHandlers(newReplyEl, settings, (bodyEl) => { try { fitCustomEmoji(bodyEl, 18); } catch (_e) { } }); } catch (e) { }
 
           // 差し替えられた要素にクリックハンドラをバインド
           try {
@@ -383,6 +382,7 @@ export async function updateReplyContexts(container, state, nip19, settings, set
               el.style.cursor = 'pointer';
               el.onclick = function (e) {
                 try {
+                  if (e.target.closest('.cw-fold-bar')) return;
                   const a = e.target.closest('a');
                   if (a) return;
                   const btn = e.target.classList.contains('open-media') ? e.target : e.target.closest('.open-media');
@@ -452,9 +452,7 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
       tempDiv.innerHTML = quoteHtml;
       const quoteDiv = tempDiv.firstChild;
       if (quoteDiv) {
-        const anchor = captureTimelineAnchor(container);
-        quoteEl.parentNode.replaceChild(quoteDiv, quoteEl);
-        restoreTimelineAnchor(anchor, container);
+        replaceElementPreservingAnchor(quoteEl, quoteDiv, container);
         try { updateNostrNpubLinks(quoteDiv); } catch (e) { }
         if (depth < maxDepth) {
           try {
@@ -473,6 +471,7 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
           } catch (e) { }
         }
         try { if (typeof fitCustomEmoji === 'function') fitCustomEmoji(quoteDiv, 18); } catch (e) { }
+        try { bindEmbeddedCwHandlers(quoteDiv, settings, (bodyEl) => { try { fitCustomEmoji(bodyEl, 18); } catch (_e) { } }); } catch (e) { }
         const labelEls = quoteDiv.querySelectorAll('.event-quote-label[data-pubkey]');
         labelEls.forEach(labelEl => {
           labelEl.onclick = function () {
@@ -488,6 +487,7 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
         if (contentEl && typeof showEventModal === 'function') {
           contentEl.onclick = function (e) {
             try {
+              if (e.target.closest('.cw-fold-bar')) return;
               const btn = e.target.classList.contains('open-media') ? e.target : e.target.closest('.open-media');
               if (btn) {
                 e.preventDefault();
@@ -520,9 +520,7 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
       tempDiv.innerHTML = quoteHtml;
       const quoteDiv = tempDiv.firstChild;
       if (quoteDiv) {
-        const anchor = captureTimelineAnchor(container);
-        quoteEl.parentNode.replaceChild(quoteDiv, quoteEl);
-        restoreTimelineAnchor(anchor, container);
+        replaceElementPreservingAnchor(quoteEl, quoteDiv, container);
 
         const rootId = (event.kind === 41)
           ? (event.tags.find(t => Array.isArray(t) && t[0] === 'e')?.[1] || event.id)
@@ -555,9 +553,7 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
       tempDiv.innerHTML = quoteHtml;
       const quoteDiv = tempDiv.firstChild;
       if (quoteDiv) {
-        const anchor = captureTimelineAnchor(container);
-        quoteEl.parentNode.replaceChild(quoteDiv, quoteEl);
-        restoreTimelineAnchor(anchor, container);
+        replaceElementPreservingAnchor(quoteEl, quoteDiv, container);
 
         quoteDiv.onclick = function (e) {
           e.stopPropagation();
@@ -573,16 +569,15 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
       tempDiv.innerHTML = quoteHtml;
       const quoteDiv = tempDiv.firstChild;
       if (quoteDiv) {
-        const anchor = captureTimelineAnchor(container);
-        quoteEl.parentNode.replaceChild(quoteDiv, quoteEl);
-        restoreTimelineAnchor(anchor, container);
+        replaceElementPreservingAnchor(quoteEl, quoteDiv, container);
 
         try {
           if (typeof fitCustomEmoji === 'function') fitCustomEmoji(quoteDiv, 24);
         } catch (e) { }
+        try { bindEmbeddedCwHandlers(quoteDiv, settings, (bodyEl) => { try { fitCustomEmoji(bodyEl, 24); } catch (_e) { } }); } catch (e) { }
 
         quoteDiv.onclick = function (e) {
-          if (e.target.closest('a')) {
+          if (e.target.closest('a') || e.target.closest('.cw-fold-bar')) {
             return;
           }
           e.stopPropagation();
@@ -595,7 +590,7 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
     } else if (event && (event.kind === 6 || event.kind === 7 || event.kind === 16)) {
       const { renderReplyContext } = await import('../../ui/renderer.js');
       const referenceHtml = (typeof renderReplyContext === 'function')
-        ? renderReplyContext(state, event, nip19local, { isModal: false, showTimelineMedia: false, settingsManager })
+        ? renderReplyContext(state, event, nip19local, { ...(settings || {}), isModal: false, showTimelineMedia: false, settingsManager })
         : '';
       if (referenceHtml) {
         const tempDiv = document.createElement('div');
@@ -612,17 +607,17 @@ export async function resolveAndRenderQuote(quoteEl, container, showEventModal, 
             el.style.cursor = 'pointer';
             el.onclick = function (e) {
               try {
+                if (e.target.closest('.cw-fold-bar')) return;
                 e.preventDefault();
                 e.stopPropagation();
               } catch (_) { }
-              showEventModalLocal(referencedEvent, state, nip19local, null, null, null, settings, settingsManager);
+              showEventModalLocal(referencedEvent, state, nip19local, reactToEvent, replyToEvent, repostEvent, settings, settingsManager);
             };
           });
 
-          const anchor = captureTimelineAnchor(container);
-          quoteEl.parentNode.replaceChild(referenceDiv, quoteEl);
-          restoreTimelineAnchor(anchor, container);
+          replaceElementPreservingAnchor(quoteEl, referenceDiv, container);
           try { updateNostrNpubLinks(referenceDiv); } catch (e) { }
+          try { bindEmbeddedCwHandlers(referenceDiv, settings, (bodyEl) => { try { fitCustomEmoji(bodyEl, 18); } catch (_e) { } }); } catch (e) { }
           if (depth < maxDepth) {
             try {
               await updateNostrNoteLinks(
@@ -901,7 +896,7 @@ export async function renderArticleQuote(state, event, nip19, settings) {
 
   // settings で showTimelineMedia が明示的に false の場合のみ非表示（未指定・未設定時は許可）
   const inlineMedia = settings && settings.showTimelineMedia === false ? false : true;
-  const innerHtml = renderArticlePreviewHtml(event, { inlineMedia });
+  const innerHtml = wrapWithEmbeddedCwHtml(event, renderArticlePreviewHtml(event, { inlineMedia }), settings);
 
   return '<div class="event-quote article-quote" data-event-id="' + escapeHtml(event.id || '') + '">' +
     '<div class="event-quote-header">' +
@@ -946,6 +941,7 @@ export async function renderEventQuote(state, event, nip19, _settings = {}) {
   } else {
     quoteContentHtml = `<span class="reply-preview-text">${linkifyText(content, event.tags || [], { inlineMedia: false })}</span>`;
   }
+  quoteContentHtml = wrapWithEmbeddedCwHtml(event, quoteContentHtml, _settings);
   const quotedLabel = replaceBadgeEmoji(t('quote.label', { author: escapeHtml(author) }));
   return '<div class="event-quote">' +
     '<div class="event-quote-header">' +

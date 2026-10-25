@@ -6,7 +6,7 @@ import { findEventById, cacheEvent } from '../../core/state.js';
 import { displayNameWithUsername, getProfileLightningAddress } from '../../features/profile/profile.js';
 import { showReactionModal, showConfirmModal } from '../modals/modals.js';
 import { linkifyText, updateNostrNpubLinks, updateNostrNoteLinks, fitCustomEmoji, getPreviewWithFullLinksAndEmojis, getEffectiveTextLength } from '../../utils/url-parser.js';
-import { setReplyTarget, setGeohashTarget, setQuoteTarget } from '../../features/post/composer.js';
+import { setReplyTarget, setGeohashTarget, setQuoteTarget, getReplyTarget, getQuoteMode } from '../../features/post/composer.js';
 import { showJsonModal } from '../modals/json-modal.js';
 import { showEventModal } from '../modals/event-modal.js';
 import { showMediaViewer } from '../media-viewer.js';
@@ -21,10 +21,13 @@ import {
   evaluateMuteState,
   updateEventMuteDom,
   createFoldBar,
+  isCwExpandedForEvent,
+  bindEmbeddedCwHandlers,
   formatReactionForTitle,
   invokeShowProfileModalProxy,
   installReactionDefaultListener
 } from './render-helpers.js';
+import { markCwExpandedGlobal } from '../../core/app-context.js';
 
 import {
   setReactionDisplay,
@@ -466,6 +469,7 @@ function setupContentWarning(div, ev, contentEl, isCwExpanded, markCwExpanded) {
         expandBtn.onclick = function () {
           try {
             if (contentEl) contentEl.classList.remove('d-none');
+            if (ev && ev.id) markCwExpandedGlobal(ev.id);
             try { if (markCwExpanded) markCwExpanded(ev.id, true); } catch (e) { }
             try { foldBar.parentNode && foldBar.parentNode.removeChild(foldBar); } catch (e) { }
           } catch (e) { }
@@ -512,11 +516,12 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
             updateEventMuteDom(div, state, settings, nextExpanded);
           };
         }
-        const existingFold = div.querySelector('.muted-fold-bar');
+        const existingFold = div.querySelector('.muted-fold-bar:not(.cw-fold-bar)');
         if (existingFold) existingFold.remove();
         div.insertBefore(foldBar, div.firstChild);
       }
 
+      const ownCwBar = div.querySelector('.cw-fold-bar:not(.cw-embedded-fold-bar)');
       if (!isMutedExpanded) {
         try {
           if (contentEl) contentEl.classList.add('d-none');
@@ -527,17 +532,15 @@ function setupMuteCollapse(div, ev, contentEl, muteState, isMutedExpanded, markM
           const chanEls = div.querySelectorAll('.event-channel-context, .channel-context'); chanEls.forEach(el => el.classList.add('d-none'));
           const bottomRowEl = div.querySelector('.event-bottom-row'); if (bottomRowEl) bottomRowEl.classList.add('d-none');
 
-          const cwBar = div.querySelector('.cw-fold-bar');
-          if (cwBar) cwBar.classList.add('d-none');
+          if (ownCwBar) ownCwBar.classList.add('d-none');
         } catch (e) { }
       } else {
         try {
           const actionReact = div.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.remove('d-none');
           const actionBottom = div.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.remove('d-none');
           const topRowEl = div.querySelector('.event-top-row'); if (topRowEl) topRowEl.classList.remove('d-none');
-          if (contentEl) contentEl.classList.remove('d-none');
-          const cwBar = div.querySelector('.cw-fold-bar');
-          if (cwBar) cwBar.classList.remove('d-none');
+          if (contentEl && !ownCwBar) contentEl.classList.remove('d-none');
+          if (ownCwBar) ownCwBar.classList.remove('d-none');
         } catch (e) { }
       }
     }
@@ -733,8 +736,36 @@ function bindQuoteButtonHandler(div, ev, state, nip19) {
         e.stopPropagation();
         const composer = document.getElementById('composer');
         if (composer) composer.hidden = false;
+        try { setQuoteTarget(state, ev, nip19); window.__nokakoiQuoteMode = true; } catch (err) { }
+
         const noteInput = document.getElementById('noteInput');
         if (noteInput) {
+          const applyQuoteUriToInput = (uri) => {
+            try {
+              const activeTarget = typeof getReplyTarget === 'function' ? getReplyTarget() : null;
+              if (!getQuoteMode() || (activeTarget && activeTarget.id !== ev.id)) return;
+              const existing = noteInput.value || '';
+              if (existing.includes(uri)) {
+                noteInput.focus();
+                return;
+              }
+              if (!existing.trim()) {
+                noteInput.value = '\n' + uri + '\n';
+                noteInput.focus();
+                noteInput.selectionStart = noteInput.selectionEnd = 0;
+              } else {
+                const trimmedEnd = existing.replace(/\s+$/, '');
+                const prefix = trimmedEnd + '\n';
+                noteInput.value = prefix + uri + '\n';
+                noteInput.focus();
+                noteInput.selectionStart = noteInput.selectionEnd = trimmedEnd.length;
+              }
+              noteInput.dispatchEvent(new Event('input', { bubbles: true }));
+            } catch (_err) { }
+          };
+
+          const isWsUrl = (r) => typeof r === 'string' && (r.startsWith('ws://') || r.startsWith('wss://'));
+
           Promise.all([
             import('../../core/nostr-compat.js'),
             import('../../core/relay.js'),
@@ -745,11 +776,11 @@ function bindQuoteButtonHandler(div, ev, state, nip19) {
               try {
                 const seen = relayMod.getEventSeenOn ? relayMod.getEventSeenOn(state, ev) : [];
                 for (const r of (seen || [])) {
-                  if (typeof r === 'string' && /^wss?:\/\//i.test(r) && !relays.includes(r)) relays.push(r);
+                  if (isWsUrl(r) && !relays.includes(r)) relays.push(r);
                 }
                 if (relays.length === 0 && relayMod.getReadRelays && state && state.relays) {
                   for (const r of relayMod.getReadRelays(state.relays).slice(0, 3)) {
-                    if (typeof r === 'string' && /^wss?:\/\//i.test(r) && !relays.includes(r)) relays.push(r);
+                    if (isWsUrl(r) && !relays.includes(r)) relays.push(r);
                   }
                 }
               } catch (err) { }
@@ -768,22 +799,15 @@ function bindQuoteButtonHandler(div, ev, state, nip19) {
                 } catch (err) { }
               }
               if (!nevent) nevent = 'nevent1' + ev.id;
-              if (!/^nostr:/i.test(nevent)) nevent = 'nostr:' + nevent;
-              noteInput.value = '\n' + nevent + '\n';
-              noteInput.focus();
-              noteInput.selectionStart = noteInput.selectionEnd = 0;
+              if (!nevent.toLowerCase().startsWith('nostr:')) nevent = 'nostr:' + nevent;
+              applyQuoteUriToInput(nevent);
             } catch (err) {
-              noteInput.value = '\nnostr:nevent1' + ev.id + '\n';
-              noteInput.focus();
-              noteInput.selectionStart = noteInput.selectionEnd = 0;
+              applyQuoteUriToInput('nostr:nevent1' + ev.id);
             }
           }).catch(() => {
-            noteInput.value = '\nnostr:nevent1' + ev.id + '\n';
-            noteInput.focus();
-            noteInput.selectionStart = noteInput.selectionEnd = 0;
+            applyQuoteUriToInput('nostr:nevent1' + ev.id);
           });
         }
-        try { setQuoteTarget(state, ev, nip19); window.__nokakoiQuoteMode = true; } catch (err) { }
       };
     }
   } catch (e) { }
@@ -794,6 +818,7 @@ function bindContentClickHandlers(div, ev, state, nip19, settings, settingsManag
   replyContentEls.forEach(el => {
     el.onclick = function (e) {
       try {
+        if (e.target.closest('.cw-fold-bar')) return;
         const a = e.target.closest('a');
         if (a) return;
 
@@ -850,6 +875,7 @@ function bindContentClickHandlers(div, ev, state, nip19, settings, settingsManag
     if (el.dataset.repostListenerInstalled) return;
     el.onclick = function (e) {
       try {
+        if (e.target.closest('.cw-fold-bar')) return;
         if (e.target.closest('.open-media')) {
           e.preventDefault();
           const btn = e.target.closest('.open-media');
@@ -902,6 +928,7 @@ function bindContentClickHandlers(div, ev, state, nip19, settings, settingsManag
   quoteContentEls.forEach(el => {
     el.onclick = function (e) {
       try {
+        if (e.target.closest('.cw-fold-bar')) return;
         const a = e.target.closest('a');
         if (a) return;
         const btn = e.target.classList.contains('open-media') ? e.target : e.target.closest('.open-media');
@@ -1055,7 +1082,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
   const markMutedExpanded = settings && typeof settings.__timelineMarkMutedExpanded === 'function' ? settings.__timelineMarkMutedExpanded : null;
   const markCwExpanded = settings && typeof settings.__timelineMarkCwExpanded === 'function' ? settings.__timelineMarkCwExpanded : null;
   const isMutedExpanded = !!(timelineUiState && timelineUiState.expandedMutedEventIds && timelineUiState.expandedMutedEventIds.has && timelineUiState.expandedMutedEventIds.has(ev.id));
-  const isCwExpanded = !!(timelineUiState && timelineUiState.expandedCwEventIds && timelineUiState.expandedCwEventIds.has && timelineUiState.expandedCwEventIds.has(ev.id));
+  const isCwExpanded = isCwExpandedForEvent(ev.id, settings);
   const content = ev.content || '';
   const pk = getEventDisplayPubkey(ev) || ev.pubkey;
   const muteState = evaluateMuteState(state, pk, content, settings, ev);
@@ -1186,6 +1213,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
   } catch (e) { }
 
   try { if (typeof fitCustomEmoji === 'function') fitCustomEmoji(div, 28); } catch (e) { }
+  try { bindEmbeddedCwHandlers(div, settings, (bodyEl) => { try { fitCustomEmoji(bodyEl, 18); } catch (_e) { } }); } catch (e) { }
 
   setupContentWarning(div, ev, contentEl, isCwExpanded, markCwExpanded);
 

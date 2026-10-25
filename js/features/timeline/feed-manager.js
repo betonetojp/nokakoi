@@ -196,7 +196,7 @@ export function markFeedHistBufferEnd(feedId, actuallyLoaded = false) {
 export function markFeedPreferFullRender(feedId) {
   try {
     if (!feedLoadState[feedId]) feedLoadState[feedId] = {};
-    feedLoadState[feedId].preferFull = true;
+    feedLoadState[feedId].preferFullRender = true;
   } catch (e) { }
 }
 
@@ -264,6 +264,12 @@ export function trimFeedToMax(feedId, maxCount = EVENTS_MAX) {
   if (!Array.isArray(list) || list.length <= maxCount) return;
   const removed = list.splice(maxCount);
   for (const e of removed) feed.map.delete(e.id);
+  delete feed.paginationUntil;
+  delete feed.mergedPaginationUntil;
+  if (feedLoadState[feedId]) {
+    feedLoadState[feedId].autoFetchFailed = false;
+    feedLoadState[feedId].noMoreEvents = false;
+  }
   try {
     const baseFilters = getFeedBaseFilters(feedId);
     updatePerFilterUntil(state, feedId, baseFilters, feed.list);
@@ -347,14 +353,17 @@ export function mergeFetchedIntoGlobalList(moreBuffer, startListLength) {
   } catch (e) {
     for (const e of existing) if (e?.id) existingIds.add(e.id);
   }
+  let addedCount = 0;
   for (const ev of moreBuffer.values()) {
     if (!ev?.id || !isGlobalMergeKind(ev) || existingIds.has(ev.id)) continue;
     if (!shouldDisplayGlobalEvent(ev, state, settingsManager)) continue;
     existing.push(ev);
     existingIds.add(ev.id);
+    addedCount += 1;
   }
   existing.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
-  const keepCount = Math.min(startListLength + EVENTS_FETCH_LIMIT, EVENTS_MAX);
+  const baseLen = Math.max(startListLength || 0, Array.isArray(gfeed.list) ? gfeed.list.length : 0);
+  const keepCount = Math.min(baseLen + Math.max(EVENTS_FETCH_LIMIT, addedCount), EVENTS_MAX);
   const keep = existing.slice(0, keepCount);
   gfeed.list = keep.slice();
   const m = new Map();
@@ -463,7 +472,8 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
         const rawEvents = Array.from(roundRawMap.values());
         roundRawCount = rawEvents.length;
 
-        // 全リレーから集まった生イベントを新しい順にソートし、上位 EVENTS_FETCH_LIMIT (30件) を抽出
+        // 全リレーから集まった生イベントを新しい順にソートし、スキャン境界(cutoff)以後のイベントをすべて保持
+        // （同秒タイのフォロイー投稿等が slice(0, EVENTS_FETCH_LIMIT) 境界で切り捨てられて永久欠落するのを防止）
         rawEvents.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
         const topBatch = rawEvents.slice(0, EVENTS_FETCH_LIMIT);
 
@@ -474,9 +484,16 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
           }
         }
 
-        // 上位30件を moreBuffer に格納
-        for (const ev of topBatch) {
-          moreBuffer.set(ev.id, ev);
+        if (typeof roundMinScannedTs === 'number') {
+          for (const ev of rawEvents) {
+            if (ev && typeof ev.created_at === 'number' && ev.created_at >= roundMinScannedTs) {
+              moreBuffer.set(ev.id, ev);
+            }
+          }
+        } else {
+          for (const ev of topBatch) {
+            moreBuffer.set(ev.id, ev);
+          }
         }
 
         if (roundMinScannedTs != null) {
@@ -808,6 +825,17 @@ export function addToFeed(feedId, ev, keepLatestCount = null, _relay = null) {
         const isAppend = gIdx === gAfterLen - 1 && ts <= (gBottomBefore?.created_at || 0);
         if (!isPrepend && !isAppend) markFeedPreferFullRender('global');
       }
+      try {
+        let isGlobalActive = true;
+        if (typeof document !== 'undefined') {
+          const activeTabEl = document.querySelector('.tab.active');
+          const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
+          isGlobalActive = activeTab === 'global';
+        }
+        trimFeedToMax('global', isGlobalActive ? EVENTS_MAX : EVENTS_FETCH_LIMIT);
+      } catch (e) {
+        trimFeedToMax('global');
+      }
       scheduleRender('global');
     }
   }
@@ -1100,7 +1128,8 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
       const shouldFetchHomeHist = isHomeActive || (mergeHome && activeTab === 'global');
       const homeHist = shouldFetchHomeHist ? [
         { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT },
         buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
         { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
       ].filter(Boolean) : [];
@@ -1494,7 +1523,8 @@ export function setupSingleFeed(feedId) {
 
       const homeHist = [
         { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT },
         buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
         { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
       ].filter(Boolean);
@@ -1644,8 +1674,21 @@ export function handleTabChange(oldTab, newTab) {
   try { cancelInactiveTabOneshots(newTab); } catch (e) { }
   // bitchat, channels 以外の非アクティブ化したタブについて、メモリを完全クリアせず、EVENTS_FETCH_LIMIT 件にトリムして保持する
   if (oldTab && oldTab !== newTab && oldTab !== 'bitchat' && oldTab !== 'channels') {
-    // フィードデータを EVENTS_FETCH_LIMIT 件にトリムしてメモリに保持
+    // フィードデータを EVENTS_FETCH_LIMIT 件にトリムしてメモリに保持し、過去遡りカーソルや失敗状態をリセット
     trimFeedToMax(oldTab, EVENTS_FETCH_LIMIT);
+    const oldFeed = state.feeds[oldTab];
+    if (oldFeed) {
+      delete oldFeed.paginationUntil;
+      delete oldFeed.mergedPaginationUntil;
+      try {
+        const baseFilters = getFeedBaseFilters(oldTab);
+        updatePerFilterUntil(state, oldTab, baseFilters, oldFeed.list);
+      } catch (e) { }
+    }
+    if (feedLoadState[oldTab]) {
+      feedLoadState[oldTab].autoFetchFailed = false;
+      feedLoadState[oldTab].noMoreEvents = false;
+    }
 
     // DOMはメモリ節約のためクリアする
     const el = document.getElementById('feed-' + oldTab);
@@ -1680,6 +1723,8 @@ export function handleTabChange(oldTab, newTab) {
       clearFeed(state, newTab);
       if (feedLoadState[newTab]) {
         feedLoadState[newTab].histLoaded = false;
+        feedLoadState[newTab].autoFetchFailed = false;
+        feedLoadState[newTab].noMoreEvents = false;
       }
 
       // DOMとtopEventIdをクリア

@@ -11,6 +11,7 @@ import { linkifyText, fitCustomEmoji, updateNostrNpubLinks, updateNostrNoteLinks
 import { renderMarkdownWithCustomEmojis } from '../../utils/markdown.js';
 import { setupReactButton, setupRepostButton, setupReplyButton, renderReplyContext, applyClientBadgeToContainer } from '../renderer.js';
 import { renderChannelContext, bindChannelLabelClickHandler } from '../renderers/channel-renderer.js';
+import { wrapWithEmbeddedCwHtml, bindEmbeddedCwHandlers } from '../renderers/render-helpers.js';
 import { pickChannelRootId, scheduleChannelLabelUpdate } from '../../features/channel/channel.js';
 import { findEventById, cacheEvent } from '../../core/state.js';
 import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
@@ -84,6 +85,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       replyContentEls.forEach(el => {
         el.onclick = function (e) {
           try {
+            if (e.target.closest('.cw-fold-bar')) return;
             const a = e.target.closest('a');
             if (a) return;
             const btn = e.target.classList.contains('open-media') ? e.target : e.target.closest('.open-media');
@@ -137,6 +139,27 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
 
   const modal = document.getElementById('eventModal');
   if (!modal) return;
+  try {
+    if (modal._eventModalAbortController) {
+      modal._eventModalAbortController.abort();
+      modal._eventModalAbortController = null;
+    }
+  } catch (e) { }
+  const modalAbortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  modal._eventModalAbortController = modalAbortController;
+  const listenerSignal = modalAbortController ? modalAbortController.signal : undefined;
+  let cancelLongPressRef = null;
+  const closeEventModal = () => {
+    try { if (typeof cancelLongPressRef === 'function') cancelLongPressRef(); } catch (_e) { }
+    try {
+      if (modal._eventModalAbortController === modalAbortController && modalAbortController) {
+        modalAbortController.abort();
+        modal._eventModalAbortController = null;
+      }
+    } catch (_e) { }
+    try { window.__nokakoiEventModalEvent = null; } catch (_e) { }
+    modal.hidden = true;
+  };
   try { modal.dataset.eventId = event && event.id ? event.id : ''; } catch (e) { }
   const displayPk = getEventDisplayPubkey(event) || (event && event.pubkey) || '';
   try { modal.dataset.pubkey = displayPk; } catch (e) { }
@@ -190,18 +213,20 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
   if (contentEl) {
     // 返信イベント/リアクション/リポストなら参照先を表示
     let replyHtml = '';
+    const modalReplySettings = { ...(settings || {}), isModal: true };
     if (event.kind === 9735 && typeof renderReplyContext === 'function') {
-      replyHtml = renderReplyContext(state, event, nip19, { isModal: true });
+      replyHtml = renderReplyContext(state, event, nip19, modalReplySettings);
     } else if ((event.kind === 1 || event.kind === 1111 || event.kind === 7 || event.kind === 6 || event.kind === 16) && Array.isArray(event.tags)) {
       const hasReplyTag = event.tags.some(t => t && (t[0] === 'e' || t[0] === 'E') && t[1]);
       if (hasReplyTag && typeof renderReplyContext === 'function') {
-        replyHtml = renderReplyContext(state, event, nip19, { isModal: true });
+        replyHtml = renderReplyContext(state, event, nip19, modalReplySettings);
       }
     }
     const channelHtml = event.kind === 42 ? renderChannelContext(state, event) : '';
 
     function afterContentMounted() {
       attachReplyPreviewHandlers(contentEl);
+      try { bindEmbeddedCwHandlers(contentEl, settings, (bodyEl) => { try { fitCustomEmoji(bodyEl, 28); } catch (_e) { } }); } catch (e) { }
       if (event.kind === 42) {
         try {
           const channelRootId = pickChannelRootId(event);
@@ -268,13 +293,18 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       });
     } else if (event.kind == 30023) {
       renderMarkdownWithCustomEmojis(event.content || '', event.tags || []).then(html => {
-        contentEl.innerHTML = channelHtml + (replyHtml ? replyHtml : '') + html;
+        const bodyHtml = wrapWithEmbeddedCwHtml(event, html, settings);
+        contentEl.innerHTML = channelHtml + (replyHtml ? replyHtml : '') + bodyHtml;
         normalizeNostrUrisInMarkdownRoot(contentEl);
         afterContentMounted();
       });
     } else {
       // event.tags を linkifyText に渡し、絵文字ショートコードを画像へ置換
-      contentEl.innerHTML = channelHtml + (replyHtml ? replyHtml : '') + linkifyText(event.content || '', event.tags || []);
+      const rawBodyHtml = linkifyText(event.content || '', event.tags || []);
+      const bodyHtml = (event.kind === 6 || event.kind === 16 || event.kind === 7 || event.kind === 9735)
+        ? rawBodyHtml
+        : wrapWithEmbeddedCwHtml(event, rawBodyHtml, settings);
+      contentEl.innerHTML = channelHtml + (replyHtml ? replyHtml : '') + bodyHtml;
       afterContentMounted();
     }
   }
@@ -390,12 +420,13 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
 
       suppressClickUntil = Date.now() + 700;
     }, 600);
-  }, { passive: false });
+  }, listenerSignal ? { passive: false, signal: listenerSignal } : { passive: false });
 
   const cancelLongPress = function () {
     try { if (longPressTimer) clearTimeout(longPressTimer); } catch { }
     longPressTimer = null;
   };
+  cancelLongPressRef = cancelLongPress;
 
   kindEl.addEventListener('touchend', function (e) {
     const wasTriggered = longPressTriggered;
@@ -407,10 +438,10 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       } catch { }
       return false;
     }
-  }, { passive: false });
+  }, listenerSignal ? { passive: false, signal: listenerSignal } : { passive: false });
 
-  kindEl.addEventListener('touchmove', cancelLongPress, { passive: true });
-  kindEl.addEventListener('touchcancel', cancelLongPress, { passive: true });
+  kindEl.addEventListener('touchmove', cancelLongPress, listenerSignal ? { passive: true, signal: listenerSignal } : { passive: true });
+  kindEl.addEventListener('touchcancel', cancelLongPress, listenerSignal ? { passive: true, signal: listenerSignal } : { passive: true });
 
   kindEl.onclick = function () {
     if (Date.now() < suppressClickUntil) return;
@@ -498,7 +529,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       const replyBtn = actionsBottom.querySelector('.btn-reply');
       if (replyBtn && typeof replyToEvent === 'function') {
         replyBtn.onclick = function () {
-          modal.hidden = true;
+          closeEventModal();
           replyToEvent(event);
         };
       } else {
@@ -524,24 +555,15 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
 
   // 閉じるボタン
   const closeBtn = modal.querySelector('#eventModalClose');
-  closeBtn.onclick = () => {
-    try { window.__nokakoiEventModalEvent = null; } catch (e) { }
-    modal.hidden = true;
-  };
+  if (closeBtn) {
+    closeBtn.onclick = closeEventModal;
+  }
 
-  // モーダル外クリックで閉じる
+  // モーダル外クリックで閉じる（AbortController によりモーダルクローズ／再オープン時に確実に解除）
   function handleOutsideClick(e) {
     if (e.target === modal) {
-      try { window.__nokakoiEventModalEvent = null; } catch (e2) { }
-      modal.hidden = true;
+      closeEventModal();
     }
   }
-  modal.addEventListener('mousedown', handleOutsideClick);
-  // 表示時のみ有効、閉じたら解除
-  function removeOutsideClick() {
-    modal.removeEventListener('mousedown', handleOutsideClick);
-  }
-  modal.addEventListener('transitionend', function () {
-    if (modal.hidden) removeOutsideClick();
-  });
+  modal.addEventListener('mousedown', handleOutsideClick, listenerSignal ? { signal: listenerSignal } : undefined);
 }

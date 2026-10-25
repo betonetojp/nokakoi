@@ -32,6 +32,27 @@ export function setupScrollToTopButton() {
   let _spacerEl = null;
   let _desiredTabTop = null;
   let pendingSecondClickTimer = null;
+  let smoothScrollGuardTimer = null;
+  let smoothScrollTargetTop = null;
+
+  function clearSmoothScrollGuard() {
+    if (smoothScrollGuardTimer) {
+      try { clearTimeout(smoothScrollGuardTimer); } catch (e) { }
+      smoothScrollGuardTimer = null;
+    }
+    smoothScrollTargetTop = null;
+    try {
+      if (!getScrollAnchor()) setProgrammaticScroll(false);
+    } catch (e) { }
+  }
+
+  try {
+    const cancelOnUserInterrupt = () => {
+      if (smoothScrollGuardTimer) clearSmoothScrollGuard();
+    };
+    window.addEventListener('wheel', cancelOnUserInterrupt, { passive: true });
+    window.addEventListener('touchstart', cancelOnUserInterrupt, { passive: true });
+  } catch (e) { }
 
 
 
@@ -56,14 +77,19 @@ export function setupScrollToTopButton() {
 
   function scrollToTabTop(behavior) {
     const tabTop = computeTabTopPosition();
-    // プログラムによるスクロールとしてマークし、パージのスクロールリスナーがこのジャンプをユーザースクロールとして扱わないようにする。
+    const isSmooth = behavior === 'smooth';
+    // プログラムによるスクロールとしてマークし、smooth 完了（またはユーザー操作割り込み）まで維持する
     try {
+      if (smoothScrollGuardTimer) {
+        clearTimeout(smoothScrollGuardTimer);
+        smoothScrollGuardTimer = null;
+      }
+      smoothScrollTargetTop = tabTop;
       setProgrammaticScroll(true);
-      setTimeout(() => {
-        try {
-          if (!getScrollAnchor()) setProgrammaticScroll(false);
-        } catch (e) { }
-      }, 200);
+      try { window.dispatchEvent(new CustomEvent('nokakoi:scrollToTop')); } catch (_e) { }
+      smoothScrollGuardTimer = setTimeout(() => {
+        clearSmoothScrollGuard();
+      }, isSmooth ? 900 : 220);
     } catch (e) { }
     try {
       window.scrollTo({ top: tabTop, behavior: behavior || 'auto' });
@@ -167,6 +193,9 @@ export function setupScrollToTopButton() {
     const scrollTop = getScrollTop();
     const tabTop = computeTabTopPosition();
     if (scrollTop <= tabTop + 8) {
+      if (smoothScrollTargetTop !== null && scrollTop <= smoothScrollTargetTop + 8) {
+        clearSmoothScrollGuard();
+      }
       clearHasNew();
       try { setReloadMode(true); button.hidden = false; button.style.opacity = '1'; } catch (e) { }
       return;
@@ -278,6 +307,7 @@ export function setupScrollToTopButton() {
           try { if (pos.left) { button.style.left = pos.left; button.style.bottom = pos.bottom; button.style.transform = pos.transform || 'none'; } } catch (e) { }
         }, 120);
       } else {
+        clearHasNew();
         scrollToTabTop('smooth');
       }
     } else if (hasMoved) {

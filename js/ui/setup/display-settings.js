@@ -101,11 +101,11 @@ export function setMuteApplyEnabled(settingsManager, enabled, restartFeeds) {
 
   try {
     const applyMuteCheckbox = document.getElementById('applyMuteCheckbox');
-    if (applyMuteCheckbox) {
-      const modeWrap = applyMuteCheckbox.parentNode?.nextSibling;
-      if (modeWrap) {
-        modeWrap.classList.toggle('d-none', !enabled);
-      }
+    const modeWrap = document.getElementById('muteModeWrap')
+      || (applyMuteCheckbox && applyMuteCheckbox.closest && applyMuteCheckbox.closest('.flex-row')?.nextElementSibling)
+      || (applyMuteCheckbox && applyMuteCheckbox.parentElement?.parentElement?.nextElementSibling);
+    if (modeWrap && modeWrap.classList) {
+      modeWrap.classList.toggle('d-none', !enabled);
     }
   } catch (e) { }
 
@@ -117,8 +117,19 @@ export function setMuteApplyEnabled(settingsManager, enabled, restartFeeds) {
     }
   } catch (e) { }
 
+  try {
+    invalidateMuteConfigCache();
+    refreshEventsMuteState();
+  } catch (e) { }
+
   const fn = restartFeeds || _restartFeedsRef;
-  try { if (typeof fn === 'function') fn(true); } catch (e) { }
+  try {
+    if (typeof fn === 'function') {
+      fn(true);
+    } else if (typeof renderFeed === 'function') {
+      ['home', 'global', 'mentions', 'me'].forEach(id => { try { renderFeed(id); } catch (_e) { } });
+    }
+  } catch (e) { }
 }
 
 export function toggleAllSteganographyInDocument(enabled) {

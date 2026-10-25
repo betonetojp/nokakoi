@@ -5,7 +5,7 @@ import { escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
 import { linkifyText, getEffectiveTextLength, getPreviewWithFullLinksAndEmojis, getNip19 } from '../../utils/url-parser.js';
 import { t } from '../../utils/i18n.js';
 import { MAX_PREVIEW_LINES } from '../../config/constants.js';
-import { pickETagWithHint, pickReplyTargetPubkey, resolvePreviewMaxLength } from './render-helpers.js';
+import { pickETagWithHint, pickReplyTargetPubkey, resolvePreviewMaxLength, wrapWithEmbeddedCwHtml } from './render-helpers.js';
 import { formatReaction } from './reaction-renderer.js';
 import { renderArticlePreviewHtml } from '../../utils/content/dom-utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
@@ -254,6 +254,8 @@ export function renderReplyContext(state, ev, nip19, settings) {
       replyContentHtml = `<span class="reply-preview-text">${linkifyText(replyToContent, tags, { inlineMedia: false })}</span>`;
     }
   }
+
+  replyContentHtml = wrapWithEmbeddedCwHtml(replyToEvent, replyContentHtml, settings);
 
   if (ev.kind === 7) {
     const reactionDisplay = formatReaction(ev.content, ev.tags || []);

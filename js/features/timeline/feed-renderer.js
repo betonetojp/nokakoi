@@ -9,7 +9,7 @@ import { getReadRelays } from '../../core/relay.js';
 import { fetchMore, applyPerFilterUntil } from './feed-fetcher.js';
 import { canStartMore, markMoreFinished, markMoreStarted } from './feed-more-policy.js';
 import { EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT, EVENTS_MAX } from '../../config/constants.js';
-import { buildOutgoingZapReceiptFilter } from './feed-filters.js';
+import { getFeedBaseFilters } from './feed-filters.js';
 import { shouldDisplayGlobalEvent } from './lang-filter.js';
 import { captureTimelineAnchor, restoreTimelineAnchor } from '../../utils/url-parser.js';
 import {
@@ -25,7 +25,8 @@ import { $, formatLoadBeforeTime } from '../../utils/utils.js';
 import { getSelectedEventEl, setSelectedEventEl } from '../../ui/keyboard-shortcuts.js';
 import {
   isDebugEnabled,
-  isProgrammaticScroll
+  isProgrammaticScroll,
+  setUserScrolling
 } from '../../core/app-context.js';
 
 export const feedLoadState = {};
@@ -68,11 +69,32 @@ function flushPendingFeedRendersWhenIdle() {
   }
 }
 
+export function flushPendingFeedRender(feedId = null) {
+  if (_scrollTimeout) {
+    clearTimeout(_scrollTimeout);
+    _scrollTimeout = null;
+  }
+  _isScrolling = false;
+  setUserScrolling(false);
+  if (feedId) {
+    if (_pendingFeedRenders.has(feedId)) {
+      _pendingFeedRenders.delete(feedId);
+      try { renderFeed(feedId); } catch (e) { }
+    }
+    return;
+  }
+  flushPendingFeedRendersWhenIdle();
+}
+
+const SCROLL_KEYS = new Set([' ', 'Spacebar', 'PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'Home', 'End']);
+
 function markUserScrolling() {
   _isScrolling = true;
+  setUserScrolling(true);
   if (_scrollTimeout) clearTimeout(_scrollTimeout);
   _scrollTimeout = setTimeout(() => {
     _isScrolling = false;
+    setUserScrolling(false);
     flushPendingFeedRendersWhenIdle();
   }, 280);
 }
@@ -88,7 +110,20 @@ function initScrollListener() {
   };
 
   window.addEventListener('wheel', onDirectUserScrollInput, { passive: true });
+  window.addEventListener('touchstart', onDirectUserScrollInput, { passive: true });
   window.addEventListener('touchmove', onDirectUserScrollInput, { passive: true });
+  window.addEventListener('keydown', (e) => {
+    try {
+      if (!e || !SCROLL_KEYS.has(e.key)) return;
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      onDirectUserScrollInput();
+    } catch (_e) { }
+  }, { passive: true });
+
+  window.addEventListener('nokakoi:scrollToTop', () => {
+    try { flushPendingFeedRender(); } catch (_e) { }
+  });
 
   window.addEventListener('scroll', () => {
     try {
@@ -156,20 +191,22 @@ export function captureFeedUiStateFromDom(feedId, feedEl) {
     const mutedExpanded = new Set();
 
     const events = feedEl.querySelectorAll('.event');
-    for (const eventEl of Array.from(events)) {
-      try {
-        const eventId = eventEl.dataset ? eventEl.dataset.eventId : null;
-        if (!eventId) continue;
-        const hasCw = eventEl.classList.contains('has-cw');
-        const isMuteCollapsible = eventEl.dataset && eventEl.dataset.muteCollapsible === '1';
-        const cwFoldBar = eventEl.querySelector('.cw-fold-bar');
-        const muteFoldBar = eventEl.querySelector('.muted-fold-bar:not(.cw-fold-bar)');
-        if (hasCw && !cwFoldBar) cwExpanded.add(eventId);
-        if (isMuteCollapsible && !muteFoldBar) mutedExpanded.add(eventId);
-      } catch (e) { }
+    if (events.length > 0) {
+      for (const eventEl of Array.from(events)) {
+        try {
+          const eventId = eventEl.dataset ? eventEl.dataset.eventId : null;
+          if (!eventId) continue;
+          const hasCw = eventEl.classList.contains('has-cw') || (eventEl.dataset && eventEl.dataset.hasCw === '1');
+          const isMuteCollapsible = eventEl.dataset && eventEl.dataset.muteCollapsible === '1';
+          const cwFoldBar = eventEl.querySelector('.cw-fold-bar:not(.cw-embedded-fold-bar)');
+          const muteFoldBar = eventEl.querySelector('.muted-fold-bar:not(.cw-fold-bar)');
+          if (hasCw && !cwFoldBar) cwExpanded.add(eventId);
+          if (isMuteCollapsible && !muteFoldBar) mutedExpanded.add(eventId);
+        } catch (e) { }
+      }
+      uiState.expandedCwEventIds = cwExpanded;
+      uiState.expandedMutedEventIds = mutedExpanded;
     }
-    uiState.expandedCwEventIds = cwExpanded;
-    uiState.expandedMutedEventIds = mutedExpanded;
     try {
       const selectedEl = getSelectedEventEl();
       uiState.selectedEventId = (selectedEl && selectedEl.closest && selectedEl.closest('.feed') === feedEl)
@@ -216,6 +253,26 @@ export function scheduleRender(id, delay = 50, options = null) {
     // ただし「もっと読む」完了（allowDuringScroll）の末尾追加はスクロール中でも即時反映して先読みを継続させる。
     if (!_allowDuringScrollFeeds.has(id) && _isScrolling && isActiveFeed && isBackScrolling(el)) {
       _pendingFeedRenders.add(id);
+      try {
+        const feedObj = _state && _state.feeds ? _state.feeds[id] : null;
+        const latestTopId = feedObj && Array.isArray(feedObj.list) && feedObj.list[0] ? feedObj.list[0].id : '';
+        const renderedTopId = el.dataset ? (el.dataset.topEventId || '') : '';
+        if (latestTopId && renderedTopId && latestTopId !== renderedTopId) {
+          const tabEl = document.querySelector('.tab[data-tab="' + id + '"]');
+          if (tabEl) {
+            const tabsCfg = _options && _options.settingsManager ? _options.settingsManager.get('tabs_v2') : null;
+            const tabCfg = tabsCfg && tabsCfg.find(tc => tc.id === id);
+            if (!tabCfg || tabCfg.notifyDot !== false) tabEl.classList.add('has-new-dot');
+          }
+          if (!_options?.settingsManager || !_options.settingsManager.get('disableBlink')) {
+            const topBtn = document.getElementById('scrollToTopBtn');
+            if (topBtn) {
+              topBtn.classList.add('has-new');
+              topBtn.hidden = false;
+            }
+          }
+        }
+      } catch (_e) { }
       return;
     }
 
@@ -389,48 +446,15 @@ export function renderFeed(id = 'global', force = false) {
         }
         const startListLength = listForClick.length;
 
-        let baseFilters = [];
         if (id === 'home') {
-          try {
-            const pubkey = localStorage.getItem('pubkey');
-            const followsForMore = (_state.feeds['home'] && _state.feeds['home'].follows) || [];
-            if (!followsForMore.length) {
-              feedLoadState[id].loadingMore = false;
-              scheduleRender(id, 0, { allowDuringScroll: true });
-              return;
-            }
-            const optionalHomeFollowKinds = [];
-            if (_options.settingsManager.get('showHomeReactions') === true) optionalHomeFollowKinds.push(7);
-            if (_options.settingsManager.get('showHomeChannel') === true) optionalHomeFollowKinds.push(42);
-            if (_options.settingsManager.get('showHomeRepost16') === true) optionalHomeFollowKinds.push(16);
-
-            baseFilters = [
-              // 1. フォロイーの全対象投稿（基本の1,6,1111 ＋ オンになっているオプション）を1つに統合
-              { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
-              // 2. 自分宛ての投稿
-              { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
-              buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
-              // 3. 自分自身の投稿
-              { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
-            ].filter(Boolean);
-          } catch (e) { console.error('[FeedRenderer] home filter err:', e); baseFilters = []; }
-        } else if (id === 'mentions') {
-          const pubkey = localStorage.getItem('pubkey');
-          baseFilters = [
-            { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
-            { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
-          ];
-        } else if (id === 'me') {
-          const pubkey = localStorage.getItem('pubkey');
-          baseFilters = [
-            { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT },
-            buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT })
-          ].filter(Boolean);
-        } else if (id === 'global') {
-          baseFilters = [{ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT }];
-        } else {
-          baseFilters = [{ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT }];
+          const followsForMore = (_state.feeds['home'] && _state.feeds['home'].follows) || [];
+          if (!followsForMore.length) {
+            feedLoadState[id].loadingMore = false;
+            scheduleRender(id, 0, { allowDuringScroll: true });
+            return;
+          }
         }
+        const baseFilters = getFeedBaseFilters(_state, _options.settingsManager, id);
 
         const filtersToUse = applyPerFilterUntil(_state, id, baseFilters, untilFallback);
 
@@ -464,11 +488,15 @@ export function renderFeed(id = 'global', force = false) {
           const gfeed = _state.feeds['global'];
           const displayed = listForClick;
           const fallbackUntil = Math.floor(Date.now() / 1000);
-          const mergeUntil = (typeof gfeed?.mergedPaginationUntil === 'number')
-            ? gfeed.mergedPaginationUntil
-            : (displayed.length > 0
-              ? (displayed[displayed.length - 1]?.created_at ?? fallbackUntil) - 1
-              : fallbackUntil - 1);
+          let mergeUntil = fallbackUntil - 1;
+          if (typeof gfeed?.mergedPaginationUntil === 'number' && isValidTimestamp(gfeed.mergedPaginationUntil)) {
+            mergeUntil = gfeed.mergedPaginationUntil;
+          } else {
+            const validOldest = displayed.slice().reverse().find(e => e && isValidTimestamp(e.created_at));
+            if (validOldest) {
+              mergeUntil = validOldest.created_at - 1;
+            }
+          }
 
           if (globalRelays.length === 0 && _options.buildHomeLoadMoreFiltersForGlobalMerge(mergeUntil).length === 0) {
             finishLoadMore();

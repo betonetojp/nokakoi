@@ -317,5 +317,42 @@ describe('profile cache optimization', () => {
     expect(stored.pk_heavy_user.picture).toBe('https://example.com/p.jpg');
     expect(stored.pk_heavy_user.about).toBeUndefined();
   });
+
+  it('updates open #profileModal, #replyContextContent .reply-author, and channel creator avatar dynamically', () => {
+    const pkUpper = 'ABCDEF123456';
+    const pkLower = pkUpper.toLowerCase();
+    document.body.innerHTML = `
+      <div id="profileModal" data-pubkey="${pkUpper}">
+        <div id="profileDisplayName">Unknown</div>
+        <div id="profileUsername" class="d-none"></div>
+        <img id="profilePicture" class="d-none">
+      </div>
+      <div id="replyContextContent">
+        <span class="reply-author" data-pubkey="${pkLower}">npub1...</span>: hello
+      </div>
+      <div class="channel-info-creator-row" data-pubkey="${pkLower}">
+        <div class="channel-info-creator-avatar">👤</div>
+      </div>
+    `;
+
+    const state = {
+      profiles: new Map([
+        [pkLower, { display_name: 'Alice Wonder', name: 'alice', picture: 'https://example.com/alice.png', loaded: true }]
+      ]),
+      followPetnames: new Map()
+    };
+
+    updateNameDom(state, pkUpper, {});
+
+    expect(document.getElementById('profileDisplayName').textContent).toBe('Alice Wonder');
+    expect(document.getElementById('profileUsername').textContent).toBe('@alice');
+    expect(document.getElementById('profileUsername').classList.contains('d-none')).toBe(false);
+    expect(document.getElementById('profilePicture').src).toBe('https://example.com/alice.png');
+    expect(document.getElementById('profilePicture').classList.contains('d-none')).toBe(false);
+    expect(document.querySelector('#replyContextContent .reply-author').textContent).toBe('Alice Wonder');
+    const creatorAvatar = document.querySelector('.channel-info-creator-avatar');
+    expect(creatorAvatar.tagName).toBe('IMG');
+    expect(creatorAvatar.src).toBe('https://example.com/alice.png');
+  });
 });
 

@@ -1,7 +1,8 @@
-import { getReactionContent } from '../../utils/utils.js';
+import { escapeHtml, getReactionContent } from '../../utils/utils.js';
 import { findEventById } from '../../core/state.js';
 import { t } from '../../utils/i18n.js';
 import { MAX_PREVIEW_LENGTH } from '../../config/constants.js';
+import { isCwExpandedGlobal, markCwExpandedGlobal } from '../../core/app-context.js';
 
 // clients.json のマッピングをキャッシュ読み込み
 export let __clientsMap = null;
@@ -272,21 +273,22 @@ export function updateEventMuteDom(eventEl, state, settings = null, forceExpande
     const content = contentEl ? contentEl.textContent || '' : '';
     const muteState = evaluateMuteState(state, pubkey, content, effectiveSettings, ev);
 
-    const existingFold = eventEl.querySelector('.muted-fold-bar');
+    const existingFold = eventEl.querySelector('.muted-fold-bar:not(.cw-fold-bar)');
+    const ownCwBar = eventEl.querySelector('.cw-fold-bar:not(.cw-embedded-fold-bar)');
 
     if (!muteState.isMuted) {
       if (existingFold) existingFold.remove();
       eventEl.classList.remove('muted-event', 'muted-event-soft', 'muted-event-dim', 'muted-hidden', 'd-none');
       delete eventEl.dataset.muteCollapsible;
 
-      if (contentEl) contentEl.classList.remove('d-none');
+      if (contentEl && !ownCwBar) contentEl.classList.remove('d-none');
       const actionReact = eventEl.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.remove('d-none');
       const actionBottom = eventEl.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.remove('d-none');
       const topRowEl = eventEl.querySelector('.event-top-row'); if (topRowEl) topRowEl.classList.remove('d-none');
       const replyToEls = eventEl.querySelectorAll('.reply-to'); replyToEls.forEach(el => el.classList.remove('d-none'));
       const chanEls = eventEl.querySelectorAll('.event-channel-context, .channel-context'); chanEls.forEach(el => el.classList.remove('d-none'));
       const bottomRowEl = eventEl.querySelector('.event-bottom-row'); if (bottomRowEl) bottomRowEl.classList.remove('d-none');
-      const cwBar = eventEl.querySelector('.cw-fold-bar'); if (cwBar) cwBar.classList.remove('d-none');
+      if (ownCwBar) ownCwBar.classList.remove('d-none');
       return;
     }
 
@@ -329,14 +331,14 @@ export function updateEventMuteDom(eventEl, state, settings = null, forceExpande
       }
 
       if (isExpanded) {
-        if (contentEl) contentEl.classList.remove('d-none');
+        if (contentEl && !ownCwBar) contentEl.classList.remove('d-none');
         const actionReact = eventEl.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.remove('d-none');
         const actionBottom = eventEl.querySelector('.event-actions-bottom'); if (actionBottom) actionBottom.classList.remove('d-none');
         const topRowEl = eventEl.querySelector('.event-top-row'); if (topRowEl) topRowEl.classList.remove('d-none');
         const replyToEls = eventEl.querySelectorAll('.reply-to'); replyToEls.forEach(el => el.classList.remove('d-none'));
         const chanEls = eventEl.querySelectorAll('.event-channel-context, .channel-context'); chanEls.forEach(el => el.classList.remove('d-none'));
         const bottomRowEl = eventEl.querySelector('.event-bottom-row'); if (bottomRowEl) bottomRowEl.classList.remove('d-none');
-        const cwBar = eventEl.querySelector('.cw-fold-bar'); if (cwBar) cwBar.classList.remove('d-none');
+        if (ownCwBar) ownCwBar.classList.remove('d-none');
       } else {
         if (contentEl) contentEl.classList.add('d-none');
         const actionReact = eventEl.querySelector('.event-actions-react'); if (actionReact) actionReact.classList.add('d-none');
@@ -345,7 +347,7 @@ export function updateEventMuteDom(eventEl, state, settings = null, forceExpande
         const replyToEls = eventEl.querySelectorAll('.reply-to'); replyToEls.forEach(el => el.classList.add('d-none'));
         const chanEls = eventEl.querySelectorAll('.event-channel-context, .channel-context'); chanEls.forEach(el => el.classList.add('d-none'));
         const bottomRowEl = eventEl.querySelector('.event-bottom-row'); if (bottomRowEl) bottomRowEl.classList.add('d-none');
-        const cwBar = eventEl.querySelector('.cw-fold-bar'); if (cwBar) cwBar.classList.add('d-none');
+        if (ownCwBar) ownCwBar.classList.add('d-none');
       }
     }
   } catch (e) {
@@ -564,6 +566,97 @@ export function resolvePreviewMaxLength(settings) {
     if (v && !isNaN(v)) return parseInt(v, 10);
   }
   return MAX_PREVIEW_LENGTH;
+}
+
+export function getEventCwReason(ev) {
+  if (!ev || !Array.isArray(ev.tags)) return null;
+  const cwTag = ev.tags.find(tag => Array.isArray(tag) && tag[0] === 'content-warning');
+  if (!cwTag) return null;
+  return cwTag[1] != null ? String(cwTag[1]) : '';
+}
+
+export function formatEventCwLabel(reason) {
+  if (reason) {
+    const translated = t('content_warning.reason', { reason });
+    if (translated && translated !== 'content_warning.reason') return translated;
+    return '閲覧注意: ' + reason;
+  }
+  const translated = t('content_warning');
+  if (translated && translated !== 'content_warning') return translated;
+  return '閲覧注意';
+}
+
+export function isCwExpandedForEvent(eventId, settings = null) {
+  if (!eventId) return false;
+  if (isCwExpandedGlobal(eventId)) return true;
+  const uiState = settings && settings.__timelineUiState;
+  if (uiState && uiState.expandedCwEventIds && typeof uiState.expandedCwEventIds.has === 'function') {
+    return uiState.expandedCwEventIds.has(eventId);
+  }
+  return false;
+}
+
+export function wrapWithEmbeddedCwHtml(ev, innerHtml, settings = null) {
+  if (!ev || !innerHtml) return innerHtml;
+  const reason = getEventCwReason(ev);
+  if (reason === null) return innerHtml;
+  if (ev.id && isCwExpandedForEvent(ev.id, settings)) return innerHtml;
+
+  const cwLabelText = formatEventCwLabel(reason);
+  const labelI18nAttr = reason ? '' : ' data-i18n="content_warning"';
+  const showBtnText = escapeHtml(t('fold.show') || '表示');
+  const evIdAttr = ev.id ? ' data-cw-event-id="' + escapeHtml(ev.id) + '"' : '';
+
+  return '<div class="cw-embedded-wrap"' + evIdAttr + '>' +
+    '<div class="muted-fold-bar muted-small cw-fold-bar cw-embedded-fold-bar">' +
+    '<div class="cw-fold-bar-left"><span class="cw-fold-bar-label"' + labelI18nAttr + '>' + escapeHtml(cwLabelText) + '</span></div>' +
+    '<button type="button" class="cw-fold-bar-btn cw-embedded-expand-btn" data-i18n="fold.show">' + showBtnText + '</button>' +
+    '</div>' +
+    '<div class="cw-embedded-body d-none">' + innerHtml + '</div>' +
+    '</div>';
+}
+
+export function bindEmbeddedCwHandlers(rootEl, settings = null, onExpand = null) {
+  if (!rootEl) return;
+  try {
+    const wraps = [];
+    if (rootEl.matches && rootEl.matches('.cw-embedded-wrap')) wraps.push(rootEl);
+    if (rootEl.querySelectorAll) {
+      rootEl.querySelectorAll('.cw-embedded-wrap').forEach(el => wraps.push(el));
+    }
+    for (const wrap of wraps) {
+      const children = Array.from(wrap.children || []);
+      const foldBar = children.find(c => c && c.classList && c.classList.contains('cw-embedded-fold-bar'));
+      const bodyEl = children.find(c => c && c.classList && c.classList.contains('cw-embedded-body'));
+      if (!foldBar || !bodyEl) continue;
+
+      foldBar.onclick = function (e) {
+        e.stopPropagation();
+      };
+
+      const btn = foldBar.querySelector('.cw-embedded-expand-btn');
+      if (btn) {
+        btn.onclick = function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const cwEvId = wrap.dataset ? wrap.dataset.cwEventId : '';
+          if (cwEvId) {
+            markCwExpandedGlobal(cwEvId);
+            try {
+              if (settings && typeof settings.__timelineMarkCwExpanded === 'function') {
+                settings.__timelineMarkCwExpanded(cwEvId, true);
+              }
+            } catch (_e) { }
+          }
+          bodyEl.classList.remove('d-none');
+          try { foldBar.remove(); } catch (_e) { }
+          if (typeof onExpand === 'function') {
+            try { onExpand(bodyEl, cwEvId); } catch (_e) { }
+          }
+        };
+      }
+    }
+  } catch (_e) { }
 }
 
 export function formatReactionForTitle(reaction) {

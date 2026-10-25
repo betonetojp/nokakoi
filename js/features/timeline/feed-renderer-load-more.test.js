@@ -31,7 +31,9 @@ vi.mock('../../utils/i18n.js', () => ({
 }));
 
 import {
+  captureFeedUiStateFromDom,
   feedLoadState,
+  flushPendingFeedRender,
   getLoadMoreLabel,
   initFeedRenderer,
   renderFeed,
@@ -197,5 +199,78 @@ describe('scroll-time load more rendering', () => {
       'ev-3',
       'ev-4'
     ]);
+  });
+
+  it('captures data-has-cw="1" expanded CWs and preserves expanded state when DOM is empty on tab return', () => {
+    const uiState = {
+      expandedCwEventIds: new Set(),
+      expandedMutedEventIds: new Set(),
+      selectedEventId: null
+    };
+    const state = {
+      feeds: {
+        home: { list: [] }
+      }
+    };
+    initFeedRenderer(state, {
+      nip19: {},
+      settingsManager: { get: () => false },
+      ensureFeedUiState: () => uiState,
+      getRenderSettingsWithUiState: () => ({}),
+      findEventById: () => null,
+      setupInfiniteScrollObserver: vi.fn(),
+      getInfiniteScrollObserver: () => mockObserver
+    });
+
+    const feedEl = document.getElementById('feed-global');
+    feedEl.innerHTML = '<div class="event" data-event-id="cw-open" data-has-cw="1"><div class="cw-fold-bar cw-embedded-fold-bar"></div></div>' +
+      '<div class="event" data-event-id="cw-closed" data-has-cw="1"><div class="cw-fold-bar"></div></div>';
+
+    captureFeedUiStateFromDom('home', feedEl);
+    expect(Array.from(uiState.expandedCwEventIds)).toEqual(['cw-open']);
+
+    // Tab hide clears feedEl.innerHTML; captureFeedUiStateFromDom on empty DOM must NOT wipe expandedCwEventIds
+    feedEl.innerHTML = '';
+    captureFeedUiStateFromDom('home', feedEl);
+    expect(Array.from(uiState.expandedCwEventIds)).toEqual(['cw-open']);
+  });
+
+  it('lights scrollToTopBtn.has-new during scroll and flushes immediately on nokakoi:scrollToTop', () => {
+    document.body.insertAdjacentHTML('beforeend', '<button id="scrollToTopBtn" hidden></button>');
+    const state = {
+      feeds: {
+        global: {
+          list: [{ id: 'ev-1', kind: 1, created_at: 1000, content: 'first' }],
+          map: new Map()
+        }
+      }
+    };
+    initFeedRenderer(state, {
+      nip19: {},
+      settingsManager: { get: () => false },
+      ensureFeedUiState: () => ({}),
+      getRenderSettingsWithUiState: () => ({}),
+      findEventById: () => null,
+      setupInfiniteScrollObserver: vi.fn(),
+      getInfiniteScrollObserver: () => mockObserver
+    });
+
+    renderFeed('global', true);
+    const feedEl = document.getElementById('feed-global');
+    feedEl.getBoundingClientRect = () => ({ top: -300, bottom: 500, height: 800 });
+    const topBtn = document.getElementById('scrollToTopBtn');
+
+    window.scrollY = 300;
+    window.dispatchEvent(new Event('wheel'));
+    window.dispatchEvent(new Event('scroll'));
+
+    state.feeds.global.list.unshift({ id: 'ev-new-top', kind: 1, created_at: 1200, content: 'newest' });
+    scheduleRender('global', 10);
+
+    expect(topBtn.classList.contains('has-new')).toBe(true);
+    expect(Array.from(feedEl.querySelectorAll('.event')).map(n => n.dataset.eventId)).toEqual(['ev-1']);
+
+    flushPendingFeedRender('global');
+    expect(Array.from(feedEl.querySelectorAll('.event')).map(n => n.dataset.eventId)).toEqual(['ev-new-top', 'ev-1']);
   });
 });

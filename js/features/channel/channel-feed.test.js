@@ -12,7 +12,7 @@ vi.mock('./channel.js', async (importOriginal) => {
   };
 });
 
-import { subscribeChannelFeed } from './channel-feed.js';
+import { subscribeChannelFeed, unsubscribeAllChannelFeeds } from './channel-feed.js';
 
 describe('channel-feed', () => {
   let containerEl;
@@ -170,6 +170,63 @@ describe('channel-feed', () => {
 
     // Should be successfully added to DOM because fresh subscription cleared eventsMap
     expect(containerEl.querySelector('.event[data-event-id="ev-1"]')).toBeTruthy();
+  });
+
+  it('sorts out-of-order history batch chronologically on EOSE and closes in-flight history sub on unsubscribeAll', async () => {
+    const handlersList = [];
+    const closeFns = [];
+    mockState.pool.subscribeMany = vi.fn((_relays, _filters, handlers) => {
+      handlersList.push(handlers);
+      const close = vi.fn();
+      closeFns.push(close);
+      return { close };
+    });
+
+    await subscribeChannelFeed('chan-root-1', mockState, containerEl, mockSettingsManager);
+
+    // Initial live/recent event
+    handlersList[0].onevent({
+      id: 'ev-top',
+      kind: 42,
+      pubkey: 'u1',
+      created_at: 2000,
+      content: 'Top',
+      tags: [['e', 'chan-root-1', '', 'root']]
+    });
+    handlersList[0].oneose();
+
+    const loadMoreBtn = containerEl.querySelector('.load-more-btn');
+    expect(loadMoreBtn).toBeTruthy();
+    loadMoreBtn.click();
+
+    // Out-of-order history arrivals from multiple relays (older 800 arrives before newer 1500)
+    expect(handlersList.length).toBe(2);
+    handlersList[1].onevent({
+      id: 'ev-800',
+      kind: 42,
+      pubkey: 'u1',
+      created_at: 800,
+      content: 'Older 800',
+      tags: [['e', 'chan-root-1', '', 'root']]
+    });
+    handlersList[1].onevent({
+      id: 'ev-1500',
+      kind: 42,
+      pubkey: 'u2',
+      created_at: 1500,
+      content: 'Newer 1500',
+      tags: [['e', 'chan-root-1', '', 'root']]
+    });
+    handlersList[1].oneose();
+
+    const ids = Array.from(containerEl.querySelectorAll('.event:not(.feed-bar)')).map(el => el.dataset.eventId);
+    expect(ids).toEqual(['ev-top', 'ev-1500', 'ev-800']);
+
+    // Start another history load and verify unsubscribeAllChannelFeeds closes it
+    containerEl.querySelector('.load-more-btn').click();
+    expect(handlersList.length).toBe(3);
+    unsubscribeAllChannelFeeds();
+    expect(closeFns[2]).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -30,6 +30,8 @@ vi.mock('../../core/state.js', () => ({
   findEventById: vi.fn(() => null)
 }));
 
+import { resetAppContextForTests } from '../../core/app-context.js';
+import { bindEmbeddedCwHandlers } from './render-helpers.js';
 import { formatZapReceiptLabel, renderReplyContext } from './reply-renderer.js';
 
 const profileZap = {
@@ -290,5 +292,74 @@ describe('profile zap receipt cards', () => {
     expect(html).toContain('アリス に返信');
     expect(html).toContain('REPLY親本文');
     expect(html).not.toContain('ROOT本文');
+  });
+
+  it('preserves Content Warning fold bar on original post when rendered inside reply, repost, and reaction cards', async () => {
+    resetAppContextForTests();
+    const { findEventById } = await import('../../core/state.js');
+    const cwOriginal = {
+      id: 'cw-orig-1',
+      pubkey: 'recipient',
+      kind: 1,
+      content: '秘密のネタバレ本文',
+      tags: [['content-warning', '映画の結末']]
+    };
+    const repostOfCw = {
+      id: 'repost-cw-1',
+      pubkey: 'sender',
+      kind: 6,
+      content: '',
+      tags: [['e', 'cw-orig-1']]
+    };
+    const replyToCw = {
+      id: 'reply-cw-1',
+      pubkey: 'sender',
+      kind: 1,
+      content: 'わかる！',
+      tags: [['e', 'cw-orig-1', '', 'root']]
+    };
+    const reactionToCw = {
+      id: 'react-cw-1',
+      pubkey: 'sender',
+      kind: 7,
+      content: '+',
+      tags: [['e', 'cw-orig-1']]
+    };
+
+    findEventById.mockImplementation((_state, id) => {
+      if (id === 'cw-orig-1') return cwOriginal;
+      if (id === 'repost-cw-1') return repostOfCw;
+      return null;
+    });
+
+    const state = { profiles: new Map() };
+
+    for (const wrapperEv of [replyToCw, repostOfCw, reactionToCw]) {
+      const container = document.createElement('div');
+      container.innerHTML = renderReplyContext(state, wrapperEv, null, {});
+      const foldBar = container.querySelector('.cw-embedded-fold-bar');
+      const bodyEl = container.querySelector('.cw-embedded-body');
+      expect(foldBar).not.toBeNull();
+      expect(foldBar.textContent).toContain('映画の結末');
+      expect(bodyEl).not.toBeNull();
+      expect(bodyEl.classList.contains('d-none')).toBe(true);
+      expect(bodyEl.textContent).toContain('秘密のネタバレ本文');
+    }
+
+    // Expanding via button reveals body in-place and marks event expanded globally
+    const cardWrap = document.createElement('div');
+    cardWrap.innerHTML = renderReplyContext(state, repostOfCw, null, {});
+    const parentClickSpy = vi.fn();
+    cardWrap.addEventListener('click', parentClickSpy);
+    bindEmbeddedCwHandlers(cardWrap);
+
+    const expandBtn = cardWrap.querySelector('.cw-embedded-expand-btn');
+    expandBtn.click();
+
+    expect(parentClickSpy).not.toHaveBeenCalled();
+    expect(cardWrap.querySelector('.cw-embedded-fold-bar')).toBeNull();
+    expect(cardWrap.querySelector('.cw-embedded-body').classList.contains('d-none')).toBe(false);
+
+    resetAppContextForTests();
   });
 });

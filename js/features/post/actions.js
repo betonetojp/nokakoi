@@ -26,7 +26,7 @@ export function resolveLoginOrder(state) {
  */
 function addMentionTags(draft) {
   if (!draft || !draft.content) return;
-  if (draft.kind !== 1 && draft.kind !== 42) return;
+  if (draft.kind !== 1 && draft.kind !== 42 && draft.kind !== 1111) return;
 
   try {
     const nip19 = getNip19();
@@ -70,7 +70,7 @@ function addMentionTags(draft) {
  */
 function addHashtagTags(draft) {
   if (!draft || !draft.content) return;
-  if (draft.kind !== 1 && draft.kind !== 42) return;
+  if (draft.kind !== 1 && draft.kind !== 42 && draft.kind !== 1111) return;
 
   try {
     const regex = /(?:^|\s)#([^\s#!"$%&'()*+,\-./:;<=>?@[\\\]^`{|}~]+)/g;
@@ -107,7 +107,7 @@ function addHashtagTags(draft) {
  */
 function addQuoteTags(draft) {
   if (!draft || !draft.content) return;
-  if (draft.kind !== 1 && draft.kind !== 42) return;
+  if (draft.kind !== 1 && draft.kind !== 42 && draft.kind !== 1111) return;
 
   try {
     const nip19 = getNip19();
@@ -157,12 +157,41 @@ function addQuoteTags(draft) {
 }
 
 /**
- * 本文から p / t / q タグを補完（kind:1, 42）
+ * NIP-30: 本文中の :shortcode: から emoji タグを自動追加
+ */
+function addCustomEmojiTags(draft) {
+  if (!draft || !draft.content) return;
+  const supportedKinds = [1, 6, 7, 16, 42, 1111, 20000];
+  if (!supportedKinds.includes(draft.kind)) return;
+
+  try {
+    const customEmojis = getCustomEmojis();
+    if (!customEmojis) return;
+    const emojiTags = extractEmojiTagsFromText(draft.content, customEmojis);
+    if (!Array.isArray(emojiTags) || emojiTags.length === 0) return;
+    if (!draft.tags) draft.tags = [];
+    for (const emojiTag of emojiTags) {
+      const textShortcode = emojiTag[1];
+      const alreadyExists = draft.tags.some(t =>
+        Array.isArray(t) && t[0] === 'emoji' && t[1] === textShortcode
+      );
+      if (!alreadyExists) {
+        draft.tags.push(emojiTag.slice(0, 4));
+      }
+    }
+  } catch (e) {
+    console.warn('[Actions] カスタム絵文字タグ追加に失敗:', e);
+  }
+}
+
+/**
+ * 本文から p / t / q / emoji タグを補完（kind:1, 42, 1111 等）
  */
 export function enrichDraftTagsFromContent(draft) {
   addMentionTags(draft);
   addHashtagTags(draft);
   addQuoteTags(draft);
+  addCustomEmojiTags(draft);
 }
 
 // NIP-07 用のドラフト検証・補完 (aka-profiles / nostr-tools 等の厳格な検証エラーを防止)
@@ -425,27 +454,7 @@ export async function publishNote(state, content, statusEl, options) {
       pubkey: localStorage.getItem('pubkey') || ''
     };
 
-    // NIP-30: カスタム絵文字タグを自動追加（kind:1, 7 など対応種別）
-    try {
-      const supportedKinds = [1, 6, 7, 42, 16, 20000]; // kind:1 投稿、repost、reaction など
-      if (supportedKinds.includes(draft.kind)) {
-        const customEmojis = getCustomEmojis();
-        if (customEmojis) {
-          const emojiTags = extractEmojiTagsFromText(draft.content, customEmojis);
-          for (const emojiTag of emojiTags) {
-            const textShortcode = emojiTag[1];
-            const alreadyExists = draft.tags.some(t =>
-              Array.isArray(t) && t[0] === 'emoji' && t[1] === textShortcode
-            );
-            if (!alreadyExists) {
-              draft.tags.push(emojiTag.slice(0, 4));
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('[Actions] カスタム絵文字タグ追加に失敗:', e);
-    }
+    // NIP-30 カスタム絵文字タグは enrichDraftTagsFromContent(draft) で一括付与
 
     // bitchat（kind 20000）専用処理
     if (draft.kind === 20000) {
@@ -629,11 +638,26 @@ export async function replyToEvent(state, targetEv, text) {
     let tags = [];
     let replyKind = (kinds && kinds.Text) || 1;
 
-    // 設定管理から NIP-22 常時使用オプションを取得
+    // 設定管理から NIP-22 常時使用オプションと引用モード状態を取得
     const sm = getSettingsManager();
     const alwaysUseComment = sm && typeof sm.get === 'function' && sm.get('alwaysUseNip22Comment') === true;
+    const quoteMode = Boolean(
+      (typeof window !== 'undefined' && typeof window.getQuoteMode === 'function')
+        ? window.getQuoteMode()
+        : (typeof window !== 'undefined' && window.__nokakoiQuoteMode)
+    );
+    const isChannelChatOpen = (targetEv.kind === 42) && (
+      (typeof window !== 'undefined' && typeof window.isChannelChatOpen === 'function')
+        ? window.isChannelChatOpen()
+        : (() => {
+          try {
+            const wrapper = document.querySelector('.channel-portal-wrapper');
+            return !!(wrapper && wrapper.classList.contains('show-chat'));
+          } catch (_e) { return false; }
+        })()
+    );
 
-    if (targetEv.kind === 20000) {
+    if (targetEv.kind === 20000 && !quoteMode) {
       // kind:20000 omochat の返信は e/p タグを使用しない
       replyKind = 20000;
       tags = [];
@@ -664,31 +688,29 @@ export async function replyToEvent(state, targetEv, text) {
         } catch(e) {}
         tags.push(['n', name]);
       }
-    } else if (targetEv.kind === 42) {
-      const quoteMode = window && window.getQuoteMode ? window.getQuoteMode() : (window.__nokakoiQuoteMode || false);
-      const isChannelChatOpen = typeof window !== 'undefined' && typeof window.isChannelChatOpen === 'function' ? window.isChannelChatOpen() : (() => {
-        try {
-          const wrapper = document.querySelector('.channel-portal-wrapper');
-          return !!(wrapper && wrapper.classList.contains('show-chat'));
-        } catch (_e) { return false; }
-      })();
-      // チャンネル画面が開いている場合、または通常返信の場合は kind:42 で送信
-      if (isChannelChatOpen || !quoteMode) {
-        // NIP-28 チャンネルメッセージへの返信は kind:42 で送信
-        const { pickChannelRootId } = await import('../channel/channel.js');
-        const { sendChannelMessage } = await import('../channel/channel-feed.js');
-        const rootId = pickChannelRootId(targetEv);
-        if (!rootId) {
-          alert(t('publish.failed', { msg: t('channel.resolve_root_failed') || 'チャンネル root を解決できませんでした' }));
-          return false;
-        }
-        await sendChannelMessage(rootId, text, effectiveState, {
-          replyToEvent: targetEv,
-          isQuote: !!quoteMode
-        });
-        return true;
+    } else if (targetEv.kind === 42 && (isChannelChatOpen || !quoteMode)) {
+      // チャンネル画面が開いている場合、または通常返信の場合は NIP-28 kind:42 で送信
+      const { pickChannelRootId } = await import('../channel/channel.js');
+      const { sendChannelMessage } = await import('../channel/channel-feed.js');
+      const rootId = pickChannelRootId(targetEv);
+      if (!rootId) {
+        alert(t('publish.failed', { msg: t('channel.resolve_root_failed') || 'チャンネル root を解決できませんでした' }));
+        return false;
       }
-      // チャンネル画面外での引用投稿は通常の kind:1 引用ポストとしてフォールスルー
+      await sendChannelMessage(rootId, text, effectiveState, {
+        replyToEvent: targetEv,
+        isQuote: !!quoteMode
+      });
+      return true;
+    } else if (quoteMode) {
+      // 引用モード時は alwaysUseComment や対象 kind (1111 / 42 等) に関わらず NIP-18 の kind:1 引用ポストとして送信
+      try {
+        const { getBestRelayHint } = await import('../../core/relay.js');
+        const targetRelayHint = getBestRelayHint(effectiveState, targetEv);
+        tags = [['q', targetEv.id, targetRelayHint, targetEv.pubkey]];
+      } catch (e) {
+        tags = [['q', targetEv.id, '', targetEv.pubkey || '']];
+      }
     } else if (alwaysUseComment || targetEv.kind === 1111) {
       // NIP-22 (kind: 1111) コメント送信
       replyKind = 1111;
@@ -712,16 +734,19 @@ export async function replyToEvent(state, targetEv, text) {
             const KTag = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'K' && t[1]);
             if (KTag) rootKind = KTag[1];
           } else {
-            // 2. NIP-10 e タグ (root マーク)
-            const rootETag = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'e' && t[1] && t[3] === 'root');
+            // 2. NIP-10 e タグ (mention タグを除外して root を解決)
+            const isMentionETag = (t) => Array.isArray(t) && (t[3] === 'mention' || t[4] === 'mention' || t[2] === 'mention');
+            const rootETag = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'e' && t[1] && (t[3] === 'root' || t[4] === 'root'));
             if (rootETag) {
               rootId = rootETag[1];
-              if (rootETag[2]) rootRelayHint = normalizeRelayUrl(rootETag[2]);
+              if (rootETag[2] && rootETag[2] !== 'root') rootRelayHint = normalizeRelayUrl(rootETag[2]);
+              const pkCandidate = ensureHexPubkey(rootETag[4] || (rootETag[3] !== 'root' ? rootETag[3] : ''));
+              if (pkCandidate) rootPubkey = pkCandidate;
             } else {
-              const firste = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'e' && t[1]);
+              const firste = targetEv.tags.find(t => Array.isArray(t) && t[0] === 'e' && t[1] && !isMentionETag(t));
               if (firste && firste[1] !== targetEv.id) {
                 rootId = firste[1];
-                if (firste[2]) rootRelayHint = normalizeRelayUrl(firste[2]);
+                if (firste[2] && firste[2] !== 'reply') rootRelayHint = normalizeRelayUrl(firste[2]);
               }
             }
           }
@@ -766,42 +791,67 @@ export async function replyToEvent(state, targetEv, text) {
         ];
       }
     } else {
-      // 既定は e タグ返信。quote モード時は NIP-18 に従い q タグを使用
+      // NIP-10 の e タグ返信（mention マークの e タグは root に昇格させず、親の p タグを引き継ぐ）
       try {
-        const { getBestRelayHint } = await import('../../core/relay.js');
+        const { getBestRelayHint, normalizeRelayUrl } = await import('../../core/relay.js');
         const { findEventById } = await import('../../core/state.js');
         const targetRelayHint = getBestRelayHint(effectiveState, targetEv);
+        const isMentionETag = (t) => Array.isArray(t) && (t[3] === 'mention' || t[4] === 'mention' || t[2] === 'mention');
 
-        const quoteMode = window && window.getQuoteMode ? window.getQuoteMode() : (window.__nokakoiQuoteMode || false);
-        if (quoteMode) {
-          // q タグ: 第3要素はリレーヒント、第4要素は対象イベントの pubkey
-          tags = [['q', targetEv.id, targetRelayHint, targetEv.pubkey]];
-        } else {
-          const parentETags = (targetEv.tags || []).filter(t => t && t[0] === 'e' && t[1]);
-          let rootId = null;
-          if (parentETags.length > 0) {
-            const rootTag = parentETags.find(t => t[3] === 'root');
-            if (rootTag) {
-              rootId = rootTag[1];
-            } else {
-              rootId = parentETags[0][1];
+        const parentETags = (targetEv.tags || []).filter(t => Array.isArray(t) && t[0] === 'e' && t[1] && !isMentionETag(t));
+        let rootId = null;
+        let rootTagRelayHint = '';
+        let rootTagPubkey = null;
+        if (parentETags.length > 0) {
+          const rootTag = parentETags.find(t => t[3] === 'root' || t[4] === 'root');
+          const picked = rootTag || parentETags[0];
+          if (picked && picked[1] !== targetEv.id) {
+            rootId = picked[1];
+            if (picked[2] && /^wss?:\/\//i.test(picked[2])) {
+              rootTagRelayHint = normalizeRelayUrl(picked[2]);
             }
+            rootTagPubkey = ensureHexPubkey(picked[4] || (picked[3] !== 'root' && picked[3] !== 'reply' ? picked[3] : ''));
           }
+        }
 
-          if (rootId) {
-            const rootEv = findEventById(effectiveState, rootId);
-            const rootRelayHint = rootEv ? getBestRelayHint(effectiveState, rootEv) : targetRelayHint;
-            tags = [
-              ['e', rootId, rootRelayHint, 'root'],
-              ['e', targetEv.id, targetRelayHint, 'reply'],
-              ['p', targetEv.pubkey, targetRelayHint]
-            ];
-          } else {
-            tags = [
-              ['e', targetEv.id, targetRelayHint, 'root'],
-              ['p', targetEv.pubkey, targetRelayHint]
-            ];
+        const myPubkey = ensureHexPubkey((effectiveState && effectiveState.pubkey) || localStorage.getItem('pubkey') || '');
+        const seenPTags = new Set();
+        const threadPTags = [];
+        for (const t of (targetEv.tags || [])) {
+          if (!Array.isArray(t) || t[0] !== 'p' || !t[1]) continue;
+          const pk = ensureHexPubkey(t[1]);
+          if (!pk || pk === targetEv.pubkey || (myPubkey && pk === myPubkey) || seenPTags.has(pk)) continue;
+          seenPTags.add(pk);
+          threadPTags.push(t[2] ? ['p', pk, t[2]] : ['p', pk]);
+        }
+
+        const targetAuthorPk = ensureHexPubkey(targetEv.pubkey);
+        if (rootId && rootId !== targetEv.id) {
+          const rootEv = findEventById(effectiveState, rootId);
+          const rootRelayHint = (rootEv ? getBestRelayHint(effectiveState, rootEv) : '') || rootTagRelayHint || targetRelayHint;
+          const resolvedRootPk = ensureHexPubkey((rootEv && rootEv.pubkey) || rootTagPubkey || '');
+          if (resolvedRootPk && resolvedRootPk !== targetAuthorPk && (!myPubkey || resolvedRootPk !== myPubkey) && !seenPTags.has(resolvedRootPk)) {
+            seenPTags.add(resolvedRootPk);
+            threadPTags.push(['p', resolvedRootPk, rootRelayHint]);
           }
+          if (targetEv.pubkey) {
+            threadPTags.push(['p', targetEv.pubkey, targetRelayHint]);
+          }
+          const rootETagOut = resolvedRootPk
+            ? ['e', rootId, rootRelayHint, 'root', resolvedRootPk]
+            : ['e', rootId, rootRelayHint, 'root'];
+          const replyETagOut = targetAuthorPk
+            ? ['e', targetEv.id, targetRelayHint, 'reply', targetAuthorPk]
+            : ['e', targetEv.id, targetRelayHint, 'reply'];
+          tags = [rootETagOut, replyETagOut, ...threadPTags];
+        } else {
+          if (targetEv.pubkey) {
+            threadPTags.push(['p', targetEv.pubkey, targetRelayHint]);
+          }
+          const rootETagOut = targetAuthorPk
+            ? ['e', targetEv.id, targetRelayHint, 'root', targetAuthorPk]
+            : ['e', targetEv.id, targetRelayHint, 'root'];
+          tags = [rootETagOut, ...threadPTags];
         }
       } catch (e) {
         tags = [

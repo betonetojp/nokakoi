@@ -38,9 +38,10 @@ export function getFeedBaseFilters(state, settingsManager, feedId) {
 
       return [
         { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        pubkey ? { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT } : null,
+        pubkey ? { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT } : null,
         buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
-        { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
+        pubkey ? { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT } : null
       ].filter(Boolean);
     } else if (feedId === 'mentions') {
       const pubkey = localStorage.getItem('pubkey');
@@ -73,9 +74,10 @@ export function buildHomeLoadMoreFilters(state, settingsManager, until) {
     if (!followsForMore.length) return [];
     const baseFilters = [
       { kinds: [1, 6, 1111], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
-      { kinds: [1, 6, 7, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+      pubkey ? { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT } : null,
+      pubkey ? { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT } : null,
       buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
-      { kinds: [7, 42, 16], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
+      pubkey ? { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT } : null
     ].filter(Boolean);
     const optionalHomeFollowKinds = [];
     if (settingsManager.get('showHomeReactions') === true) optionalHomeFollowKinds.push(7);

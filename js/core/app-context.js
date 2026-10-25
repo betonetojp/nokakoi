@@ -6,9 +6,11 @@ const context = {
   settingsManager: null,
   updateTabVisibility: null,
   customEmojis: new Map(),
+  expandedCwIds: new Set(),
   scroll: {
     anchor: null,
-    programmatic: false
+    programmatic: false,
+    userScrolling: false
   },
   debug: {
     enabled: false,
@@ -64,6 +66,23 @@ export function setProgrammaticScroll(active) {
 
 export function isProgrammaticScroll() {
   return context.scroll.programmatic;
+}
+
+export function setUserScrolling(active) {
+  context.scroll.userScrolling = active === true;
+}
+
+export function isUserScrolling() {
+  return context.scroll.userScrolling;
+}
+
+export function markCwExpandedGlobal(eventId) {
+  if (eventId) context.expandedCwIds.add(String(eventId));
+}
+
+export function isCwExpandedGlobal(eventId) {
+  if (!eventId) return false;
+  return context.expandedCwIds.has(String(eventId));
 }
 
 export function setDebugEnabled(enabled) {
@@ -149,8 +168,10 @@ export function resetAppContextForTests() {
   context.settingsManager = null;
   context.updateTabVisibility = null;
   context.customEmojis = new Map();
+  context.expandedCwIds = new Set();
   context.scroll.anchor = null;
   context.scroll.programmatic = false;
+  context.scroll.userScrolling = false;
   context.debug.enabled = false;
   context.debug.buildInfo = '';
   context.debug.relayInspector = null;

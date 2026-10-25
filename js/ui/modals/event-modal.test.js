@@ -206,4 +206,24 @@ describe('showEventModal for kind:40 and kind:30030', () => {
     expect(allBadges[0].textContent).toBe('🇺🇸');
     expect(allBadges[0].title).toBe('eng');
   });
+
+  it('aborts previous modal listeners on reopen and on close so listeners never stack', () => {
+    const state = { profiles: new Map() };
+    const ev1 = { id: 'ev-1', pubkey: '1'.repeat(64), kind: 1, created_at: 1700000000, content: 'one', tags: [] };
+    const ev2 = { id: 'ev-2', pubkey: '1'.repeat(64), kind: 1, created_at: 1700000001, content: 'two', tags: [] };
+
+    showEventModal(ev1, state, {}, null, null, null, {}, {});
+    const firstController = modal._eventModalAbortController;
+    expect(firstController).toBeTruthy();
+    expect(firstController.signal.aborted).toBe(false);
+
+    showEventModal(ev2, state, {}, null, null, null, {}, {});
+    expect(firstController.signal.aborted).toBe(true);
+    const secondController = modal._eventModalAbortController;
+    expect(secondController.signal.aborted).toBe(false);
+
+    document.getElementById('eventModalClose').click();
+    expect(secondController.signal.aborted).toBe(true);
+    expect(modal.hidden).toBe(true);
+  });
 });

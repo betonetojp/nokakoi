@@ -5,6 +5,7 @@ vi.mock('../utils/utils.js', () => ({ logWarn: vi.fn() }));
 
 import {
   cacheEvent,
+  clearFeed,
   clearFullState,
   createState,
   findEventById,
@@ -85,5 +86,18 @@ describe('state', () => {
     for (const id of ['feed-bitchat', 'feed-channels']) {
       expect(document.getElementById(id).innerHTML).toBe('');
     }
+  });
+
+  it('clearFeed removes paginationUntil, mergedPaginationUntil and perFilterUntil', () => {
+    const state = createState();
+    state.feeds.home.paginationUntil = 1700000000;
+    state.feeds.home.mergedPaginationUntil = 1700000100;
+    state.feeds.home.perFilterUntil = [1700000200];
+
+    clearFeed(state, 'home');
+
+    expect(state.feeds.home.paginationUntil).toBeUndefined();
+    expect(state.feeds.home.mergedPaginationUntil).toBeUndefined();
+    expect(state.feeds.home.perFilterUntil).toBeUndefined();
   });
 });

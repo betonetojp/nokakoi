@@ -795,6 +795,7 @@ export async function setupMuteListUI(state, SimplePoolProvider, renderFeed, res
         };
 
         const modeWrap = document.createElement('div');
+        modeWrap.id = 'muteModeWrap';
         modeWrap.className = 'mt-8 flex-col items-start';
         if (!applyCheckbox.checked) modeWrap.classList.add('d-none');
 

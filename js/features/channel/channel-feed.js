@@ -13,10 +13,11 @@ import { awaitAny } from '../../utils/utils.js';
 
 import { EVENTS_FETCH_LIMIT } from '../../config/constants.js';
 import { t } from '../../utils/i18n.js';
-import { getInfiniteScrollObserver } from '../../boot/infinite-scroll.js';
+import { getInfiniteScrollObserver, setupInfiniteScrollObserver } from '../../boot/infinite-scroll.js';
 import { getSettingsManager } from '../../core/app-context.js';
 
 const _channelSubs = new Map(); // rootId -> sub/unsub object
+const _channelHistorySubs = new Set(); // active loadMoreHistory sub objects
 const _observedLoadMoreBtns = new WeakMap(); // containerEl -> loadMoreBtn
 
 /**
@@ -113,7 +114,11 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
     }
 
     try {
-      const observer = getInfiniteScrollObserver();
+      let observer = getInfiniteScrollObserver();
+      if (!observer && typeof setupInfiniteScrollObserver === 'function') {
+        setupInfiniteScrollObserver();
+        observer = getInfiniteScrollObserver();
+      }
       if (observer && loadMoreBtn) {
         observer.observe(loadMoreBtn);
         _observedLoadMoreBtns.set(containerEl, loadMoreBtn);
@@ -174,7 +179,7 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
   }
 
   async function loadMoreHistory() {
-    if (isLoadingMore || noMoreEvents) return;
+    if (isLoadingMore || noMoreEvents || isStale()) return;
     const sorted = Array.from(eventsMap.values()).sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
     if (!sorted.length) return;
     const oldest = sorted[sorted.length - 1];
@@ -186,26 +191,44 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
 
     try {
       const loadFilter = { kinds: [42], '#e': [rootId], limit: EVENTS_FETCH_LIMIT, until };
-      let fetchedCount = 0;
+      const historyBatch = new Map();
       if (state && state.pool && typeof state.pool.subscribeMany === 'function') {
-        const sub = state.pool.subscribeMany(targetRelays, [loadFilter], {
+        let sub = null;
+        const closeHistorySub = () => {
+          if (!sub) return;
+          _channelHistorySubs.delete(sub);
+          try {
+            if (typeof sub.close === 'function') sub.close();
+            else if (typeof sub.unsub === 'function') sub.unsub();
+          } catch (_e) {}
+        };
+        sub = state.pool.subscribeMany(targetRelays, [loadFilter], {
           onevent(ev) {
-            if (!ev || ev.kind !== 42) return;
+            if (isStale() || !ev || ev.kind !== 42 || !ev.id) return;
             cacheEvent(state, ev);
-            if (!eventsMap.has(ev.id)) {
-              eventsMap.set(ev.id, ev);
-              fetchedCount++;
-              addEventToDom(ev, true);
+            if (!eventsMap.has(ev.id) && !historyBatch.has(ev.id)) {
+              historyBatch.set(ev.id, ev);
             }
           },
           oneose() {
-            try { if (typeof sub.close === 'function') sub.close(); } catch (_e) {}
+            closeHistorySub();
+            if (isStale()) return;
+            const ordered = Array.from(historyBatch.values()).sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+            let added = 0;
+            for (const ev of ordered) {
+              if (!eventsMap.has(ev.id)) {
+                eventsMap.set(ev.id, ev);
+                addEventToDom(ev, false);
+                added += 1;
+              }
+            }
             isLoadingMore = false;
-            if (fetchedCount === 0) noMoreEvents = true;
+            if (added === 0) noMoreEvents = true;
             updateLoadMoreButton();
           },
           eoseTimeout: 4000,
         });
+        if (sub) _channelHistorySubs.add(sub);
       } else {
         isLoadingMore = false;
         updateLoadMoreButton();
@@ -286,6 +309,13 @@ export function unsubscribeAllChannelFeeds() {
   for (const id of Array.from(_channelSubs.keys())) {
     unsubscribeChannelFeed(id);
   }
+  for (const sub of Array.from(_channelHistorySubs)) {
+    try {
+      if (typeof sub.close === 'function') sub.close();
+      else if (typeof sub.unsub === 'function') sub.unsub();
+    } catch (_e) {}
+  }
+  _channelHistorySubs.clear();
 }
 
 /**

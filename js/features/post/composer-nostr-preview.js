@@ -2,7 +2,7 @@ import { escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
 import { t } from '../../utils/i18n.js';
 import { getNip19 } from '../../core/nostr-compat.js';
 import { displayName } from '../profile/profile.js';
-import { invokeShowProfileModalProxy } from '../../ui/renderers/render-helpers.js';
+import { invokeShowProfileModalProxy, getEventCwReason, formatEventCwLabel, isCwExpandedForEvent } from '../../ui/renderers/render-helpers.js';
 import { findEventById } from '../../core/state.js';
 
 // nostr: プレフィックス付きの正規表現 (actions.js と同一パターン)
@@ -179,6 +179,7 @@ export function setupComposerNostrPreview(state, noteInput, composer) {
       for (const m of mentions) {
         const chip = document.createElement('span');
         chip.className = 'nostr-preview-chip nostr-mention-chip';
+        chip.dataset.pubkey = m.pubkey;
         chip.title = m.raw;
 
         const prof = state.profiles ? state.profiles.get(m.pubkey) : null;
@@ -243,9 +244,14 @@ export function setupComposerNostrPreview(state, noteInput, composer) {
         let summaryText;
         if (ev) {
           const authorName = displayName(state, ev.pubkey, nip19);
-          const firstLine = (ev.content || '').split('\n')[0].trim();
-          const shortLine = firstLine.length > 30 ? firstLine.slice(0, 30) + '...' : firstLine;
-          summaryText = `${authorName}: ${shortLine || '...'}`;
+          const cwReason = getEventCwReason(ev);
+          if (cwReason !== null && !(ev.id && isCwExpandedForEvent(ev.id))) {
+            summaryText = `${authorName}: [${formatEventCwLabel(cwReason)}]`;
+          } else {
+            const firstLine = (ev.content || '').split('\n')[0].trim();
+            const shortLine = firstLine.length > 30 ? firstLine.slice(0, 30) + '...' : firstLine;
+            summaryText = `${authorName}: ${shortLine || '...'}`;
+          }
         } else {
           const shortId = q.eventId.slice(0, 8);
           summaryText = q.type === 'nevent' ? `nevent (${shortId})` : `note (${shortId})`;
@@ -262,8 +268,24 @@ export function setupComposerNostrPreview(state, noteInput, composer) {
           const targetEv = findEventById(state, q.eventId);
           if (targetEv) {
             try {
-              const { showEventModal } = await import('../../ui/modals/event-modal.js');
-              showEventModal(targetEv, state, nip19);
+              const [{ showEventModal }, { reactToEvent, repostEvent }, { setReplyTarget }, { getSettingsManager }] = await Promise.all([
+                import('../../ui/modals/event-modal.js'),
+                import('./actions.js'),
+                import('./composer.js'),
+                import('../../core/app-context.js')
+              ]);
+              const sm = getSettingsManager();
+              const settings = (sm && sm.settings) || {};
+              showEventModal(
+                targetEv,
+                state,
+                nip19,
+                (evObj, sym) => reactToEvent(state, evObj, sym),
+                (evObj) => setReplyTarget(state, evObj, nip19),
+                (evObj) => repostEvent(state, evObj),
+                settings,
+                sm
+              );
             } catch (_err) { }
           }
         };
@@ -321,13 +343,14 @@ export function setupComposerNostrPreview(state, noteInput, composer) {
           profileUpdateTimer = null;
           return;
         }
-        // 名前を更新
-        const chips = container.querySelectorAll('.nostr-mention-chip');
-        chips.forEach((chip, idx) => {
-          const m = mentions[idx];
-          if (!m) return;
-          const prof = state.profiles ? state.profiles.get(m.pubkey) : null;
-          const currentName = displayName(state, m.pubkey, nip19);
+        // 名前を更新（常に最新チップの data-pubkey を参照し、古いクロージャ配列のズレを防ぐ）
+        const latestNip19 = getNip19();
+        const chips = container.querySelectorAll('.nostr-mention-chip[data-pubkey]');
+        chips.forEach((chip) => {
+          const pk = chip.dataset.pubkey;
+          if (!pk) return;
+          const prof = state.profiles ? (state.profiles.get(pk) || state.profiles.get(pk.toLowerCase())) : null;
+          const currentName = displayName(state, pk, latestNip19);
           const nameSpan = chip.querySelector('.nostr-preview-name');
           if (nameSpan && nameSpan.textContent !== currentName) {
             nameSpan.innerHTML = replaceBadgeEmoji(escapeHtml(currentName));

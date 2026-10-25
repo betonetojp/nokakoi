@@ -22,8 +22,12 @@ function matchesFilter(ev, filter) {
     if (!filter.authors.includes(ev.pubkey)) return false;
   }
   if (filter['#p'] && Array.isArray(filter['#p']) && filter['#p'].length > 0) {
-    const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && (t[0] === 'p' || t[0] === 'P')).map(t => t[1]) : [];
+    const pTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && t[0] === 'p').map(t => t[1]) : [];
     if (!pTags.some(p => filter['#p'].includes(p))) return false;
+  }
+  if (filter['#P'] && Array.isArray(filter['#P']) && filter['#P'].length > 0) {
+    const capPTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && t[0] === 'P').map(t => t[1]) : [];
+    if (!capPTags.some(p => filter['#P'].includes(p))) return false;
   }
   if (filter['#d'] && Array.isArray(filter['#d']) && filter['#d'].length > 0) {
     const dTags = Array.isArray(ev.tags) ? ev.tags.filter(t => Array.isArray(t) && (t[0] === 'd' || t[0] === 'D')).map(t => t[1]) : [];

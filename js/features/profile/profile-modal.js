@@ -15,6 +15,15 @@ import { showZapModal } from '../../ui/modals/zap-modal.js';
 import { sendZap } from '../zap/zap.js';
 
 let currentModalPubkey = null;
+let currentModalSessionId = 0;
+let currentProfileMoreObserver = null;
+
+function disconnectProfileMoreObserver() {
+  if (currentProfileMoreObserver) {
+    try { currentProfileMoreObserver.disconnect(); } catch (e) { }
+    currentProfileMoreObserver = null;
+  }
+}
 
 /**
  * プロフィールモーダルを表示
@@ -79,7 +88,10 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   const statsEl = $('#profileStats');
   const followStatusEl = $('#profileFollowStatus');
 
+  const modalSessionId = ++currentModalSessionId;
   currentModalPubkey = pubkey;
+  try { modal.dataset.pubkey = pubkey; } catch (e) { }
+  const isCurrentSession = () => currentModalSessionId === modalSessionId && !modal.hidden;
   if (followStatusEl) followStatusEl.classList.add('d-none');
 
   // アコーディオンの初期状態（常に閉じた状態にする）
@@ -106,7 +118,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
         // 相手のkind:3を取得
         const ev = await state.pool.get(fetchRelays, { kinds: [3], authors: [targetPubkey] });
 
-        if (currentModalPubkey !== targetPubkey) return; // モーダル表示対象が切り替わった
+        if (!isCurrentSession() || currentModalPubkey !== targetPubkey) return; // モーダル表示対象が切り替わった
 
         cachedTargetKind3 = ev;
 
@@ -607,6 +619,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
               ev = await state.pool.get(relays, { kinds: [0], authors: [pubkey], limit: 1 });
             }
           } catch (e) { ev = null; }
+          if (!isCurrentSession()) return;
           if (ev && ev.created_at) {
             timeSpan.textContent = fmtTime(ev.created_at);
           } else {
@@ -656,6 +669,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
     // 表示上限（最新イベント表示数）。初期は取得件数、追加読込ごとに増加し最大値まで
     let displayLimit = EVENTS_FETCH_LIMIT;
     let loadingMore = false;
+    let noMoreEvents = false;
 
     // ---追加: リレー接続確認 ---
     if (!state.pool || !state.relays || !Array.isArray(state.relays) || state.relays.length === 0) {
@@ -670,83 +684,95 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
       return arr;
     }
 
-    // 重複排除・ソート済みリストを displayLimit に従って描画
+    // 重複排除・ソート済みリストを displayLimit に従って描画（キー付き差分で重複描画・スクロール位置ズレを防止）
     function renderProfileEvents() {
+      if (!isCurrentSession()) return;
+      disconnectProfileMoreObserver();
       try {
-        const sorted = getSortedEventsArray();
-        const toDisplay = sorted.slice(0, Math.min(displayLimit, EVENTS_MAX));
+        const existingBottom = eventsContainer.querySelector('.feed-bar-bottom');
+        if (existingBottom) existingBottom.remove();
+      } catch (e) { }
 
-        // main feed 同様に増分追加し、DOM全再構築とスクロール位置ズレを回避
-        const existingEvents = Array.from(eventsContainer.querySelectorAll('.event'));
-        if (existingEvents.length > 0 && toDisplay.length > 0) {
-          const firstExistingId = existingEvents[0].dataset ? existingEvents[0].dataset.eventId : null;
-          if (firstExistingId && toDisplay[0] && toDisplay[0].id === firstExistingId) {
-            // 新規分のみ追加
-            const startIdx = existingEvents.length;
-            for (let i = startIdx; i < toDisplay.length; i++) {
-              const node = renderEvent(state, toDisplay[i], nip19, profileSettings, settingsManager, reactToEvent, replyToEvent, repostEvent);
-              const currentBottom = eventsContainer.querySelector('.feed-bar-bottom');
-              if (currentBottom) eventsContainer.insertBefore(node, currentBottom);
-              else eventsContainer.appendChild(node);
-            }
-            try { const existingBottom = eventsContainer.querySelector('.feed-bar-bottom'); if (existingBottom) existingBottom.remove(); } catch (e) { }
+      const sortedAll = getSortedEventsArray();
+      const toDisplay = sortedAll.slice(0, Math.min(displayLimit, EVENTS_MAX));
+
+      try {
+        const existingMap = new Map();
+        Array.from(eventsContainer.children).forEach(child => {
+          const id = child && child.classList && child.classList.contains('event') && child.dataset
+            ? child.dataset.eventId
+            : null;
+          if (id && !existingMap.has(id)) {
+            existingMap.set(id, child);
           } else {
-            // 全体再構築
-            const prevScroll = eventsContainer.scrollTop;
-            eventsContainer.innerHTML = '';
-            for (let i = 0; i < toDisplay.length; i++) {
-              eventsContainer.appendChild(renderEvent(state, toDisplay[i], nip19, profileSettings, settingsManager, reactToEvent, replyToEvent, repostEvent));
-            }
-            try { eventsContainer.scrollTop = prevScroll; } catch (e) { }
+            try { child.remove(); } catch (_e) { }
           }
-        } else {
-          eventsContainer.innerHTML = '';
-          for (let i = 0; i < toDisplay.length; i++) {
-            eventsContainer.appendChild(renderEvent(state, toDisplay[i], nip19, profileSettings, settingsManager, reactToEvent, replyToEvent, repostEvent));
+        });
+
+        const targetIds = new Set(toDisplay.map(ev => ev && ev.id).filter(Boolean));
+        for (const [id, el] of existingMap.entries()) {
+          if (!targetIds.has(id)) {
+            try { el.remove(); } catch (_e) { }
+            existingMap.delete(id);
+          }
+        }
+
+        let cursor = eventsContainer.firstElementChild;
+        for (let i = 0; i < toDisplay.length; i++) {
+          const ev = toDisplay[i];
+          if (!ev || !ev.id) continue;
+          let node = existingMap.get(ev.id);
+          if (!node) {
+            node = renderEvent(state, ev, nip19, profileSettings, settingsManager, reactToEvent, replyToEvent, repostEvent);
+            existingMap.set(ev.id, node);
+          }
+          if (node === cursor) {
+            cursor = cursor.nextElementSibling;
+          } else {
+            eventsContainer.insertBefore(node, cursor);
           }
         }
       } catch (e) {
-        // エラー時は全体再構築にフォールバック
         eventsContainer.innerHTML = '';
-        const sorted = getSortedEventsArray();
-        const toDisplay = sorted.slice(0, Math.min(displayLimit, EVENTS_MAX));
         for (let i = 0; i < toDisplay.length; i++) {
           eventsContainer.appendChild(renderEvent(state, toDisplay[i], nip19, profileSettings, settingsManager, reactToEvent, replyToEvent, repostEvent));
         }
       }
 
-      // さらに表示可能な場合は「もっと読む」バーを追加
-      try { const existingBottom = eventsContainer.querySelector('.feed-bar-bottom'); if (existingBottom) existingBottom.remove(); } catch (e) { }
-      const sortedAll = getSortedEventsArray();
-      if (sortedAll.length < EVENTS_MAX && displayLimit < EVENTS_MAX) {
+      // さらに表示可能な場合のみ「もっと読む」バーを追加（枯渇後は再生成しない）
+      if (!noMoreEvents && toDisplay.length > 0 && toDisplay.length < EVENTS_MAX) {
         const bar = document.createElement('button');
         bar.type = 'button';
         bar.className = 'feed-bar feed-bar-bottom accent-center load-more-btn secondary';
         bar.setAttribute('data-i18n', 'feed.load_more');
         bar.textContent = t('feed.load_more');
-        // ビューポートに入ったら一度だけ自動クリック
-        try {
-          if (typeof IntersectionObserver !== 'undefined') {
-            const modalObserver = new IntersectionObserver((entries) => {
-              entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                  const target = entry.target;
-                  try { modalObserver.unobserve(target); } catch (e) { }
-                  if (target && typeof target.click === 'function') target.click();
-                }
-              });
-            }, { root: null, rootMargin: '200px', threshold: 0.1 });
-            modalObserver.observe(bar);
-          }
-        } catch (e) { }
         bar.onclick = () => {
-          if (loadingMore) return;
-          loadingMore = true;
-          try { bar.textContent = t('loading'); } catch (e) { bar.textContent = 'Loading...'; }
-          // 現在表示中の最古イベントを基準に until を計算
+          if (loadingMore || noMoreEvents || !isCurrentSession()) return;
           const currentlyDisplayed = sortedAll.slice(0, Math.min(displayLimit, EVENTS_MAX));
           const lastDisplayed = currentlyDisplayed[currentlyDisplayed.length - 1];
-          const until = lastDisplayed && lastDisplayed.created_at ? lastDisplayed.created_at : Math.floor(Date.now() / 1000);
+          const until = lastDisplayed && lastDisplayed.created_at ? lastDisplayed.created_at : 0;
+          if (!until || until <= 1) {
+            noMoreEvents = true;
+            renderProfileEvents();
+            return;
+          }
+
+          loadingMore = true;
+          try { bar.textContent = t('loading'); } catch (e) { bar.textContent = 'Loading...'; }
+          const prevTotalCount = eventsMap.size;
+
+          const finalizeLoadMore = () => {
+            loadingMore = false;
+            if (!isCurrentSession()) return;
+            const addedCount = eventsMap.size - prevTotalCount;
+            const hadBufferedMore = eventsMap.size > currentlyDisplayed.length;
+            if (!hadBufferedMore && addedCount <= 0) {
+              noMoreEvents = true;
+            } else {
+              displayLimit = Math.min(currentlyDisplayed.length + EVENTS_FETCH_LIMIT, EVENTS_MAX);
+            }
+            renderProfileEvents();
+          };
 
           // relay ごとに取得
           const relays = getReadRelays(state.relays) || [];
@@ -761,17 +787,15 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
                 'profile_kinds_' + pubkey + '_more_all_' + until,
                 [{ kinds: profileFeedKinds, authors: [pubkey], limit: EVENTS_FETCH_LIMIT, until: until - 1 }],
                 (ev) => {
+                  if (!isCurrentSession()) return;
                   try { if (ev && profileFeedKindSet.has(ev.kind) && ev.id) eventsMap.set(ev.id, ev); } catch (e) { }
                 },
                 getReadRelays(state.relays)
               );
               activeUnsubMore.push(unsubAll);
               setTimeout(() => {
-                // 表示上限を fetch limit 分だけ増やす
-                displayLimit = Math.min(displayLimit + EVENTS_FETCH_LIMIT, EVENTS_MAX);
-                renderProfileEvents();
-                loadingMore = false;
                 try { if (typeof unsubAll === 'function') unsubAll(); } catch (e) { }
+                finalizeLoadMore();
                 resolve();
               }, perRelayTimeout);
               return;
@@ -786,12 +810,8 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
               finishedRelaySet.add(key);
               if (finishedRelaySet.size >= relays.length && !settled) {
                 settled = true;
-                // 表示上限を fetch limit 分だけ増やす
-                displayLimit = Math.min(displayLimit + EVENTS_FETCH_LIMIT, EVENTS_MAX);
-                renderProfileEvents();
-                loadingMore = false;
-                // 後始末
                 unsubs.forEach(u => { try { if (typeof u === 'function') u(); } catch (e) { } });
+                finalizeLoadMore();
                 resolve();
               }
             };
@@ -805,7 +825,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
                   [{ kinds: profileFeedKinds, authors: [pubkey], limit: EVENTS_FETCH_LIMIT, until: until - 1 }],
                   (ev, r, done) => {
                     try {
-                      if (ev && profileFeedKindSet.has(ev.kind) && ev.id) {
+                      if (isCurrentSession() && ev && profileFeedKindSet.has(ev.kind) && ev.id) {
                         eventsMap.set(ev.id, ev);
                       }
                       if (done) {
@@ -824,16 +844,30 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
             setTimeout(() => {
               if (!settled) {
                 settled = true;
-                displayLimit = Math.min(displayLimit + EVENTS_FETCH_LIMIT, EVENTS_MAX);
-                renderProfileEvents();
-                loadingMore = false;
                 unsubs.forEach(u => { try { if (typeof u === 'function') u(); } catch (e) { } });
+                finalizeLoadMore();
                 resolve();
               }
             }, perRelayTimeout);
           }).then(() => { try { bar.textContent = t('feed.load_more'); } catch (e) { bar.textContent = 'Load more'; } });
         };
         eventsContainer.appendChild(bar);
+        // DOM 追加後に監視を開始し、ビューポート内なら一度だけ自動クリック
+        try {
+          if (typeof IntersectionObserver !== 'undefined') {
+            const modalObserver = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                  const target = entry.target;
+                  try { modalObserver.unobserve(target); } catch (e) { }
+                  if (isCurrentSession() && target && typeof target.click === 'function') target.click();
+                }
+              });
+            }, { root: null, rootMargin: '200px', threshold: 0.1 });
+            currentProfileMoreObserver = modalObserver;
+            modalObserver.observe(bar);
+          }
+        } catch (e) { }
       }
     }
 
@@ -882,7 +916,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
               until ? [{ kinds: profileFeedKinds, authors: [pubkey], limit: limit, until: until }] : [{ kinds: profileFeedKinds, authors: [pubkey], limit: limit }],
               (ev, r, done) => {
                 try {
-                  if (ev && profileFeedKindSet.has(ev.kind) && ev.id) {
+                  if (isCurrentSession() && ev && profileFeedKindSet.has(ev.kind) && ev.id) {
                     eventsMap.set(ev.id, ev);
                   }
                   if (done) {
@@ -913,6 +947,10 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
       const relays = getReadRelays(state.relays) || [];
       const perRelayTimeout = EVENTS_TIMEOUT; // ミリ秒（共通定数）
       fetchAndMergePerRelays({ relays, limit: EVENTS_FETCH_LIMIT, until: null, timeout: perRelayTimeout }).then(() => {
+        if (!isCurrentSession()) return;
+        if (eventsMap.size === 0) {
+          noMoreEvents = true;
+        }
         renderProfileEvents();
       });
     }
@@ -922,6 +960,10 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   // 閉じるボタンセットアップ
   if (closeBtn) {
     closeBtn.onclick = function () {
+      currentModalSessionId++;
+      currentModalPubkey = null;
+      try { delete modal.dataset.pubkey; } catch (e) { }
+      disconnectProfileMoreObserver();
       try { activeUnsubs.forEach(u => { try { if (typeof u === 'function') u(); } catch (e) { } }); } catch (e) { }
       try { activeUnsubMore.forEach(u => { try { if (typeof u === 'function') u(); } catch (e) { } }); } catch (e) { }
       activeUnsubs = [];
@@ -952,6 +994,10 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
   // モーダル背景クリックで閉じる
   modal.onclick = function (e) {
     if (e.target === modal) {
+      currentModalSessionId++;
+      currentModalPubkey = null;
+      try { delete modal.dataset.pubkey; } catch (e) { }
+      disconnectProfileMoreObserver();
       try { activeUnsubs.forEach(u => { try { if (typeof u === 'function') u(); } catch (e) { } }); } catch (e) { }
       try { activeUnsubMore.forEach(u => { try { if (typeof u === 'function') u(); } catch (e) { } }); } catch (e) { }
       activeUnsubs = [];
@@ -983,6 +1029,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
 let modalUnsubs = [];
 
 export function cleanupProfileModalUnsubs() {
+  disconnectProfileMoreObserver();
   if (Array.isArray(modalUnsubs)) {
     modalUnsubs.forEach(unsub => {
       try {
@@ -1002,6 +1049,9 @@ export function setupProfileModalClose() {
 
   if (closeBtn && modal) {
     closeBtn.onclick = function () {
+      currentModalSessionId++;
+      currentModalPubkey = null;
+      try { delete modal.dataset.pubkey; } catch (e) { }
       cleanupProfileModalUnsubs();
       // モーダル再表示時の画像残留を防ぐためクリア
       try {

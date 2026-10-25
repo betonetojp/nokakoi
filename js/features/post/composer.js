@@ -21,6 +21,17 @@ import { sendChannelMessage } from '../channel/channel-feed.js';
 import { pickChannelRootId } from '../channel/channel.js';
 import { getCustomEmojis, getSettingsManager } from '../../core/app-context.js';
 import { setupComposerNostrPreview } from './composer-nostr-preview.js';
+import { getEventCwReason, formatEventCwLabel, isCwExpandedForEvent } from '../../ui/renderers/render-helpers.js';
+
+function getComposerTargetPreviewText(ev) {
+  if (!ev) return '';
+  const cwReason = getEventCwReason(ev);
+  if (cwReason !== null && !(ev.id && isCwExpandedForEvent(ev.id))) {
+    return '[' + formatEventCwLabel(cwReason) + ']';
+  }
+  const content = (ev.content || '').split('\n')[0];
+  return content.length > 100 ? content.substring(0, 100) + '...' : content;
+}
 
 let nostrPreviewHandler = null;
 
@@ -57,6 +68,7 @@ function showComposerAndEnsureScroll() {
 export function setReplyTarget(state, event, nip19) {
   currentReplyTarget = event;
   currentQuoteMode = false;
+  try { if (typeof window !== 'undefined') window.__nokakoiQuoteMode = false; } catch (e) {}
   currentGeohashTarget = null;
   __composerLastState = state;
   __composerLastNip19 = nip19;
@@ -105,11 +117,13 @@ export function setReplyTarget(state, event, nip19) {
   } else {
     authorName = displayName(state, event.pubkey, nip19);
   }
-  const content = (event.content || '').split('\n')[0];
-  const contentShort = content.length > 100 ? content.substring(0, 100) + '...' : content;
+  const contentShort = getComposerTargetPreviewText(event);
 
+  const replyAuthorAttr = (event && event.kind !== 20000 && event.pubkey)
+    ? ' data-pubkey="' + escapeHtml(event.pubkey) + '"'
+    : '';
   replyContextContent.innerHTML =
-    '<span class="reply-author">' + replaceBadgeEmoji(escapeHtml(authorName)) + '</span>: ' +
+    '<span class="reply-author"' + replyAuthorAttr + '>' + replaceBadgeEmoji(escapeHtml(authorName)) + '</span>: ' +
     escapeHtml(contentShort);
 
   // プレースホルダー更新
@@ -166,10 +180,12 @@ export function setQuoteTarget(state, event, nip19) {
   } else {
     authorName = displayName(state, event.pubkey, nip19);
   }
-  const content = (event.content || '').split('\n')[0];
-  const contentShort = content.length > 100 ? content.substring(0,100) + '...' : content;
+  const contentShort = getComposerTargetPreviewText(event);
+  const quoteAuthorAttr = (event && event.kind !== 20000 && event.pubkey)
+    ? ' data-pubkey="' + escapeHtml(event.pubkey) + '"'
+    : '';
 
-  replyContextContent.innerHTML = '<span class="reply-author">' + replaceBadgeEmoji(escapeHtml(authorName)) + '</span>: ' + escapeHtml(contentShort);
+  replyContextContent.innerHTML = '<span class="reply-author"' + quoteAuthorAttr + '>' + replaceBadgeEmoji(escapeHtml(authorName)) + '</span>: ' + escapeHtml(contentShort);
 
   noteInput.focus();
 }
@@ -477,9 +493,11 @@ try {
             } else {
               authorName = displayName(__composerLastState, currentReplyTarget.pubkey, __composerLastNip19);
             }
-            const content = (currentReplyTarget.content || '').split('\n')[0];
-            const contentShort = content.length > 100 ? content.substring(0, 100) + '...' : content;
-            replyContextContent.innerHTML = '<span class="reply-author">' + replaceBadgeEmoji(escapeHtml(authorName)) + '</span>: ' + escapeHtml(contentShort);
+            const contentShort = getComposerTargetPreviewText(currentReplyTarget);
+            const targetAuthorAttr = (currentReplyTarget && currentReplyTarget.kind !== 20000 && currentReplyTarget.pubkey)
+              ? ' data-pubkey="' + escapeHtml(currentReplyTarget.pubkey) + '"'
+              : '';
+            replyContextContent.innerHTML = '<span class="reply-author"' + targetAuthorAttr + '>' + replaceBadgeEmoji(escapeHtml(authorName)) + '</span>: ' + escapeHtml(contentShort);
             replyContext.hidden = false;
           } catch (e) { }
         }

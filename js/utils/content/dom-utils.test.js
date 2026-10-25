@@ -13,6 +13,7 @@ vi.mock('../i18n.js', () => ({
   applyTranslations: () => Promise.resolve(),
 }));
 
+import { resetAppContextForTests } from '../../core/app-context.js';
 import { updateNostrNpubLinks, renderChannelQuote, renderEmojiPackQuote, renderArticleQuote, resolveAndRenderQuote, fitCustomEmoji } from './dom-utils.js';
 
 describe('updateNostrNpubLinks', () => {
@@ -375,6 +376,51 @@ describe('fitCustomEmoji', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('Content Warning preservation in quote cards', () => {
+  it('folds CW-tagged quoted note until expand button is clicked without opening event modal', async () => {
+    resetAppContextForTests();
+    const cwNote = {
+      id: 'cw-quoted-note-1',
+      pubkey: 'pk-cw',
+      kind: 1,
+      content: '引用先のネタバレ本文',
+      tags: [['content-warning', '重大ネタバレ']]
+    };
+    const state = {
+      profiles: new Map([['pk-cw', { display_name: 'CW投稿者' }]]),
+      eventCache: new Map([['cw-quoted-note-1', cwNote]]),
+      feeds: {}
+    };
+
+    const container = document.createElement('div');
+    const quoteEl = document.createElement('span');
+    quoteEl.className = 'nostr-quote';
+    quoteEl.dataset.eventId = 'cw-quoted-note-1';
+    container.appendChild(quoteEl);
+
+    const showEventModalSpy = vi.fn();
+    const ok = await resolveAndRenderQuote(
+      quoteEl, container, showEventModalSpy, state, {}, null, null, null, {}, null, 0, 2
+    );
+    expect(ok).toBe(true);
+
+    const foldBar = container.querySelector('.cw-embedded-fold-bar');
+    const bodyEl = container.querySelector('.cw-embedded-body');
+    expect(foldBar).not.toBeNull();
+    expect(foldBar.textContent).toContain('重大ネタバレ');
+    expect(bodyEl.classList.contains('d-none')).toBe(true);
+
+    // Clicking the CW expand button reveals quote text without opening #eventModal
+    container.querySelector('.cw-embedded-expand-btn').click();
+    expect(showEventModalSpy).not.toHaveBeenCalled();
+    expect(container.querySelector('.cw-embedded-fold-bar')).toBeNull();
+    expect(bodyEl.classList.contains('d-none')).toBe(false);
+    expect(bodyEl.textContent).toContain('引用先のネタバレ本文');
+
+    resetAppContextForTests();
   });
 });
 
