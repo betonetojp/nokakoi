@@ -30,6 +30,7 @@ describe('reconcileFeedDom', () => {
     });
 
     expect(res.modified).toBe(false);
+    expect(res.appendOnly).toBe(false);
     expect(container.children.length).toBe(2);
     expect(container.children[0]).toBe(n1);
     expect(container.children[1]).toBe(n2);
@@ -51,6 +52,7 @@ describe('reconcileFeedDom', () => {
     });
 
     expect(res.modified).toBe(true);
+    expect(res.appendOnly).toBe(false);
     expect(res.prependedCount).toBe(1);
     expect(container.children.length).toBe(3);
     expect(container.children[0].dataset.eventId).toBe('id-new');
@@ -81,6 +83,7 @@ describe('reconcileFeedDom', () => {
     });
 
     expect(res.modified).toBe(true);
+    expect(res.appendOnly).toBe(true);
     expect(res.appendedCount).toBe(1);
     expect(container.children.length).toBe(4);
     expect(container.children[0]).toBe(n1);

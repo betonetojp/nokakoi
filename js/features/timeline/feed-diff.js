@@ -15,7 +15,7 @@
  * @param {HTMLElement} [params.bottomBar] ページネーション読み込みボタン
  * @param {HTMLElement} [params.scrollSentinel] 無限スクロール用センチネル
  * @param {boolean} [params.animateNewItems=false] 先頭に追加される新着要素にアニメーションを付与するか
- * @returns {{ modified: boolean, prependedCount: number, appendedCount: number, removedCount: number }}
+ * @returns {{ modified: boolean, prependedCount: number, appendedCount: number, removedCount: number, appendOnly: boolean }}
  */
 export function reconcileFeedDom({
   container,
@@ -28,7 +28,7 @@ export function reconcileFeedDom({
   animateNewItems = false
 }) {
   if (!container) {
-    return { modified: false, prependedCount: 0, appendedCount: 0, removedCount: 0 };
+    return { modified: false, prependedCount: 0, appendedCount: 0, removedCount: 0, appendOnly: false };
   }
 
   // ノード整列中に邪魔にならないよう、既存のボトムコントロールを取り外す（末尾配置は syncBottomControls で行う）
@@ -64,7 +64,7 @@ export function reconcileFeedDom({
   // 1. 完全一致 (noop)
   if (domIds.length === renderIds.length && domIds.every((id, i) => id === renderIds[i])) {
     syncBottomControls(container, scrollSentinel, bottomBar);
-    return { modified: false, prependedCount: 0, appendedCount: 0, removedCount: 0 };
+    return { modified: false, prependedCount: 0, appendedCount: 0, removedCount: 0, appendOnly: false };
   }
 
   // 2. 先頭追加のみ (prepend)
@@ -92,7 +92,7 @@ export function reconcileFeedDom({
       }
     }
     syncBottomControls(container, scrollSentinel, bottomBar);
-    return { modified: true, prependedCount: inserted, appendedCount: 0, removedCount: 0 };
+    return { modified: true, prependedCount: inserted, appendedCount: 0, removedCount: 0, appendOnly: false };
   }
 
   // 3. 末尾追加のみ (append)
@@ -114,7 +114,7 @@ export function reconcileFeedDom({
       }
     }
     syncBottomControls(container, scrollSentinel, bottomBar);
-    return { modified: true, prependedCount: 0, appendedCount: inserted, removedCount: 0 };
+    return { modified: true, prependedCount: 0, appendedCount: inserted, removedCount: 0, appendOnly: true };
   }
 
   // 4. 先頭追加 + 末尾トリム (prepend + trim, 500件上限でのリアルタイム受信)
@@ -154,7 +154,7 @@ export function reconcileFeedDom({
       }
     }
     syncBottomControls(container, scrollSentinel, bottomBar);
-    return { modified: true, prependedCount: inserted, appendedCount: 0, removedCount: removed };
+    return { modified: true, prependedCount: inserted, appendedCount: 0, removedCount: removed, appendOnly: false };
   }
 
   // 5. 一般ケース (時系列の途中挿入、削除、並び替え等)
@@ -211,7 +211,7 @@ export function reconcileFeedDom({
   }
 
   syncBottomControls(container, scrollSentinel, bottomBar);
-  return { modified: true, prependedCount, appendedCount, removedCount };
+  return { modified: true, prependedCount, appendedCount, removedCount, appendOnly: false };
 }
 
 /** 先行読み込みを発火させる「末尾からのイベント件数」（高速スクロールでも間に合うよう余裕を持たせる） */

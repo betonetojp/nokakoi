@@ -12,7 +12,12 @@ import { EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT, EVENTS_MAX } from '../../config/con
 import { buildOutgoingZapReceiptFilter } from './feed-filters.js';
 import { shouldDisplayGlobalEvent } from './lang-filter.js';
 import { captureTimelineAnchor, restoreTimelineAnchor } from '../../utils/url-parser.js';
-import { isBackScrolling, updateBackScrollingState } from '../../utils/content/timeline-anchor.js';
+import {
+  clearAnchorMaintenance,
+  isBackScrolling,
+  isScrollAnchoringSupported,
+  updateBackScrollingState
+} from '../../utils/content/timeline-anchor.js';
 import { reconcileFeedDom, PRELOAD_EVENT_OFFSET } from './feed-diff.js';
 import { initTimelinePerfMonitor, recordFeedRender } from './perf-monitor.js';
 import { t } from '../../utils/i18n.js';
@@ -52,6 +57,7 @@ let _options = null;
 let _isScrolling = false;
 let _scrollTimeout = null;
 const _pendingFeedRenders = new Set();
+const _allowDuringScrollFeeds = new Set();
 
 function flushPendingFeedRendersWhenIdle() {
   if (_pendingFeedRenders.size === 0) return;
@@ -62,10 +68,27 @@ function flushPendingFeedRendersWhenIdle() {
   }
 }
 
+function markUserScrolling() {
+  _isScrolling = true;
+  if (_scrollTimeout) clearTimeout(_scrollTimeout);
+  _scrollTimeout = setTimeout(() => {
+    _isScrolling = false;
+    flushPendingFeedRendersWhenIdle();
+  }, 280);
+}
+
 function initScrollListener() {
   if (typeof window === 'undefined') return;
   if (window.__nokakoiScrollListenerInitialized) return;
   window.__nokakoiScrollListenerInitialized = true;
+
+  const onDirectUserScrollInput = () => {
+    try { clearAnchorMaintenance(); } catch (e) { }
+    markUserScrolling();
+  };
+
+  window.addEventListener('wheel', onDirectUserScrollInput, { passive: true });
+  window.addEventListener('touchmove', onDirectUserScrollInput, { passive: true });
 
   window.addEventListener('scroll', () => {
     try {
@@ -74,12 +97,7 @@ function initScrollListener() {
     } catch (e) { }
 
     if (isProgrammaticScroll()) return;
-    _isScrolling = true;
-    if (_scrollTimeout) clearTimeout(_scrollTimeout);
-    _scrollTimeout = setTimeout(() => {
-      _isScrolling = false;
-      flushPendingFeedRendersWhenIdle();
-    }, 280);
+    markUserScrolling();
   }, { passive: true });
 }
 
@@ -185,21 +203,33 @@ export function applyStoredReactionToNode(eventId, node) {
   } catch (e) { }
 }
 
-export function scheduleRender(id, delay = 50) {
+export function scheduleRender(id, delay = 50, options = null) {
   try {
+    const allowDuringScroll = !!(options && options.allowDuringScroll === true);
+    if (allowDuringScroll) {
+      _allowDuringScrollFeeds.add(id);
+    }
+
     const el = $('#feed-' + id);
     const isActiveFeed = el && el.classList.contains('active');
-    // ユーザーが遡行スクロールしている最中の新着は、スクロール停止までバッファリングして慣性スクロール停止を防ぐ
-    if (_isScrolling && isActiveFeed && isBackScrolling(el)) {
+    // ユーザーが遡行スクロールしている最中の新着は、スクロール停止までバッファリングして慣性スクロール停止を防ぐ。
+    // ただし「もっと読む」完了（allowDuringScroll）の末尾追加はスクロール中でも即時反映して先読みを継続させる。
+    if (!_allowDuringScrollFeeds.has(id) && _isScrolling && isActiveFeed && isBackScrolling(el)) {
       _pendingFeedRenders.add(id);
       return;
     }
 
     if (_renderTimers[id]) {
+      if (_allowDuringScrollFeeds.has(id) && !allowDuringScroll) {
+        return;
+      }
       clearTimeout(_renderTimers[id]);
     }
     _renderTimers[id] = setTimeout(() => {
-      try { renderFeed(id); } catch (e) { console.warn('[FeedRenderer] スケジュール済み描画に失敗', e); }
+      try {
+        _allowDuringScrollFeeds.delete(id);
+        renderFeed(id);
+      } catch (e) { console.warn('[FeedRenderer] スケジュール済み描画に失敗', e); }
       try { delete _renderTimers[id]; } catch (e) { }
     }, delay);
   } catch (e) {
@@ -212,6 +242,7 @@ export function renderFeed(id = 'global', force = false) {
     console.warn('[FeedRenderer] renderFeed called before initialization');
     return;
   }
+  _allowDuringScrollFeeds.delete(id);
   const el = $('#feed-' + id);
   if (!el) return;
   const perfStartMs = (isDebugEnabled() && typeof performance !== 'undefined' && typeof performance.now === 'function')
@@ -281,6 +312,19 @@ export function renderFeed(id = 'global', force = false) {
     }
   }
 
+  // スクロール中に「もっと読む」完了で描画する際、先頭に届いていた未描画の新着だけはスクロール停止後まで保留する
+  if (!force && _isScrolling && isActiveFeed && isBackScrollingActiveFeed) {
+    const firstExisting = el.querySelector('.event[data-event-id]');
+    const firstExistingId = firstExisting && firstExisting.dataset ? firstExisting.dataset.eventId : '';
+    if (firstExistingId) {
+      const firstIdx = eventsToRender.findIndex(ev => ev && ev.id === firstExistingId);
+      if (firstIdx > 0) {
+        eventsToRender = eventsToRender.slice(firstIdx);
+        _pendingFeedRenders.add(id);
+      }
+    }
+  }
+
   let bottomBar = null;
   let scrollSentinel = null;
   const displayCount = feed.list?.length || 0;
@@ -304,10 +348,6 @@ export function renderFeed(id = 'global', force = false) {
     if (_options.setupInfiniteScrollObserver) {
       _options.setupInfiniteScrollObserver();
       _infiniteScrollObserver = _options.getInfiniteScrollObserver();
-    }
-    if (_infiniteScrollObserver) {
-      _infiniteScrollObserver.observe(scrollSentinel);
-      _infiniteScrollObserver.observe(bottomBar);
     }
 
     bottomBar.onclick = (clickEvent) => {
@@ -356,7 +396,7 @@ export function renderFeed(id = 'global', force = false) {
             const followsForMore = (_state.feeds['home'] && _state.feeds['home'].follows) || [];
             if (!followsForMore.length) {
               feedLoadState[id].loadingMore = false;
-              scheduleRender(id);
+              scheduleRender(id, 0, { allowDuringScroll: true });
               return;
             }
             const optionalHomeFollowKinds = [];
@@ -415,7 +455,7 @@ export function renderFeed(id = 'global', force = false) {
               }
             }
           } catch (e) { }
-          try { scheduleRender(id); } catch (e) { }
+          try { scheduleRender(id, 0, { allowDuringScroll: true }); } catch (e) { }
         };
 
         if (id === 'global' && _options.settingsManager.get('globalMergeHome') === true) {
@@ -529,8 +569,31 @@ export function renderFeed(id = 'global', force = false) {
     };
   }
 
+  const unobserveOldBottomControls = () => {
+    if (!_infiniteScrollObserver) return;
+    try {
+      el.querySelectorAll('.feed-scroll-sentinel, .feed-bar-bottom').forEach((node) => {
+        try { _infiniteScrollObserver.unobserve(node); } catch (e) { }
+      });
+    } catch (e) { }
+  };
+
+  const observeNewBottomControls = () => {
+    if (!_infiniteScrollObserver) return;
+    try {
+      if (scrollSentinel && scrollSentinel.parentNode === el) {
+        _infiniteScrollObserver.observe(scrollSentinel);
+      }
+      if (bottomBar && bottomBar.parentNode === el) {
+        _infiniteScrollObserver.observe(bottomBar);
+      }
+    } catch (e) { }
+  };
+
+  unobserveOldBottomControls();
+
   const prevTopId = el.dataset.topEventId || '';
-  const scrollAnchor = (isActiveFeed && isBackScrollingActiveFeed)
+  const scrollAnchor = (isActiveFeed && isBackScrollingActiveFeed && !_isScrolling)
     ? captureTimelineAnchor(el)
     : null;
 
@@ -550,9 +613,14 @@ export function renderFeed(id = 'global', force = false) {
         animateNewItems: shouldAnimate
       });
 
+      observeNewBottomControls();
+
       if (res.modified) {
-        if (scrollAnchor) {
-          try { restoreTimelineAnchor(scrollAnchor, el); } catch (e) { }
+        if (scrollAnchor && !res.appendOnly && !_isScrolling) {
+          try {
+            const anchorOpts = isScrollAnchoringSupported() ? { maintainMs: 50 } : undefined;
+            restoreTimelineAnchor(scrollAnchor, el, anchorOpts);
+          } catch (e) { }
         }
         if (isActiveFeed && isBackScrollingActiveFeed && isTopChanged) {
           try { addNotifyDot(); } catch (e) { }
@@ -621,6 +689,7 @@ export function renderFeed(id = 'global', force = false) {
 
   el.innerHTML = '';
   el.appendChild(frag);
+  observeNewBottomControls();
 
   if (selectedEventId) {
     const restoredEl = el.querySelector('.event[data-event-id="' + selectedEventId + '"]');
@@ -636,8 +705,11 @@ export function renderFeed(id = 'global', force = false) {
     uiState.selectedEventId = selectedEventId || null;
   } catch (e) { }
 
-  if (scrollAnchor) {
-    try { restoreTimelineAnchor(scrollAnchor, el); } catch (e) { }
+  if (scrollAnchor && !_isScrolling) {
+    try {
+      const anchorOpts = isScrollAnchoringSupported() ? { maintainMs: 50 } : undefined;
+      restoreTimelineAnchor(scrollAnchor, el, anchorOpts);
+    } catch (e) { }
   }
 
   const newTopId = eventsToRender.length > 0 ? eventsToRender[0].id : '';
