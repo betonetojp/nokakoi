@@ -891,7 +891,7 @@ export function setupGlobalFeed() {
       globalLangFilterSelected: settingsManager.get('globalLangFilterSelected')
     });
     if (sameFetcherConfig(state._globalFetcher, configKey)) return state._globalFetcher;
-    stopFetcherSlot('_globalFetcher');
+        stopFetcherSlot('_globalFetcher');
     const fetcher = markFetcherConfig(setupFeedFetcher({
       state,
       feedId: 'global',
@@ -903,8 +903,8 @@ export function setupGlobalFeed() {
       scheduleRender,
       eventsFetchLimit: EVENTS_INITIAL_LIMIT,
       eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
-      eventsKeepLimit: EVENTS_FETCH_LIMIT, // ※元の main.js のタイポ fethcher 内の引数に合わせる
-      histKeepLimit: EVENTS_FETCH_LIMIT,
+      eventsKeepLimit: EVENTS_INITIAL_LIMIT,
+      histKeepLimit: EVENTS_INITIAL_LIMIT,
       ...feedFetcherHistHooks(),
       onHistFinalize: mergeHome ? () => {
         try { finalizeMergedGlobalFeed(true); } catch (e) { }
@@ -1160,7 +1160,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
             return;
           }
 
-          const multicastAddToFeed = (fid, ev, keepCount, relay) => {
+                    const multicastAddToFeed = (fid, ev, keepCount, relay) => {
             addToFeed('home', ev, keepCount, relay);
             if (ev && typeof ev === 'object') {
               if (shouldMulticastToMentions(ev, pubkey)) {
@@ -1187,6 +1187,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
             scheduleRender,
             eventsFetchLimit: EVENTS_INITIAL_LIMIT,
             eventsTimeout: EVENTS_TIMEOUT,
+            histKeepLimit: EVENTS_INITIAL_LIMIT,
             ...feedFetcherHistHooks()
           });
           try {
@@ -1210,7 +1211,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
           { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_INITIAL_LIMIT },
           { kinds: [1111], '#P': [pubkey], limit: EVENTS_INITIAL_LIMIT }
         ] : [];
-        stopFetcherSlot('_mentionsFetcher');
+                stopFetcherSlot('_mentionsFetcher');
         const mentionsFetcher = setupFeedFetcher({
           state,
           feedId: 'mentions',
@@ -1221,6 +1222,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
           scheduleRender,
           eventsFetchLimit: EVENTS_INITIAL_LIMIT,
           eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
+          histKeepLimit: EVENTS_INITIAL_LIMIT,
           ...feedFetcherHistHooks()
         });
         try { state._mentionsFetcher = mentionsFetcher; } catch (e) { }
@@ -1250,7 +1252,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
           { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_INITIAL_LIMIT },
           buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_INITIAL_LIMIT })
         ].filter(Boolean) : [];
-        stopFetcherSlot('_meFetcher');
+                stopFetcherSlot('_meFetcher');
         const meFetcher = setupFeedFetcher({
           state,
           feedId: 'me',
@@ -1261,6 +1263,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
           scheduleRender,
           eventsFetchLimit: EVENTS_INITIAL_LIMIT,
           eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
+          histKeepLimit: EVENTS_INITIAL_LIMIT,
           ...feedFetcherHistHooks()
         });
         try { state._meFetcher = meFetcher; } catch (e) { }
@@ -1562,7 +1565,7 @@ export function setupSingleFeed(feedId) {
         relaysForHist,
         resolveGlobalRelays(settingsManager, state.relays)
       );
-      stopFetcherSlot('_homeFetcher');
+            stopFetcherSlot('_homeFetcher');
       const fetcher = setupFeedFetcher({
         state,
         feedId: 'home',
@@ -1574,6 +1577,7 @@ export function setupSingleFeed(feedId) {
         scheduleRender,
         eventsFetchLimit: EVENTS_INITIAL_LIMIT,
         eventsTimeout: EVENTS_TIMEOUT,
+        histKeepLimit: EVENTS_INITIAL_LIMIT,
         ...feedFetcherHistHooks(),
         onHistFinalize: () => {
           try {
@@ -1613,6 +1617,7 @@ export function setupSingleFeed(feedId) {
         scheduleRender,
         eventsFetchLimit: EVENTS_INITIAL_LIMIT,
         eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
+        histKeepLimit: EVENTS_INITIAL_LIMIT,
         ...feedFetcherHistHooks()
       });
       state._mentionsFetcher = mentionsFetcher;
@@ -1632,6 +1637,7 @@ export function setupSingleFeed(feedId) {
         scheduleRender,
         eventsFetchLimit: EVENTS_INITIAL_LIMIT,
         eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
+        histKeepLimit: EVENTS_INITIAL_LIMIT,
         ...feedFetcherHistHooks()
       });
       state._meFetcher = meFetcher;

@@ -46,8 +46,18 @@ export function updatePerFilterUntil(state, feedId, filters, eventsList) {
   try {
     if (!state || !state.feeds || !state.feeds[feedId] || !Array.isArray(filters) || !filters.length) return;
     const feed = state.feeds[feedId];
-    const perFilter = new Array(filters.length).fill(null);
     const events = Array.isArray(eventsList) ? eventsList : (eventsList && typeof eventsList.values === 'function' ? Array.from(eventsList.values()) : []);
+    
+    // フィードに表示されている全イベントの中で、最も古い created_at（底）を基準境界とする
+    let globalOldestTs = null;
+    for (const ev of events) {
+      if (!ev || typeof ev.created_at !== 'number') continue;
+      if (globalOldestTs == null || ev.created_at < globalOldestTs) {
+        globalOldestTs = ev.created_at;
+      }
+    }
+
+    const perFilter = new Array(filters.length).fill(null);
     for (let i = 0; i < filters.length; i++) {
       const filter = filters[i];
       let minTs = null;
@@ -59,7 +69,9 @@ export function updatePerFilterUntil(state, feedId, filters, eventsList) {
           }
         }
       }
-      perFilter[i] = minTs;
+      // 単一フィルターが飛び抜けて古い時刻（何日も前の単発リアクション等）を持っていても、
+      // タイムライン全体の表示底（globalOldestTs）より極端に過去へ飛ばないように整流
+      perFilter[i] = minTs != null ? minTs : globalOldestTs;
     }
     feed.perFilterUntil = perFilter;
   } catch (e) { }

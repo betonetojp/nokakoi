@@ -1,4 +1,4 @@
-import { EVENTS_FETCH_LIMIT, EVENTS_INITIAL_LIMIT } from '../../config/constants.js';
+import { EVENTS_FETCH_LIMIT } from '../../config/constants.js';
 
 /**
  * 自分が送った Zap レシート (kind:9735 の P タグ)。
@@ -23,9 +23,9 @@ export function buildHomeLoadMoreFiltersForGlobalMerge(state, until) {
 }
 
 /**
- * フィードのデフォルトベースフィルターを構築して返す（初期表示用件数を適用）
+ * フィードのデフォルトベースフィルターを構築して返す
  */
-export function getFeedBaseFilters(state, settingsManager, feedId, limit = EVENTS_INITIAL_LIMIT) {
+export function getFeedBaseFilters(state, settingsManager, feedId, limit = EVENTS_FETCH_LIMIT) {
   try {
     if (feedId === 'home') {
       const pubkey = localStorage.getItem('pubkey');
