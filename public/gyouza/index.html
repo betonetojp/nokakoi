@@ -168,7 +168,19 @@
       outline-color: rgba(255, 200, 0, 1);
     }
     .steganography-emoji.steganography-open {
-      display: inline;
+      display: inline-block;
+      max-width: 100%;
+      box-sizing: border-box;
+      vertical-align: top;
+      padding: 4px 8px;
+      margin: 2px 0;
+      border-radius: 6px;
+      outline: none;
+      border: 1.5px dashed rgba(255, 180, 0, 0.65);
+      transition: border-color 0.2s;
+    }
+    .steganography-emoji.steganography-open:hover {
+      border-color: rgba(255, 200, 0, 1);
     }
     .steganography-revealed {
       display: inline;
