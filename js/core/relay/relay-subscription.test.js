@@ -376,7 +376,7 @@ describe('relay logical subscriptions', () => {
     expect(logicalListeners.size).toBe(0);
     expect(relayActiveCounts.oneshot.get('wss://relay.example')).toBe(999);
 
-    relayActiveCounts.oneshot.clear();
+        relayActiveCounts.oneshot.clear();
     const stopNext = subOnce(state, 'home_hist', [{ kinds: [1] }], vi.fn());
     await Promise.resolve();
 
@@ -384,5 +384,46 @@ describe('relay logical subscriptions', () => {
     expect(pendingLogicalSubscriptions.size).toBe(0);
     expect(state.subs.size).toBe(1);
     stopNext();
+  });
+
+  it('keeps multi-relay oneshot alive until all relays send EOSE', async () => {
+    let handlers;
+    const rawClose = vi.fn(() => Promise.resolve());
+    const pool = {
+      subscribeMany: vi.fn((_relays, _filters, params) => {
+        handlers = params;
+        return { close: rawClose };
+      })
+    };
+    const state = {
+      pool,
+      relays: ['wss://one.example', 'wss://two.example'],
+      subs: new Map()
+    };
+    mocks.getAppState.mockReturnValue(state);
+    mocks.getRelayFromPool.mockReturnValue({ ws: { readyState: 1 } });
+
+    const callback = vi.fn();
+    subOnce(state, 'multi_hist', [{ kinds: [1] }], callback, ['wss://one.example', 'wss://two.example']);
+
+    expect(pool.subscribeMany).toHaveBeenCalledTimes(1);
+
+        // 1つ目のリレーからイベント受信
+    handlers.onevent({ id: 'ev-1' }, 'wss://one.example');
+    expect(callback).toHaveBeenCalledWith(expect.objectContaining({ id: 'ev-1' }), 'wss://one.example', false);
+
+    // 1つ目のリレーから EOSE 受信 -> まだクローズされない！
+    handlers.oneose('wss://one.example');
+    expect(rawClose).not.toHaveBeenCalled();
+    expect(callback).toHaveBeenCalledWith(null, 'wss://one.example', false);
+
+    // 2つ目のリレーからイベント受信可能であること
+    handlers.onevent({ id: 'ev-2' }, 'wss://two.example');
+    expect(callback).toHaveBeenCalledWith(expect.objectContaining({ id: 'ev-2' }), 'wss://two.example', false);
+
+    // 2つ目のリレーから EOSE 受信 -> 全リレー完了なのでクローズされる！
+    handlers.oneose('wss://two.example');
+    expect(rawClose).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledWith(null, 'wss://two.example', true);
   });
 });

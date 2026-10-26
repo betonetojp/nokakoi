@@ -455,20 +455,20 @@ export function processSubscribeQueue() {
         try {
           debugRelay('[Relay] 購読処理を開始', { relays: req.targetRelays, type: type, filters: req.filters });
         } catch (e) { }
-        let sub = null;
+                let sub = null;
         let closeRequested = false;
         const requestClose = () => {
           closeRequested = true;
           try { if (sub && typeof sub.close === 'function') sub.close(); } catch (e) { }
         };
+        const relayCount = Array.isArray(req.targetRelays) && req.targetRelays.length ? req.targetRelays.length : 1;
+        const eoseSeen = new Set();
         sub = pool.subscribeMany(req.targetRelays, req.filters, {
           onevent: (function () {
             if (type === 'oneshot') {
               const perRelayLimit = PER_RELAY_ONESHOT_LIMIT;
-              const relayCount = Array.isArray(req.targetRelays) && req.targetRelays.length ? req.targetRelays.length : 1;
               const counts = new Map();
               let total = 0;
-              const eoseSeen = new Set();
               return function (ev, relay, doneFlag) {
                 try {
                   if (ev && relay) {
@@ -512,10 +512,13 @@ export function processSubscribeQueue() {
             };
           })(),
           oneose: function (relay) {
+            const key = (relay && typeof relay === 'string') ? relay.trim().replace(/\/+$/, '') : '__unknown__';
+            eoseSeen.add(key);
+            const isAllEose = eoseSeen.size >= relayCount;
             try {
-              try { req.dispatcher(null, relay, true); } catch (e) { }
+              try { req.dispatcher(null, relay, isAllEose); } catch (e) { }
             } catch (e) { }
-            if (type === 'oneshot') requestClose();
+            if (type === 'oneshot' && isAllEose) requestClose();
           }
         });
         const origClose = sub.close.bind(sub);

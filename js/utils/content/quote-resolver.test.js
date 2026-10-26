@@ -228,11 +228,32 @@ describe('managed quote resolution', () => {
       ['wss://one.example'],
       ['wss://two.example']
     ]);
-    subscriptions[0].handlers.oneose('wss://one.example');
+        subscriptions[0].handlers.oneose('wss://one.example');
     subscriptions[1].handlers.oneose('wss://two.example');
     await expect(first).resolves.toBeNull();
     await expect(second).resolves.toBeNull();
     expect(_quoteFetchInflight.size).toBe(0);
+  });
+
+  it('waits for second relay if first relay returns empty EOSE in multi-relay batch', async () => {
+    const { state, pool, subscriptions } = createState();
+    const eventPromise = fetchQuoteEventById(
+      state,
+      ['wss://empty.example', 'wss://has-event.example'],
+      'target-id'
+    );
+
+    vi.advanceTimersByTime(QUOTE_BATCH_WINDOW_MS);
+    expect(pool.subscribeMany).toHaveBeenCalledTimes(1);
+
+    // 空リレーが先に EOSE を返す -> まだ settle しない
+    subscriptions[0].handlers.oneose('wss://empty.example');
+
+    // もう一方のリレーからイベントが届く -> 正常に解決！
+    const foundEvent = { id: 'target-id', kind: 1, content: 'found' };
+    subscriptions[0].handlers.onevent(foundEvent, 'wss://has-event.example');
+
+    await expect(eventPromise).resolves.toEqual(foundEvent);
   });
 
   it('does not cache stale results after account or pool rotation', async () => {
