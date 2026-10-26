@@ -83,7 +83,8 @@ import {
   setupGlobalFeed,
   setupSingleFeed,
   getRenderSettingsWithUiState,
-  addToFeed
+  addToFeed,
+  finalizeMergedGlobalFeed
 } from './feed-manager.js';
 
 function createSettings(values) {
@@ -394,5 +395,45 @@ describe('feed manager startup lifecycle', () => {
     addToFeed('me', futurePost);
     expect(state.feeds.me.list[0].id).toBe('future-post');
   });
-});
+  it('finalizeMergedGlobalFeed merges home kind:1/6 into global and trims to EVENTS_INITIAL_LIMIT by default', async () => {
+    const state = {
+      feeds: {
+        home: {
+          list: Array.from({ length: 20 }, (_, i) => ({
+            id: 'home_' + i,
+            kind: 1,
+            created_at: 2000 - i,
+            pubkey: 'author_' + i
+          })),
+          map: new Map()
+        },
+        global: {
+          list: Array.from({ length: 20 }, (_, i) => ({
+            id: 'global_' + i,
+            kind: 1,
+            created_at: 1950 - i,
+            pubkey: 'author_g_' + i
+          })),
+          map: new Map()
+        }
+      }
+    };
+    state.feeds.home.list.forEach(e => state.feeds.home.map.set(e.id, e));
+    state.feeds.global.list.forEach(e => state.feeds.global.map.set(e.id, e));
 
+    const settings = createSettings({ globalMergeHome: true });
+    initFeedManager(state, settings);
+
+    const { insertEventSorted } = await import('../../core/state.js');
+    insertEventSorted.mockImplementation((st, fid, ev) => {
+      st.feeds[fid].list.push(ev);
+      st.feeds[fid].map.set(ev.id, ev);
+    });
+
+    finalizeMergedGlobalFeed(false);
+
+    // Initial limit should be 25 by default, not 50
+    expect(state.feeds.global.list.length).toBe(25);
+    expect(state.feeds.global.map.size).toBe(25);
+  });
+});

@@ -330,10 +330,10 @@ export function seedGlobalFromHomeKind16() {
 /**
  * マージ後のグローバルタイムラインを確定して描画スケジュールを走らせる
  */
-export function finalizeMergedGlobalFeed(render = true) {
+export function finalizeMergedGlobalFeed(render = true, limit = EVENTS_INITIAL_LIMIT) {
   if (settingsManager.get('globalMergeHome') !== true) return;
   seedGlobalFromHomeKind16();
-  trimGlobalMergedToLimit(EVENTS_FETCH_LIMIT);
+  trimGlobalMergedToLimit(limit);
   if (render) {
     markFeedPreferFullRender('global');
     scheduleRender('global');

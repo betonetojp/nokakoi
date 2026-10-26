@@ -247,4 +247,37 @@ describe('feed fetcher logical keys', () => {
     const nextFilters = applyPerFilterUntil(state, 'global', [{ kinds: [1] }], 1000);
     expect(nextFilters[0].until).toBe(499);
   });
+  it('updatePerFilterUntil correctly aligns sparse or missing filter boundaries to globalOldestTs', () => {
+    const state = {
+      feeds: {
+        home: {
+          list: [
+            { id: 'ev1', kind: 1, created_at: 5000, tags: [] },
+            { id: 'ev2', kind: 1, created_at: 3000, tags: [] },
+            { id: 'ev3', kind: 9735, created_at: 4000, tags: [['P', 'my_pubkey']] }, // zap is newer than bottom
+            { id: 'ev4', kind: 1, created_at: 1000, tags: [] } // oldest is 1000
+          ]
+        }
+      }
+    };
+    const filters = [
+      { kinds: [1] }, // has events down to 1000
+      { kinds: [9735], '#P': ['my_pubkey'] }, // only has 4000 (newer than 1000)
+      { kinds: [1111] } // has no events (null)
+    ];
+
+    updatePerFilterUntil(state, 'home', filters, state.feeds.home.list);
+
+    // Filter 0 should have 1000 (minTs = 1000, globalOldestTs = 1000)
+    expect(state.feeds.home.perFilterUntil[0]).toBe(1000);
+    // Filter 1 should be clamped to globalOldestTs (1000), not stuck at 4000
+    expect(state.feeds.home.perFilterUntil[1]).toBe(1000);
+    // Filter 2 should fallback to globalOldestTs (1000)
+    expect(state.feeds.home.perFilterUntil[2]).toBe(1000);
+
+    const nextFilters = applyPerFilterUntil(state, 'home', filters, 1000);
+    expect(nextFilters[0].until).toBe(999);
+    expect(nextFilters[1].until).toBe(999);
+    expect(nextFilters[2].until).toBe(999);
+  });
 });

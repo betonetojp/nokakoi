@@ -70,8 +70,11 @@ export function updatePerFilterUntil(state, feedId, filters, eventsList) {
         }
       }
       // 単一フィルターが飛び抜けて古い時刻（何日も前の単発リアクション等）を持っていても、
-      // タイムライン全体の表示底（globalOldestTs）より極端に過去へ飛ばないように整流
-      perFilter[i] = minTs != null ? minTs : globalOldestTs;
+      // または逆に最新側にしか一致が残っていない場合でも、タイムライン全体の表示底（globalOldestTs）
+      // と一致させて空区間の再走査や時系列ジャンプを防止
+      perFilter[i] = (minTs != null && globalOldestTs != null)
+        ? Math.min(minTs, globalOldestTs)
+        : (minTs != null ? minTs : globalOldestTs);
     }
     feed.perFilterUntil = perFilter;
   } catch (e) { }
