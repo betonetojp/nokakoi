@@ -575,7 +575,7 @@ export async function reactToEvent(state, targetEv, sym = '+') {
     try {
       const ci = getClientAttachInfo();
       if (ci.attach && ci.name) {
-        const third = ci.handlerEventId || ci.handlerEventId || '';
+        const third = ci.handlerEventId || '';
         const fourth = ci.relay || '';
         tags.push(['client', ci.name, third, fourth]);
       }

@@ -35,7 +35,7 @@ vi.mock('./profile.js', () => ({
   isAvatarsEnabled: vi.fn(() => true)
 }));
 
-import { updateFollowButtonState, checkMutualFollow, queueMutualCheck, clearMutualQueue, globalMutualCache } from './follow-editor.js';
+import { updateFollowButtonState, toggleFollowUser, checkMutualFollow, queueMutualCheck, clearMutualQueue, globalMutualCache } from './follow-editor.js';
 
 describe('updateFollowButtonState', () => {
   beforeEach(() => {
@@ -88,6 +88,56 @@ describe('updateFollowButtonState', () => {
     expect(btn.textContent).toBe('フォロー中');
     expect(btn.classList.contains('following')).toBe(true);
     expect(btn.classList.contains('mutual')).toBe(false);
+  });
+
+  it('matches case-insensitively when checking follow state with uppercase pubkey', () => {
+    const btn = document.createElement('button');
+    document.body.appendChild(btn);
+
+    const state = {
+      pubkey: 'my_pk',
+      feeds: { home: { followSet: new Set(['abcdef123456']) } }
+    };
+
+    updateFollowButtonState(state, btn, 'ABCDEF123456', { skipMutualNetwork: true });
+
+    expect(btn.textContent).toBe('フォロー中');
+    expect(btn.classList.contains('following')).toBe(true);
+  });
+});
+
+describe('toggleFollowUser', () => {
+  it('handles uppercase pubkey correctly when adding and removing follows', async () => {
+    const { fetchLatestEvent, publishReplaceableEvent } = await import('../../core/replaceable-event.js');
+    localStorage.setItem('pubkey', 'my_pk');
+
+    fetchLatestEvent.mockResolvedValueOnce({
+      kind: 3,
+      content: '',
+      tags: [['p', 'abcdef123456', '', '']]
+    });
+    publishReplaceableEvent.mockResolvedValueOnce({ ok: true });
+
+    const state = {
+      feeds: {
+        home: {
+          follows: ['abcdef123456'],
+          followSet: new Set(['abcdef123456'])
+        }
+      }
+    };
+
+    // Unfollow: simulate user clicking confirm dialog
+    setTimeout(() => {
+      const okBtn = document.querySelector('.editor-confirm-actions button:not(.secondary)');
+      if (okBtn) okBtn.click();
+    }, 10);
+
+    const btn = document.createElement('button');
+    const unfollowResult = await toggleFollowUser(state, 'ABCDEF123456', btn);
+    expect(unfollowResult).toBe(true);
+    expect(state.feeds.home.follows).not.toContain('abcdef123456');
+    expect(state.feeds.home.followSet.has('abcdef123456')).toBe(false);
   });
 });
 

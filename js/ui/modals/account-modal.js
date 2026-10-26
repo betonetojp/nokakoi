@@ -23,7 +23,8 @@ export function openAccountModal(state, settings, settingsManager, authCallbacks
 
   if (!modal || !content) return;
 
-  renderAccountModal(state, settings, settingsManager, authCallbacks);
+  const callbacks = typeof authCallbacks === 'function' ? { onLoginSuccess: authCallbacks, restartFeeds: null, enableComposerScroll: null, onLogout: null } : (authCallbacks || {});
+  renderAccountModal(state, settings, settingsManager, callbacks);
   try { applyTranslations(modal); } catch (e) {}
 
   modal.hidden = false;
@@ -39,6 +40,7 @@ export function openAccountModal(state, settings, settingsManager, authCallbacks
  * モーダル内コンテンツの描画
  */
 function renderAccountModal(state, settings, settingsManager, authCallbacks) {
+  const callbacks = typeof authCallbacks === 'function' ? { onLoginSuccess: authCallbacks, restartFeeds: null, enableComposerScroll: null, onLogout: null } : (authCallbacks || {});
   const content = $('#accountModalContent');
   if (!content) return;
 
@@ -88,10 +90,10 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
   if (logoutBtn) {
     logoutBtn.onclick = () => {
       closeModal();
-      if (authCallbacks && typeof authCallbacks.onLogout === 'function') {
+      if (callbacks && typeof callbacks.onLogout === 'function') {
         try { authCallbacks.onLogout(); } catch (e) {}
       }
-      logout(state, settings, settingsManager, authCallbacks ? authCallbacks.restartFeeds : null);
+      logout(state, settings, settingsManager, callbacks ? callbacks.restartFeeds : null);
     };
   }
 
@@ -104,7 +106,7 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
         state,
         settings,
         settingsManager,
-        authCallbacks ? () => import('../../core/auth/auth-core.js').then(m => m.login(state, settings, settingsManager, authCallbacks.restartFeeds, authCallbacks.enableComposerScroll)) : null
+        callbacks && typeof callbacks.onLoginSuccess === 'function' ? callbacks.onLoginSuccess : (callbacks ? () => import('../../core/auth/auth-core.js').then(m => m.login(state, settings, settingsManager, callbacks.restartFeeds, callbacks.enableComposerScroll)) : null)
       );
     };
   }
@@ -196,8 +198,8 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
         switchBtn.onclick = async () => {
           closeModal();
           await switchAccount(acc.id, state, settingsManager, async () => {
-            const { login } = await import('../../core/auth/auth-core.js');
-            await login(state, settings, settingsManager, authCallbacks ? authCallbacks.restartFeeds : null, authCallbacks ? authCallbacks.enableComposerScroll : null);
+
+            if (callbacks && typeof callbacks.onLoginSuccess === 'function') { await callbacks.onLoginSuccess(); } else { const { login } = await import('../../core/auth/auth-core.js'); await login(state, settings, settingsManager, callbacks ? callbacks.restartFeeds : null, callbacks ? callbacks.enableComposerScroll : null); }
           });
         };
       }
@@ -213,9 +215,11 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
               removeAccount(acc.id);
               if (isCurrent) {
                 closeModal();
-                logout(state, settings, settingsManager, authCallbacks ? authCallbacks.restartFeeds : null);
+                if (callbacks && typeof callbacks.onLogout === 'function') { try { callbacks.onLogout(); } catch (e) {} }
+                logout(state, settings, settingsManager, callbacks ? callbacks.restartFeeds : null);
               } else {
-                renderAccountModal(state, settings, settingsManager, authCallbacks);
+
+                renderAccountModal(state, settings, settingsManager, callbacks);
               }
             }
           );

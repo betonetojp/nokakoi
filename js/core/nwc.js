@@ -4,6 +4,7 @@
 
 import { getSimplePool, getPublicKey as getPublicKeyFn, getFinalizeEvent, getNip04 } from './nostr-compat.js';
 import { hexToBytes } from './crypto.js';
+import { awaitAny } from '../utils/helpers/misc-helpers.js';
 
 /**
  * NWC 接続URIのパース
@@ -165,7 +166,7 @@ export class NwcClient {
 
         // リクエストのパブリッシュ
         const pubs = pool.publish([this.relay], reqEvent);
-        Promise.any(pubs)
+        awaitAny(pubs)
           .then(() => {
             console.debug('[NWC] Payment request published:', reqEventId);
           })

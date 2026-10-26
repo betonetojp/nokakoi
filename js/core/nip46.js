@@ -5,6 +5,7 @@
 import { getSimplePool, getNip19, getPublicKey as getPublicKeyFn, getFinalizeEvent, getNip04, getNip44 } from './nostr-compat.js';
 import { bytesToHex, hexToBytes, randomBytes } from './crypto.js';
 import { t } from '../utils/i18n.js';
+import { awaitAny } from '../utils/helpers/misc-helpers.js';
 import { qrcode } from 'qrcode-generator';
 
 /**
@@ -399,7 +400,7 @@ export class Nip46Client {
         });
       });
 
-      await Promise.any(pool.publish(this.relays, event));
+      await awaitAny(pool.publish(this.relays, event));
       const result = await verifyPromise;
 
       this.connected = true;
@@ -718,7 +719,7 @@ export class Nip46Client {
 
     // イベントを送信
     try {
-      await Promise.any(pool.publish(this.relays, event));
+      await awaitAny(pool.publish(this.relays, event));
     } catch (e) {
       this.pendingRequests.delete(requestId);
       throw new Error(t('nip46.publish_failed', { msg: e.message }), { cause: e });
@@ -873,7 +874,7 @@ export class Nip46Client {
     debugLog('[NIP-46] 接続 ack を送信:', remotePubkey);
 
     try {
-      await Promise.any(pool.publish(this.relays, event));
+      await awaitAny(pool.publish(this.relays, event));
     } catch (e) {
       console.warn('[NIP-46] ack の publish に失敗:', e);
     }
@@ -1031,7 +1032,7 @@ export class Nip46Client {
 
     // イベントを送信
     try {
-      await Promise.any(pool.publish(this.relays, event));
+      await awaitAny(pool.publish(this.relays, event));
     } catch (e) {
       throw new Error(t('nip46.publish_failed', { msg: e.message }), { cause: e });
     }

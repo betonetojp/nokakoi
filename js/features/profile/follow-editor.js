@@ -463,7 +463,7 @@ export async function toggleFollowUser(state, targetPubkey, buttonEl) {
       existingContent = latestEvent.content || '';
       for (const tag of latestEvent.tags) {
         if (tag[0] === 'p') {
-          if (tag[1] === targetPubkey) {
+          if (String(tag[1] || '').toLowerCase() === String(targetPubkey || '').toLowerCase()) {
             isCurrentlyFollowing = true;
           } else {
             newTags.push([...tag]);
@@ -475,7 +475,7 @@ export async function toggleFollowUser(state, targetPubkey, buttonEl) {
     } else {
       if (state.feeds['home'] && state.feeds['home'].follows) {
         for (const pk of state.feeds['home'].follows) {
-          if (pk === targetPubkey) {
+          if (String(pk || '').toLowerCase() === String(targetPubkey || '').toLowerCase()) {
             isCurrentlyFollowing = true;
           } else {
             newTags.push(['p', pk, '', '']);
@@ -514,12 +514,12 @@ export async function toggleFollowUser(state, targetPubkey, buttonEl) {
       if (!state.feeds['home'].followSet) state.feeds['home'].followSet = new Set();
 
       if (isCurrentlyFollowing) {
-        state.feeds['home'].follows = state.feeds['home'].follows.filter(pk => pk !== targetPubkey);
-        state.feeds['home'].followSet.delete(targetPubkey);
+        state.feeds['home'].follows = state.feeds['home'].follows.filter(pk => String(pk || '').toLowerCase() !== String(targetPubkey || '').toLowerCase());
+        state.feeds['home'].followSet.delete(targetPubkey); state.feeds['home'].followSet.delete(String(targetPubkey || '').toLowerCase());
       } else {
-        if (!state.feeds['home'].followSet.has(targetPubkey)) {
+        if (!state.feeds['home'].followSet.has(targetPubkey) && !state.feeds['home'].followSet.has(String(targetPubkey || '').toLowerCase())) {
           state.feeds['home'].follows.push(targetPubkey);
-          state.feeds['home'].followSet.add(targetPubkey);
+          state.feeds['home'].followSet.add(targetPubkey); state.feeds['home'].followSet.add(String(targetPubkey || '').toLowerCase());
         }
       }
 
@@ -562,7 +562,7 @@ export function updateFollowButtonState(state, buttonEl, targetPubkey, options =
   const pk = targetPubkey || buttonEl.dataset.pubkey;
   if (!pk) return;
 
-  const isFollowing = state && state.feeds && state.feeds['home'] && state.feeds['home'].followSet && state.feeds['home'].followSet.has(pk);
+  const isFollowing = !!(state && state.feeds && state.feeds['home'] && state.feeds['home'].followSet && (state.feeds['home'].followSet.has(pk) || state.feeds['home'].followSet.has(String(pk).toLowerCase())));
   const myPubkey = (state && state.pubkey) || localStorage.getItem('pubkey');
 
   if (isFollowing) {
