@@ -1,6 +1,7 @@
 // 共通定数（フィード・モーダルで共通利用）
 export const EVENTS_TIMEOUT = 5000; // ms - リレーごとのクエリに対するセーフティタイムアウト
-export const EVENTS_FETCH_LIMIT = 50; // 件数:1回のフェッチあたりの件数
+export const EVENTS_INITIAL_LIMIT = 25; // 件数:初期表示（初回ロード）の高速化用件数
+export const EVENTS_FETCH_LIMIT = 50; // 件数:1回のフェッチあたりの件数（もっと読む等）
 export let EVENTS_MAX = 500; // 最大保持件数 / 表示件数
 export function setEventsMax(val) {
   if (typeof val === 'number' && !isNaN(val) && val > 0) {

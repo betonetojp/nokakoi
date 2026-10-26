@@ -4,7 +4,7 @@ import {
   buildHomeLoadMoreFiltersForGlobalMerge,
   getFeedBaseFilters
 } from './feed-filters.js';
-import { EVENTS_FETCH_LIMIT } from '../../config/constants.js';
+import { EVENTS_FETCH_LIMIT, EVENTS_INITIAL_LIMIT } from '../../config/constants.js';
 
 describe('feed filters', () => {
   beforeEach(() => {
@@ -23,12 +23,12 @@ describe('feed filters', () => {
       {
         kinds: [1, 6, 1111, 7, 42],
         authors: ['alice', 'bob'],
-        limit: EVENTS_FETCH_LIMIT
+        limit: EVENTS_INITIAL_LIMIT
       },
-      { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': ['me'], limit: EVENTS_FETCH_LIMIT },
-      { kinds: [1111], '#P': ['me'], limit: EVENTS_FETCH_LIMIT },
-      { kinds: [9735], '#P': ['me'], limit: EVENTS_FETCH_LIMIT },
-      { kinds: [7, 42, 16, 1111], authors: ['me'], limit: EVENTS_FETCH_LIMIT }
+      { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': ['me'], limit: EVENTS_INITIAL_LIMIT },
+      { kinds: [1111], '#P': ['me'], limit: EVENTS_INITIAL_LIMIT },
+      { kinds: [9735], '#P': ['me'], limit: EVENTS_INITIAL_LIMIT },
+      { kinds: [7, 42, 16, 1111], authors: ['me'], limit: EVENTS_INITIAL_LIMIT }
     ]);
   });
 
@@ -49,7 +49,7 @@ describe('feed filters', () => {
     const meFilters = getFeedBaseFilters(state, settings, 'me');
     expect(meFilters).toHaveLength(2);
     expect(meFilters[0].authors).toEqual(['me']);
-    expect(meFilters[1]).toEqual({ kinds: [9735], '#P': ['me'], limit: EVENTS_FETCH_LIMIT });
+    expect(meFilters[1]).toEqual({ kinds: [9735], '#P': ['me'], limit: EVENTS_INITIAL_LIMIT });
     expect(getFeedBaseFilters(state, settings, 'bitchat')[0].kinds).toEqual([20000]);
     expect(getFeedBaseFilters(state, settings, 'global')[0].kinds).toEqual([1, 6, 1111]);
   });

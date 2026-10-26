@@ -235,7 +235,7 @@ describe('managed quote resolution', () => {
     expect(_quoteFetchInflight.size).toBe(0);
   });
 
-  it('waits for second relay if first relay returns empty EOSE in multi-relay batch', async () => {
+    it('waits for second relay if first relay returns empty EOSE in multi-relay batch', async () => {
     const { state, pool, subscriptions } = createState();
     const eventPromise = fetchQuoteEventById(
       state,
@@ -244,14 +244,17 @@ describe('managed quote resolution', () => {
     );
 
     vi.advanceTimersByTime(QUOTE_BATCH_WINDOW_MS);
-    expect(pool.subscribeMany).toHaveBeenCalledTimes(1);
+    // リレーごとに個別に subOnce を発行するため、2つのリレーに対して計2回 subscribeMany が呼ばれる
+    expect(pool.subscribeMany).toHaveBeenCalledTimes(2);
 
     // 空リレーが先に EOSE を返す -> まだ settle しない
-    subscriptions[0].handlers.oneose('wss://empty.example');
+    const emptySub = subscriptions.find(s => s.relays.includes('wss://empty.example'));
+    const hasEventSub = subscriptions.find(s => s.relays.includes('wss://has-event.example'));
+    emptySub.handlers.oneose('wss://empty.example');
 
     // もう一方のリレーからイベントが届く -> 正常に解決！
     const foundEvent = { id: 'target-id', kind: 1, content: 'found' };
-    subscriptions[0].handlers.onevent(foundEvent, 'wss://has-event.example');
+    hasEventSub.handlers.onevent(foundEvent, 'wss://has-event.example');
 
     await expect(eventPromise).resolves.toEqual(foundEvent);
   });

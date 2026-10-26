@@ -1,6 +1,6 @@
 import { insertEventSorted, findEventById, clearFeed } from '../../core/state.js';
 import { getReadRelays, subOnce, relayConnect, unsubscribeAll, cancelInactiveTabOneshots } from '../../core/relay.js';
-import { EVENTS_MAX, EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT } from '../../config/constants.js';
+import { EVENTS_MAX, EVENTS_INITIAL_LIMIT, EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT } from '../../config/constants.js';
 import { setupFeedFetcher, updatePerFilterUntil } from '../../features/timeline/feed-fetcher.js';
 import { scheduleCustomEmojiSubscription } from '../../features/emoji/custom-emoji-sub.js';
 import { renderFeed, scheduleRender, userKind7Memory, feedLoadState } from '../../features/timeline/feed-renderer.js';
@@ -868,10 +868,10 @@ export function setupGlobalFeed() {
   try {
     if (!state.feeds['global']) state.feeds['global'] = { list: [], map: new Map() };
     if (mergeHome) delete state.feeds['global'].mergedPaginationUntil;
-    const activeTabEl = document.querySelector('.tab.active');
+        const activeTabEl = document.querySelector('.tab.active');
     const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
     const isActive = activeTab === 'global';
-    const histFilters = isActive ? [{ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT }] : [];
+    const histFilters = isActive ? [{ kinds: [1, 6, 1111], limit: EVENTS_INITIAL_LIMIT }] : [];
     const since = Math.floor(Date.now() / 1000);
     const liveFilters = [
       { kinds: [1, 6, 1111], since }
@@ -901,7 +901,7 @@ export function setupGlobalFeed() {
       addToFeed,
       acceptHistEvent: (ev) => shouldDisplayGlobalEvent(ev, state, settingsManager),
       scheduleRender,
-      eventsFetchLimit: EVENTS_FETCH_LIMIT,
+      eventsFetchLimit: EVENTS_INITIAL_LIMIT,
       eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
       eventsKeepLimit: EVENTS_FETCH_LIMIT, // ※元の main.js のタイポ fethcher 内の引数に合わせる
       histKeepLimit: EVENTS_FETCH_LIMIT,
@@ -961,9 +961,9 @@ export function setupBitchatFeed({ mode: requestedMode } = {}) {
   if (sameFetcherConfig(state._bitchatFetcher, configKey)) return state._bitchatFetcher;
 
   try {
-    const fiveMinAgo = Math.floor(Date.now() / 1000) - (5 * 60);
+        const fiveMinAgo = Math.floor(Date.now() / 1000) - (5 * 60);
     const histFilters = mode === 'full'
-      ? [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT, since: fiveMinAgo }]
+      ? [{ kinds: [20000], limit: EVENTS_INITIAL_LIMIT, since: fiveMinAgo }]
       : [];
     const since = Math.floor(Date.now() / 1000);
     const liveFilters = [{ kinds: [20000], since }];
@@ -1004,7 +1004,7 @@ export function setupBitchatFeed({ mode: requestedMode } = {}) {
       relays,
       addToFeed: feedAdder,
       scheduleRender,
-      eventsFetchLimit: EVENTS_FETCH_LIMIT,
+      eventsFetchLimit: EVENTS_INITIAL_LIMIT,
       eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
       histKeepLimit: EVENTS_MAX,
       acceptHistEvent: matchesGeohash,
@@ -1126,12 +1126,12 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
       const mergeHome = settingsManager.get('globalMergeHome') === true;
       const isHomeActive = activeTab === 'home';
       const shouldFetchHomeHist = isHomeActive || (mergeHome && activeTab === 'global');
-      const homeHist = shouldFetchHomeHist ? [
-        { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT },
-        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
-        { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
+            const homeHist = shouldFetchHomeHist ? [
+        { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_INITIAL_LIMIT },
+        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_INITIAL_LIMIT },
+        { kinds: [1111], '#P': [pubkey], limit: EVENTS_INITIAL_LIMIT },
+        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_INITIAL_LIMIT }),
+        { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_INITIAL_LIMIT }
       ].filter(Boolean) : [];
       const sinceLive = Math.floor(Date.now() / 1000);
       const homeLive = [
@@ -1185,7 +1185,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
             liveRelays,
             addToFeed: multicastAddToFeed,
             scheduleRender,
-            eventsFetchLimit: EVENTS_FETCH_LIMIT,
+            eventsFetchLimit: EVENTS_INITIAL_LIMIT,
             eventsTimeout: EVENTS_TIMEOUT,
             ...feedFetcherHistHooks()
           });
@@ -1205,10 +1205,10 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
       try {
         if (!state.feeds['mentions']) state.feeds['mentions'] = { list: [], map: new Map() };
         try { window.__mentionsInitialLoading = true; } catch (e) { }
-        const isMentionsActive = activeTab === 'mentions';
+                const isMentionsActive = activeTab === 'mentions';
         const mentionsHist = isMentionsActive ? [
-          { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
-          { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
+          { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_INITIAL_LIMIT },
+          { kinds: [1111], '#P': [pubkey], limit: EVENTS_INITIAL_LIMIT }
         ] : [];
         stopFetcherSlot('_mentionsFetcher');
         const mentionsFetcher = setupFeedFetcher({
@@ -1219,7 +1219,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
           relays: getReadRelays(state.relays),
           addToFeed,
           scheduleRender,
-          eventsFetchLimit: EVENTS_FETCH_LIMIT,
+          eventsFetchLimit: EVENTS_INITIAL_LIMIT,
           eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
           ...feedFetcherHistHooks()
         });
@@ -1245,10 +1245,10 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
       // 自分（me）フィードのセットアップ
       try {
         if (!state.feeds['me']) state.feeds['me'] = { list: [], map: new Map() };
-        const isMeActive = activeTab === 'me';
+                const isMeActive = activeTab === 'me';
         const meHist = isMeActive ? [
-          { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT },
-          buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT })
+          { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_INITIAL_LIMIT },
+          buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_INITIAL_LIMIT })
         ].filter(Boolean) : [];
         stopFetcherSlot('_meFetcher');
         const meFetcher = setupFeedFetcher({
@@ -1259,7 +1259,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
           relays: getReadRelays(state.relays),
           addToFeed,
           scheduleRender,
-          eventsFetchLimit: EVENTS_FETCH_LIMIT,
+          eventsFetchLimit: EVENTS_INITIAL_LIMIT,
           eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
           ...feedFetcherHistHooks()
         });
@@ -1521,12 +1521,12 @@ export function setupSingleFeed(feedId) {
       if (includeHomeChannel) optionalHomeFollowKinds.push(42);
       if (includeHomeRepost16) optionalHomeFollowKinds.push(16);
 
-      const homeHist = [
-        { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT },
-        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
-        { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT }
+            const homeHist = [
+        { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: follows, limit: EVENTS_INITIAL_LIMIT },
+        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_INITIAL_LIMIT },
+        { kinds: [1111], '#P': [pubkey], limit: EVENTS_INITIAL_LIMIT },
+        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_INITIAL_LIMIT }),
+        { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_INITIAL_LIMIT }
       ].filter(Boolean);
       const sinceLive = Math.floor(Date.now() / 1000);
       const homeLive = [
@@ -1572,7 +1572,7 @@ export function setupSingleFeed(feedId) {
         liveRelays,
         addToFeed: multicastAddToFeed,
         scheduleRender,
-        eventsFetchLimit: EVENTS_FETCH_LIMIT,
+        eventsFetchLimit: EVENTS_INITIAL_LIMIT,
         eventsTimeout: EVENTS_TIMEOUT,
         ...feedFetcherHistHooks(),
         onHistFinalize: () => {
@@ -1597,10 +1597,10 @@ export function setupSingleFeed(feedId) {
           }
         }
       }
-    } else if (feedId === 'mentions') {
+        } else if (feedId === 'mentions') {
       const mentionsHist = [
-        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
+        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_INITIAL_LIMIT },
+        { kinds: [1111], '#P': [pubkey], limit: EVENTS_INITIAL_LIMIT }
       ];
       stopFetcherSlot('_mentionsFetcher');
       const mentionsFetcher = setupFeedFetcher({
@@ -1611,15 +1611,15 @@ export function setupSingleFeed(feedId) {
         relays: getReadRelays(state.relays),
         addToFeed,
         scheduleRender,
-        eventsFetchLimit: EVENTS_FETCH_LIMIT,
+        eventsFetchLimit: EVENTS_INITIAL_LIMIT,
         eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
         ...feedFetcherHistHooks()
       });
       state._mentionsFetcher = mentionsFetcher;
     } else if (feedId === 'me') {
       const meHist = [
-        { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT },
-        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT })
+        { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_INITIAL_LIMIT },
+        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_INITIAL_LIMIT })
       ].filter(Boolean);
       stopFetcherSlot('_meFetcher');
       const meFetcher = setupFeedFetcher({
@@ -1630,7 +1630,7 @@ export function setupSingleFeed(feedId) {
         relays: getReadRelays(state.relays),
         addToFeed,
         scheduleRender,
-        eventsFetchLimit: EVENTS_FETCH_LIMIT,
+        eventsFetchLimit: EVENTS_INITIAL_LIMIT,
         eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
         ...feedFetcherHistHooks()
       });

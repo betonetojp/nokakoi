@@ -1,4 +1,4 @@
-import { EVENTS_FETCH_LIMIT } from '../../config/constants.js';
+import { EVENTS_FETCH_LIMIT, EVENTS_INITIAL_LIMIT } from '../../config/constants.js';
 
 /**
  * 自分が送った Zap レシート (kind:9735 の P タグ)。
@@ -23,9 +23,9 @@ export function buildHomeLoadMoreFiltersForGlobalMerge(state, until) {
 }
 
 /**
- * フィードのデフォルトベースフィルターを構築して返す
+ * フィードのデフォルトベースフィルターを構築して返す（初期表示用件数を適用）
  */
-export function getFeedBaseFilters(state, settingsManager, feedId) {
+export function getFeedBaseFilters(state, settingsManager, feedId, limit = EVENTS_INITIAL_LIMIT) {
   try {
     if (feedId === 'home') {
       const pubkey = localStorage.getItem('pubkey');
@@ -37,31 +37,31 @@ export function getFeedBaseFilters(state, settingsManager, feedId) {
       if (settingsManager && settingsManager.get('showHomeRepost16') === true) optionalHomeFollowKinds.push(16);
 
       return [
-        { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: followsForMore, limit: EVENTS_FETCH_LIMIT },
-        pubkey ? { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT } : null,
-        pubkey ? { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT } : null,
-        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT }),
-        pubkey ? { kinds: [7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT } : null
+        { kinds: [1, 6, 1111, ...optionalHomeFollowKinds], authors: followsForMore, limit },
+        pubkey ? { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit } : null,
+        pubkey ? { kinds: [1111], '#P': [pubkey], limit } : null,
+        buildOutgoingZapReceiptFilter(pubkey, { limit }),
+        pubkey ? { kinds: [7, 42, 16, 1111], authors: [pubkey], limit } : null
       ].filter(Boolean);
     } else if (feedId === 'mentions') {
       const pubkey = localStorage.getItem('pubkey');
       return [
-        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
-        { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
+        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit },
+        { kinds: [1111], '#P': [pubkey], limit }
       ];
     } else if (feedId === 'me') {
       const pubkey = localStorage.getItem('pubkey');
       return [
-        { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT },
-        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT })
+        { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit },
+        buildOutgoingZapReceiptFilter(pubkey, { limit })
       ].filter(Boolean);
     } else if (feedId === 'bitchat') {
-      return [{ kinds: [20000], limit: EVENTS_FETCH_LIMIT }];
+      return [{ kinds: [20000], limit }];
     } else if (feedId === 'global') {
-      return [{ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT }];
+      return [{ kinds: [1, 6, 1111], limit }];
     }
   } catch (e) { }
-  return [{ kinds: [1, 6, 1111], limit: EVENTS_FETCH_LIMIT }];
+  return [{ kinds: [1, 6, 1111], limit }];
 }
 
 /**

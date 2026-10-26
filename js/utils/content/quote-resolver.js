@@ -104,13 +104,16 @@ function waitWithSignal(promise, signal) {
 function managedFirstEvent(state, key, relays, filter, matches, options = {}, context = captureContext(state)) {
   return new Promise((resolve) => {
     let settled = false;
-    let unsubscribe = null;
-    let unsubscribeCalled = false;
     const signal = options?.signal;
+    const unsubs = [];
+    let unsubsCalled = false;
     const safeUnsubscribe = () => {
-      if (unsubscribeCalled || typeof unsubscribe !== 'function') return;
-      unsubscribeCalled = true;
-      try { unsubscribe(); } catch (e) { }
+      if (unsubsCalled) return;
+      unsubsCalled = true;
+      for (const u of unsubs) {
+        try { if (typeof u === 'function') u(); } catch (e) { }
+      }
+      unsubs.length = 0;
     };
     const finish = (event = null) => {
       if (settled) return;
@@ -133,22 +136,37 @@ function managedFirstEvent(state, key, relays, filter, matches, options = {}, co
       try { signal.addEventListener('abort', onAbort, { once: true }); } catch (e) { }
     }
 
-    try {
-      unsubscribe = subOnce(state, key, [filter], (event, _relay, done) => {
-        if (!isContextCurrent(context)) {
-          finish(null);
-        } else if (event && matches(event)) {
-          cacheEvent(state, event);
-          finish(event);
-        } else if (done) {
-          finish(null);
-        }
-      }, relays);
-      // A synchronous event/EOSE may settle before subOnce returns its handle.
-      if (settled) safeUnsubscribe();
-    } catch (e) {
+    const relayList = Array.isArray(relays) && relays.length ? relays : [];
+    let completedRelays = 0;
+    const totalRelays = relayList.length;
+
+    if (!totalRelays) {
       finish(null);
+      return;
     }
+
+    for (const relay of relayList) {
+      try {
+        const u = subOnce(state, `${key}:${relay}`, [filter], (event, _r, done) => {
+          if (!isContextCurrent(context)) {
+            finish(null);
+          } else if (event && matches(event)) {
+            cacheEvent(state, event);
+            finish(event);
+          } else if (done) {
+            completedRelays++;
+            if (completedRelays >= totalRelays) {
+              finish(null);
+            }
+          }
+        }, [relay]);
+        unsubs.push(u);
+      } catch (e) {
+        completedRelays++;
+        if (completedRelays >= totalRelays) finish(null);
+      }
+    }
+    if (settled) safeUnsubscribe();
   });
 }
 
@@ -168,9 +186,12 @@ function finishIdBatch(batch) {
   batch.settled = true;
   if (batch.timer) clearTimeout(batch.timer);
   if (batch.timeout) clearTimeout(batch.timeout);
-  if (typeof batch.unsubscribe === 'function' && !batch.unsubscribeCalled) {
+  if (Array.isArray(batch.unsubscribes) && !batch.unsubscribeCalled) {
     batch.unsubscribeCalled = true;
-    try { batch.unsubscribe(); } catch (e) { }
+    for (const u of batch.unsubscribes) {
+      try { if (typeof u === 'function') u(); } catch (e) { }
+    }
+    batch.unsubscribes.length = 0;
   }
   for (const id of batch.pending) settleBatchEntry(batch, id, null);
 }
@@ -192,32 +213,58 @@ function startIdBatch(batch) {
     return;
   }
 
-  batch.timeout = setTimeout(() => finishIdBatch(batch), QUOTE_BATCH_TIMEOUT_MS);
-  try {
-    batch.unsubscribe = subOnce(
-      batch.state,
-      safeSubscriptionKey('ids', batch.relayKey, ids.join(',')),
-      [{ ids }],
-      (event, _relay, done) => {
-        if (!isContextCurrent(batch.context)) {
-          finishIdBatch(batch);
-          return;
-        }
-        if (event?.id && batch.pending.has(event.id)) {
-          cacheEvent(batch.state, event);
-          settleBatchEntry(batch, event.id, event);
-          if (batch.pending.size === 0) finishIdBatch(batch);
-        }
-        if (done) finishIdBatch(batch);
-      },
-      batch.relays
-    );
-    if (batch.settled && typeof batch.unsubscribe === 'function' && !batch.unsubscribeCalled) {
-      batch.unsubscribeCalled = true;
-      try { batch.unsubscribe(); } catch (e) { }
-    }
-  } catch (e) {
+  const relayList = Array.isArray(batch.relays) && batch.relays.length ? batch.relays : [];
+  let completedRelays = 0;
+  const totalRelays = relayList.length;
+
+  if (!totalRelays) {
     finishIdBatch(batch);
+    return;
+  }
+
+  batch.timeout = setTimeout(() => finishIdBatch(batch), QUOTE_BATCH_TIMEOUT_MS);
+  batch.unsubscribes = [];
+
+  const baseKey = safeSubscriptionKey('ids', batch.relayKey, ids.join(','));
+
+  for (const relay of relayList) {
+    try {
+      const u = subOnce(
+        batch.state,
+        `${baseKey}:${relay}`,
+        [{ ids }],
+        (event, _relay, done) => {
+          if (!isContextCurrent(batch.context)) {
+            finishIdBatch(batch);
+            return;
+          }
+          if (event?.id && batch.pending.has(event.id)) {
+            cacheEvent(batch.state, event);
+            settleBatchEntry(batch, event.id, event);
+            if (batch.pending.size === 0) finishIdBatch(batch);
+          }
+          if (done) {
+            completedRelays++;
+            if (completedRelays >= totalRelays) {
+              finishIdBatch(batch);
+            }
+          }
+        },
+        [relay]
+      );
+      batch.unsubscribes.push(u);
+    } catch (e) {
+      completedRelays++;
+      if (completedRelays >= totalRelays) finishIdBatch(batch);
+    }
+  }
+
+  if (batch.settled && Array.isArray(batch.unsubscribes) && !batch.unsubscribeCalled) {
+    batch.unsubscribeCalled = true;
+    for (const u of batch.unsubscribes) {
+      try { if (typeof u === 'function') u(); } catch (e) { }
+    }
+    batch.unsubscribes.length = 0;
   }
 }
 
