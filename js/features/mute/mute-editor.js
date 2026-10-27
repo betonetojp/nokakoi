@@ -898,7 +898,7 @@ export async function openMuteEditor(state) {
 
       card.innerHTML = `
         <div class="snapshot-header">
-          <input type="text" class="snapshot-title-input" value="${snap.name || ''}" placeholder="リスト名">
+          <input type="text" class="snapshot-title-input" value="${snap.name || ''}" placeholder="${t('editor.snapshot.name_placeholder')}">
           <span class="snapshot-meta">${userCount} Users / ${wordCount} Words</span>
         </div>
         <div class="snapshot-meta mb-8 row align-center gap-8">

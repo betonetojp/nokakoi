@@ -456,7 +456,7 @@ export function renderProfileSnapshotsUI(container, pubkey, onApply) {
       <div class="snapshot-header row align-center space-between gap-8 mb-4">
         <div class="row align-center gap-8" style="flex:1;">
           ${pictureUrl ? `<img src="${pictureUrl}" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">` : '<span style="font-size:1.2rem;">👤</span>'}
-          <input type="text" class="snapshot-title-input font-bold" value="${snap.name || dName}" placeholder="${t('editor.snapshot.name_placeholder') || 'リスト名'}" style="flex:1; border:1px solid transparent; background:transparent; color:inherit;">
+          <input type="text" class="snapshot-title-input font-bold" value="${snap.name || dName}" placeholder="${t('editor.snapshot.name_placeholder')}" style="flex:1; border:1px solid transparent; background:transparent; color:inherit;">
         </div>
       </div>
       <div class="text-xs muted mb-8">${dateText}</div>

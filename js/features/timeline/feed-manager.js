@@ -765,10 +765,14 @@ export function addToFeed(feedId, ev, keepLatestCount = null, _relay = null) {
                         if (!authorLabel && ev && ev.pubkey && typeof nip19 === 'object' && typeof nip19.npubEncode === 'function') {
                           try { const np = nip19.npubEncode(ev.pubkey); authorLabel = np && np.length > 0 ? (np.length > 12 ? np.slice(0,12) + '…' : np) : ev.pubkey.slice(0,8); } catch (e) { authorLabel = ev.pubkey.slice(0,8); }
                         }
-                        const title = authorLabel ? ('新着: ' + authorLabel) : '新着通知';
+                        const title = authorLabel
+                          ? t('notification.new_from', { name: authorLabel })
+                          : t('notification.new_title');
                         const body = sanitizeNotificationBody(ev && ev.content ? ev.content : t('notification.new_item'));
                         showFeedNotification(title, { body, icon: 'icon/nokakoi-192.png' }, ev && ev.id ? ev.id : null, 'mentions', notifMode);
-                      } catch (e) { }
+                      } catch (e) {
+                        console.warn('[Feed] 通知の表示に失敗', e);
+                      }
                     })();
                   }
                 } catch (e) { }

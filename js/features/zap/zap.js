@@ -7,6 +7,7 @@ import { NwcClient, hasConfiguredNwc } from '../../core/nwc.js';
 import { getWriteRelays } from '../../core/relay.js';
 import { getNip19, getVerifyEvent, getNip57, getSimplePool } from '../../core/nostr-compat.js';
 import { getProfileLightningAddress } from '../profile/profile.js';
+import { t } from '../../utils/i18n.js';
 
 // 簡易 bech32 デコーダー
 const ALPHABET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
@@ -232,7 +233,7 @@ export function waitForZapReceipt(payment, options = {}) {
   const relays = buildZapReceiptRelays(extraRelays);
   const SimplePool = getSimplePool();
   if (!SimplePool || !relays.length) {
-    return Promise.reject(new Error('レシート待ちのリレーがありません'));
+    return Promise.reject(new Error(t('zap.error.no_receipt_relays')));
   }
 
   const pool = new SimplePool();
@@ -428,12 +429,12 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
     || state.profiles.get(String(recipientPubkey || '').toLowerCase()))) || null;
   const lud = getProfileLightningAddress(prof);
   if (!lud) {
-    throw new Error('受信者のLightningアドレスが見つかりません');
+    throw new Error(t('zap.error.no_address'));
   }
 
   const endpoint = getLnurlEndpoint(lud);
   if (!endpoint) {
-    throw new Error('無効なLightningアドレスです');
+    throw new Error(t('zap.error.invalid_address'));
   }
 
   // 2. LNURL-pay 情報の取得
@@ -447,27 +448,27 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
     try {
       lnurlRes = await fetch(`https://corsproxy.io/?${encodeURIComponent(endpoint)}`, fetchOpts);
     } catch (err) {
-      throw new Error('Lightningサービスへの接続に失敗しました (CORS/Network Error)', { cause: err });
+      throw new Error(t('zap.error.connect_failed_network'), { cause: err });
     }
   }
   if (!lnurlRes.ok) {
-    throw new Error('Lightningサービスへの接続に失敗しました');
+    throw new Error(t('zap.error.connect_failed'));
   }
   const lnurlData = await lnurlRes.json();
   const callbackUrl = lnurlData.callback;
   if (!callbackUrl) {
-    throw new Error('インボイス生成エンドポイントが見つかりません');
+    throw new Error(t('zap.error.no_callback'));
   }
   if (!allowsNostrZaps(lnurlData)) {
-    throw new Error('受信者のLightningアドレスはZapレシートに対応していません');
+    throw new Error(t('zap.error.no_zap_support'));
   }
 
   const amountMsat = amountSats * 1000;
   if (lnurlData.minSendable && amountMsat < lnurlData.minSendable) {
-    throw new Error(`送信可能最小金額は ${lnurlData.minSendable / 1000} sat です`);
+    throw new Error(t('zap.error.min_amount', { amount: lnurlData.minSendable / 1000 }));
   }
   if (lnurlData.maxSendable && amountMsat > lnurlData.maxSendable) {
-    throw new Error(`送信可能最大金額は ${lnurlData.maxSendable / 1000} sat です`);
+    throw new Error(t('zap.error.max_amount', { amount: lnurlData.maxSendable / 1000 }));
   }
 
   // 3. Zap Request (kind:9734) 作成
@@ -512,7 +513,7 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
   const eCount = countTags(canonicalZapRequest.tags, 'e');
   if (pCount !== 1 || eCount > 1) {
     console.error('[Zap] Invalid tag counts after signing', { pCount, eCount, tags: canonicalZapRequest.tags });
-    throw new Error('Zapリクエストのタグが不正です。署名拡張が余分な p/e タグを付けていないか確認してください。');
+    throw new Error(t('zap.error.bad_tags'));
   }
 
   try {
@@ -522,7 +523,7 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
       console.log('[Zap] Local signature verification result:', isValid);
       if (!isValid) {
         console.error('[Zap] Signed event is invalid!', canonicalZapRequest);
-        throw new Error('Zapリクエストの署名検証に失敗しました');
+        throw new Error(t('zap.error.verify_failed'));
       }
     }
     if (typeof nip57Obj.validateZapRequest === 'function') {
@@ -533,8 +534,8 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
       }
     }
   } catch (e) {
-    if (e && e.message && /署名|タグ|invalid|Zap/i.test(e.message)) throw e;
     console.error('[Zap] Failed to verify signed event locally:', e);
+    throw e;
   }
 
   console.log('[Zap] Request tags:', canonicalZapRequest.tags);
@@ -559,16 +560,16 @@ export async function sendZap(state, settingsManager, targetEvent, amountSats, c
     try {
       invoiceRes = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, fetchOpts);
     } catch (err) {
-      throw new Error('インボイスの取得に失敗しました (CORS/Network Error)', { cause: err });
+      throw new Error(t('zap.error.invoice_fetch_failed_network'), { cause: err });
     }
   }
   if (!invoiceRes.ok) {
-    throw new Error('インボイスの取得に失敗しました');
+    throw new Error(t('zap.error.invoice_fetch_failed'));
   }
   const invoiceData = await invoiceRes.json();
   const pr = invoiceData.pr;
   if (!pr) {
-    throw new Error('インボイスの生成に失敗しました (' + (invoiceData.reason || '原因不明') + ')');
+    throw new Error(t('zap.error.invoice_create_failed', { reason: invoiceData.reason || t('zap.error.unknown_reason') }));
   }
   if (!bolt11HasDescriptionHash(pr)) {
     console.warn('[Zap] Invoice has no description_hash (some providers still publish receipts)');

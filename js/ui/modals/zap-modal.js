@@ -2,7 +2,7 @@
 // Zap 入力モーダルの制御
 // ============================================================================
 
-import { $ } from '../../utils/utils.js';
+import { $, showToast } from '../../utils/utils.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { bringModalToFront } from '../setup/modal-helper.js';
 import { generateQRCodeSVG } from '../../core/nip46.js';
@@ -120,7 +120,9 @@ async function showInvoicePanel(payment, statusEl) {
           statusEl.textContent = t('zap.modal.copied');
           statusEl.style.color = '';
         }
-      } catch (_e) {
+      } catch (e) {
+        console.warn('[ZapModal] インボイスのコピーに失敗', e);
+        try { showToast(t('copy_failed'), { type: 'error' }); } catch (_e) {}
         if (statusEl) {
           statusEl.textContent = payment.pr;
           statusEl.style.color = '';
@@ -216,17 +218,23 @@ export function showZapModal(recipientName, recipientAddress, onConfirm) {
       if (typeof onConfirm === 'function') {
         result = await onConfirm(amount, comment, { invoiceOnly: !!invoiceOnly });
       }
+      if (!result || (result.paid !== true && !result.pr)) {
+        throw new Error(t('zap.modal.failed'));
+      }
       rememberZapAmount(amount, { asLast: true });
       renderZapAmountHistory(historyEl, amountInput);
 
-      if (result && result.pr && !result.paid) {
+      if (result.pr && !result.paid) {
         const waited = await showInvoicePanel(result, statusEl);
         if (waited && waited.aborted) return;
-        if (waited && waited.receipt) {
-          try {
-            const state = (typeof window !== 'undefined') ? window.__nostrState : null;
-            applyZapReceiptToZappedState(state, waited.receipt);
-          } catch (_e) {}
+        if (!waited || !waited.receipt) {
+          throw new Error(t('zap.modal.invoice_timeout'));
+        }
+        try {
+          const state = (typeof window !== 'undefined') ? window.__nostrState : null;
+          applyZapReceiptToZappedState(state, waited.receipt);
+        } catch (e) {
+          console.warn('[ZapModal] レシートの反映に失敗', e);
         }
       }
 

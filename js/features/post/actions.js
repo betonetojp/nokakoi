@@ -3,12 +3,18 @@
 // ============================================================================
 
 import { getPublicKey as getPublicKeyFn, getFinalizeEvent, getKinds, getNip19 } from '../../core/nostr-compat.js';
-import { awaitAny, buildReactionEmojiTags, getReactionContent, getReactionEmojiTags } from '../../utils/utils.js';
+import { awaitAny, buildReactionEmojiTags, getReactionContent, getReactionEmojiTags, showToast } from '../../utils/utils.js';
 import { extractEmojiTagsFromText } from '../emoji/custom-emoji-store.js';
 import { t } from '../../utils/i18n.js';
 import { DEFAULT_OMOCHAT_RELAYS } from '../../config/constants.js';
 import { signer } from '../../core/signer.js';
 import { getCustomEmojis, getSettingsManager } from '../../core/app-context.js';
+
+function reportActionFailure(message, statusEl) {
+  if (statusEl) statusEl.textContent = message || '';
+  if (!message) return;
+  try { showToast(message, { type: 'error', duration: 6000 }); } catch (_e) {}
+}
 
 /**
  * サインイン順序を解決（署名モードに応じて）
@@ -426,12 +432,12 @@ export async function publishNote(state, content, statusEl, options) {
 
     // 署名者チェック（skがなければエラー）
     if (effectiveState.signer === 'nsec' && !signer.hasKey()) {
-      if (statusEl) statusEl.textContent = t('publish.nsec_error');
+      reportActionFailure(t('publish.nsec_error'), statusEl);
       return false;
     }
 
     if (!effectiveState.pool) {
-      if (statusEl) statusEl.textContent = t('publish.no_lib');
+      reportActionFailure(t('publish.no_lib'), statusEl);
       return false;
     }
 
@@ -441,7 +447,7 @@ export async function publishNote(state, content, statusEl, options) {
       : getWriteRelays(effectiveState.relays);
 
     if (!writeRelays.length) {
-      if (statusEl) statusEl.textContent = t('publish.no_write_relays');
+      reportActionFailure(t('publish.no_write_relays'), statusEl);
       return false;
     }
 
@@ -513,7 +519,7 @@ export async function publishNote(state, content, statusEl, options) {
     if (statusEl) statusEl.textContent = t('publish.posted');
     return true;
   } catch (e) {
-    if (statusEl) statusEl.textContent = t('publish.failed', { msg: ((e && e.message) || e) });
+    reportActionFailure(t('publish.failed', { msg: ((e && e.message) || e) }), statusEl);
     return false;
   } finally {
     // 重複イベント駆動を吸収するため少し遅延してロック解放
@@ -540,10 +546,13 @@ export async function reactToEvent(state, targetEv, sym = '+') {
     sym
   };
   try {
-    if (!effectiveState.pool) return false;
+    if (!effectiveState.pool) {
+      reportActionFailure(t('mute.no_pool'));
+      return false;
+    }
     // 署名者チェック（skがなければエラー）
     if (effectiveState.signer === 'nsec' && !signer.hasKey()) {
-      alert(t('publish.nsec_error'));
+      reportActionFailure(t('publish.nsec_error'));
       return false;
     }
 
@@ -551,7 +560,7 @@ export async function reactToEvent(state, targetEv, sym = '+') {
     const writeRelays = getWriteRelays(effectiveState.relays);
 
     if (!writeRelays.length) {
-      alert(t('publish.no_write_relays'));
+      reportActionFailure(t('publish.no_write_relays'));
       return false;
     }
 
@@ -600,7 +609,7 @@ export async function reactToEvent(state, targetEv, sym = '+') {
     return true;
   } catch (e) {
     console.warn('[Actions] リアクション送信失敗', e);
-    alert(t('publish.failed', { msg: ((e && e.message) || e) }));
+    reportActionFailure(t('publish.failed', { msg: ((e && e.message) || e) }));
     return false;
   }
 }
@@ -624,13 +633,16 @@ export async function replyToEvent(state, targetEv, text) {
 
   try {
     if (!text || !text.trim()) return false;
-    if (!effectiveState.pool) return false;
+    if (!effectiveState.pool) {
+      reportActionFailure(t('mute.no_pool'));
+      return false;
+    }
 
     const { getWriteRelays } = await import('../../core/relay.js');
 
     // 署名者チェック（skがなければエラー）
     if (effectiveState.signer === 'nsec' && !signer.hasKey()) {
-      alert(t('publish.nsec_error'));
+      reportActionFailure(t('publish.nsec_error'));
       return false;
     }
 
@@ -694,7 +706,7 @@ export async function replyToEvent(state, targetEv, text) {
       const { sendChannelMessage } = await import('../channel/channel-feed.js');
       const rootId = pickChannelRootId(targetEv);
       if (!rootId) {
-        alert(t('publish.failed', { msg: t('channel.resolve_root_failed') || 'チャンネル root を解決できませんでした' }));
+        reportActionFailure(t('publish.failed', { msg: t('channel.resolve_root_failed') }));
         return false;
       }
       await sendChannelMessage(rootId, text, effectiveState, {
@@ -882,7 +894,7 @@ export async function replyToEvent(state, targetEv, text) {
     }
 
     if (!writeRelays.length) {
-      alert(t('publish.no_write_relays'));
+      reportActionFailure(t('publish.no_write_relays'));
       return false;
     }
 
@@ -934,7 +946,7 @@ export async function replyToEvent(state, targetEv, text) {
     }
 
     console.warn('[Actions] 返信送信失敗', e);
-    alert(t('publish.failed', { msg: ((e && e.message) || e) }));
+    reportActionFailure(t('publish.failed', { msg: ((e && e.message) || e) }));
     return false;
   }
 }
@@ -956,7 +968,7 @@ export async function repostEvent(state, targetEv) {
   };
   try {
     if (!effectiveState.pool) {
-      alert(t('mute.no_pool'));
+      reportActionFailure(t('mute.no_pool'));
       return false;
     }
 
@@ -964,7 +976,7 @@ export async function repostEvent(state, targetEv) {
     const writeRelays = getWriteRelays(effectiveState.relays);
 
     if (!writeRelays.length) {
-      alert(t('publish.no_write_relays'));
+      reportActionFailure(t('publish.no_write_relays'));
       return false;
     }
 
@@ -1022,7 +1034,7 @@ export async function repostEvent(state, targetEv) {
     return true;
   } catch (e) {
     console.warn('[Actions] リポスト送信失敗', e);
-    alert(t('publish.failed', { msg: ((e && e.message) || e) }));
+    reportActionFailure(t('publish.failed', { msg: ((e && e.message) || e) }));
     return false;
   }
 }

@@ -81,7 +81,7 @@ export function renderRelaySnapshotsUI(container, pubkey, onApply) {
 
     card.innerHTML = `
       <div class="snapshot-header row align-center space-between gap-8 mb-4">
-        <input type="text" class="snapshot-title-input font-bold" value="${snap.name || ''}" placeholder="${t('editor.snapshot.name_placeholder') || 'リスト名'}" style="flex:1; border:1px solid transparent; background:transparent; color:inherit;">
+        <input type="text" class="snapshot-title-input font-bold" value="${snap.name || ''}" placeholder="${t('editor.snapshot.name_placeholder')}" style="flex:1; border:1px solid transparent; background:transparent; color:inherit;">
         <span class="snapshot-meta text-sm muted">${t('editor.relay_snapshot.count', { n: relayCount }) || `${relayCount} Relays`}</span>
       </div>
       <div class="text-xs muted mb-8">${timeText}</div>

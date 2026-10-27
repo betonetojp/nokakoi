@@ -971,7 +971,7 @@ export async function openFollowEditor(state) {
 
       card.innerHTML = `
         <div class="snapshot-header">
-          <input type="text" class="snapshot-title-input" value="${snap.name || ''}" placeholder="リスト名">
+          <input type="text" class="snapshot-title-input" value="${snap.name || ''}" placeholder="${t('editor.snapshot.name_placeholder')}">
           <span class="snapshot-meta">${t('editor.snapshot.count', { n: pTagsCount }) || `${pTagsCount} follows`}</span>
         </div>
         <div class="snapshot-meta">
