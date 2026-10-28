@@ -174,6 +174,107 @@ describe('feed fetcher logical keys', () => {
     expect(state.feeds.global.list[0].id).toBe('ev2');
     expect(state.feeds.global.perFilterUntil[0]).toBe(70);
   });
+  it('keeps only the limit window and sets the next until to that boundary second', async () => {
+    const state = {
+      relays: ['wss://relay.example'],
+      feeds: { home: { list: [], map: new Map() } }
+    };
+    const filters = [{ kinds: [1], until: 200 }];
+    const options = {
+      state,
+      feedId: 'home',
+      filters,
+      relays: ['wss://relay.example'],
+      startListLength: 0,
+      addToFeed: vi.fn(),
+      scheduleRender: vi.fn(),
+      eventsFetchLimit: 2
+    };
+
+    const promise = fetchMore(options);
+    const cb = mocks.subOnce.mock.calls[0][3];
+    const relay = 'wss://relay.example';
+    cb({ id: 'a', kind: 1, created_at: 100 }, relay, false);
+    cb({ id: 'b', kind: 1, created_at: 90 }, relay, false);
+    cb({ id: 'c', kind: 1, created_at: 90 }, relay, false);
+    cb({ id: 'd', kind: 1, created_at: 80 }, relay, true);
+
+    const res = await promise;
+    expect(res.appendedCount).toBe(2);
+    expect(state.feeds.home.list.map((ev) => ev.id)).toEqual(['a', 'b']);
+    expect(state.feeds.home.perFilterUntil[0]).toBe(90);
+
+    const nextFilters = applyPerFilterUntil(state, 'home', filters, 90);
+    expect(nextFilters[0].until).toBe(90);
+  });
+
+  it('skips events already on screen when the next page reuses the boundary second', async () => {
+    const shown = [
+      { id: 'a', kind: 1, created_at: 100 },
+      { id: 'b', kind: 1, created_at: 90 }
+    ];
+    const state = {
+      relays: ['wss://relay.example'],
+      feeds: { home: { list: shown.slice(), map: new Map(shown.map((ev) => [ev.id, ev])) } }
+    };
+    const options = {
+      state,
+      feedId: 'home',
+      filters: [{ kinds: [1], until: 90 }],
+      relays: ['wss://relay.example'],
+      startListLength: shown.length,
+      addToFeed: vi.fn(),
+      scheduleRender: vi.fn(),
+      eventsFetchLimit: 2
+    };
+
+    const promise = fetchMore(options);
+    const cb = mocks.subOnce.mock.calls[0][3];
+    const relay = 'wss://relay.example';
+    cb({ id: 'b', kind: 1, created_at: 90 }, relay, false);
+    cb({ id: 'c', kind: 1, created_at: 90 }, relay, false);
+    cb({ id: 'd', kind: 1, created_at: 80 }, relay, true);
+
+    const res = await promise;
+    expect(res.appendedCount).toBe(1);
+    expect(state.feeds.home.list.map((ev) => ev.id)).toEqual(['a', 'b', 'c']);
+    expect(state.feeds.home.paginationUntil).toBeUndefined();
+  });
+
+  it('steps until back one second when an inclusive page adds nothing new', async () => {
+    const shown = [
+      { id: 'b', kind: 1, created_at: 90 },
+      { id: 'c', kind: 1, created_at: 90 }
+    ];
+    const state = {
+      relays: ['wss://relay.example'],
+      feeds: { home: { list: shown.slice(), map: new Map(shown.map((ev) => [ev.id, ev])) } }
+    };
+    const filters = [{ kinds: [1], until: 90 }];
+    const options = {
+      state,
+      feedId: 'home',
+      filters,
+      relays: ['wss://relay.example'],
+      startListLength: shown.length,
+      addToFeed: vi.fn(),
+      scheduleRender: vi.fn(),
+      eventsFetchLimit: 2
+    };
+
+    const promise = fetchMore(options);
+    const cb = mocks.subOnce.mock.calls[0][3];
+    const relay = 'wss://relay.example';
+    cb({ id: 'b', kind: 1, created_at: 90 }, relay, false);
+    cb({ id: 'c', kind: 1, created_at: 90 }, relay, true);
+
+    const res = await promise;
+    expect(res.appendedCount).toBe(0);
+    expect(state.feeds.home.paginationUntil).toBe(89);
+    const nextFilters = applyPerFilterUntil(state, 'home', filters, 90);
+    expect(nextFilters[0].until).toBe(89);
+  });
+
   it('bounds round until by the 30th raw event, ignoring outlier events beyond limit', async () => {
     const state = {
       relays: ['wss://busy.example', 'wss://deserted.example'],
@@ -276,8 +377,8 @@ describe('feed fetcher logical keys', () => {
     expect(state.feeds.home.perFilterUntil[2]).toBe(1000);
 
     const nextFilters = applyPerFilterUntil(state, 'home', filters, 1000);
-    expect(nextFilters[0].until).toBe(999);
-    expect(nextFilters[1].until).toBe(999);
-    expect(nextFilters[2].until).toBe(999);
+    expect(nextFilters[0].until).toBe(1000);
+    expect(nextFilters[1].until).toBe(1000);
+    expect(nextFilters[2].until).toBe(1000);
   });
 });

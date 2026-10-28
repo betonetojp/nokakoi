@@ -86,7 +86,9 @@ export function applyPerFilterUntil(state, feedId, baseFilters, fallbackUntil = 
     const feed = state && state.feeds && state.feeds[feedId];
     const perFilterUntil = feed && Array.isArray(feed.perFilterUntil) ? feed.perFilterUntil : [];
     return baseFilters.map((filter, i) => {
-      let filterUntil = (perFilterUntil[i] != null) ? (perFilterUntil[i] - 1) : (fallbackUntil != null ? fallbackUntil - 1 : null);
+      // NIP-01 の until は inclusive。画面下端と同じ秒を再度取り、既出 id は挿入時に捨てる。
+      // 1件も増えなかったページの paginationUntil だけは、同じ応答を繰り返さないよう既に 1 秒戻してある。
+      let filterUntil = (perFilterUntil[i] != null) ? perFilterUntil[i] : (fallbackUntil != null ? fallbackUntil : null);
       if (typeof feed?.paginationUntil === 'number' && (filterUntil == null || feed.paginationUntil < filterUntil)) {
         filterUntil = feed.paginationUntil;
       }
@@ -427,7 +429,9 @@ export function fetchMore(opts) {
         }
         existing.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
 
-        const keepCount = Math.min(startListLength + eventsFetchLimit, (typeof EVENTS_MAX === 'number' ? EVENTS_MAX : Math.max(eventsFetchLimit, existing.length)));
+        // このページは limit 件まで。同秒の残りは次の inclusive until で取り、既出 id は上で捨てる。
+        const cap = (typeof EVENTS_MAX === 'number' ? EVENTS_MAX : Math.max(eventsFetchLimit, existing.length));
+        const keepCount = Math.min(startListLength + eventsFetchLimit, cap);
         const keep = existing.slice(0, keepCount);
         try {
           state.feeds[feedId].list = keep.slice();
@@ -492,7 +496,7 @@ export function fetchMore(opts) {
         const rawEvents = Array.from(roundRawMap.values());
         roundRawCount = rawEvents.length;
 
-        // 全リレーから集まった生イベントを新しい順にソートし、上位 eventsFetchLimit (50件) を抽出
+        // 全リレーから集まった生イベントを新しい順にソートし、上位 eventsFetchLimit 件の時刻を次の境界にする
         rawEvents.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
         const topBatch = rawEvents.slice(0, eventsFetchLimit);
 
@@ -503,7 +507,6 @@ export function fetchMore(opts) {
           }
         }
 
-        // 上位30件の中から acceptEvent を通過したものをバッファに追加
         for (const ev of topBatch) {
           if (typeof acceptEvent !== 'function' || acceptEvent(ev)) {
             try { moreBuffer.set(ev.id, ev); } catch (e) { }

@@ -353,17 +353,15 @@ export function mergeFetchedIntoGlobalList(moreBuffer, startListLength) {
   } catch (e) {
     for (const e of existing) if (e?.id) existingIds.add(e.id);
   }
-  let addedCount = 0;
   for (const ev of moreBuffer.values()) {
     if (!ev?.id || !isGlobalMergeKind(ev) || existingIds.has(ev.id)) continue;
     if (!shouldDisplayGlobalEvent(ev, state, settingsManager)) continue;
     existing.push(ev);
     existingIds.add(ev.id);
-    addedCount += 1;
   }
   existing.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
   const baseLen = Math.max(startListLength || 0, Array.isArray(gfeed.list) ? gfeed.list.length : 0);
-  const keepCount = Math.min(baseLen + Math.max(EVENTS_FETCH_LIMIT, addedCount), EVENTS_MAX);
+  const keepCount = Math.min(baseLen + EVENTS_FETCH_LIMIT, EVENTS_MAX);
   const keep = existing.slice(0, keepCount);
   gfeed.list = keep.slice();
   const m = new Map();
@@ -472,8 +470,7 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
         const rawEvents = Array.from(roundRawMap.values());
         roundRawCount = rawEvents.length;
 
-        // 全リレーから集まった生イベントを新しい順にソートし、スキャン境界(cutoff)以後のイベントをすべて保持
-        // （同秒タイのフォロイー投稿等が slice(0, EVENTS_FETCH_LIMIT) 境界で切り捨てられて永久欠落するのを防止）
+        // ページは limit 件だけ使う。同秒の残りは次の until を境界秒のままにして再取得し、既出 id は足さない。
         rawEvents.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
         const topBatch = rawEvents.slice(0, EVENTS_FETCH_LIMIT);
 
@@ -484,16 +481,8 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
           }
         }
 
-        if (typeof roundMinScannedTs === 'number') {
-          for (const ev of rawEvents) {
-            if (ev && typeof ev.created_at === 'number' && ev.created_at >= roundMinScannedTs) {
-              moreBuffer.set(ev.id, ev);
-            }
-          }
-        } else {
-          for (const ev of topBatch) {
-            moreBuffer.set(ev.id, ev);
-          }
+        for (const ev of topBatch) {
+          if (ev?.id) moreBuffer.set(ev.id, ev);
         }
 
         if (roundMinScannedTs != null) {

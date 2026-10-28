@@ -183,7 +183,8 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
     const sorted = Array.from(eventsMap.values()).sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
     if (!sorted.length) return;
     const oldest = sorted[sorted.length - 1];
-    const until = (oldest.created_at || Math.floor(Date.now() / 1000)) - 1;
+    // NIP-01 の until は inclusive。画面下端と同じ秒を再度取り、既出 id は追加しない。
+    const until = oldest.created_at || Math.floor(Date.now() / 1000);
     if (until <= 0) return;
 
     isLoadingMore = true;

@@ -488,13 +488,13 @@ export function renderFeed(id = 'global', force = false) {
           const gfeed = _state.feeds['global'];
           const displayed = listForClick;
           const fallbackUntil = Math.floor(Date.now() / 1000);
-          let mergeUntil = fallbackUntil - 1;
+          let mergeUntil = fallbackUntil;
           if (typeof gfeed?.mergedPaginationUntil === 'number' && isValidTimestamp(gfeed.mergedPaginationUntil)) {
             mergeUntil = gfeed.mergedPaginationUntil;
           } else {
             const validOldest = displayed.slice().reverse().find(e => e && isValidTimestamp(e.created_at));
             if (validOldest) {
-              mergeUntil = validOldest.created_at - 1;
+              mergeUntil = validOldest.created_at;
             }
           }
 

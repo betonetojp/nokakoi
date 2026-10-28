@@ -750,6 +750,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
           if (loadingMore || noMoreEvents || !isCurrentSession()) return;
           const currentlyDisplayed = sortedAll.slice(0, Math.min(displayLimit, EVENTS_MAX));
           const lastDisplayed = currentlyDisplayed[currentlyDisplayed.length - 1];
+          // NIP-01 の until は inclusive。画面下端と同じ秒を再度取り、既出 id は eventsMap が上書きする。
           const until = lastDisplayed && lastDisplayed.created_at ? lastDisplayed.created_at : 0;
           if (!until || until <= 1) {
             noMoreEvents = true;
@@ -785,7 +786,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
               const unsubAll = subOnce(
                 state,
                 'profile_kinds_' + pubkey + '_more_all_' + until,
-                [{ kinds: profileFeedKinds, authors: [pubkey], limit: EVENTS_FETCH_LIMIT, until: until - 1 }],
+                [{ kinds: profileFeedKinds, authors: [pubkey], limit: EVENTS_FETCH_LIMIT, until }],
                 (ev) => {
                   if (!isCurrentSession()) return;
                   try { if (ev && profileFeedKindSet.has(ev.kind) && ev.id) eventsMap.set(ev.id, ev); } catch (e) { }
@@ -822,7 +823,7 @@ export function showProfileModal(state, pubkey, nip19, settings, settingsManager
                 const unsub = subOnce(
                   state,
                   key,
-                  [{ kinds: profileFeedKinds, authors: [pubkey], limit: EVENTS_FETCH_LIMIT, until: until - 1 }],
+                  [{ kinds: profileFeedKinds, authors: [pubkey], limit: EVENTS_FETCH_LIMIT, until }],
                   (ev, r, done) => {
                     try {
                       if (isCurrentSession() && ev && profileFeedKindSet.has(ev.kind) && ev.id) {
