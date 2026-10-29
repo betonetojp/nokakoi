@@ -21,6 +21,7 @@ import { sendChannelMessage } from '../channel/channel-feed.js';
 import { pickChannelRootId } from '../channel/channel.js';
 import { getCustomEmojis, getSettingsManager } from '../../core/app-context.js';
 import { setupComposerNostrPreview } from './composer-nostr-preview.js';
+import { getReplyRecipientsManager } from './reply-recipients.js';
 import { getEventCwReason, formatEventCwLabel, isCwExpandedForEvent } from '../../ui/renderers/render-helpers.js';
 
 function getComposerTargetPreviewText(ev) {
@@ -132,6 +133,16 @@ export function setReplyTarget(state, event, nip19) {
   // テキストエリアにフォーカス
   noteInput.focus();
 
+  // 返信先通知トグルUIをセットアップ
+  try {
+    const recipientsMgr = getReplyRecipientsManager();
+    if (recipientsMgr) {
+      recipientsMgr.setTarget(state, event, nip19);
+    }
+  } catch (e) {
+    console.warn('[Composer] setReplyTarget recipients error:', e);
+  }
+
   // 投稿欄が隠れていれば表示
   revealComposer();
 }
@@ -146,6 +157,13 @@ export function setQuoteTarget(state, event, nip19) {
   currentGeohashTarget = null;
   __composerLastState = state;
   __composerLastNip19 = nip19;
+
+  try {
+    const recipientsMgr = getReplyRecipientsManager();
+    if (recipientsMgr) {
+      recipientsMgr.setTarget(state, event, nip19, true);
+    }
+  } catch (_e) {}
 
   const replyContext = $('#replyContext');
   const replyContextContent = $('#replyContextContent');
@@ -250,6 +268,11 @@ export function setGeohashTarget(geohash) {
   // テキストエリアにフォーカス
   noteInput.focus();
 
+  try {
+    const recipientsMgr = getReplyRecipientsManager();
+    if (recipientsMgr) recipientsMgr.clear();
+  } catch (_e) {}
+
   // 投稿欄が隠れていれば表示
   revealComposer();
 }
@@ -271,6 +294,11 @@ export function setChannelTarget(channelInfo) {
   currentGeohashTarget = null;
   currentQuoteMode = false;
   currentChannelTarget = channelInfo;
+
+  try {
+    const recipientsMgr = getReplyRecipientsManager();
+    if (recipientsMgr) recipientsMgr.clear();
+  } catch (_e) {}
 
   showComposerAndEnsureScroll();
 
@@ -375,6 +403,11 @@ export function clearReplyTarget(options = {}) {
   try { if (typeof window !== 'undefined') window.__nokakoiQuoteMode = false; } catch (e) {}
   __composerLastState = null;
   __composerLastNip19 = null;
+
+  try {
+    const recipientsMgr = getReplyRecipientsManager();
+    if (recipientsMgr) recipientsMgr.clear();
+  } catch (_e) {}
 
   showComposerAndEnsureScroll();
 
@@ -503,6 +536,10 @@ try {
         }
         // 投稿欄内の data-i18n も再適用（再dispatchなし）
         try { if (typeof applyTranslations === 'function') applyTranslations(document.getElementById('composer') || document, true); } catch (e) { }
+        try {
+          const recipientsMgr = getReplyRecipientsManager();
+          if (recipientsMgr) recipientsMgr.updateTranslations();
+        } catch (_e) { }
       } catch (e) { }
     });
   }
@@ -818,7 +855,14 @@ export function setupComposerUI(state, { getOmochatRelays, consumeShareText }) {
       }
     } else if (replyTarget) {
       // 返信として送信 (kind:1 または NIP-22)
-      success = await replyToEvent(state, replyTarget, content);
+      let includedPubkeys = null;
+      try {
+        const recipientsMgr = getReplyRecipientsManager();
+        if (recipientsMgr && recipientsMgr.hasOthers()) {
+          includedPubkeys = recipientsMgr.getActivePubkeys();
+        }
+      } catch (_e) { }
+      success = await replyToEvent(state, replyTarget, content, { includedPubkeys });
       if (success) {
         clearReplyTarget();
         clearTextShortcodeRegistry();
@@ -852,12 +896,30 @@ export function setupComposerUI(state, { getOmochatRelays, consumeShareText }) {
         console.warn('[composer] チャンネル未選択のため kind:1 送信をキャンセルしました');
         return;
       }
+      let extraTags = [];
+      try {
+        const recipientsMgr = getReplyRecipientsManager();
+        if (recipientsMgr) {
+          const activePubkeys = recipientsMgr.getActivePubkeys();
+          for (const pk of activePubkeys) {
+            extraTags.push(['p', pk]);
+          }
+        }
+      } catch (_e) { }
+
       if (activeTab === 'bitchat') {
-        success = await publishNote(state, content, $('#publishResult'), { kind: 20000, relays: getOmochatRelays() });
+        success = await publishNote(state, content, $('#publishResult'), {
+          kind: 20000,
+          relays: getOmochatRelays(),
+          tags: extraTags.length > 0 ? extraTags : undefined
+        });
       } else {
-        success = await publishNote(state, content, $('#publishResult'));
+        success = await publishNote(state, content, $('#publishResult'), {
+          tags: extraTags.length > 0 ? extraTags : undefined
+        });
       }
       if (success) {
+        clearReplyTarget();
         clearTextShortcodeRegistry();
         if (noteInput) {
           noteInput.value = '';
@@ -877,6 +939,14 @@ export function setupComposerUI(state, { getOmochatRelays, consumeShareText }) {
 
   const noteInput = $('#noteInput');
   if (noteInput) {
+    // 本文中の引用などの通知トグル同期
+    noteInput.addEventListener('input', () => {
+      try {
+        const recipientsMgr = getReplyRecipientsManager();
+        if (recipientsMgr) recipientsMgr.updateFromComposer();
+      } catch (_e) { }
+    });
+
     const initialShareText = consumeShareText();
     if (initialShareText && (!noteInput.value || !noteInput.value.trim())) {
       noteInput.value = initialShareText;

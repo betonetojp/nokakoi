@@ -617,7 +617,7 @@ export async function reactToEvent(state, targetEv, sym = '+') {
 /**
  * イベントに返信
  */
-export async function replyToEvent(state, targetEv, text) {
+export async function replyToEvent(state, targetEv, text, options = {}) {
   const effectiveState = (typeof window !== 'undefined' && window.__nostrState) ? window.__nostrState : state;
   window.__nokakoiLastAction = {
     type: 'replyToEvent',
@@ -716,12 +716,25 @@ export async function replyToEvent(state, targetEv, text) {
       return true;
     } else if (quoteMode) {
       // 引用モード時は alwaysUseComment や対象 kind (1111 / 42 等) に関わらず NIP-18 の kind:1 引用ポストとして送信
+      let targetRelayHint = '';
       try {
         const { getBestRelayHint } = await import('../../core/relay.js');
-        const targetRelayHint = getBestRelayHint(effectiveState, targetEv);
+        targetRelayHint = getBestRelayHint(effectiveState, targetEv) || '';
         tags = [['q', targetEv.id, targetRelayHint, targetEv.pubkey]];
       } catch (e) {
         tags = [['q', targetEv.id, '', targetEv.pubkey || '']];
+      }
+
+      if (options && options.includedPubkeys) {
+        const incSet = options.includedPubkeys instanceof Set
+          ? options.includedPubkeys
+          : new Set(Array.isArray(options.includedPubkeys) ? options.includedPubkeys : []);
+        for (const pk of incSet) {
+          if (!tags.some(t => t[0] === 'p' && t[1] === pk)) {
+            const hint = (pk === targetEv.pubkey) ? targetRelayHint : '';
+            tags.push(hint ? ['p', pk, hint] : ['p', pk]);
+          }
+        }
       }
     } else if (alwaysUseComment || targetEv.kind === 1111) {
       // NIP-22 (kind: 1111) コメント送信
@@ -846,8 +859,20 @@ export async function replyToEvent(state, targetEv, text) {
             seenPTags.add(resolvedRootPk);
             threadPTags.push(['p', resolvedRootPk, rootRelayHint]);
           }
+          let effectiveThreadPTags = threadPTags;
+          if (options && options.includedPubkeys) {
+            const incSet = options.includedPubkeys instanceof Set
+              ? options.includedPubkeys
+              : new Set(Array.isArray(options.includedPubkeys) ? options.includedPubkeys : []);
+            effectiveThreadPTags = threadPTags.filter(t => incSet.has(t[1]));
+            for (const pk of incSet) {
+              if (pk !== targetAuthorPk && !effectiveThreadPTags.some(t => t[1] === pk)) {
+                effectiveThreadPTags.push(['p', pk]);
+              }
+            }
+          }
           if (targetEv.pubkey) {
-            threadPTags.push(['p', targetEv.pubkey, targetRelayHint]);
+            effectiveThreadPTags.push(['p', targetEv.pubkey, targetRelayHint]);
           }
           const rootETagOut = resolvedRootPk
             ? ['e', rootId, rootRelayHint, 'root', resolvedRootPk]
@@ -855,15 +880,27 @@ export async function replyToEvent(state, targetEv, text) {
           const replyETagOut = targetAuthorPk
             ? ['e', targetEv.id, targetRelayHint, 'reply', targetAuthorPk]
             : ['e', targetEv.id, targetRelayHint, 'reply'];
-          tags = [rootETagOut, replyETagOut, ...threadPTags];
+          tags = [rootETagOut, replyETagOut, ...effectiveThreadPTags];
         } else {
+          let effectiveThreadPTags = threadPTags;
+          if (options && options.includedPubkeys) {
+            const incSet = options.includedPubkeys instanceof Set
+              ? options.includedPubkeys
+              : new Set(Array.isArray(options.includedPubkeys) ? options.includedPubkeys : []);
+            effectiveThreadPTags = threadPTags.filter(t => incSet.has(t[1]));
+            for (const pk of incSet) {
+              if (pk !== targetAuthorPk && !effectiveThreadPTags.some(t => t[1] === pk)) {
+                effectiveThreadPTags.push(['p', pk]);
+              }
+            }
+          }
           if (targetEv.pubkey) {
-            threadPTags.push(['p', targetEv.pubkey, targetRelayHint]);
+            effectiveThreadPTags.push(['p', targetEv.pubkey, targetRelayHint]);
           }
           const rootETagOut = targetAuthorPk
             ? ['e', targetEv.id, targetRelayHint, 'root', targetAuthorPk]
             : ['e', targetEv.id, targetRelayHint, 'root'];
-          tags = [rootETagOut, ...threadPTags];
+          tags = [rootETagOut, ...effectiveThreadPTags];
         }
       } catch (e) {
         tags = [

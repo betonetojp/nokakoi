@@ -516,6 +516,11 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
   showAvatarsCheck.onchange = function () {
     settingsManager.set('showAvatars', showAvatarsCheck.checked);
     try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('settings:showAvatarsUpdated'));
+      }
+    } catch (_e) { }
+    try {
       import('../../core/auth/auth-core.js').then(m => {
         if (m && typeof m.updateHeaderName === 'function') {
           const state = (typeof window !== 'undefined' && window.__nostrState) || null;

@@ -1,10 +1,15 @@
-import { describe, it, expect, vi } from 'vitest';
+// @vitest-environment jsdom
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   extractMentions,
   extractQuotes,
   extractConvertibleIdentifiers,
-  applyNostrPrefixToText
+  applyNostrPrefixToText,
+  setupComposerNostrPreview
 } from './composer-nostr-preview.js';
+import { getNip19 } from '../../core/nostr-compat.js';
+import { configureAppContext, resetAppContextForTests } from '../../core/app-context.js';
 
 // モックの nip19 デコーダー
 const mockNip19 = {
@@ -95,6 +100,110 @@ describe('composer-nostr-preview', () => {
       const text = `nostr:${target} and ${target}`;
       const updated = applyNostrPrefixToText(text, target);
       expect(updated).toBe(`nostr:${target} and nostr:${target}`);
+    });
+  });
+
+  describe('setupComposerNostrPreview with showAvatars setting', () => {
+    let composer;
+    let noteInput;
+    let handler;
+    const aliceHex = 'a'.repeat(64);
+    let aliceNpub;
+    let state;
+    let settingsMap;
+
+    beforeEach(() => {
+      resetAppContextForTests();
+      settingsMap = new Map();
+      const settingsManager = {
+        get: (k) => settingsMap.get(k)
+      };
+
+      const nip19 = getNip19();
+      aliceNpub = nip19.npubEncode(aliceHex);
+
+      state = {
+        profiles: new Map([
+          [aliceHex, { name: 'Alice', picture: 'https://example.com/alice.png' }]
+        ])
+      };
+      configureAppContext({ state, settingsManager });
+
+      composer = document.createElement('div');
+      composer.id = 'composer';
+      noteInput = document.createElement('textarea');
+      noteInput.id = 'noteInput';
+      composer.appendChild(noteInput);
+      document.body.appendChild(composer);
+    });
+
+    afterEach(() => {
+      if (handler && typeof handler.clear === 'function') handler.clear();
+      composer.remove();
+      resetAppContextForTests();
+    });
+
+    it('shows avatar img in mention chip when showAvatars is true', () => {
+      settingsMap.set('showAvatars', true);
+      localStorage.setItem('appSettings', JSON.stringify({ showAvatars: true }));
+
+      handler = setupComposerNostrPreview(state, noteInput, composer);
+
+      noteInput.value = `Hello nostr:${aliceNpub}`;
+      handler.render();
+
+      const chip = composer.querySelector('.nostr-mention-chip');
+      expect(chip).not.toBeNull();
+      const avatar = chip.querySelector('.nostr-preview-avatar');
+      expect(avatar).not.toBeNull();
+      expect(avatar.src).toBe('https://example.com/alice.png');
+      expect(chip.querySelector('.nostr-preview-icon')).toBeNull();
+    });
+
+    it('shows no avatar img and no icon in mention chip when showAvatars is false', () => {
+      settingsMap.set('showAvatars', false);
+      localStorage.setItem('appSettings', JSON.stringify({ showAvatars: false }));
+
+      handler = setupComposerNostrPreview(state, noteInput, composer);
+
+      noteInput.value = `Hello nostr:${aliceNpub}`;
+      handler.render();
+
+      const chip = composer.querySelector('.nostr-mention-chip');
+      expect(chip).not.toBeNull();
+      expect(chip.querySelector('.nostr-preview-avatar')).toBeNull();
+      expect(chip.querySelector('.nostr-preview-icon')).toBeNull();
+    });
+
+    it('dynamically switches avatar img visibility when settings:showAvatarsUpdated is fired', () => {
+      settingsMap.set('showAvatars', true);
+      localStorage.setItem('appSettings', JSON.stringify({ showAvatars: true }));
+
+      handler = setupComposerNostrPreview(state, noteInput, composer);
+
+      noteInput.value = `Hello nostr:${aliceNpub}`;
+      handler.render();
+
+      const chip = composer.querySelector('.nostr-mention-chip');
+      expect(chip.querySelector('.nostr-preview-avatar')).not.toBeNull();
+
+      // Switch to false
+      settingsMap.set('showAvatars', false);
+      localStorage.setItem('appSettings', JSON.stringify({ showAvatars: false }));
+      window.dispatchEvent(new CustomEvent('settings:showAvatarsUpdated'));
+
+      const chipOff = composer.querySelector('.nostr-mention-chip');
+      expect(chipOff.querySelector('.nostr-preview-avatar')).toBeNull();
+      expect(chipOff.querySelector('.nostr-preview-icon')).toBeNull();
+
+      // Switch back to true
+      settingsMap.set('showAvatars', true);
+      localStorage.setItem('appSettings', JSON.stringify({ showAvatars: true }));
+      window.dispatchEvent(new CustomEvent('settings:showAvatarsUpdated'));
+
+      const chipOn = composer.querySelector('.nostr-mention-chip');
+      expect(chipOn.querySelector('.nostr-preview-avatar')).not.toBeNull();
+      expect(chipOn.querySelector('.nostr-preview-icon')).toBeNull();
     });
   });
 });

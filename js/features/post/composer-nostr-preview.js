@@ -1,7 +1,7 @@
 import { escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
 import { t } from '../../utils/i18n.js';
 import { getNip19 } from '../../core/nostr-compat.js';
-import { displayName } from '../profile/profile.js';
+import { displayName, isAvatarsEnabled } from '../profile/profile.js';
 import { invokeShowProfileModalProxy, getEventCwReason, formatEventCwLabel, isCwExpandedForEvent } from '../../ui/renderers/render-helpers.js';
 import { findEventById } from '../../core/state.js';
 
@@ -184,7 +184,8 @@ export function setupComposerNostrPreview(state, noteInput, composer) {
 
         const prof = state.profiles ? state.profiles.get(m.pubkey) : null;
         const nameText = displayName(state, m.pubkey, nip19);
-        const pictureUrl = prof && prof.picture ? prof.picture : '';
+        const showAvatars = isAvatarsEnabled(state);
+        const pictureUrl = (showAvatars && prof && prof.picture) ? prof.picture : '';
 
         if (pictureUrl) {
           const avatar = document.createElement('img');
@@ -193,11 +194,6 @@ export function setupComposerNostrPreview(state, noteInput, composer) {
           avatar.alt = '';
           avatar.loading = 'lazy';
           chip.appendChild(avatar);
-        } else {
-          const icon = document.createElement('span');
-          icon.className = 'nostr-preview-icon';
-          icon.textContent = '👤';
-          chip.appendChild(icon);
         }
 
         const nameSpan = document.createElement('span');
@@ -346,6 +342,7 @@ export function setupComposerNostrPreview(state, noteInput, composer) {
         // 名前を更新（常に最新チップの data-pubkey を参照し、古いクロージャ配列のズレを防ぐ）
         const latestNip19 = getNip19();
         const chips = container.querySelectorAll('.nostr-mention-chip[data-pubkey]');
+        const showAvatars = isAvatarsEnabled(state);
         chips.forEach((chip) => {
           const pk = chip.dataset.pubkey;
           if (!pk) return;
@@ -355,15 +352,27 @@ export function setupComposerNostrPreview(state, noteInput, composer) {
           if (nameSpan && nameSpan.textContent !== currentName) {
             nameSpan.innerHTML = replaceBadgeEmoji(escapeHtml(currentName));
           }
-          if (prof && prof.picture && !chip.querySelector('.nostr-preview-avatar')) {
-            const icon = chip.querySelector('.nostr-preview-icon');
-            if (icon) {
+
+          const existingAvatar = chip.querySelector('.nostr-preview-avatar');
+
+          if (showAvatars && prof && prof.picture) {
+            if (!existingAvatar) {
               const avatar = document.createElement('img');
               avatar.className = 'nostr-preview-avatar';
               avatar.src = prof.picture;
               avatar.alt = '';
               avatar.loading = 'lazy';
-              chip.replaceChild(avatar, icon);
+              if (nameSpan) {
+                chip.insertBefore(avatar, nameSpan);
+              } else {
+                chip.prepend(avatar);
+              }
+            } else if (existingAvatar.src !== prof.picture) {
+              existingAvatar.src = prof.picture;
+            }
+          } else {
+            if (existingAvatar) {
+              existingAvatar.remove();
             }
           }
         });
@@ -374,6 +383,18 @@ export function setupComposerNostrPreview(state, noteInput, composer) {
   // 入力イベントリスナー登録
   noteInput.addEventListener('input', renderPreview);
 
+  // 設定変更時の即時反映リスナー
+  const handleAvatarsSettingUpdated = () => {
+    if (container && !container.classList.contains('d-none')) {
+      renderPreview();
+    }
+  };
+  try {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('settings:showAvatarsUpdated', handleAvatarsSettingUpdated);
+    }
+  } catch (_e) {}
+
   return {
     render: renderPreview,
     clear: () => {
@@ -383,6 +404,11 @@ export function setupComposerNostrPreview(state, noteInput, composer) {
         clearInterval(profileUpdateTimer);
         profileUpdateTimer = null;
       }
+      try {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('settings:showAvatarsUpdated', handleAvatarsSettingUpdated);
+        }
+      } catch (_e) {}
     }
   };
 }
