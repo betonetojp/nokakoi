@@ -82,6 +82,20 @@ body.famicom-mode.theme-light .channel-search-results {
   border-color: rgba(130, 17, 36, 0.2) !important;
 }
 
+/* フィード表示は他タブと同じ地色。一覧カードの枠は残す */
+body.famicom-mode .channel-portal-wrapper.show-chat .channel-main-view,
+body.famicom-mode.theme-light .channel-portal-wrapper.show-chat .channel-main-view {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: inherit !important;
+}
+body.famicom-mode .channel-portal-wrapper.show-chat .channel-chat-header,
+body.famicom-mode.theme-light .channel-portal-wrapper.show-chat .channel-chat-header {
+  background: transparent !important;
+}
+
 body.famicom-mode .channel-info-id,
 body.famicom-mode .channel-info-local-notice,
 body.famicom-mode .channel-info-creator-row {

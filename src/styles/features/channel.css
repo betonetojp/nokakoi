@@ -470,8 +470,21 @@
 }
 
 /* 一覧とチャットを排他表示 */
+.channel-portal-wrapper.show-chat {
+  margin-top: 0;
+}
 .channel-portal-wrapper.show-chat .channel-sidebar {
   display: none;
+}
+.channel-portal-wrapper.show-chat .channel-main-view {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.channel-portal-wrapper.show-chat .channel-chat-header {
+  padding: 8px 8px 10px;
+  background: transparent;
 }
 
 .channel-portal-wrapper:not(.show-chat) .channel-main-view {
