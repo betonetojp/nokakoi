@@ -5,7 +5,7 @@
 
 // バージョンは js/config/version.js で一元管理
 // (リリース時は `npm run version:update` で自動同期されます)
-const CACHE_VERSION = 'v1.149.6';
+const CACHE_VERSION = 'v1.149.7';
 const CACHE_NAME = `nokakoi-${CACHE_VERSION}`;
 
 // ローカル開発時のみ詳細ログを有効化
@@ -46,6 +46,7 @@ const STATIC_ASSETS = [
 // インストール時 - 静的アセットをキャッシュ
 self.addEventListener('install', (event) => {
   swLog('install', CACHE_VERSION);
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -98,7 +99,8 @@ self.addEventListener('fetch', (event) => {
     // HTML/CSS/JSは常にネットワーク優先（バージョン付きファイルはキャッシュしない）
     if (request.mode === 'navigate' || 
         url.pathname.endsWith('.css') || 
-        url.pathname.endsWith('.js') ||
+        url.pathname.endsWith('.js') || 
+        url.pathname.endsWith('.json') ||
         url.search.includes('v=')) {
       event.respondWith(
         fetch(request, {

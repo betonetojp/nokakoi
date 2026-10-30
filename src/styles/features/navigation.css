@@ -9,14 +9,16 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: var(--accent-muted);
+  background: var(--glass-bg, rgba(20, 22, 32, 0.78));
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   font-size: 1.2em;
   font-weight: normal;
   cursor: move;
-  box-shadow: none;
-  transition: transform 0.12s, opacity 0.2s;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+  transition: transform 0.12s, opacity 0.2s, background-color 0.2s;
   z-index: 600;
   user-select: none;
   -webkit-user-select: none;
@@ -27,8 +29,15 @@
   padding: 0;
   line-height: 1;
 }
+
+body.theme-light .scroll-to-top {
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
 .scroll-to-top:hover {
   transform: translateX(-50%) scale(1.03);
+  background: var(--panel-hover);
 }
 .scroll-to-top:active {
   transform: translateX(-50%) scale(0.95);
@@ -55,6 +64,19 @@
 .scroll-to-top.dragging {
   transform: scale(1.15) !important;
 }
+
+/* 透明効果無効化設定時 */
+body.no-glass-effect .scroll-to-top {
+  background: var(--accent-muted);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  border-color: var(--border);
+}
+body.no-glass-effect .scroll-to-top:hover {
+  background: var(--accent-muted);
+}
+
 @media (max-width: 768px) {
   .scroll-to-top {
     width: 45px;
