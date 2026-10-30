@@ -64,8 +64,8 @@
   z-index: 1000;
   padding: 1.5rem;
   border-radius: 12px;
-  backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 
 body.theme-light .editor-confirm-overlay {

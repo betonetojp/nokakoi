@@ -18,8 +18,8 @@
   z-index: 20;
   transform: translateY(0);
   transition: transform 0.3s ease-out;
-  backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
 }
 
 body.theme-light #composer.composer-floating,
@@ -62,8 +62,8 @@ body.theme-light #composer.floating textarea:focus {
 #composer.floating button.secondary {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border);
-  backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 
 #composer.composer-floating button.secondary:hover,
@@ -388,8 +388,8 @@ body.no-glass-effect #composer.composer-floating,
 body.no-glass-effect #composer.floating {
   background: var(--panel-base, #141620);
   background: var(--panel);
-  backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
 }
 
@@ -417,8 +417,8 @@ body.no-glass-effect #composer.floating textarea:focus {
 body.no-glass-effect #composer.composer-floating button.secondary,
 body.no-glass-effect #composer.floating button.secondary {
   background: var(--panel);
-  backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 body.no-glass-effect #composer.composer-floating button.secondary:hover,

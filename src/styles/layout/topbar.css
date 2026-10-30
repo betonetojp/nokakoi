@@ -5,8 +5,8 @@
   border-bottom: 1px solid var(--border);
   background: var(--glass-bg, rgba(20, 22, 32, 0.78));
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
   transition: background-color 0.3s, border-color 0.3s;
 }
 body.theme-light .topbar {
@@ -16,8 +16,8 @@ body.theme-light .topbar {
 /* 透明効果無効化設定時 */
 body.no-glass-effect .topbar {
   background: var(--topbar-bg);
-  backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   box-shadow: none;
   border-bottom-color: var(--border);
 }
@@ -61,8 +61,8 @@ body.no-glass-effect .topbar {
   color: var(--text);
   transition: all 0.2s;
   white-space: nowrap;
-  backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 .topbar button.primary:hover,
 .topbar button:not(.secondary):hover {
@@ -95,8 +95,8 @@ body.no-glass-effect .topbar button,
 body.no-glass-effect .topbar .secondary,
 body.no-glass-effect .topbar a.secondary {
   background: var(--panel);
-  backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 body.no-glass-effect .topbar .secondary {
   background: transparent;

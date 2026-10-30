@@ -19,8 +19,8 @@
   padding: 20px;
   z-index: 200;
   background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   -webkit-user-select: none;
   user-select: none;
 }
