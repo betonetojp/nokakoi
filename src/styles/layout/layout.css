@@ -16,7 +16,13 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.025);
   transition: border-color 0.3s, background-color 0.3s, box-shadow 0.3s;
 }
+/* リレー設定・表示設定は開閉どちらもタブバーと同程度の上下余白 */
+.panel:has(> details) {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
 .panel details { margin-top: 12px; }
+.panel:has(> details) > details { margin-top: 0; }
 .panel details summary {
   cursor: pointer;
   padding: 4px 0;

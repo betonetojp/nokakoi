@@ -81,7 +81,7 @@ export function extractReplyRecipients(state, targetEv) {
 
   // 2. rootId がある場合、root 投稿者の pubkey
   if (rootId && rootId !== targetEv.id) {
-    let resolvedRootPk = null;
+    let resolvedRootPk;
     try {
       const rootEv = findEventById(effectiveState, rootId);
       resolvedRootPk = ensureHexPubkey((rootEv && rootEv.pubkey) || rootTagPubkey || '');

@@ -1,6 +1,6 @@
 .event {
   border-bottom: 1px solid var(--border);
-  padding: 16px 8px;
+  padding: 8px;
   contain: layout;
   content-visibility: auto;
   contain-intrinsic-size: auto 160px;
