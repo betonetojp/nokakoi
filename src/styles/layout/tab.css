@@ -1,12 +1,20 @@
 .tabs {
   position: sticky;
   top: 0;
-  background: var(--bg);
+  background: var(--glass-bg, rgba(20, 22, 32, 0.78));
   padding: 10px 0;
   /* composer（z-index:20）とモーダルを tabs より前面に保つ */
   z-index: 10;
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   transition: background 0.3s, border-color 0.3s;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+body.theme-light .tabs {
+  border-bottom-color: rgba(226, 232, 240, 0.85);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
 }
 .tabs-scroller {
   display: flex;

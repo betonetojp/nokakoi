@@ -8,20 +8,80 @@
   left: 0; right: 0; bottom: 0;
   width: min(860px, calc(100% - 16px));
   margin: 0 auto 0 auto;
-  background: var(--panel-base, #141620);
-  background: var(--panel);
+  background: var(--glass-bg, rgba(20, 22, 32, 0.78));
   border: 1px solid var(--border);
   border-bottom: none;
   border-top-left-radius: 12px; border-top-right-radius: 12px;
   padding: 12px;
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 -8px 24px rgba(0,0,0,.5);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
   z-index: 20;
   transform: translateY(0);
   transition: transform 0.3s ease-out;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
 }
+
+body.theme-light #composer.composer-floating,
+body.theme-light #composer.floating {
+  border-color: rgba(226, 232, 240, 0.85);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
 #composer.composer-floating h2, #composer.floating h2 { margin: 0 0 6px; font-size: 1rem; }
-#composer.composer-floating textarea, #composer.floating textarea { min-height: 80px; max-height: 40vh; resize: vertical; }
+#composer.composer-floating textarea, #composer.floating textarea {
+  min-height: 80px;
+  max-height: 40vh;
+  resize: vertical;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#composer.composer-floating textarea:focus,
+#composer.floating textarea:focus {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-focus);
+}
+
+body.theme-light #composer.composer-floating textarea,
+body.theme-light #composer.floating textarea {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.10);
+}
+
+body.theme-light #composer.composer-floating textarea:focus,
+body.theme-light #composer.floating textarea:focus {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-focus);
+}
+
+#composer.composer-floating button.secondary,
+#composer.floating button.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+#composer.composer-floating button.secondary:hover,
+#composer.floating button.secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+body.theme-light #composer.composer-floating button.secondary,
+body.theme-light #composer.floating button.secondary {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+body.theme-light #composer.composer-floating button.secondary:hover,
+body.theme-light #composer.floating button.secondary:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
 #composer.composer-floating .row, #composer.floating .row { justify-content: space-between; }
 .composer-header-row {
   display: flex;

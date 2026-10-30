@@ -6,6 +6,7 @@
   --bg-base: #0b0c10;
   --panel-base: #141620;
   --topbar-bg-base: rgba(11, 12, 16, 0.95);
+  --glass-bg-base: rgba(20, 22, 32, 0.78);
   --text: #e2e8f0;
   --muted: #8492a6;
   --border: #1a1d29;
@@ -36,6 +37,7 @@ body {
   --bg: var(--bg-base);
   --panel: var(--panel-base);
   --topbar-bg: var(--topbar-bg-base);
+  --glass-bg: var(--glass-bg-base);
 }
 
 @supports (color: color-mix(in srgb, red, blue)) {
@@ -43,6 +45,10 @@ body {
     --bg: color-mix(in srgb, var(--bg-base), var(--bg-mix-color) var(--bg-mix-amount));
     --panel: color-mix(in srgb, var(--panel-base), var(--bg-mix-color) var(--bg-mix-amount));
     --topbar-bg: color-mix(in srgb, var(--topbar-bg-base), var(--bg-mix-color) var(--bg-mix-amount));
+    --glass-bg: color-mix(in srgb, var(--panel), transparent 22%);
+  }
+  body.theme-light {
+    --glass-bg: color-mix(in srgb, var(--panel), transparent 18%);
   }
 }
 
@@ -51,6 +57,7 @@ body.theme-light {
   --bg-base: #f8fafc;
   --panel-base: #ffffff;
   --topbar-bg-base: rgba(248, 250, 252, 0.95);
+  --glass-bg-base: rgba(255, 255, 255, 0.82);
   --text: #0f172a;
   --muted: #64748b;
   --border: #e2e8f0;
