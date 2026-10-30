@@ -79,3 +79,13 @@ body.theme-light .tabs {
 .feed { display: none; }
 .feed.active { display: block; min-height: calc(100vh - 100px); overflow-anchor: none; }
 .feed.active.back-scrolling { overflow-anchor: auto; }
+
+
+/* すりガラス（半透明）無効化設定時 */
+body.no-glass-effect .tabs {
+  background: var(--bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  border-bottom-color: var(--border);
+}

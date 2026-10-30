@@ -381,3 +381,47 @@ body.theme-light #composer.floating button.secondary:hover {
 }
 
 
+
+
+/* すりガラス（半透明）無効化設定時 */
+body.no-glass-effect #composer.composer-floating,
+body.no-glass-effect #composer.floating {
+  background: var(--panel-base, #141620);
+  background: var(--panel);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
+}
+
+body.no-glass-effect.theme-light #composer.composer-floating,
+body.no-glass-effect.theme-light #composer.floating {
+  background: var(--panel-base, #ffffff);
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+}
+
+body.no-glass-effect #composer.composer-floating textarea,
+body.no-glass-effect #composer.floating textarea {
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+body.no-glass-effect #composer.composer-floating textarea:focus,
+body.no-glass-effect #composer.floating textarea:focus {
+  background: var(--panel);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-focus);
+}
+
+body.no-glass-effect #composer.composer-floating button.secondary,
+body.no-glass-effect #composer.floating button.secondary {
+  background: var(--panel);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+body.no-glass-effect #composer.composer-floating button.secondary:hover,
+body.no-glass-effect #composer.floating button.secondary:hover {
+  background: var(--panel-hover);
+}

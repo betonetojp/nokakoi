@@ -50,6 +50,25 @@ export function setFamicomModeEnabled(settingsManager, enabled) {
   syncDisplayCheckbox('famicomModeCheck', enabled);
 }
 
+export function applyGlassEffect(enabled) {
+  try {
+    if (enabled) {
+      document.body.classList.remove('no-glass-effect');
+      document.body.classList.add('glass-effect');
+    } else {
+      document.body.classList.remove('glass-effect');
+      document.body.classList.add('no-glass-effect');
+    }
+  } catch (e) { }
+}
+
+export function setGlassEffectEnabled(settingsManager, enabled) {
+  settingsManager.set('glassEffect', enabled);
+  applyGlassEffect(enabled);
+  syncDisplayCheckbox('glassEffectCheck', enabled);
+  syncDisplayCheckbox('homeDisplayQuickGlassEffectCheck', enabled);
+}
+
 export function setShowTimelineMediaEnabled(settingsManager, enabled, restartFeeds) {
   settingsManager.set('showTimelineMedia', enabled);
   syncDisplayCheckbox('showTimelineMediaCheck', enabled);
@@ -185,6 +204,10 @@ export function showHomeDisplayQuickModal() {
   if (!modal || !compactCheck || !mediaCheck || !reactionsCheck || !muteCheck) return;
 
   compactCheck.checked = settingsManager.settings.simpleDisplayMode === true;
+  const quickGlassCheck = document.getElementById('homeDisplayQuickGlassEffectCheck');
+  if (quickGlassCheck) {
+    quickGlassCheck.checked = settingsManager.settings.glassEffect !== false;
+  }
   mediaCheck.checked = settingsManager.settings.showTimelineMedia === true;
   if (autoExpandCheck) autoExpandCheck.checked = settingsManager.settings.autoExpandSteganography === true;
   reactionsCheck.checked = settingsManager.settings.showHomeReactions === true;
@@ -236,6 +259,11 @@ export function showHomeDisplayQuickModal() {
   compactCheck.onchange = function () {
     setSimpleDisplayModeEnabled(settingsManager, compactCheck.checked);
   };
+  if (quickGlassCheck) {
+    quickGlassCheck.onchange = function () {
+      setGlassEffectEnabled(settingsManager, quickGlassCheck.checked);
+    };
+  }
   mediaCheck.onchange = function () {
     setShowTimelineMediaEnabled(settingsManager, mediaCheck.checked);
   };
@@ -339,6 +367,15 @@ export function setupDisplaySettings(settingsManager, restartFeeds, resetScrollT
     applySimpleDisplayMode(simpleDisplayModeCheck.checked);
     simpleDisplayModeCheck.onchange = function () {
       setSimpleDisplayModeEnabled(settingsManager, simpleDisplayModeCheck.checked);
+    };
+  }
+
+  const glassEffectCheck = $('glassEffectCheck');
+  if (glassEffectCheck) {
+    glassEffectCheck.checked = settingsManager.settings.glassEffect !== false;
+    applyGlassEffect(glassEffectCheck.checked);
+    glassEffectCheck.onchange = function () {
+      setGlassEffectEnabled(settingsManager, glassEffectCheck.checked);
     };
   }
 
@@ -838,7 +875,13 @@ export function refreshAllDisplaySettingsUI(settingsManager) {
     syncDisplayCheckbox('simpleDisplayModeCheck', compact);
     syncDisplayCheckbox('homeDisplayQuickCompactCheck', compact);
 
-    // 1-2. ファミコンモード
+    // 1-2. すりガラス（半透明）モード
+    const glass = s.glassEffect !== false;
+    applyGlassEffect(glass);
+    syncDisplayCheckbox('glassEffectCheck', glass);
+    syncDisplayCheckbox('homeDisplayQuickGlassEffectCheck', glass);
+
+    // 1-3. ファミコンモード
     const famicom = s.famicomMode === true;
     applyFamicomMode(famicom);
     syncDisplayCheckbox('famicomModeCheck', famicom);

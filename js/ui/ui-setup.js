@@ -11,6 +11,8 @@ export {
   applyBgBrightness,
   applySimpleDisplayMode,
   setSimpleDisplayModeEnabled,
+  applyGlassEffect,
+  setGlassEffectEnabled,
   setShowTimelineMediaEnabled,
   setShowHomeReactionsEnabled,
   setMuteApplyEnabled,

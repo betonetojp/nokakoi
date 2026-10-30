@@ -18,6 +18,7 @@ describe('Home Display Quick Settings Modal', () => {
         showTimelineMedia: true,
         autoExpandSteganography: false,
         showHomeReactions: true,
+        glassEffect: true,
         showReceivedDelta: true
       },
       get: vi.fn((key) => settingsManager.settings[key]),
@@ -29,6 +30,7 @@ describe('Home Display Quick Settings Modal', () => {
     document.body.innerHTML = `
       <div id="homeDisplayQuickModal" class="modal" role="dialog" hidden>
         <input type="checkbox" id="homeDisplayQuickCompactCheck">
+        <input type="checkbox" id="homeDisplayQuickGlassEffectCheck">
         <input type="checkbox" id="homeDisplayQuickMediaCheck">
         <input type="checkbox" id="homeDisplayQuickAutoExpandSteganographyCheck">
         <input type="checkbox" id="homeDisplayQuickReactionsCheck">
@@ -49,6 +51,7 @@ describe('Home Display Quick Settings Modal', () => {
       </div>
 
       <!-- 通常設定画面側の要素（同期確認用） -->
+      <input type="checkbox" id="glassEffectCheck">
       <input type="checkbox" id="showAvatarsCheck">
       <input type="checkbox" id="applyMuteCheckbox">
       <input type="checkbox" id="muteApplyKind0Checkbox">
@@ -179,5 +182,33 @@ describe('Home Display Quick Settings Modal', () => {
 
     expect(evaluateMuteState({}, 'pk', 'text').muteApply).toBe(true);
     expect(modeWrap.classList.contains('d-none')).toBe(false);
+  });
+  it('initializes and toggles glassEffect and updates body classes', () => {
+    showHomeDisplayQuickModal();
+
+    const quickGlassCheck = document.getElementById('homeDisplayQuickGlassEffectCheck');
+    const normalGlassCheck = document.getElementById('glassEffectCheck');
+
+    expect(quickGlassCheck.checked).toBe(true);
+    expect(document.body.classList.contains('glass-effect')).toBe(true);
+    expect(document.body.classList.contains('no-glass-effect')).toBe(false);
+
+    // Toggle OFF
+    quickGlassCheck.checked = false;
+    quickGlassCheck.dispatchEvent(new Event('change'));
+
+    expect(settingsManager.settings.glassEffect).toBe(false);
+    expect(normalGlassCheck.checked).toBe(false);
+    expect(document.body.classList.contains('no-glass-effect')).toBe(true);
+    expect(document.body.classList.contains('glass-effect')).toBe(false);
+
+    // Toggle ON
+    quickGlassCheck.checked = true;
+    quickGlassCheck.dispatchEvent(new Event('change'));
+
+    expect(settingsManager.settings.glassEffect).toBe(true);
+    expect(normalGlassCheck.checked).toBe(true);
+    expect(document.body.classList.contains('glass-effect')).toBe(true);
+    expect(document.body.classList.contains('no-glass-effect')).toBe(false);
   });
 });

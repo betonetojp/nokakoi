@@ -30,6 +30,7 @@ export class SettingsManager {
       globalLangFilterEnabled: false,
       globalLangFilterSelected: ['jpn'],
       simpleDisplayMode: true,
+      glassEffect: true,
       famicomMode: false,
       showAvatars: true,
       showTimelineMedia: false,
