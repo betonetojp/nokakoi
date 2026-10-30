@@ -394,7 +394,7 @@ body.theme-light img.icon-btn {
   font-size: 1.2em;
 }
 .reaction .reply-marker {
-  color: var(--reaction-border);
+  color: var(--text);
 }
 .repost .reply-marker {
   color: var(--repost-border);
