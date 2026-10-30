@@ -1,25 +1,24 @@
 .tabs {
   position: sticky;
   top: 0;
-  background: var(--glass-bg, rgba(20, 22, 32, 0.78));
-  padding: 10px 0;
+  background: var(--tab-bg, rgba(11, 12, 16, 0.82));
+  padding: 0;
   /* composer（z-index:20）とモーダルを tabs より前面に保つ */
   z-index: 10;
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   transition: background 0.3s, border-color 0.3s;
   -webkit-backdrop-filter: blur(16px) saturate(180%);
   backdrop-filter: blur(16px) saturate(180%);
 }
 
 body.theme-light .tabs {
-  border-bottom-color: rgba(226, 232, 240, 0.85);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  border-bottom-color: var(--border);
 }
+
 .tabs-scroller {
   display: flex;
   flex-wrap: nowrap;
-  gap: 6px;
+  gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
   touch-action: pan-x;
@@ -40,46 +39,72 @@ body.theme-light .tabs {
   background: transparent;
   color: var(--muted);
   border: none;
-  padding: 8px 16px;
-  border-radius: 20px;
+  padding: 12px 16px;
+  border-radius: 0;
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color 0.15s ease, background-color 0.15s ease;
   white-space: nowrap;
 }
 .tab:hover {
   color: var(--text);
-  background: var(--panel-hover);
+  background: rgba(255, 255, 255, 0.04);
+}
+body.theme-light .tab:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
 .tab.active {
-  background: var(--accent-muted);
-  color: var(--accent);
-  font-weight: 600;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 20%, transparent);
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: none;
+}
+/* 選択中タブの下部アクセントアンダーライン（X / Bluesky スタイル） */
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 16px;
+  right: 16px;
+  height: 3.5px;
+  background: var(--accent);
+  border-radius: 9999px;
 }
 @media (max-width: 420px) {
   .tab {
-    font-size: 0.8rem;
-    padding: 6px 8px;
+    font-size: 0.82rem;
+    padding: 10px 10px;
+  }
+  .tab.active::after {
+    left: 10px;
+    right: 10px;
+    height: 3px;
   }
 }
-/* タブ新着通知ドット */
-.tab.has-new-dot::after {
+/* タブ新着通知ドット（::before でアンダーラインと分離） */
+.tab.has-new-dot::before {
   content: '';
   position: absolute;
-  top: 0;
-  right: -2px;
-  width: 8px;
-  height: 8px;
+  top: 8px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
   background: #ff6b6b;
   border-radius: 50%;
   pointer-events: none;
 }
+@media (max-width: 420px) {
+  .tab.has-new-dot::before {
+    top: 6px;
+    right: 3px;
+    width: 6px;
+    height: 6px;
+  }
+}
 .feed { display: none; }
 .feed.active { display: block; min-height: calc(100vh - 100px); overflow-anchor: none; }
 .feed.active.back-scrolling { overflow-anchor: auto; }
-
 
 /* すりガラス（半透明）無効化設定時 */
 body.no-glass-effect .tabs {

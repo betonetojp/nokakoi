@@ -52,8 +52,15 @@ body.theme-light .scroll-to-top {
   pointer-events: auto;
 }
 .scroll-to-top.has-new {
-  animation: mention-blink 1.2s ease-in-out infinite;
+  animation: scroll-top-pulse 1.6s ease-in-out infinite;
   border-color: var(--accent);
+}
+body.theme-light .scroll-to-top.has-new {
+  animation: scroll-top-pulse-light 1.6s ease-in-out infinite;
+}
+.scroll-to-top.has-new img.icon-btn,
+.scroll-to-top.has-new img {
+  animation: scroll-top-arrow-bounce 1.6s ease-in-out infinite;
 }
 .scroll-to-top.dragging {
   cursor: grabbing;

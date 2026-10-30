@@ -236,6 +236,9 @@ body.famicom-mode.theme-light .btn-react:active {
 }
 
 /* アクティブタブ */
+body.famicom-mode .tab.active::after {
+  display: none !important;
+}
 body.famicom-mode .tab.active {
   border-color: var(--fc-gold) !important;
   background-color: var(--fc-dark-red) !important;
