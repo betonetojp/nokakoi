@@ -74,7 +74,7 @@ export function resolveReactionCustomEmoji(reaction) {
     if (registered && registered.url) {
       return {
         shortcode,
-        url: String(registered.url),
+        url: (shortcode === 'nokakoi' && (String(registered.url) === 'icon/nokakoi.png' || !/^https?:\/\//i.test(String(registered.url)))) ? resolveNokakoiIconUrl() : String(registered.url),
         address: registered.address ? String(registered.address) : ''
       };
     }
@@ -87,7 +87,7 @@ export function resolveReactionCustomEmoji(reaction) {
       if (resolved && resolved.url) {
         return {
           shortcode,
-          url: String(resolved.url),
+          url: (shortcode === 'nokakoi' && (String(resolved.url) === 'icon/nokakoi.png' || !/^https?:\/\//i.test(String(resolved.url)))) ? resolveNokakoiIconUrl() : String(resolved.url),
           address: resolved.address ? String(resolved.address) : ''
         };
       }

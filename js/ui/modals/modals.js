@@ -2,11 +2,12 @@
 // モーダルダイアログ
 // ============================================================================
 
-import { $, showToast, buildReactionEmojiTags, buildStoredReactionValue, getReactionContent, getReactionEmojiTags, isReactionShortcodeOnly, resolveReactionCustomEmoji, isRelativeOrLocalEmojiUrl } from '../../utils/utils.js';
+import { $, showToast, buildReactionEmojiTags, buildStoredReactionValue, getReactionContent, getReactionEmojiTags, isReactionShortcodeOnly, resolveReactionCustomEmoji, isRelativeOrLocalEmojiUrl, resolveNokakoiIconUrl } from '../../utils/utils.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { DEFAULT_OMOCHAT_RELAYS } from '../../config/constants.js';
 import { attachEmojiShortcodeSuggest } from '../../features/emoji/emoji-shortcode-suggest.js';
-import { registerTextShortcodeVariant } from '../../features/emoji/custom-emoji-store.js';
+import { registerTextShortcodeVariant, resolveCustomEmoji } from '../../features/emoji/custom-emoji-store.js';
+import { getCustomEmojis } from '../../core/app-context.js';
 import { getClosestRelays } from '../../features/relay/geo-relay-directory.js';
 import { bringModalToFront } from '../setup/modal-helper.js';
 
@@ -282,7 +283,9 @@ function renderRecentReactions(modal, input, statusEl) {
           const tags = getReactionEmojiTags(reaction);
           const tag = (Array.isArray(tags) && tags[0]) ? tags[0] : null;
           if (tag && tag[2]) {
-            const variant = { url: tag[2], address: tag[3] || '' };
+            const rawUrl = String(tag[2]);
+            const url = (shortcode === 'nokakoi' && (rawUrl === 'icon/nokakoi.png' || !/^https?:\/\//i.test(rawUrl))) ? resolveNokakoiIconUrl() : rawUrl;
+            const variant = { url, address: tag[3] || '' };
             registerTextShortcodeVariant(shortcode, variant, shortcode);
           }
         }
@@ -345,7 +348,9 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
       const tags = getReactionEmojiTags(initialValue);
       const tag = (Array.isArray(tags) && tags[0]) ? tags[0] : null;
       if (tag && tag[2]) {
-        const variant = { url: tag[2], address: tag[3] || '' };
+        const rawUrl = String(tag[2]);
+        const url = (shortcode === 'nokakoi' && (rawUrl === 'icon/nokakoi.png' || !/^https?:\/\//i.test(rawUrl))) ? resolveNokakoiIconUrl() : rawUrl;
+        const variant = { url, address: tag[3] || '' };
         registerTextShortcodeVariant(shortcode, variant, shortcode);
       }
     }
@@ -488,6 +493,18 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
       e.stopPropagation();
       const reaction = btn.dataset.reaction;
       if (reaction) {
+        if (reaction === ':nokakoi:') {
+          try {
+            const customEmojis = getCustomEmojis();
+            const resolved = customEmojis ? resolveCustomEmoji(customEmojis, 'nokakoi') : null;
+            const safeUrl = (resolved && resolved.url && /^https?:\/\//i.test(resolved.url))
+              ? resolved.url
+              : resolveNokakoiIconUrl();
+            registerTextShortcodeVariant('nokakoi', { url: safeUrl, address: (resolved && resolved.address) || '' }, 'nokakoi');
+          } catch (_e) {
+            registerTextShortcodeVariant('nokakoi', { url: resolveNokakoiIconUrl(), address: '' }, 'nokakoi');
+          }
+        }
         input.value = reaction;
         updateReactionPreview(modal, input);
         if (statusEl) statusEl.textContent = '';

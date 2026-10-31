@@ -7,6 +7,9 @@ describe('reaction modal relative/local URL warning and confirmation', () => {
   beforeEach(() => {
     document.body.innerHTML = `
       <div id="reactionModal" class="modal" role="dialog" hidden>
+        <div class="reaction-quick-row">
+          <button type="button" class="quick-reaction" data-reaction=":nokakoi:"><img src="icon/nokakoi.png"></button>
+        </div>
         <textarea id="reactionInput"></textarea>
         <button id="reactionSave"></button>
         <button id="reactionSaveAndReact"></button>
@@ -92,5 +95,28 @@ describe('reaction modal relative/local URL warning and confirmation', () => {
     await new Promise(r => setTimeout(r, 50));
 
     expect(onConfirm).toHaveBeenCalled();
+  });
+
+  it('updates :nokakoi: to absolute URL and does NOT trigger warning when quick button is clicked', () => {
+    // Simulate legacy relative path being registered beforehand
+    registerTextShortcodeVariant('nokakoi', { url: 'icon/nokakoi.png' });
+
+    showReactionModal('+', vi.fn(), null, {});
+
+    const quickBtn = document.querySelector('.reaction-quick-row .quick-reaction[data-reaction=":nokakoi:"]');
+    expect(quickBtn).not.toBeNull();
+    quickBtn.click();
+
+    const input = document.getElementById('reactionInput');
+    expect(input.value).toBe(':nokakoi:');
+
+    const preview = document.querySelector('[data-reaction-preview="1"]');
+    expect(preview).not.toBeNull();
+    const warning = preview.querySelector('.status-warning');
+    expect(warning).toBeNull();
+
+    const img = preview.querySelector('img');
+    expect(img.src).toContain('https://');
+    expect(img.src).not.toContain('icon/nokakoi.png"');
   });
 });

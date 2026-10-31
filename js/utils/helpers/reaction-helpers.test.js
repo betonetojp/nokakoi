@@ -7,6 +7,7 @@ import {
   NOKAKOI_DEFAULT_ICON_URL,
   isRelativeOrLocalEmojiUrl,
 } from './reaction-helpers.js';
+import { registerTextShortcodeVariant, clearTextShortcodeRegistry } from '../../features/emoji/custom-emoji-store.js';
 import { formatReaction, setReactionDisplay } from '../../ui/renderers/reaction-renderer.js';
 
 describe('reaction-helpers: :nokakoi: resolution', () => {
@@ -33,6 +34,14 @@ describe('reaction-helpers: :nokakoi: resolution', () => {
 
     const stored = buildStoredReactionValue(legacyReaction);
     expect(stored.emojiTags).toEqual([['emoji', 'nokakoi', NOKAKOI_DEFAULT_ICON_URL]]);
+  });
+
+  it('upgrades registered legacy icon/nokakoi.png to absolute URL', () => {
+    registerTextShortcodeVariant('nokakoi', { url: 'icon/nokakoi.png' });
+    const resolved = resolveReactionCustomEmoji(':nokakoi:');
+    expect(resolved.url).toBe(NOKAKOI_DEFAULT_ICON_URL);
+    expect(resolved.url.startsWith('https://')).toBe(true);
+    clearTextShortcodeRegistry();
   });
 });
 
