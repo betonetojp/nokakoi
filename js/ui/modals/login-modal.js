@@ -380,7 +380,7 @@ function renderReadOnlyScreen(state, settings, settingsManager, onLoginSuccess) 
       <div class="readonly-display" style="margin-bottom:12px;">
         <label class="modal-field-label" for="readOnlyPubkeyInput">${t('readonly.input_label')}</label>
         <div style="display:flex; gap:8px; margin-top:4px;">
-          <input type="text" id="readOnlyPubkeyInput" placeholder="${t('readonly.input_placeholder')}" style="flex:1; padding:8px; box-sizing:border-box; font-family:monospace; font-size:0.9em;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <input type="text" id="readOnlyPubkeyInput" placeholder="${t('readonly.input_placeholder')}" style="flex:1; padding:8px; box-sizing:border-box; font-family:monospace;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
       </div>
 

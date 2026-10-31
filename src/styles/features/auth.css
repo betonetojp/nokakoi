@@ -258,3 +258,7 @@ body[data-theme="light"] #autoLoginOptions {
   font-family: monospace;
 }
 
+#readOnlyPubkeyInput {
+  font-size: 0.9em;
+}
+

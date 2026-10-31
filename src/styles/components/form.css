@@ -177,7 +177,8 @@ label > select#themeSelect {
   #postLinkTitleInput,
   #postLinkUrlInput,
   #clientNameInput,
-  #previewMaxLengthInput {
+  #previewMaxLengthInput,
+  #readOnlyPubkeyInput {
     font-size: 16px !important;
   }
   #nip46Modal input[type="text"],
