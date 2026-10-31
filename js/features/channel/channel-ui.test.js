@@ -493,4 +493,47 @@ describe('openChannelFromExternal', () => {
   });
 });
 
+describe('pinning a channel tab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    document.body.innerHTML = `
+      <div class="tabs"><button class="tab active" data-tab="channels"></button></div>
+      <div id="feeds"><div id="feed-channels" class="feed active"></div></div>
+    `;
+    mocks.fetchPublicChatsEntries.mockResolvedValue({ event: null, entries: [] });
+  });
+
+  it('resets general channels view back to list when pinned', async () => {
+    let savedTabs = [{ id: 'channels', visible: true }];
+    const sm = {
+      get: vi.fn((key) => key === 'tabs_v2' ? savedTabs : null),
+      set: vi.fn((key, val) => { if (key === 'tabs_v2') savedTabs = val; }),
+    };
+    const feedChannels = document.getElementById('feed-channels');
+    initChannelView(feedChannels, { pubkey: ACCOUNT_A }, sm);
+    await flushPromises();
+
+    await selectChannel(OLD_CHANNEL);
+    await flushPromises();
+
+    const wrapper = feedChannels.querySelector('.channel-portal-wrapper');
+    const chatContainer = feedChannels.querySelector('#channelChatContainer');
+    const emptyState = feedChannels.querySelector('#channelEmptyState');
+    expect(wrapper.classList.contains('show-chat')).toBe(true);
+    expect(chatContainer.classList.contains('d-none')).toBe(false);
+
+    const pinBtn = feedChannels.querySelector('#channelPinBtn');
+    expect(pinBtn).toBeTruthy();
+    pinBtn.click();
+    await flushPromises();
+
+    expect(wrapper.classList.contains('show-chat')).toBe(false);
+    expect(chatContainer.classList.contains('d-none')).toBe(true);
+    expect(emptyState.classList.contains('d-none')).toBe(false);
+
+    expect(savedTabs.some(t => t.id === `channel-${OLD_CHANNEL}`)).toBe(true);
+  });
+});
+
 

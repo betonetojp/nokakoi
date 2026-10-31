@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   pauseChannelSubscriptions: vi.fn(() => mocks.calls.push('pause')),
   resumeChannelSubscriptions: vi.fn(() => mocks.calls.push('resume')),
   syncChannelComposerState: vi.fn(() => mocks.calls.push('sync')),
+  subscribeChannelFeed: vi.fn(),
+  unsubscribeAllChannelFeeds: vi.fn(() => mocks.calls.push('unsubscribeChannel')),
 }));
 
 vi.mock('../../utils/i18n.js', () => ({ t: key => key, applyTranslations: vi.fn() }));
@@ -19,6 +21,7 @@ vi.mock('./mention-blink.js', () => ({ setMentionBlink: vi.fn() }));
 vi.mock('./display-settings.js', () => ({ showHomeDisplayQuickModal: vi.fn() }));
 vi.mock('../../core/app-context.js', () => ({
   getAppState: vi.fn(() => ({})),
+  getSettingsManager: vi.fn(() => null),
   setRelayInspector: vi.fn()
 }));
 vi.mock('../../features/channel/channel-ui.js', () => ({
@@ -28,7 +31,16 @@ vi.mock('../../features/channel/channel-ui.js', () => ({
   syncChannelComposerState: mocks.syncChannelComposerState,
 }));
 
-import { setupTabs, activateTab, ensureTabVisible } from './tab-manager.js';
+vi.mock('../../features/channel/channel-feed.js', () => ({
+  subscribeChannelFeed: mocks.subscribeChannelFeed,
+  unsubscribeAllChannelFeeds: mocks.unsubscribeAllChannelFeeds,
+}));
+vi.mock('../../features/channel/channel.js', () => ({
+  shortenChannelEventId: vi.fn(id => String(id).slice(0, 8)),
+  fetchChannelMetadata: vi.fn().mockResolvedValue({ label: 'TestChannel' }),
+}));
+
+import { setupTabs, activateTab, ensureTabVisible, addChannelTab, removeChannelTab, isChannelTabPinned, renderTabSettingsUI } from './tab-manager.js';
 
 function settingsManagerFor(ids) {
   return {
@@ -183,7 +195,75 @@ describe('channel tab activation', () => {
     expect(settingsManager.set).toHaveBeenCalledWith(
       'tabs_v2',
       expect.arrayContaining([expect.objectContaining({ id: 'channels', visible: true })])
+
     );
+  });
+
+  it('adds, activates, and removes a pinned channel tab dynamically', async () => {
+    let savedTabs = [
+      { id: 'home', visible: true },
+      { id: 'channels', visible: true }
+    ];
+    const settingsManager = {
+      settings: {},
+      get: vi.fn(key => key === 'tabs_v2' ? savedTabs : null),
+      set: vi.fn((key, val) => {
+        if (key === 'tabs_v2') savedTabs = val;
+      })
+    };
+
+    setupTabs(settingsManager);
+    expect(isChannelTabPinned(settingsManager, 'root123')).toBe(false);
+
+    addChannelTab(settingsManager, { rootId: 'root123', name: 'Nostr日本語' });
+    expect(isChannelTabPinned(settingsManager, 'root123')).toBe(true);
+
+    const channelTabBtn = document.querySelector('.tab[data-tab="channel-root123"]');
+    expect(channelTabBtn).not.toBeNull();
+    expect(channelTabBtn.textContent).toBe('# Nostr日本語');
+    expect(channelTabBtn.classList.contains('active')).toBe(true);
+
+    const dynamicFeed = document.getElementById('feed-channel-root123');
+    expect(dynamicFeed).not.toBeNull();
+    expect(dynamicFeed.classList.contains('active')).toBe(true);
+    expect(mocks.subscribeChannelFeed).toHaveBeenCalledWith(
+      'root123',
+      expect.anything(),
+      dynamicFeed,
+      settingsManager,
+      expect.objectContaining({ resume: true })
+    );
+
+
+    document.querySelector('.tab[data-tab="home"]').click();
+    expect(mocks.unsubscribeAllChannelFeeds).toHaveBeenCalled();
+
+    removeChannelTab(settingsManager, 'root123');
+    expect(isChannelTabPinned(settingsManager, 'root123')).toBe(false);
+    expect(document.querySelector('.tab[data-tab="channel-root123"]')).toBeNull();
+    expect(document.getElementById('feed-channel-root123')).toBeNull();
+  });
+
+  it('renders custom channel tab with remove button in tab settings UI', async () => {
+    let savedTabs = [
+      { id: 'home', visible: true },
+      { id: 'channel-test1', type: 'channel', rootId: 'test1', label: '# 雑談', canRemove: true, visible: true }
+    ];
+    const settingsManager = {
+      settings: {},
+      get: vi.fn(key => key === 'tabs_v2' ? savedTabs : null),
+      set: vi.fn((key, val) => {
+        if (key === 'tabs_v2') savedTabs = val;
+      })
+    };
+
+    const container = document.createElement('div');
+    renderTabSettingsUI(settingsManager, container);
+
+    const removeBtn = container.querySelector('.tab-order-remove-btn');
+    expect(removeBtn).not.toBeNull();
+    expect(removeBtn.textContent).toBe('✕');
+
   });
 });
 

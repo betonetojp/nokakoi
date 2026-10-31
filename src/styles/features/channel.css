@@ -490,3 +490,10 @@
 .channel-portal-wrapper:not(.show-chat) .channel-main-view {
   display: none;
 }
+
+
+#channelPinBtn.active {
+  background: var(--accent, #e91e63);
+  color: var(--accent-contrast, #fff);
+  border-color: var(--accent, #e91e63);
+}

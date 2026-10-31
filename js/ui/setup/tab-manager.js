@@ -1,9 +1,11 @@
 import { t, applyTranslations } from '../../utils/i18n.js';
-import { showOmochatSettingsModal } from '../modals/modals.js';
-import { clearReplyTarget } from '../../features/post/composer.js';
+import { showOmochatSettingsModal, showConfirmModal } from '../modals/modals.js';
+import { clearReplyTarget, setChannelTarget } from '../../features/post/composer.js';
+import { shortenChannelEventId, fetchChannelMetadata } from '../../features/channel/channel.js';
+import { subscribeChannelFeed, unsubscribeAllChannelFeeds } from '../../features/channel/channel-feed.js';
 import { setMentionBlink } from './mention-blink.js';
 import { showHomeDisplayQuickModal } from './display-settings.js';
-import { getAppState, updateTabVisibility } from '../../core/app-context.js';
+import { getAppState, updateTabVisibility, getSettingsManager } from '../../core/app-context.js';
 import { writeMentionLastViewed } from '../../utils/mention-last-viewed.js';
 import {
   initChannelView,
@@ -61,6 +63,11 @@ export function loadTabSettings(settingsManager) {
         if (bitIndex >= 0) raw.splice(bitIndex, 0, newChan);
         else raw.push(newChan);
       }
+      raw.forEach(t => {
+        if (t.id === 'channels' || (t.id && t.id.startsWith('channel-'))) {
+          t.notifyDot = false;
+        }
+      });
       return raw;
     }
   } catch (e) {}
@@ -75,13 +82,152 @@ export function loadTabSettings(settingsManager) {
 
   tabs.forEach(t => {
     if (t.visible === undefined) t.visible = t.defaultVisible;
-    if (t.notifyDot === undefined) t.notifyDot = true;
+    if (t.notifyDot === undefined) t.notifyDot = (t.id !== 'channels' && !t.id.startsWith('channel-'));
   });
   return tabs;
 }
 
 export function saveTabSettings(settingsManager, tabs) {
   settingsManager.set('tabs_v2', tabs);
+}
+
+export function getChannelTabId(rootId) {
+  if (!rootId) return '';
+  return String(rootId).startsWith('channel-') ? String(rootId) : `channel-${rootId}`;
+}
+
+export function isChannelTabPinned(settingsManager, rootId) {
+  if (!settingsManager || !rootId) return false;
+  const tabId = getChannelTabId(rootId);
+  const currentTabs = loadTabSettings(settingsManager);
+  return currentTabs.some(t => t.id === tabId || t.rootId === rootId);
+}
+
+export function addChannelTab(settingsManager, { rootId, name = '', relays = [] } = {}) {
+  if (!settingsManager || !rootId) return false;
+  const tabId = getChannelTabId(rootId);
+  const currentTabs = loadTabSettings(settingsManager);
+  const existing = currentTabs.find(t => t.id === tabId || t.rootId === rootId);
+  if (existing) {
+    if (existing.visible === false) {
+      existing.visible = true;
+      saveTabSettings(settingsManager, currentTabs);
+      refreshTabSettingsUI(settingsManager);
+    }
+    setupTabs(settingsManager, true);
+    activateTab(existing.id, settingsManager);
+    try { window.dispatchEvent(new CustomEvent('tabsRebuilt')); } catch (e) {}
+    return true;
+  }
+
+  const rawName = String(name || '').trim();
+  const label = rawName ? (rawName.startsWith('#') ? rawName : `# ${rawName}`) : `# ${shortenChannelEventId(rootId)}`;
+  const newTab = {
+    id: tabId,
+    type: 'channel',
+    rootId,
+    label,
+    fallbackLabel: label,
+    canRemove: true,
+    canToggle: true,
+    defaultVisible: true,
+    visible: true,
+    notifyDot: false,
+    relays: Array.isArray(relays) ? relays : []
+  };
+
+  const chanIndex = currentTabs.findIndex(t => t.id === 'channels');
+  if (chanIndex >= 0) {
+    let insertIndex = chanIndex + 1;
+    while (insertIndex < currentTabs.length && currentTabs[insertIndex].id.startsWith('channel-')) {
+      insertIndex++;
+    }
+    currentTabs.splice(insertIndex, 0, newTab);
+  } else {
+    currentTabs.push(newTab);
+  }
+
+  saveTabSettings(settingsManager, currentTabs);
+  refreshTabSettingsUI(settingsManager);
+  setupTabs(settingsManager, true);
+  activateTab(tabId, settingsManager);
+  try { window.dispatchEvent(new CustomEvent('tabsRebuilt')); } catch (e) {}
+  return true;
+}
+
+export function removeChannelTab(settingsManager, rootId) {
+  if (!settingsManager || !rootId) return false;
+  const tabId = getChannelTabId(rootId);
+  const currentTabs = loadTabSettings(settingsManager);
+  const targetIndex = currentTabs.findIndex(t => t.id === tabId || t.rootId === rootId);
+  if (targetIndex < 0) return false;
+
+  const targetTab = currentTabs[targetIndex];
+  currentTabs.splice(targetIndex, 1);
+  saveTabSettings(settingsManager, currentTabs);
+  refreshTabSettingsUI(settingsManager);
+
+  const activeBtn = document.querySelector('.tabs .tab.active');
+  const activeTabId = activeBtn ? activeBtn.dataset.tab : null;
+  const wasActive = activeTabId === tabId || activeTabId === targetTab.id;
+
+  try {
+    const feedEl = document.getElementById(`feed-${tabId}`) || document.getElementById(`feed-${targetTab.id}`);
+    if (feedEl && feedEl.parentNode) {
+      feedEl.parentNode.removeChild(feedEl);
+    }
+  } catch (_e) {}
+
+  setupTabs(settingsManager, !wasActive);
+  if (wasActive) {
+    const nextTab = currentTabs.find(t => t.visible !== false) || currentTabs[0];
+    if (nextTab) activateTab(nextTab.id, settingsManager);
+  }
+  try { window.dispatchEvent(new CustomEvent('tabsRebuilt')); } catch (e) {}
+  return true;
+}
+
+async function ensureChannelFeedForTab(rootId, containerEl, settingsManager) {
+  if (!rootId || !containerEl) return;
+  const state = getAppState();
+
+  if (typeof unsubscribeAllChannelFeeds === 'function') {
+    unsubscribeAllChannelFeeds();
+  }
+
+  const tabs = loadTabSettings(settingsManager);
+  const cfg = tabs.find(t => t.id === `channel-${rootId}` || t.rootId === rootId);
+  const channelName = cfg ? cfg.label : `# ${shortenChannelEventId(rootId)}`;
+  try {
+    setChannelTarget({ rootId, name: channelName.replace(/^#\s*/, ''), relays: cfg?.relays || [] });
+  } catch (_e) {}
+
+  try {
+    await subscribeChannelFeed(rootId, state, containerEl, settingsManager, { resume: true });
+  } catch (_e) {}
+
+  if (typeof fetchChannelMetadata === 'function') {
+    fetchChannelMetadata(state, rootId).then(meta => {
+      if (!meta) return;
+      const name = meta.label || (meta.metaEvent && meta.metaEvent.content ? (() => {
+        try { return JSON.parse(meta.metaEvent.content).name; } catch (e) { return null; }
+      })() : null);
+      if (name) {
+        const newLabel = `# ${name}`;
+        if (cfg && cfg.label !== newLabel) {
+          cfg.label = newLabel;
+          cfg.fallbackLabel = newLabel;
+          saveTabSettings(settingsManager, tabs);
+          const btn = document.querySelector(`.tab[data-tab="channel-${rootId}"]`);
+          if (btn) btn.textContent = newLabel;
+          refreshTabSettingsUI(settingsManager);
+        }
+        try {
+          setChannelTarget({ rootId, name, relays: cfg?.relays || [] });
+        } catch (_e) {}
+      }
+    }).catch(() => {});
+  }
 }
 
 export function clearMentionBlinkState() {
@@ -126,6 +272,7 @@ export function ensureTabVisible(tabId, settingsManager) {
   if (target.visible === false) {
     target.visible = true;
     saveTabSettings(settingsManager, currentTabs);
+    refreshTabSettingsUI(settingsManager);
     setupTabs(settingsManager, true);
     try { window.dispatchEvent(new CustomEvent('tabsRebuilt')); } catch (e) { }
     return true;
@@ -164,7 +311,19 @@ export function activateTab(tabOrId, settingsManager, options = {}) {
 
   const feeds = document.querySelectorAll('.feed');
   feeds.forEach(feed => feed.classList.remove('active'));
-  const targetFeed = document.getElementById('feed-' + tabId);
+
+  let targetFeed = document.getElementById('feed-' + tabId);
+  if (!targetFeed && tabId.startsWith('channel-')) {
+    const feedsContainer = document.getElementById('feeds') || document.querySelector('.feed')?.parentNode || document.body;
+    if (feedsContainer) {
+      targetFeed = document.createElement('div');
+      targetFeed.id = 'feed-' + tabId;
+      targetFeed.className = 'feed';
+      targetFeed.dataset.channelRootId = tabId.slice('channel-'.length);
+      feedsContainer.appendChild(targetFeed);
+    }
+  }
+
   if (targetFeed) {
     targetFeed.classList.add('active');
     if (scroll) {
@@ -188,7 +347,12 @@ export function activateTab(tabOrId, settingsManager, options = {}) {
   try { targetTab.classList.remove('has-new-dot'); } catch (e) { }
   if (tabId === 'mentions') clearMentionBlinkState();
 
-  if (tabId === 'channels') {
+  if (tabId.startsWith('channel-')) {
+    const rootId = tabId.slice('channel-'.length);
+    if (!skipFeedLifecycle && targetFeed) {
+      ensureChannelFeedForTab(rootId, targetFeed, settingsManager);
+    }
+  } else if (tabId === 'channels') {
     if (skipFeedLifecycle) {
       try {
         if (typeof syncChannelComposerState === 'function') syncChannelComposerState();
@@ -207,6 +371,7 @@ export function activateTab(tabOrId, settingsManager, options = {}) {
     try { clearReplyTarget(); } catch (e) { }
     try {
       if (typeof pauseChannelSubscriptions === 'function') pauseChannelSubscriptions();
+      if (typeof unsubscribeAllChannelFeeds === 'function') unsubscribeAllChannelFeeds();
     } catch (e) { }
   }
 
@@ -252,7 +417,65 @@ export function setupTabs(settingsManager, preserveActive = false, options = {})
     btn.className = 'tab';
     btn.dataset.tab = cfg.id;
     btn.type = 'button';
-    if (cfg.labelKey) {
+
+    if (cfg.type === 'channel' || (cfg.id && cfg.id.startsWith('channel-'))) {
+      const channelLabel = cfg.label || cfg.fallbackLabel || ('# ' + (cfg.rootId ? shortenChannelEventId(cfg.rootId) : 'channel'));
+      btn.textContent = channelLabel;
+      btn.title = channelLabel;
+
+      const triggerRemoveTab = () => {
+        const rootId = cfg.rootId || cfg.id.slice('channel-'.length);
+        const chanName = cfg.label || `# ${shortenChannelEventId(rootId)}`;
+        const confirmMsg = t('channel.delete_tab_confirm', { name: chanName }) || `「${chanName}」のタブを削除しますか？`;
+        const modalTitle = t('channel.tab_remove_title') || 'タブの削除';
+        showConfirmModal(modalTitle, confirmMsg, () => {
+          removeChannelTab(settingsManager, rootId);
+        });
+      };
+
+      btn.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        triggerRemoveTab();
+        return false;
+      });
+
+      let pressTimer;
+      let startX, startY;
+      let hasMoved = false;
+      let longPressTriggered = false;
+
+      btn.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        hasMoved = false;
+        longPressTriggered = false;
+
+        pressTimer = setTimeout(() => {
+          longPressTriggered = true;
+          triggerRemoveTab();
+        }, 800);
+      }, { passive: true });
+
+      btn.addEventListener('touchmove', (e) => {
+        if (hasMoved) return;
+        const touch = e.touches[0];
+        if (Math.abs(touch.clientX - startX) > 10 || Math.abs(touch.clientY - startY) > 10) {
+          hasMoved = true;
+          clearTimeout(pressTimer);
+        }
+      }, { passive: true });
+
+      btn.addEventListener('touchend', (e) => {
+        clearTimeout(pressTimer);
+        if (longPressTriggered) {
+          e.preventDefault();
+        }
+      });
+      btn.addEventListener('touchcancel', () => {
+        clearTimeout(pressTimer);
+      });
+    } else if (cfg.labelKey) {
       if (cfg.id === 'bitchat') {
         const gh = settingsManager.get('omochatGeohash') || 'xn';
         btn.textContent = '📍' + gh;
@@ -550,7 +773,8 @@ export function renderTabSettingsUI(settingsManager, container) {
     dotLabel.className = 'dot-label';
     const dotChk = document.createElement('input');
     dotChk.type = 'checkbox';
-    const channelsNoDot = tab.id === 'channels';
+    const isCustomTab = tab.canRemove === true || (tab.id && tab.id.startsWith('channel-'));
+    const channelsNoDot = tab.id === 'channels' || isCustomTab;
     if (channelsNoDot) {
       tab.notifyDot = false;
       dotChk.checked = false;
@@ -571,8 +795,50 @@ export function renderTabSettingsUI(settingsManager, container) {
     dotLabel.appendChild(dotText);
     row.appendChild(dotLabel);
 
+    if (isCustomTab) {
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.textContent = '✕';
+      removeBtn.className = 'secondary small tab-order-remove-btn';
+      removeBtn.title = t('channel.tab_remove_btn') || '削除';
+      removeBtn.onclick = () => {
+        const rootId = tab.rootId || tab.id.replace('channel-', '');
+        const chanName = tab.label || `# ${shortenChannelEventId(rootId)}`;
+        const confirmMsg = t('channel.delete_tab_confirm', { name: chanName }) || `「${chanName}」のタブを削除しますか？`;
+        const modalTitle = t('channel.tab_remove_title') || 'タブの削除';
+        showConfirmModal(modalTitle, confirmMsg, () => {
+          removeChannelTab(settingsManager, rootId);
+          renderTabSettingsUI(settingsManager, container);
+        });
+      };
+      row.appendChild(removeBtn);
+    }
+
     container.appendChild(row);
   });
 
   try { if (typeof applyTranslations === 'function') applyTranslations(container); } catch(e){}
+}
+
+export function refreshTabSettingsUI(settingsManager) {
+  if (typeof document === 'undefined') return;
+  const container = document.getElementById('tabSettingsList');
+  if (!container) return;
+  let sm = settingsManager;
+  if (!sm) {
+    try {
+      if (typeof getSettingsManager === 'function') {
+        sm = getSettingsManager();
+      }
+    } catch (_e) {}
+  }
+  if (sm && typeof renderTabSettingsUI === 'function') {
+    renderTabSettingsUI(sm, container);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('tabsRebuilt', () => {
+    refreshTabSettingsUI();
+  });
 }

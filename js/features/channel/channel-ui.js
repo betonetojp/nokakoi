@@ -13,7 +13,7 @@ import { openEhagakiWithChannel } from '../post/postlink.js';
 import { setChannelTarget, hideComposerForUnselectedChannel, revealComposerForSelectedChannel } from '../post/composer.js';
 import { showConfirmModal } from '../../ui/modals/modals.js';
 import { t } from '../../utils/i18n.js';
-import { escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
+import { escapeHtml, replaceBadgeEmoji, showToast } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { showMediaViewer } from '../../ui/media-viewer.js';
 import { displayNameWithUsername, loadProfile } from '../profile/profile.js';
@@ -21,6 +21,7 @@ import { getNip19 } from '../../core/nostr-compat.js';
 import { linkifyText } from '../../utils/content/linkifier.js';
 import { setupMediaLinkHandlers, updateNostrNpubLinks } from '../../utils/content/dom-utils.js';
 import { getSettingsManager } from '../../core/app-context.js';
+import { addChannelTab, removeChannelTab, isChannelTabPinned } from '../../ui/setup/tab-manager.js';
 
 const CHANNEL_LIST_CACHE_KEY = 'nokakoi_public_chats_cache_v1';
 const LAST_ACTIVE_CHANNEL_KEY = 'last_active_channel_root_id';
@@ -119,6 +120,7 @@ export function initChannelView(container, state, settingsManager = null) {
                 <div class="channel-title-actions">
                   <button type="button" id="channelMetaEditBtn" class="secondary micro-btn d-none" title="${t('channel.meta.edit') || '編集'}">${t('channel.meta.edit') || '編集'}</button>
                   <button type="button" id="channelInfoBtn" class="secondary micro-btn" title="${t('channel.info.open') || '情報'}">${t('channel.info.open') || '情報'}</button>
+                  <button type="button" id="channelPinBtn" class="secondary micro-btn" title="${t('channel.pin_to_tab') || 'タブにピン留め'}">📌</button>
                 </div>
               </div>
             </div>
@@ -208,6 +210,38 @@ export function initChannelView(container, state, settingsManager = null) {
   if (infoBtn) {
     infoBtn.onclick = () => openChannelInfoModal();
   }
+
+  const pinBtn = container.querySelector('#channelPinBtn');
+  if (pinBtn) {
+    pinBtn.onclick = () => {
+      if (!_activeRootId) return;
+      const sm = _settingsManagerRef || (typeof getSettingsManager === 'function' ? getSettingsManager() : null);
+      if (!sm) return;
+      const isPinned = isChannelTabPinned(sm, _activeRootId);
+      const name = (_activeChannelProfile && _activeChannelProfile.name) || shortenChannelEventId(_activeRootId);
+      if (isPinned) {
+        removeChannelTab(sm, _activeRootId);
+        showToast(t('channel.unpinned_toast') || 'チャンネルのピン留めを解除しました');
+      } else {
+        const rootIdToPin = _activeRootId;
+        const relaysToPin = (_activeChannelProfile && _activeChannelProfile.relays) || [];
+
+        clearActiveChannelView();
+
+        addChannelTab(sm, {
+          rootId: rootIdToPin,
+          name,
+          relays: relaysToPin
+        });
+        showToast(t('channel.pinned_toast') || 'チャンネルをタブに追加しました');
+      }
+      updatePinButtonState(_activeRootId);
+    };
+  }
+
+  window.addEventListener('tabsRebuilt', () => {
+    if (_activeRootId) updatePinButtonState(_activeRootId);
+  });
 
   bindChannelInfoModal();
 
@@ -713,6 +747,7 @@ function applyChannelComposerTarget(rootId, info = {}) {
  */
 export function syncChannelComposerState() {
   if (!isChannelsTabActive()) return;
+  updatePinButtonState(_activeRootId);
   const rootId = _activeRootId;
   if (rootId) {
     fetchChannelMetadata(getState(), rootId).then(meta => {
@@ -935,6 +970,22 @@ function bindEhagakiButtonIntegration() {
   }, true);
 }
 
+function updatePinButtonState(rootId) {
+  if (!_containerEl) return;
+  const pinBtn = _containerEl.querySelector('#channelPinBtn');
+  if (!pinBtn) return;
+  if (!rootId) {
+    pinBtn.classList.add('d-none');
+    return;
+  }
+  pinBtn.classList.remove('d-none');
+  const sm = _settingsManagerRef || (typeof getSettingsManager === 'function' ? getSettingsManager() : null);
+  const isPinned = sm ? isChannelTabPinned(sm, rootId) : false;
+  pinBtn.classList.toggle('active', isPinned);
+  const titleText = isPinned ? (t('channel.unpin_from_tab') || 'ピン留め解除') : (t('channel.pin_to_tab') || 'タブにピン留め');
+  pinBtn.title = titleText;
+}
+
 function updateOwnerMetaEditButton(rootEvent) {
   if (!_containerEl) return;
   const btn = _containerEl.querySelector('#channelMetaEditBtn');
@@ -1043,6 +1094,7 @@ export async function selectChannel(rootId) {
   const titleEl = _containerEl.querySelector('#channelTitle');
   const msgsEl = _containerEl.querySelector('#channelMessages');
   updateOwnerMetaEditButton(null);
+  updatePinButtonState(rootId);
 
   if (titleEl) titleEl.textContent = `# ${shortenChannelEventId(rootId)}`;
   if (msgsEl) {
@@ -1062,6 +1114,7 @@ export async function selectChannel(rootId) {
     const name = profile.name || meta.label || shortenChannelEventId(rootId);
     if (titleEl) titleEl.textContent = `# ${name}`;
     updateOwnerMetaEditButton(meta.rootEvent);
+    updatePinButtonState(rootId);
     applyChannelComposerTarget(rootId, { name, relays: profile.relays });
   }).catch(() => {});
 

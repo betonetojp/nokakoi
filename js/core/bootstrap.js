@@ -407,7 +407,7 @@ export async function initApp() {
       const tabs = document.querySelectorAll('.tabs .tab');
       tabs.forEach(tab => {
         const tabName = tab.dataset ? tab.dataset.tab : null;
-        if (tabName === 'global' || tabName === 'channels') {
+        if (tabName === 'global' || tabName === 'channels' || (tabName && tabName.startsWith('channel-'))) {
           tab.style.display = '';
         } else {
           tab.style.display = isLoggedIn ? '' : 'none';
@@ -416,7 +416,7 @@ export async function initApp() {
       if (!isLoggedIn) {
         const currentActive = document.querySelector('.tabs .tab.active');
         const currentTabName = currentActive && currentActive.dataset ? currentActive.dataset.tab : null;
-        const targetTabName = (currentTabName === 'channels') ? 'channels' : 'global';
+        const targetTabName = (currentTabName === 'channels' || (currentTabName && currentTabName.startsWith('channel-'))) ? currentTabName : 'global';
         const tabs = document.querySelectorAll('.tabs .tab');
         tabs.forEach(t => t.classList.toggle('active', t.dataset && t.dataset.tab === targetTabName));
         const feeds = document.querySelectorAll('.feed');

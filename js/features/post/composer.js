@@ -285,8 +285,10 @@ export function setChannelTarget(channelInfo) {
   if (!channelInfo || !channelInfo.rootId) return;
   try {
     const activeTabBtn = document.querySelector('.tabs .tab.active');
-    if (!activeTabBtn || activeTabBtn.dataset.tab !== 'channels') return;
-    if (!isChannelChatOpen()) return;
+    const tabName = activeTabBtn ? activeTabBtn.dataset.tab : '';
+    const isCustomChannelTab = tabName && tabName.startsWith('channel-');
+    if (!activeTabBtn || (tabName !== 'channels' && !isCustomChannelTab)) return;
+    if (tabName === 'channels' && !isChannelChatOpen()) return;
   } catch (_e) {
     return;
   }

@@ -623,6 +623,15 @@ let _prevConfirmKeyHandler = null;
  * 確認ダイアログモーダルを表示
  */
 export function showConfirmModal(title, message, onYes, onNo) {
+  let actualTitle = title;
+  let actualMessage = message;
+  let actualOnYes = onYes;
+  let actualOnNo = onNo;
+  if (typeof message === 'function') {
+    actualOnNo = actualOnYes;
+    actualOnYes = message;
+    actualMessage = '';
+  }
   const modal = $('#confirmModal');
   const titleEl = $('#confirmTitle');
   const messageEl = $('#confirmMessage');
@@ -638,8 +647,9 @@ export function showConfirmModal(title, message, onYes, onNo) {
   }
 
   // 内容セット（改行保持）
-  titleEl.textContent = title || t('confirm.title');
-  messageEl.textContent = message;
+  titleEl.textContent = actualTitle || t('confirm.title');
+  messageEl.textContent = actualMessage;
+
 
   // モーダル固定ラベルへ翻訳を適用
   try { if (typeof applyTranslations === 'function') applyTranslations(modal, true); } catch (e) { }
@@ -674,7 +684,7 @@ export function showConfirmModal(title, message, onYes, onNo) {
     modal.hidden = true;
     clearZ();
     cleanupKey();
-    if (onYes) onYes();
+    if (actualOnYes) actualOnYes();
   };
 
   // いいえボタン
@@ -682,7 +692,7 @@ export function showConfirmModal(title, message, onYes, onNo) {
     modal.hidden = true;
     clearZ();
     cleanupKey();
-    if (onNo) onNo();
+    if (actualOnNo) actualOnNo();
   };
 
   // 背景クリックで閉じる（いいえと同じ）
@@ -691,7 +701,7 @@ export function showConfirmModal(title, message, onYes, onNo) {
       modal.hidden = true;
       clearZ();
       cleanupKey();
-      if (onNo) onNo();
+      if (actualOnNo) actualOnNo();
     }
   };
 }
@@ -713,7 +723,7 @@ export function showAlertModal(title, message, onOk) {
   }
 
   titleEl.textContent = title || t('confirm.title') || 'お知らせ';
-  messageEl.textContent = message;
+
   if (noBtn) noBtn.hidden = true;
 
   bringModalTop(modal);
