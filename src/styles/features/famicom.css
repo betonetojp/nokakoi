@@ -183,8 +183,7 @@ body.famicom-mode .quick-reaction {
 
 body.famicom-mode button:hover,
 body.famicom-mode .btn:hover,
-body.famicom-mode a.secondary:hover,
-body.famicom-mode .tab:hover {
+body.famicom-mode a.secondary:hover {
   background-color: #333333 !important;
   border-color: var(--fc-gold) !important;
   color: var(--fc-gold) !important;
@@ -217,8 +216,7 @@ body.famicom-mode.theme-light .quick-reaction {
 
 body.famicom-mode.theme-light button:hover,
 body.famicom-mode.theme-light .btn:hover,
-body.famicom-mode.theme-light a.secondary:hover,
-body.famicom-mode.theme-light .tab:hover {
+body.famicom-mode.theme-light a.secondary:hover {
   background-color: #fff0f3 !important;
   border-color: var(--fc-red) !important;
   color: var(--fc-red) !important;
@@ -234,6 +232,20 @@ body.famicom-mode.theme-light .btn-react:active {
   background-color: var(--fc-dark-red) !important;
   color: var(--fc-white) !important;
 }
+
+@media (hover: hover) and (pointer: fine) {
+  body.famicom-mode .tab:hover {
+    background-color: #333333 !important;
+    border-color: var(--fc-gold) !important;
+    color: var(--fc-gold) !important;
+  }
+  body.famicom-mode.theme-light .tab:hover {
+    background-color: #fff0f3 !important;
+    border-color: var(--fc-red) !important;
+    color: var(--fc-red) !important;
+  }
+}
+
 
 /* アクティブタブ */
 body.famicom-mode .tab.active::after {

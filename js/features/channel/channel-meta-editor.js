@@ -9,7 +9,8 @@ import {
 } from './channel.js';
 import { getReadRelays, getWriteRelays, normalizeRelayUrl } from '../../core/relay.js';
 import { signEventWithMode } from '../post/actions.js';
-import { awaitAny } from '../../utils/utils.js';
+import { awaitAny, showToast } from '../../utils/utils.js';
+import { isReadOnlyAccount } from '../../core/account-manager.js';
 import { cacheEvent } from '../../core/state.js';
 import { t } from '../../utils/i18n.js';
 
@@ -108,6 +109,7 @@ export async function openChannelMetaEditor(state, rootId, options = {}) {
   if (statusEl) statusEl.textContent = t('editor.common.fetching') || 'Fetching...';
   if (contentEl) contentEl.innerHTML = '';
 
+  const isReadOnly = isReadOnlyAccount(state);
   const myPubkey = (state && state.pubkey) || localStorage.getItem('pubkey');
   if (!myPubkey) {
     if (statusEl) statusEl.textContent = t('editor.common.no_login') || 'Login required';
@@ -168,8 +170,23 @@ export async function openChannelMetaEditor(state, rootId, options = {}) {
   if (pictureInput) pictureInput.value = picture;
   if (relaysInput) relaysInput.value = relaysText;
 
+  if (isReadOnly) {
+    if (nameInput) nameInput.disabled = true;
+    if (aboutInput) aboutInput.disabled = true;
+    if (pictureInput) pictureInput.disabled = true;
+    if (relaysInput) relaysInput.disabled = true;
+  }
+
   if (newSaveBtn) {
+    if (isReadOnly) {
+      newSaveBtn.disabled = true;
+      newSaveBtn.title = t('readonly.action_blocked') || '閲覧専用アカウントのため保存できません';
+    }
     newSaveBtn.onclick = async () => {
+      if (isReadOnly) {
+        showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため保存できません', { type: 'error' });
+        return;
+      }
       newSaveBtn.disabled = true;
       try {
         const confirmed = await showConfirmDialog(

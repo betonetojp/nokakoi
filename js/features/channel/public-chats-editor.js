@@ -9,6 +9,8 @@ import {
 import { fetchChannelMetadata, shortenChannelEventId } from './channel.js';
 import { getCustomJoinedChannels } from './channel-membership.js';
 import { resolveChannelRootIdInput } from './channel-search.js';
+import { isReadOnlyAccount } from '../../core/account-manager.js';
+import { showToast } from '../../utils/utils.js';
 import { t } from '../../utils/i18n.js';
 
 const SNAPSHOTS_KEY_BASE = 'public_chats_snapshots';
@@ -281,6 +283,7 @@ export async function openPublicChatsEditor(state, options = {}) {
   if (statusEl) statusEl.textContent = t('editor.common.fetching') || 'Fetching...';
   if (contentEl) contentEl.innerHTML = '';
 
+  const isReadOnly = isReadOnlyAccount(state);
   const myPubkey = localStorage.getItem('pubkey') || (state && state.pubkey);
   if (!myPubkey) {
     if (statusEl) statusEl.textContent = t('editor.common.no_login') || 'Login required';
@@ -376,8 +379,8 @@ export async function openPublicChatsEditor(state, options = {}) {
         </button>
       </div>
       <div class="row gap-8 mb-12">
-        <input type="text" id="publicChatsAddInput" class="flex-1" placeholder="${t('channel.editor.add_placeholder') || 'hex / nevent'}" autocomplete="off" ${(listSection === 'private' && !canEditPrivate) ? 'disabled' : ''}>
-        <button type="button" id="publicChatsAddBtn" class="secondary" ${(listSection === 'private' && !canEditPrivate) ? 'disabled' : ''}>${t('channel.editor.add') || '追加'}</button>
+        <input type="text" id="publicChatsAddInput" class="flex-1" placeholder="${t('channel.editor.add_placeholder') || 'hex / nevent'}" autocomplete="off" ${(isReadOnly || (listSection === 'private' && !canEditPrivate)) ? 'disabled' : ''}>
+        <button type="button" id="publicChatsAddBtn" class="secondary" ${(isReadOnly || (listSection === 'private' && !canEditPrivate)) ? 'disabled' : ''}>${t('channel.editor.add') || '追加'}</button>
       </div>
       <div id="publicChatsItemsList"></div>
     `;
@@ -421,6 +424,7 @@ export async function openPublicChatsEditor(state, options = {}) {
     const addInput = container.querySelector('#publicChatsAddInput');
     const addBtn = container.querySelector('#publicChatsAddBtn');
     const doAdd = () => {
+      if (isReadOnly) return;
       if (listSection === 'private' && !canEditPrivate) return;
       const raw = (addInput && addInput.value || '').trim();
       if (!raw) return;
@@ -462,7 +466,7 @@ export async function openPublicChatsEditor(state, options = {}) {
   function renderItemsList(listHost, parentContainer) {
     if (!listHost) return;
     const items = listSection === 'private' ? privateItems : publicItems;
-    const editable = listSection === 'public' || canEditPrivate;
+    const editable = !isReadOnly && (listSection === 'public' || canEditPrivate);
     const prevList = listHost.querySelector('#publicChatsDragList');
     const prevScroll = prevList ? prevList.scrollTop : 0;
     if (!items.length) {
@@ -635,7 +639,15 @@ export async function openPublicChatsEditor(state, options = {}) {
   }
 
   if (newSaveBtn) {
+    if (isReadOnly) {
+      newSaveBtn.disabled = true;
+      newSaveBtn.title = t('readonly.action_blocked') || '閲覧専用アカウントのため保存できません';
+    }
     newSaveBtn.onclick = async () => {
+      if (isReadOnly) {
+        showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため保存できません', { type: 'error' });
+        return;
+      }
       newSaveBtn.disabled = true;
       try {
         const confirmed = await showConfirmDialog(

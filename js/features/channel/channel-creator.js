@@ -6,6 +6,7 @@ import { getWriteRelays } from '../../core/relay.js';
 import { signEventWithMode } from '../post/actions.js';
 import { awaitAny } from '../../utils/utils.js';
 import { cacheEvent } from '../../core/state.js';
+import { isReadOnlyAccount } from '../../core/account-manager.js';
 import { t } from '../../utils/i18n.js';
 
 export function parseRelaysText(raw) {
@@ -119,11 +120,6 @@ export async function openChannelCreateModal(state, options = {}) {
     if (statusEl) statusEl.textContent = t('editor.common.no_login') || 'Login required';
     return;
   }
-  if (state && state.signer === 'read-only') {
-    if (statusEl) statusEl.textContent = t('readonly.action_blocked') || '閲覧専用アカウントのためチャンネルを作成できません';
-    return;
-  }
-
   const newSubmitBtn = submitBtn ? submitBtn.cloneNode(true) : null;
   const newCancelBtn = cancelBtn ? cancelBtn.cloneNode(true) : null;
   const newCloseBtn = closeBtn ? closeBtn.cloneNode(true) : null;
@@ -134,6 +130,15 @@ export async function openChannelCreateModal(state, options = {}) {
   const closeModal = () => { modal.hidden = true; };
   if (newCancelBtn) newCancelBtn.onclick = closeModal;
   if (newCloseBtn) newCloseBtn.onclick = closeModal;
+
+  if (isReadOnlyAccount(state)) {
+    if (statusEl) statusEl.textContent = t('readonly.action_blocked') || '閲覧専用アカウントのためチャンネルを作成できません';
+    if (newSubmitBtn) {
+      newSubmitBtn.disabled = true;
+      newSubmitBtn.title = t('readonly.action_blocked') || '閲覧専用アカウントのためチャンネルを作成できません';
+    }
+    return;
+  }
 
   const defaultRelays = (state && getWriteRelays(state.relays)) || [];
   const defaultRelaysText = defaultRelays.slice(0, 3).join('\n');

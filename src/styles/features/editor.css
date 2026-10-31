@@ -376,9 +376,11 @@ body.theme-light .editor-confirm-dialog {
   transition: all 0.2s ease;
 }
 
-.editor-tab:hover {
-  color: var(--text);
-  background: var(--panel-hover, rgba(255, 255, 255, 0.05));
+@media (hover: hover) and (pointer: fine) {
+  .editor-tab:hover {
+    color: var(--text);
+    background: var(--panel-hover, rgba(255, 255, 255, 0.05));
+  }
 }
 
 .editor-tab.active {

@@ -9,6 +9,8 @@ import { getNip19, getSimplePool } from '../../core/nostr-compat.js';
 import { getReadRelays, relayConnect, profileIndexerRelays } from '../../core/relay.js';
 import { displayNameWithUsername, loadProfile, updateNameDom, isAvatarsEnabled } from './profile.js';
 import { bringModalToFront } from '../../ui/setup/modal-helper.js';
+import { isReadOnlyAccount } from '../../core/account-manager.js';
+import { showToast } from '../../utils/utils.js';
 
 const SNAPSHOTS_KEY_BASE = 'follow_list_snapshots';
 
@@ -649,6 +651,7 @@ export async function openFollowEditor(state) {
   if (statusEl) statusEl.textContent = t('editor.common.fetching') || 'Fetching...';
   if (contentEl) contentEl.innerHTML = '';
 
+  const isReadOnly = isReadOnlyAccount(state);
   const myPubkey = localStorage.getItem('pubkey');
   if (!myPubkey) {
     if (statusEl) statusEl.textContent = t('editor.common.no_login') || 'Login required';
@@ -929,7 +932,13 @@ export async function openFollowEditor(state) {
         }
       }
 
+      if (isReadOnly) {
+        toggleBtn.disabled = true;
+        petnameInput.disabled = true;
+        dragHandle.style.display = 'none';
+      }
       toggleBtn.onclick = () => {
+        if (isReadOnly) return;
         item.isFollowing = !item.isFollowing;
         if (item.isFollowing) {
           toggleBtn.textContent = item.isMutual ? (t('editor.follow.mutual') || '相互') : (t('editor.follow.following') || 'Following');
@@ -1071,6 +1080,10 @@ export async function openFollowEditor(state) {
 
   // 現在のフォローの保存処理
   const handleSave = async () => {
+    if (isReadOnly) {
+      showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため保存できません', { type: 'error' });
+      return;
+    }
     if (newSaveBtn) newSaveBtn.disabled = true;
     try {
       const confirmed = await showConfirmDialog(modal.querySelector('.modal-body') || modal, 'editor.follow.confirm');
@@ -1157,7 +1170,13 @@ export async function openFollowEditor(state) {
     if (statusEl) statusEl.textContent = '';
   };
 
-  if (newSaveBtn) newSaveBtn.onclick = handleSave;
+  if (newSaveBtn) {
+    if (isReadOnly) {
+      newSaveBtn.disabled = true;
+      newSaveBtn.title = t('readonly.action_blocked') || '閲覧専用アカウントのため保存できません';
+    }
+    newSaveBtn.onclick = handleSave;
+  }
   if (newCancelBtn) newCancelBtn.onclick = closeModal;
   if (newCloseBtn) newCloseBtn.onclick = closeModal;
 }
