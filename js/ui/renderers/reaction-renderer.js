@@ -1,4 +1,4 @@
-import { escapeHtml, getReactionContent, getReactionEmojiTags } from '../../utils/utils.js';
+import { escapeHtml, getReactionContent, getReactionEmojiTags, resolveNokakoiIconUrl } from '../../utils/utils.js';
 import { fitCustomEmoji } from '../../utils/url-parser.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { t } from '../../utils/i18n.js';
@@ -13,7 +13,8 @@ export function formatReaction(reaction, emojiTags = []) {
   } else if (typeof reactionContent === 'string' && reactionContent.startsWith(':') && reactionContent.endsWith(':')) {
     const shortcode = reactionContent.slice(1, -1);
     const emojiTag = effectiveEmojiTags.find(tag => tag[0] === 'emoji' && tag[1] === shortcode);
-    const safeUrl = emojiTag && emojiTag[2] ? sanitizeUrlCandidate(emojiTag[2]) : null;
+    const rawUrl = (shortcode === 'nokakoi' && (!emojiTag || !emojiTag[2] || emojiTag[2] === 'icon/nokakoi.png' || !/^https?:\/\//i.test(emojiTag[2]))) ? resolveNokakoiIconUrl() : (emojiTag && emojiTag[2]);
+    const safeUrl = rawUrl ? sanitizeUrlCandidate(rawUrl) : null;
     if (safeUrl) {
       return '<img src="' + escapeHtml(safeUrl) + '" alt="' + escapeHtml(reactionContent) + '" class="custom-emoji" style="max-width: 100%; max-height: 18px; width: auto; height: auto; vertical-align: middle;">';
     }
@@ -42,7 +43,8 @@ export function setReactionDisplay(btn, reaction, emojiTags = []) {
     if (typeof reactionContent === 'string' && reactionContent.startsWith(':') && reactionContent.endsWith(':')) {
       const shortcode = reactionContent.slice(1, -1);
       const emojiTag = effectiveEmojiTags.find(tag => tag[0] === 'emoji' && tag[1] === shortcode);
-      const safeUrl = emojiTag && emojiTag[2] ? sanitizeUrlCandidate(emojiTag[2]) : null;
+      const rawUrl = (shortcode === 'nokakoi' && (!emojiTag || !emojiTag[2] || emojiTag[2] === 'icon/nokakoi.png' || !/^https?:\/\//i.test(emojiTag[2]))) ? resolveNokakoiIconUrl() : (emojiTag && emojiTag[2]);
+    const safeUrl = rawUrl ? sanitizeUrlCandidate(rawUrl) : null;
       if (safeUrl) {
         const img = document.createElement('img');
         img.src = safeUrl;

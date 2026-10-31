@@ -11,6 +11,8 @@ export {
   resolveReactionCustomEmoji,
   buildReactionEmojiTags,
   buildStoredReactionValue,
+  resolveNokakoiIconUrl,
+  NOKAKOI_DEFAULT_ICON_URL,
   contrastColorForBg,
   resolveThemeButtonBg,
   replaceBadgeEmoji,

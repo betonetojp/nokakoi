@@ -2,6 +2,24 @@ import { getRegisteredTextShortcodeVariant, resolveCustomEmoji } from '../../fea
 import { logWarn } from './misc-helpers.js';
 import { getCustomEmojis } from '../../core/app-context.js';
 
+export const NOKAKOI_DEFAULT_ICON_URL = 'https://nokakoi.com/app/icon/nokakoi.png';
+
+export function resolveNokakoiIconUrl() {
+  if (typeof window !== 'undefined' && window.location) {
+    const origin = window.location.origin;
+    const hostname = window.location.hostname;
+    if (!['localhost', '127.0.0.1'].includes(hostname) && origin && origin !== 'null') {
+      try {
+        const pathname = window.location.pathname || '/';
+        const cleanPath = pathname.replace(/\/(nevent1|note1|npub1|nprofile1)[^/]*\/?$/i, '/');
+        const basePath = cleanPath.endsWith('/') ? cleanPath : cleanPath.slice(0, cleanPath.lastIndexOf('/') + 1);
+        return new URL('icon/nokakoi.png', `${origin}${basePath}`).href;
+      } catch (_e) {}
+    }
+  }
+  return NOKAKOI_DEFAULT_ICON_URL;
+}
+
 const REACTION_SHORTCODE_ONLY_RE = /^:([a-zA-Z0-9_+-]+):$/;
 
 export function getReactionContent(reaction) {
@@ -30,7 +48,7 @@ export function resolveReactionCustomEmoji(reaction) {
   if (storedTag) {
     return {
       shortcode,
-      url: String(storedTag[2]),
+      url: (shortcode === 'nokakoi' && (String(storedTag[2]) === 'icon/nokakoi.png' || !/^https?:\/\//i.test(String(storedTag[2])))) ? resolveNokakoiIconUrl() : String(storedTag[2]),
       address: storedTag[3] ? String(storedTag[3]) : ''
     };
   }
@@ -61,7 +79,7 @@ export function resolveReactionCustomEmoji(reaction) {
   } catch (e) { logWarn('[Utils] resolveCustomEmoji 失敗:', e); }
 
   if (shortcode === 'nokakoi') {
-    let iconUrl = 'icon/nokakoi.png';
+    let iconUrl = resolveNokakoiIconUrl();
     return { shortcode, url: iconUrl, address: '' };
   }
 
@@ -82,7 +100,8 @@ export function buildStoredReactionValue(reaction) {
 
   const emojiTags = getReactionEmojiTags(reaction);
   if (emojiTags.length) {
-    return { content, emojiTags };
+    const normalizedTags = emojiTags.map(tag => (Array.isArray(tag) && tag[0] === 'emoji' && tag[1] === 'nokakoi' && (tag[2] === 'icon/nokakoi.png' || !/^https?:\/\//i.test(tag[2]))) ? ['emoji', 'nokakoi', resolveNokakoiIconUrl(), ...(tag.slice(3))] : tag);
+    return { content, emojiTags: normalizedTags };
   }
 
   const resolvedEmojiTags = buildReactionEmojiTags(content);
