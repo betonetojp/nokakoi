@@ -5,6 +5,7 @@ import {
   buildReactionEmojiTags,
   buildStoredReactionValue,
   NOKAKOI_DEFAULT_ICON_URL,
+  isRelativeOrLocalEmojiUrl,
 } from './reaction-helpers.js';
 import { formatReaction, setReactionDisplay } from '../../ui/renderers/reaction-renderer.js';
 
@@ -54,5 +55,29 @@ describe('reaction-renderer: :nokakoi: display', () => {
     const img = btn.querySelector('img');
     expect(img).not.toBeNull();
     expect(img.src).toBe(NOKAKOI_DEFAULT_ICON_URL);
+  });
+});
+
+describe('isRelativeOrLocalEmojiUrl', () => {
+  it('identifies relative and scheme-less paths as non-public', () => {
+    expect(isRelativeOrLocalEmojiUrl('')).toBe(true);
+    expect(isRelativeOrLocalEmojiUrl(null)).toBe(true);
+    expect(isRelativeOrLocalEmojiUrl('icon/nokakoi.png')).toBe(true);
+    expect(isRelativeOrLocalEmojiUrl('/media/nokakoi.png')).toBe(true);
+    expect(isRelativeOrLocalEmojiUrl('file:///C:/test.png')).toBe(true);
+  });
+
+  it('identifies localhost and loopback addresses as non-public', () => {
+    expect(isRelativeOrLocalEmojiUrl('http://localhost:3000/emoji.png')).toBe(true);
+    expect(isRelativeOrLocalEmojiUrl('https://127.0.0.1:8080/emoji.png')).toBe(true);
+    expect(isRelativeOrLocalEmojiUrl('http://0.0.0.0/emoji.png')).toBe(true);
+    expect(isRelativeOrLocalEmojiUrl('http://myserver.local/emoji.png')).toBe(true);
+  });
+
+  it('identifies valid public https/http URLs as public and safe', () => {
+    expect(isRelativeOrLocalEmojiUrl('https://nokakoi.com/media/nokakoi.png')).toBe(false);
+    expect(isRelativeOrLocalEmojiUrl('https://nokakoi.com/app/icon/nokakoi.png')).toBe(false);
+    expect(isRelativeOrLocalEmojiUrl('https://betonetojp.github.io/nokakoi/icon/nokakoi.png')).toBe(false);
+    expect(isRelativeOrLocalEmojiUrl('http://example.com/custom.png')).toBe(false);
   });
 });

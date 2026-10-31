@@ -4,6 +4,22 @@ import { getCustomEmojis } from '../../core/app-context.js';
 
 export const NOKAKOI_DEFAULT_ICON_URL = 'https://nokakoi.com/app/icon/nokakoi.png';
 
+export function isRelativeOrLocalEmojiUrl(url) {
+  if (!url || typeof url !== 'string') return true;
+  const s = url.trim();
+  if (!/^https?:\/\//i.test(s)) return true;
+  try {
+    const u = new URL(s);
+    const host = u.hostname.toLowerCase();
+    if (['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]'].includes(host) || host.endsWith('.local')) {
+      return true;
+    }
+  } catch (_e) {
+    return true;
+  }
+  return false;
+}
+
 export function resolveNokakoiIconUrl() {
   if (typeof window !== 'undefined' && window.location) {
     const origin = window.location.origin;

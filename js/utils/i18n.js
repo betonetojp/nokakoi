@@ -80,7 +80,10 @@ const BUILTIN_FALLBACKS = {
   'channel.quote_label': 'チャンネル',
   'emoji.pack_quote_label': '絵文字パック',
   'repost': 'リポスト',
-  'reply': '返信'
+  'reply': '返信',
+  'reaction.warning.relative_or_local_url': '⚠️ 画像URLが外部から参照できない形式（相対パスまたはローカル）です。他のクライアントでは表示されません。',
+  'reaction.confirm.relative_or_local_title': '画像URLの確認',
+  'reaction.confirm.relative_or_local_message': 'このカスタム絵文字の画像URLは外部から参照できません（相対パスまたはローカル）。他のクライアントでは画像が表示されませんが、保存しますか？'
 };
 
 export function t(key, params) {

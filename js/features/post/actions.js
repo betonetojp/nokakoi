@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { getPublicKey as getPublicKeyFn, getFinalizeEvent, getKinds, getNip19 } from '../../core/nostr-compat.js';
-import { awaitAny, buildReactionEmojiTags, getReactionContent, getReactionEmojiTags, showToast } from '../../utils/utils.js';
+import { awaitAny, buildReactionEmojiTags, getReactionContent, getReactionEmojiTags, showToast, isRelativeOrLocalEmojiUrl } from '../../utils/utils.js';
 import { extractEmojiTagsFromText } from '../emoji/custom-emoji-store.js';
 import { t } from '../../utils/i18n.js';
 import { DEFAULT_OMOCHAT_RELAYS } from '../../config/constants.js';
@@ -234,6 +234,11 @@ function sanitizeTags(tags) {
 export async function signEventWithMode(state, draft) {
   if (draft && draft.tags) {
     draft.tags = sanitizeTags(draft.tags);
+    for (const tag of draft.tags) {
+      if (Array.isArray(tag) && tag[0] === 'emoji' && isRelativeOrLocalEmojiUrl(tag[2])) {
+        console.warn(`[Emoji Warning] カスタム絵文字 :${tag[1]}: の画像URLが外部から参照できない形式です (${tag[2]})。外部クライアントで画像が表示されない可能性があります。`);
+      }
+    }
   }
   const getPublicKey = getPublicKeyFn();
   const finalizeEvent = getFinalizeEvent();

@@ -2,7 +2,7 @@
 // モーダルダイアログ
 // ============================================================================
 
-import { $, showToast, buildReactionEmojiTags, buildStoredReactionValue, getReactionContent, getReactionEmojiTags, isReactionShortcodeOnly, resolveReactionCustomEmoji } from '../../utils/utils.js';
+import { $, showToast, buildReactionEmojiTags, buildStoredReactionValue, getReactionContent, getReactionEmojiTags, isReactionShortcodeOnly, resolveReactionCustomEmoji, isRelativeOrLocalEmojiUrl } from '../../utils/utils.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { DEFAULT_OMOCHAT_RELAYS } from '../../config/constants.js';
 import { attachEmojiShortcodeSuggest } from '../../features/emoji/emoji-shortcode-suggest.js';
@@ -110,6 +110,16 @@ function updateReactionPreview(modal, input) {
   line.appendChild(img);
   line.appendChild(label);
   preview.appendChild(line);
+
+  if (isRelativeOrLocalEmojiUrl(resolved.url)) {
+    const warn = document.createElement('div');
+    warn.className = 'status-warning muted mt-4';
+    warn.style.color = 'var(--status-warn, #f59e0b)';
+    warn.style.fontSize = '0.85em';
+    warn.style.lineHeight = '1.4';
+    warn.textContent = t('reaction.warning.relative_or_local_url');
+    preview.appendChild(warn);
+  }
 }
 
 function getRecentReactionsKey() {
@@ -400,6 +410,21 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
     return { symbol, reactionValue };
   };
 
+  const checkRelativeUrlConfirmation = async (reactionValue) => {
+    const tags = getReactionEmojiTags(reactionValue);
+    const hasRelativeOrLocal = tags.some(tag => Array.isArray(tag) && tag[0] === 'emoji' && isRelativeOrLocalEmojiUrl(tag[2]));
+    if (!hasRelativeOrLocal) return true;
+
+    return new Promise((resolve) => {
+      showConfirmModal(
+        t('reaction.confirm.relative_or_local_title'),
+        t('reaction.confirm.relative_or_local_message'),
+        () => resolve(true),
+        () => resolve(false)
+      );
+    });
+  };
+
   const setButtonsDisabled = (disabled) => {
     saveBtn.disabled = !!disabled;
     saveAndReactBtn.disabled = !!disabled;
@@ -494,6 +519,9 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
     if (!validated) return;
     const reactionValue = validated.reactionValue;
 
+    const ok = await checkRelativeUrlConfirmation(reactionValue);
+    if (!ok) return;
+
     // 二重クリック防止
     setButtonsDisabled(true);
     if (statusEl) {
@@ -527,6 +555,9 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
     if (!validated) return;
     const reactionValue = validated.reactionValue;
 
+    const ok = await checkRelativeUrlConfirmation(reactionValue);
+    if (!ok) return;
+
     setButtonsDisabled(true);
     try {
       await saveDefaultReaction(reactionValue);
@@ -551,6 +582,9 @@ export function showReactionModal(currentSymbol, onConfirm, settingsManager, opt
     const validated = readValidatedReaction();
     if (!validated) return;
     const reactionValue = validated.reactionValue;
+
+    const ok = await checkRelativeUrlConfirmation(reactionValue);
+    if (!ok) return;
 
     setButtonsDisabled(true);
     try {
