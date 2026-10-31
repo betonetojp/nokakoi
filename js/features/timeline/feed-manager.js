@@ -959,7 +959,10 @@ export function setupBitchatFeed({ mode: requestedMode } = {}) {
     subordinate,
     includeHomeOmochat
   });
-  if (sameFetcherConfig(state._bitchatFetcher, configKey)) return state._bitchatFetcher;
+  if (sameFetcherConfig(state._bitchatFetcher, configKey)) {
+    try { scheduleRender('bitchat'); } catch (e) { }
+    return state._bitchatFetcher;
+  }
 
   try {
         const fiveMinAgo = Math.floor(Date.now() / 1000) - (5 * 60);

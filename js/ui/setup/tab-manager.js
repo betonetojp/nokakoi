@@ -1,6 +1,6 @@
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { showOmochatSettingsModal, showConfirmModal } from '../modals/modals.js';
-import { clearReplyTarget, setChannelTarget } from '../../features/post/composer.js';
+import { clearReplyTarget, setChannelTarget, clearChannelTarget } from '../../features/post/composer.js';
 import { shortenChannelEventId, fetchChannelMetadata } from '../../features/channel/channel.js';
 import { subscribeChannelFeed, unsubscribeAllChannelFeeds } from '../../features/channel/channel-feed.js';
 import { setMentionBlink } from './mention-blink.js';
@@ -225,7 +225,10 @@ export async function ensureChannelFeedForTab(rootId, containerEl, settingsManag
           refreshTabSettingsUI(settingsManager);
         }
         try {
-          setChannelTarget({ rootId, name, relays: cfg?.relays || [] });
+          const activeTabBtn = document.querySelector('.tabs .tab.active');
+          if (activeTabBtn && activeTabBtn.dataset.tab === `channel-${rootId}`) {
+            setChannelTarget({ rootId, name, relays: cfg?.relays || [] });
+          }
         } catch (_e) {}
       }
     }).catch(() => {});
@@ -355,15 +358,22 @@ export function activateTab(tabOrId, settingsManager, options = {}) {
 
   if (tabId.startsWith('channel-')) {
     const rootId = tabId.slice('channel-'.length);
-    if (!skipFeedLifecycle && targetFeed) {
+    if (!skipFeedLifecycle && targetFeed && !isSameTab) {
       ensureChannelFeedForTab(rootId, targetFeed, settingsManager);
+    } else {
+      const tabs = loadTabSettings(settingsManager);
+      const cfg = tabs.find(t => t.id === `channel-${rootId}` || t.rootId === rootId);
+      const channelName = cfg ? cfg.label : `# ${shortenChannelEventId(rootId)}`;
+      try {
+        setChannelTarget({ rootId, name: channelName.replace(/^#\s*/, ''), relays: cfg?.relays || [] });
+      } catch (_e) {}
     }
   } else if (tabId === 'channels') {
     if (skipFeedLifecycle) {
       try {
         if (typeof syncChannelComposerState === 'function') syncChannelComposerState();
       } catch (e) { }
-    } else {
+    } else if (!isSameTab) {
       ensureChannelView(settingsManager).then((module) => {
         if (module && typeof module.resumeChannelSubscriptions === 'function') {
           module.resumeChannelSubscriptions();
@@ -375,6 +385,7 @@ export function activateTab(tabOrId, settingsManager, options = {}) {
     }
   } else {
     try { clearReplyTarget(); } catch (e) { }
+    try { clearChannelTarget(); } catch (e) { }
     try {
       if (typeof pauseChannelSubscriptions === 'function') pauseChannelSubscriptions();
       if (typeof unsubscribeAllChannelFeeds === 'function') unsubscribeAllChannelFeeds();

@@ -310,4 +310,41 @@ describe('scroll-time load more rendering', () => {
     flushPendingFeedRender('global');
     expect(Array.from(feedEl.querySelectorAll('.event')).map(n => n.dataset.eventId)).toEqual(['ev-new-top', 'ev-1']);
   });
+
+  it('shows no_messages placeholder in bitchat when 0 events and histLoaded is true, and replaces it with event on arrival', () => {
+    document.body.insertAdjacentHTML('beforeend', '<div id="feed-bitchat" class="feed active"></div>');
+    const state = {
+      relays: [],
+      feeds: {
+        bitchat: {
+          list: [],
+          map: new Map()
+        }
+      }
+    };
+    initFeedRenderer(state, {
+      nip19: null,
+      settingsManager: { get: () => false },
+      getRenderSettingsWithUiState: () => ({}),
+      ensureFeedUiState: () => ({}),
+      findEventById: () => null,
+      setupInfiniteScrollObserver: vi.fn(),
+      getInfiniteScrollObserver: () => mockObserver
+    });
+
+    feedLoadState.bitchat = { histLoaded: false };
+    renderFeed('bitchat', true);
+    const feedEl = document.getElementById('feed-bitchat');
+    expect(feedEl.textContent).toContain('読み込み中...');
+
+    feedLoadState.bitchat.histLoaded = true;
+    renderFeed('bitchat', false);
+    expect(feedEl.textContent).not.toContain('読み込み中...');
+    expect(feedEl.textContent).toContain('channel.no_messages');
+
+    state.feeds.bitchat.list.push({ id: 'bitchat-ev-1', kind: 20000, created_at: 2000, content: 'hello omochat' });
+    renderFeed('bitchat', false);
+    expect(feedEl.textContent).not.toContain('channel.no_messages');
+    expect(Array.from(feedEl.querySelectorAll('.event')).map(n => n.dataset.eventId)).toEqual(['bitchat-ev-1']);
+  });
 });

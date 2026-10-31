@@ -635,6 +635,20 @@ export function renderFeed(id = 'global', force = false) {
       placeholder.className = 'muted p-12 text-center';
       placeholder.textContent = t('loading') || '読み込み中...';
       el.appendChild(placeholder);
+    } else {
+      placeholder.textContent = t('loading') || '読み込み中...';
+    }
+  } else {
+    let placeholder = el.querySelector('.muted.text-center');
+    if (id === 'bitchat') {
+      if (!placeholder) {
+        placeholder = document.createElement('div');
+        placeholder.className = 'muted p-12 text-center';
+        el.appendChild(placeholder);
+      }
+      placeholder.textContent = t('channel.no_messages') || 'まだメッセージはありません。';
+    } else if (placeholder) {
+      placeholder.remove();
     }
   }
 
@@ -733,6 +747,11 @@ export function renderFeed(id = 'global', force = false) {
     const placeholder = document.createElement('div');
     placeholder.className = 'muted p-12 text-center';
     placeholder.textContent = t('loading') || '読み込み中...';
+    el.appendChild(placeholder);
+  } else if (eventsToRender.length === 0 && id === 'bitchat') {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'muted p-12 text-center';
+    placeholder.textContent = t('channel.no_messages') || 'まだメッセージはありません。';
     el.appendChild(placeholder);
   } else {
     el.appendChild(frag);

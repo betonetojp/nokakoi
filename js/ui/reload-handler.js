@@ -35,8 +35,43 @@ export function isFeedLoading() {
     const activeFeed = document.querySelector('.feed.active');
     if (!activeFeed) return false;
 
-    // 読み込み中プレースホルダーが存在するかチェック（通常フィード・ピン留めチャンネル・一般チャンネル等）
-    const placeholder = activeFeed.querySelector('.muted.text-center, .muted.p-12, .channel-list-status');
+    // チャンネルポータルタブの場合：チャット表示中か一覧表示中かでスコープを分ける
+    if (activeFeed.id === 'feed-channels') {
+      const wrapper = activeFeed.querySelector('.channel-portal-wrapper');
+      if (wrapper && wrapper.classList.contains('show-chat')) {
+        // チャット画面表示中はチャットメッセージ内のローディングのみをチェック（サイドバーの一覧取得状態に影響されない）
+        const chatPlaceholder = activeFeed.querySelector('#channelMessages .muted.text-center, #channelMessages .muted.p-12');
+        if (chatPlaceholder) {
+          const text = (chatPlaceholder.textContent || '').trim();
+          if (
+            text.includes('読み込み中') ||
+            text.includes('取得中') ||
+            text.toLowerCase().includes('loading') ||
+            text.toLowerCase().includes('fetching')
+          ) {
+            return true;
+          }
+        }
+        return false;
+      }
+      // チャット未表示（一覧画面）の場合は一覧ステータスをチェック
+      const listStatus = activeFeed.querySelector('.channel-list-status');
+      if (listStatus) {
+        const text = (listStatus.textContent || '').trim();
+        if (
+          text.includes('読み込み中') ||
+          text.includes('取得中') ||
+          text.toLowerCase().includes('loading') ||
+          text.toLowerCase().includes('fetching')
+        ) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // 通常フィード・ピン留めチャンネル等の読み込み中プレースホルダーが存在するかチェック
+    const placeholder = activeFeed.querySelector('.muted.text-center, .muted.p-12');
     if (placeholder) {
       const text = (placeholder.textContent || '').trim();
       if (

@@ -313,17 +313,7 @@ export function setupScrollToTopButton() {
         try {
           if (pendingSecondClickTimer) try { clearTimeout(pendingSecondClickTimer); } catch (e) { }
           pendingSecondClickTimer = setTimeout(() => {
-            try {
-              const tabs = Array.from(document.querySelectorAll('.tab'));
-              if (tabs && tabs.length) {
-                const activeIdx = tabs.findIndex(t => t.classList && t.classList.contains && t.classList.contains('active'));
-                const srcIdx = (activeIdx >= 0) ? activeIdx : 0;
-                const srcTab = tabs[srcIdx];
-                if (srcTab && typeof srcTab.click === 'function') {
-                  try { srcTab.click(); } catch (e) { }
-                }
-              }
-            } catch (e) { }
+            try { scrollToTabTop('smooth'); } catch (e) { }
             // スペーサーをクリーンアップ
             try { if (_spacerEl && _spacerEl.parentNode) { _spacerEl.parentNode.removeChild(_spacerEl); _spacerEl = null; _desiredTabTop = null; } } catch (e) { }
             pendingSecondClickTimer = null;

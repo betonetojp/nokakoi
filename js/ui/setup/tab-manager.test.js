@@ -15,7 +15,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../utils/i18n.js', () => ({ t: key => key, applyTranslations: vi.fn() }));
 vi.mock('../modals/modals.js', () => ({ showOmochatSettingsModal: vi.fn() }));
-vi.mock('../../features/post/composer.js', () => ({ clearReplyTarget: mocks.clearReplyTarget }));
+vi.mock('../../features/post/composer.js', () => ({
+  clearReplyTarget: mocks.clearReplyTarget,
+  setChannelTarget: vi.fn(),
+  clearChannelTarget: vi.fn()
+}));
 vi.mock('../../features/relay/global-relay.js', () => ({ updateGlobalButtonLabel: vi.fn() }));
 vi.mock('./mention-blink.js', () => ({ setMentionBlink: vi.fn() }));
 vi.mock('./display-settings.js', () => ({ showHomeDisplayQuickModal: vi.fn() }));
@@ -242,6 +246,33 @@ describe('channel tab activation', () => {
     expect(isChannelTabPinned(settingsManager, 'root123')).toBe(false);
     expect(document.querySelector('.tab[data-tab="channel-root123"]')).toBeNull();
     expect(document.getElementById('feed-channel-root123')).toBeNull();
+  });
+
+  it('does not re-subscribe or cancel subscriptions when clicking an already active channel tab', async () => {
+    let savedTabs = [
+      { id: 'home', visible: true },
+      { id: 'channel-root123', type: 'channel', rootId: 'root123', label: '# Nostr日本語', visible: true }
+    ];
+    const settingsManager = {
+      settings: {},
+      get: vi.fn(key => key === 'tabs_v2' ? savedTabs : null),
+      set: vi.fn()
+    };
+
+    setupTabs(settingsManager);
+    const channelTabBtn = document.querySelector('.tab[data-tab="channel-root123"]');
+    channelTabBtn.click();
+
+    expect(mocks.subscribeChannelFeed).toHaveBeenCalledTimes(1);
+    mocks.subscribeChannelFeed.mockClear();
+    mocks.unsubscribeAllChannelFeeds.mockClear();
+
+    // Second click on the same already-active tab
+    channelTabBtn.click();
+
+    // Should NOT re-subscribe or unsubscribe
+    expect(mocks.subscribeChannelFeed).not.toHaveBeenCalled();
+    expect(mocks.unsubscribeAllChannelFeeds).not.toHaveBeenCalled();
   });
 
   it('renders custom channel tab with remove button in tab settings UI', async () => {

@@ -1723,10 +1723,15 @@ export async function setupPostLinkUI(settingsManager) {
           let channelContext = null;
           try {
             const activeTabBtn = document.querySelector('.tabs .tab.active');
-            const isChannelTabActive = activeTabBtn && activeTabBtn.dataset.tab === 'channels';
+            const tabName = activeTabBtn ? activeTabBtn.dataset.tab : '';
+            const isCustomChannelTab = tabName && tabName.startsWith('channel-');
+            const isChannelTabActive = tabName === 'channels' || isCustomChannelTab;
             if (isChannelTabActive) {
               const channelTarget = (typeof getChannelTarget === 'function') ? getChannelTarget() : null;
-              const rootId = (typeof channelTarget === 'string') ? channelTarget : (channelTarget && (channelTarget.rootId || channelTarget.id || channelTarget.eventId));
+              let rootId = (typeof channelTarget === 'string') ? channelTarget : (channelTarget && (channelTarget.rootId || channelTarget.id || channelTarget.eventId));
+              if (!rootId && isCustomChannelTab) {
+                rootId = tabName.slice('channel-'.length);
+              }
               if (rootId) {
                 const state = getNostrState && getNostrState();
                 if (state) {

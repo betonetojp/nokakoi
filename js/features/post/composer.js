@@ -300,6 +300,10 @@ export function setChannelTarget(channelInfo) {
     const isCustomChannelTab = tabName && tabName.startsWith('channel-');
     if (!activeTabBtn || (tabName !== 'channels' && !isCustomChannelTab)) return;
     if (tabName === 'channels' && !isChannelChatOpen()) return;
+    if (isCustomChannelTab) {
+      const activeRootId = tabName.slice('channel-'.length);
+      if (activeRootId !== channelInfo.rootId) return;
+    }
   } catch (_e) {
     return;
   }
@@ -360,6 +364,11 @@ export function clearChannelTarget() {
 
 export function isChannelChatOpen() {
   try {
+    const activeTabBtn = document.querySelector('.tabs .tab.active');
+    const tabName = activeTabBtn ? activeTabBtn.dataset.tab : '';
+    if (tabName && tabName.startsWith('channel-')) {
+      return true;
+    }
     const wrapper = document.querySelector('.channel-portal-wrapper');
     return !!(wrapper && wrapper.classList.contains('show-chat'));
   } catch (_e) {

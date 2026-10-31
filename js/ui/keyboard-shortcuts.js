@@ -267,14 +267,6 @@ export function setupKeyboardShortcuts(state, options) {
           window.dispatchEvent(new CustomEvent('softReloadRequest'));
         }
       } catch (ex) { }
-      try {
-        const tabs = Array.from(document.querySelectorAll('.tab'));
-        if (tabs && tabs.length) {
-          const activeIdx = tabs.findIndex(t => t.classList.contains('active'));
-          const srcTab = tabs[activeIdx >= 0 ? activeIdx : 0];
-          if (srcTab) srcTab.click();
-        }
-      } catch (ex) { }
       return;
     }
 

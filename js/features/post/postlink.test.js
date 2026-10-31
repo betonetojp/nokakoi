@@ -37,6 +37,14 @@ vi.mock('../../utils/i18n.js', () => ({
   t: (key) => key,
 }));
 
+vi.mock('../channel/channel.js', () => ({
+  buildChannelEmbedContext: vi.fn(async (state, rootId) => ({
+    reference: `nevent1channel_`,
+    name: 'MyPinnedChan',
+    relays: ['wss://relay.example.com'],
+  })),
+}));
+
 import {
   setupPostLinkUI,
   openEhagakiWithChannel,
@@ -315,5 +323,22 @@ describe('postlink context aggregation', () => {
         removed: ['accentColor', 'baseColor'],
       }),
     }));
+  });
+
+  it('passes channel context to eHagaki when clicking ehagakiBtn on a pinned channel tab', async () => {
+    window.__nostrState = { relays: [] };
+    setupPostLinkUI(mocks.settingsManager);
+    document.querySelector('.tabs').innerHTML = '<button class="tab active" data-tab="channel-root999"># MyPinnedChan</button>';
+    mocks.channelTarget = { rootId: 'root999', name: 'MyPinnedChan', relays: [] };
+
+    const ehagakiBtn = document.getElementById('ehagakiBtn');
+    ehagakiBtn.click();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const iframe = document.getElementById('ehagakiFrame');
+    expect(iframe.src).toContain('channel=');
+    expect(iframe.src).toContain('channelName=MyPinnedChan');
   });
 });

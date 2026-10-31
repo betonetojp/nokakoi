@@ -94,4 +94,60 @@ describe('reload-handler isFeedLoading and guard', () => {
 
     expect(restartFeedsMock).toHaveBeenCalledWith(true);
   });
+
+  it('allows softReload in channel tab when chat messages are loaded even if channelListStatus is loading', () => {
+    document.body.innerHTML = `
+      <div id="feeds">
+        <div class="feed active" id="feed-channels">
+          <div class="channel-portal-wrapper show-chat">
+            <div class="channel-sidebar">
+              <div class="channel-list-status" id="channelListStatus">チャンネル一覧を読み込み中...</div>
+            </div>
+            <div class="channel-main-view">
+              <div class="channel-chat-container">
+                <div class="channel-messages" id="channelMessages">
+                  <div class="event">Channel message</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    expect(isFeedLoading()).toBe(false);
+
+    window.softReload();
+    vi.advanceTimersByTime(300);
+
+    expect(restartFeedsMock).toHaveBeenCalledWith(true);
+  });
+
+  it('suppresses softReload in channel tab when chat messages are currently loading', () => {
+    document.body.innerHTML = `
+      <div id="feeds">
+        <div class="feed active" id="feed-channels">
+          <div class="channel-portal-wrapper show-chat">
+            <div class="channel-sidebar">
+              <div class="channel-list-status" id="channelListStatus">参加中: 5件</div>
+            </div>
+            <div class="channel-main-view">
+              <div class="channel-chat-container">
+                <div class="channel-messages" id="channelMessages">
+                  <div class="muted p-12 text-center">メッセージを取得中...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    expect(isFeedLoading()).toBe(true);
+
+    window.softReload();
+    vi.advanceTimersByTime(300);
+
+    expect(restartFeedsMock).not.toHaveBeenCalled();
+  });
 });
