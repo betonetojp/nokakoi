@@ -228,5 +228,49 @@ describe('channel-feed', () => {
     unsubscribeAllChannelFeeds();
     expect(closeFns[2]).toHaveBeenCalledTimes(1);
   });
+
+  it('correctly appends history to bottom even if DOM contains child elements with event class (like quotes)', async () => {
+    const handlersList = [];
+    mockState.pool.subscribeMany = vi.fn((relays, filters, handlers) => {
+      handlersList.push(handlers);
+      return { close: vi.fn() };
+    });
+
+    await subscribeChannelFeed('chan-root-quote', mockState, containerEl, mockSettingsManager);
+
+    handlersList[0].onevent({
+      id: 'ev-top-quote',
+      kind: 42,
+      pubkey: 'u1',
+      created_at: 3000,
+      content: 'Top message',
+      tags: [['e', 'chan-root-quote', '', 'root']]
+    });
+    handlersList[0].oneose();
+
+    // カード内に引用などの子要素（.event）をシミュレート
+    const topMsgEl = containerEl.querySelector('.event[data-event-id="ev-top-quote"]');
+    const childQuote = document.createElement('div');
+    childQuote.className = 'event event-quote';
+    childQuote.dataset.eventId = 'quoted-msg-xyz';
+    topMsgEl.appendChild(childQuote);
+
+    const loadMoreBtn = containerEl.querySelector('.load-more-btn');
+    loadMoreBtn.click();
+
+    expect(handlersList.length).toBe(2);
+    handlersList[1].onevent({
+      id: 'ev-old-hist',
+      kind: 42,
+      pubkey: 'u2',
+      created_at: 1000,
+      content: 'Old history',
+      tags: [['e', 'chan-root-quote', '', 'root']]
+    });
+    handlersList[1].oneose();
+
+    const topLevelIds = Array.from(containerEl.querySelectorAll(':scope > .event:not(.feed-bar)')).map(el => el.dataset.eventId);
+    expect(topLevelIds).toEqual(['ev-top-quote', 'ev-old-hist']);
+  });
 });
 

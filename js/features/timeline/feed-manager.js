@@ -1424,6 +1424,15 @@ export function restartFeeds(fullReset = false) {
     if (el) el.innerHTML = '';
   });
 
+  try {
+    const channelFeedEls = document.querySelectorAll('.feed[id^="feed-channel-"]');
+    channelFeedEls.forEach(el => {
+      el.innerHTML = '';
+      delete el.__channelEventsMap;
+      delete el.__channelFeedGen;
+    });
+  } catch (_e) { }
+
   const SimplePool = SimplePoolProvider();
   if (!state.pool && !relayConnect(state, SimplePool, restartFeeds)) {
     const statusEl = document.getElementById('relayStatus');
@@ -1444,6 +1453,21 @@ export function restartFeeds(fullReset = false) {
     if (shouldConnectOmochatOnBoot(settingsManager)) {
       scheduleBitchatFeedSetup(1500, generation);
     }
+    try {
+      const activeTabBtn = document.querySelector('.tabs .tab.active');
+      const activeTabId = activeTabBtn ? activeTabBtn.dataset.tab : null;
+      if (activeTabId && activeTabId.startsWith('channel-')) {
+        const rootId = activeTabId.slice('channel-'.length);
+        const targetFeed = document.getElementById('feed-' + activeTabId);
+        if (targetFeed) {
+          import('../../ui/setup/tab-manager.js').then(m => {
+            if (m && typeof m.ensureChannelFeedForTab === 'function') {
+              m.ensureChannelFeedForTab(rootId, targetFeed, settingsManager, { resume: false });
+            }
+          }).catch(() => {});
+        }
+      }
+    } catch (_e) { }
     window.__nokakoiFeedsReady = false;
     setTimeout(() => { window.__nokakoiFeedsReady = true; }, 5000);
   }

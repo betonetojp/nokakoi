@@ -155,7 +155,7 @@ export function addChannelTab(settingsManager, { rootId, name = '', relays = [] 
   return true;
 }
 
-export function removeChannelTab(settingsManager, rootId) {
+export function removeChannelTab(settingsManager, rootId, options = {}) {
   if (!settingsManager || !rootId) return false;
   const tabId = getChannelTabId(rootId);
   const currentTabs = loadTabSettings(settingsManager);
@@ -178,16 +178,17 @@ export function removeChannelTab(settingsManager, rootId) {
     }
   } catch (_e) {}
 
-  setupTabs(settingsManager, !wasActive);
+  const closeDetails = options.closeDetails !== undefined ? options.closeDetails : true;
+  setupTabs(settingsManager, !wasActive, { closeDetails });
   if (wasActive) {
     const nextTab = currentTabs.find(t => t.visible !== false) || currentTabs[0];
-    if (nextTab) activateTab(nextTab.id, settingsManager);
+    if (nextTab) activateTab(nextTab.id, settingsManager, { closeDetails });
   }
   try { window.dispatchEvent(new CustomEvent('tabsRebuilt')); } catch (e) {}
   return true;
 }
 
-async function ensureChannelFeedForTab(rootId, containerEl, settingsManager) {
+export async function ensureChannelFeedForTab(rootId, containerEl, settingsManager, options = {}) {
   if (!rootId || !containerEl) return;
   const state = getAppState();
 
@@ -203,7 +204,8 @@ async function ensureChannelFeedForTab(rootId, containerEl, settingsManager) {
   } catch (_e) {}
 
   try {
-    await subscribeChannelFeed(rootId, state, containerEl, settingsManager, { resume: true });
+    const resume = options.resume !== undefined ? options.resume : true;
+    await subscribeChannelFeed(rootId, state, containerEl, settingsManager, { resume });
   } catch (_e) {}
 
   if (typeof fetchChannelMetadata === 'function') {
@@ -298,11 +300,15 @@ export function activateTab(tabOrId, settingsManager, options = {}) {
 
   if (!targetTab || !tabsContainer || !tabsContainer.contains(targetTab)) return false;
 
+  const currentActiveBtn = tabsContainer.querySelector('.tab.active');
+  const isSameTab = currentActiveBtn === targetTab;
+
   const tabId = targetTab.dataset.tab;
   const {
     scroll = true,
     emitChange = true,
     skipFeedLifecycle = false,
+    closeDetails = true,
     eventDetail = {}
   } = options;
   tabsContainer.querySelectorAll('.tab').forEach(tab => {
@@ -375,9 +381,11 @@ export function activateTab(tabOrId, settingsManager, options = {}) {
     } catch (e) { }
   }
 
-  try {
-    document.querySelectorAll('details').forEach(details => { details.open = false; });
-  } catch (e) { }
+  if (closeDetails && !isSameTab) {
+    try {
+      document.querySelectorAll('details').forEach(details => { details.open = false; });
+    } catch (e) { }
+  }
 
   if (emitChange) {
     try {
@@ -429,7 +437,7 @@ export function setupTabs(settingsManager, preserveActive = false, options = {})
         const confirmMsg = t('channel.delete_tab_confirm', { name: chanName }) || `「${chanName}」のタブを削除しますか？`;
         const modalTitle = t('channel.tab_remove_title') || 'タブの削除';
         showConfirmModal(modalTitle, confirmMsg, () => {
-          removeChannelTab(settingsManager, rootId);
+          removeChannelTab(settingsManager, rootId, { closeDetails: false });
         });
       };
 
@@ -705,7 +713,7 @@ export function renderTabSettingsUI(settingsManager, container) {
       currentTabs[index] = temp;
       saveTabSettings(settingsManager, currentTabs);
       renderTabSettingsUI(settingsManager, container);
-      setupTabs(settingsManager, true);
+      setupTabs(settingsManager, true, { closeDetails: false });
       try { window.dispatchEvent(new CustomEvent('tabsRebuilt')); } catch(e) {}
     };
 
@@ -720,7 +728,7 @@ export function renderTabSettingsUI(settingsManager, container) {
       currentTabs[index] = temp;
       saveTabSettings(settingsManager, currentTabs);
       renderTabSettingsUI(settingsManager, container);
-      setupTabs(settingsManager, true);
+      setupTabs(settingsManager, true, { closeDetails: false });
       try { window.dispatchEvent(new CustomEvent('tabsRebuilt')); } catch(e) {}
     };
 
@@ -745,7 +753,7 @@ export function renderTabSettingsUI(settingsManager, container) {
       tab.visible = chk.checked;
       saveTabSettings(settingsManager, currentTabs);
       renderTabSettingsUI(settingsManager, container);
-      setupTabs(settingsManager, true);
+      setupTabs(settingsManager, true, { closeDetails: false });
       try { window.dispatchEvent(new CustomEvent('tabsRebuilt')); } catch(e) {}
     };
 
@@ -807,7 +815,7 @@ export function renderTabSettingsUI(settingsManager, container) {
         const confirmMsg = t('channel.delete_tab_confirm', { name: chanName }) || `「${chanName}」のタブを削除しますか？`;
         const modalTitle = t('channel.tab_remove_title') || 'タブの削除';
         showConfirmModal(modalTitle, confirmMsg, () => {
-          removeChannelTab(settingsManager, rootId);
+          removeChannelTab(settingsManager, rootId, { closeDetails: false });
           renderTabSettingsUI(settingsManager, container);
         });
       };

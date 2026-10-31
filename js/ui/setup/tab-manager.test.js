@@ -263,6 +263,44 @@ describe('channel tab activation', () => {
     const removeBtn = container.querySelector('.tab-order-remove-btn');
     expect(removeBtn).not.toBeNull();
     expect(removeBtn.textContent).toBe('✕');
+  });
+
+  it('preserves open details when reordering or removing tabs in settings UI', async () => {
+    let savedTabs = [
+      { id: 'home', visible: true },
+      { id: 'global', visible: true },
+      { id: 'channel-test1', type: 'channel', rootId: 'test1', label: '# 雑談', canRemove: true, visible: true }
+    ];
+    const settingsManager = {
+      settings: {},
+      get: vi.fn(key => key === 'tabs_v2' ? savedTabs : null),
+      set: vi.fn((key, val) => {
+        if (key === 'tabs_v2') savedTabs = val;
+      })
+    };
+
+    setupTabs(settingsManager);
+
+    // 開いている details パネルを配置
+    const details = document.createElement('details');
+    details.open = true;
+    document.body.appendChild(details);
+
+    const container = document.createElement('div');
+    renderTabSettingsUI(settingsManager, container);
+
+    // 並び替え (downBtn)
+    const downBtns = container.querySelectorAll('.tab-order-arrow-btn');
+    const firstDownBtn = downBtns[1]; // homeのdownボタン
+    firstDownBtn.click();
+
+    expect(details.open).toBe(true);
+
+    // 削除 (removeChannelTab with closeDetails: false)
+    removeChannelTab(settingsManager, 'test1', { closeDetails: false });
+    expect(details.open).toBe(true);
+
+    details.remove();
 
   });
 });

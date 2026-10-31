@@ -147,7 +147,7 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
         containerEl.appendChild(msgEl);
       }
     } else {
-      const eventEls = Array.from(containerEl.querySelectorAll('.event:not(.feed-bar)'));
+      const eventEls = Array.from(containerEl.querySelectorAll(':scope > .event:not(.feed-bar)'));
       if (!eventEls.length) {
         if (loadMoreBtn) {
           containerEl.insertBefore(msgEl, loadMoreBtn);
@@ -160,6 +160,7 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
         for (const el of eventEls) {
           const curId = el.dataset.eventId;
           const curEv = eventsMap.get(curId);
+          if (!curEv) continue;
           const curTs = curEv ? (curEv.created_at || 0) : 0;
           if (evTs >= curTs) {
             containerEl.insertBefore(msgEl, el);
@@ -219,7 +220,7 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
             for (const ev of ordered) {
               if (!eventsMap.has(ev.id)) {
                 eventsMap.set(ev.id, ev);
-                addEventToDom(ev, false);
+                addEventToDom(ev, true);
                 added += 1;
               }
             }
