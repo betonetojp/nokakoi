@@ -7,7 +7,7 @@ vi.mock('../../core/relay.js', () => ({
   getReadRelays: vi.fn(() => ['wss://relay.example'])
 }));
 
-import { fetchMore, setupFeedFetcher, updatePerFilterUntil, applyPerFilterUntil } from './feed-fetcher.js';
+import { fetchMore, setupFeedFetcher, updatePerFilterUntil, applyPerFilterUntil, abortAllFetchMore } from './feed-fetcher.js';
 
 describe('feed fetcher logical keys', () => {
   beforeEach(() => {
@@ -380,5 +380,88 @@ describe('feed fetcher logical keys', () => {
     expect(nextFilters[0].until).toBe(1000);
     expect(nextFilters[1].until).toBe(1000);
     expect(nextFilters[2].until).toBe(1000);
+  });
+
+  it('abortAllFetchMore drops in-flight fetchMore requests and prevents feed modification', async () => {
+    const state = {
+      relays: ['wss://relay.example'],
+      feeds: { home: { list: [], map: new Map() } },
+      _feedGeneration: 1
+    };
+    const promise = fetchMore({
+      state,
+      feedId: 'home',
+      filters: [{ kinds: [1] }],
+      relays: ['wss://relay.example']
+    });
+
+    expect(mocks.subOnce).toHaveBeenCalled();
+    abortAllFetchMore(state);
+
+    // 回答が遅れて届いてもフィードには追加されない
+    const cb = mocks.subOnce.mock.calls[0][3];
+    cb({ id: 'late_ev', kind: 1, created_at: 100 }, 'wss://relay.example', true);
+
+    const res = await promise;
+    expect(res.appendedCount).toBe(0);
+    expect(state.feeds.home.list).toEqual([]);
+    expect(state.feeds.home.map.size).toBe(0);
+  });
+
+  it('fetchMore drops results if feed generation changed before completion', async () => {
+    const state = {
+      relays: ['wss://relay.example'],
+      feeds: { home: { list: [], map: new Map() } },
+      _feedGeneration: 1
+    };
+    const promise = fetchMore({
+      state,
+      feedId: 'home',
+      filters: [{ kinds: [1] }],
+      relays: ['wss://relay.example']
+    });
+
+    expect(mocks.subOnce).toHaveBeenCalled();
+    // 世代が進む（リロード等）
+    state._feedGeneration = 2;
+
+    const cb = mocks.subOnce.mock.calls[0][3];
+    cb({ id: 'late_ev2', kind: 1, created_at: 100 }, 'wss://relay.example', true);
+
+    const res = await promise;
+    expect(res.appendedCount).toBe(0);
+    expect(state.feeds.home.list).toEqual([]);
+    expect(state.feeds.home.map.size).toBe(0);
+  });
+
+  it('setupFeedFetcher drops histBuffer if generation changed before finalize', async () => {
+    const state = {
+      relays: ['wss://relay.example'],
+      feeds: { home: { list: [], map: new Map() } },
+      _feedGeneration: 1
+    };
+    setupFeedFetcher({
+      state,
+      feedId: 'home',
+      histFilters: [{ kinds: [1] }],
+      relays: ['wss://relay.example'],
+      generation: 1,
+      addToFeed: vi.fn(),
+      scheduleRender: vi.fn()
+    });
+
+    expect(mocks.subOnce).toHaveBeenCalled();
+    const cb = mocks.subOnce.mock.calls[0][3];
+    // イベント受信（バッファに蓄積）
+    cb({ id: 'hist_ev', kind: 1, created_at: 100 }, 'wss://relay.example', false);
+
+    // 世代が進む
+    state._feedGeneration = 2;
+
+    // EOSE
+    cb(null, 'wss://relay.example', true);
+
+    expect(state.feeds.home.list).toEqual([]);
+    expect(state.feeds.home.map.size).toBe(0);
   });
 });

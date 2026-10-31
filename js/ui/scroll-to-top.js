@@ -8,6 +8,7 @@ import {
   getScrollAnchor,
   setProgrammaticScroll
 } from '../core/app-context.js';
+import { isFeedLoading } from './reload-handler.js';
 
 export function setupScrollToTopButton() {
   const button = document.getElementById('scrollToTopBtn');
@@ -34,6 +35,7 @@ export function setupScrollToTopButton() {
   let pendingSecondClickTimer = null;
   let smoothScrollGuardTimer = null;
   let smoothScrollTargetTop = null;
+  let lastActionTime = 0;
 
   function clearSmoothScrollGuard() {
     if (smoothScrollGuardTimer) {
@@ -274,42 +276,7 @@ export function setupScrollToTopButton() {
     button.classList.remove('dragging');
     const duration = Date.now() - startTime;
     if (duration < 200 && !hasMoved) {
-      if (inReloadMode) {
-        // 位置を保持
-        const pos = { left: button.style.left, bottom: button.style.bottom, transform: button.style.transform };
-        // ここでは即トーストを出さず、second tab click 前に表示する
-        // 目標 top を保持し、トースト描画後にスクロール位置を変えず再読込要求
-        setTimeout(() => {
-          // 進行中を明示するため 2 秒の loading トーストを表示
-          try { showToast(t('loading'), { type: 'info', duration: 2000 }); } catch (e) { }
-          // トースト表示後（約2秒）に second tab click を予約
-          try {
-            if (pendingSecondClickTimer) try { clearTimeout(pendingSecondClickTimer); } catch (e) { }
-            pendingSecondClickTimer = setTimeout(() => {
-              try {
-                const tabs = Array.from(document.querySelectorAll('.tab'));
-                if (tabs && tabs.length) {
-                  const activeIdx = tabs.findIndex(t => t.classList && t.classList.contains && t.classList.contains('active'));
-                  const srcIdx = (activeIdx >= 0) ? activeIdx : 0;
-                  const srcTab = tabs[srcIdx];
-                  if (srcTab && typeof srcTab.click === 'function') {
-                    try { srcTab.click(); } catch (e) { }
-                  }
-                }
-              } catch (e) { }
-              // スペーサーをクリーンアップ
-              try { if (_spacerEl && _spacerEl.parentNode) { _spacerEl.parentNode.removeChild(_spacerEl); _spacerEl = null; _desiredTabTop = null; } } catch (e) { }
-              pendingSecondClickTimer = null;
-            }, 2100);
-          } catch (e) { }
-          try { if (typeof window.softReload === 'function') { window.softReload(); } else { window.dispatchEvent(new CustomEvent('softReloadRequest')); } } catch (e) { }
-          // ボタン位置を即時復元
-          try { if (pos.left) { button.style.left = pos.left; button.style.bottom = pos.bottom; button.style.transform = pos.transform || 'none'; } } catch (e) { }
-        }, 120);
-      } else {
-        clearHasNew();
-        scrollToTabTop('smooth');
-      }
+      activateButtonAction();
     } else if (hasMoved) {
       saveButtonPosition({ left: button.style.left, bottom: button.style.bottom });
     }
@@ -321,14 +288,25 @@ export function setupScrollToTopButton() {
   }
 
   function activateButtonAction() {
+    const now = Date.now();
+    if (now - lastActionTime < 300) return;
+    lastActionTime = now;
+    if (pendingSecondClickTimer) {
+      try { clearTimeout(pendingSecondClickTimer); } catch (e) { }
+      pendingSecondClickTimer = null;
+    }
     clearHasNew();
     // full reload へのフォールバック回避のため、まず inReloadMode フラグを優先
     if (inReloadMode) {
+      if (isFeedLoading()) {
+        return;
+      }
       // 位置を保持
       const pos = { left: button.style.left, bottom: button.style.bottom, transform: button.style.transform };
       // ここでは即トーストを出さず、second tab click 前に表示
       // 目標 top を保持し、短時間待ってからスクロール位置を変えず再読込要求
       setTimeout(() => {
+        if (isFeedLoading()) return;
         // 進行中を明示するため 2 秒の loading トーストを表示
         try { showToast(t('loading'), { type: 'info', duration: 2000 }); } catch (e) { }
         // トースト表示後（約2秒）に second tab click を予約
@@ -368,9 +346,10 @@ export function setupScrollToTopButton() {
     scrollToTabTop('smooth');
   }
 
-  button.addEventListener('click', () => { if (isDragging) return; activateButtonAction(); });
-  button.addEventListener('pointerup', () => { if (!isDragging) activateButtonAction(); });
-  button.addEventListener('touchend', () => { if (!isDragging) activateButtonAction(); }, { passive: true });
+  button.addEventListener('click', () => {
+    if (isDragging || hasMoved) return;
+    activateButtonAction();
+  });
 
   // 下層の composer へイベントが抜けないようにする
   button.addEventListener('pointerdown', (e) => { try { e.stopPropagation(); } catch (err) { } });

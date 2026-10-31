@@ -16,6 +16,7 @@ import { t } from '../../utils/i18n.js';
 import { getInfiniteScrollObserver, setupInfiniteScrollObserver } from '../../boot/infinite-scroll.js';
 import { getSettingsManager } from '../../core/app-context.js';
 
+let _globalChannelFeedGen = 0;
 const _channelSubs = new Map(); // rootId -> sub/unsub object
 const _channelHistorySubs = new Set(); // active loadMoreHistory sub objects
 const _observedLoadMoreBtns = new WeakMap(); // containerEl -> loadMoreBtn
@@ -35,8 +36,8 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
     && hasExistingDomEvents
     && !!(containerEl.__channelEventsMap && containerEl.__channelEventsMap.size > 0);
   const myGen = isResume
-    ? (containerEl.__channelFeedGen || 1)
-    : (containerEl.__channelFeedGen = (containerEl.__channelFeedGen || 0) + 1);
+    ? (containerEl.__channelFeedGen || ++_globalChannelFeedGen)
+    : (containerEl.__channelFeedGen = ++_globalChannelFeedGen);
   containerEl.dataset.channelRootId = rootId;
   const isStale = () => (
     containerEl.dataset.channelRootId !== rootId || containerEl.__channelFeedGen !== myGen
@@ -214,7 +215,11 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
           },
           oneose() {
             closeHistorySub();
-            if (isStale()) return;
+            if (isStale()) {
+              historyBatch.clear();
+              isLoadingMore = false;
+              return;
+            }
             const ordered = Array.from(historyBatch.values()).sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
             let added = 0;
             for (const ev of ordered) {
@@ -252,7 +257,9 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
           if (!eventsMap.has(ev.id)) {
             eventsMap.set(ev.id, ev);
             addEventToDom(ev, false);
-            updateLoadMoreButton();
+            if (eventsMap.size >= EVENTS_FETCH_LIMIT) {
+              updateLoadMoreButton();
+            }
           }
         },
         oneose() {
@@ -308,6 +315,7 @@ export function unsubscribeChannelFeed(rootId) {
 }
 
 export function unsubscribeAllChannelFeeds() {
+  _globalChannelFeedGen++;
   for (const id of Array.from(_channelSubs.keys())) {
     unsubscribeChannelFeed(id);
   }
@@ -318,6 +326,14 @@ export function unsubscribeAllChannelFeeds() {
     } catch (_e) {}
   }
   _channelHistorySubs.clear();
+  try {
+    if (typeof document !== 'undefined') {
+      const channelFeedEls = document.querySelectorAll('.feed[id^="feed-channel-"]');
+      channelFeedEls.forEach(el => {
+        el.__channelFeedGen = _globalChannelFeedGen;
+      });
+    }
+  } catch (_e) {}
 }
 
 /**

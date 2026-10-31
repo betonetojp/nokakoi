@@ -272,5 +272,79 @@ describe('channel-feed', () => {
     const topLevelIds = Array.from(containerEl.querySelectorAll(':scope > .event:not(.feed-bar)')).map(el => el.dataset.eventId);
     expect(topLevelIds).toEqual(['ev-top-quote', 'ev-old-hist']);
   });
+
+  it('discards late loadMoreHistory results if channel feed was unsubscribed or reloaded', async () => {
+    const handlersList = [];
+    mockState.pool.subscribeMany = vi.fn((relays, filters, handlers) => {
+      handlersList.push(handlers);
+      return { close: vi.fn() };
+    });
+
+    await subscribeChannelFeed('chan-root-reload', mockState, containerEl, mockSettingsManager);
+
+    handlersList[0].onevent({
+      id: 'ev-top-1',
+      kind: 42,
+      pubkey: 'u1',
+      created_at: 3000,
+      content: 'Message 1',
+      tags: [['e', 'chan-root-reload', '', 'root']]
+    });
+    handlersList[0].oneose();
+
+    const loadMoreBtn = containerEl.querySelector('.load-more-btn');
+    loadMoreBtn.click();
+
+    expect(handlersList.length).toBe(2);
+    // 1回目の loadMoreHistory が非同期通信中にリロード（unsubscribeAllChannelFeeds + 再購読）が発生
+    unsubscribeAllChannelFeeds();
+    containerEl.innerHTML = '';
+    await subscribeChannelFeed('chan-root-reload', mockState, containerEl, mockSettingsManager);
+
+    // 1回目の loadMoreHistory の EOSE が遅れて到着
+    handlersList[1].onevent({
+      id: 'ev-stale-history',
+      kind: 42,
+      pubkey: 'u2',
+      created_at: 1000,
+      content: 'Stale history',
+      tags: [['e', 'chan-root-reload', '', 'root']]
+    });
+    handlersList[1].oneose();
+
+    // 遅れて届いた古い過去ログは DOM に追加されていないこと
+    expect(containerEl.querySelector('.event[data-event-id="ev-stale-history"]')).toBeNull();
+  });
+
+  it('does not show load-more button during initial message arrival before EOSE or limit', async () => {
+    let handlers;
+    mockState.pool.subscribeMany = vi.fn((relays, filters, h) => {
+      handlers = h;
+      return { close: vi.fn() };
+    });
+
+    await subscribeChannelFeed('chan-root-initial', mockState, containerEl, mockSettingsManager);
+
+    // Initial loading indicator is shown
+    expect(containerEl.querySelector('.muted.text-center')).not.toBeNull();
+
+    // First event arrives while batch is still streaming
+    handlers.onevent({
+      id: 'ev-batch-1',
+      kind: 42,
+      pubkey: 'u1',
+      created_at: 2000,
+      content: 'Incoming 1',
+      tags: [['e', 'chan-root-initial', '', 'root']]
+    });
+
+    // Event is in DOM, but load-more button is NOT yet shown (prevent premature load-more flash)
+    expect(containerEl.querySelector('.event[data-event-id="ev-batch-1"]')).not.toBeNull();
+    expect(containerEl.querySelector('.load-more-btn')).toBeNull();
+
+    // Now EOSE fires -> batch is complete, load-more button is attached at bottom
+    handlers.oneose();
+    expect(containerEl.querySelector('.load-more-btn')).not.toBeNull();
+  });
 });
 

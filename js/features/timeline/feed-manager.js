@@ -1,7 +1,8 @@
 import { insertEventSorted, findEventById, clearFeed } from '../../core/state.js';
 import { getReadRelays, subOnce, relayConnect, unsubscribeAll, cancelInactiveTabOneshots } from '../../core/relay.js';
 import { EVENTS_MAX, EVENTS_INITIAL_LIMIT, EVENTS_FETCH_LIMIT, EVENTS_TIMEOUT } from '../../config/constants.js';
-import { setupFeedFetcher, updatePerFilterUntil } from '../../features/timeline/feed-fetcher.js';
+import { setupFeedFetcher, updatePerFilterUntil, abortAllFetchMore } from '../../features/timeline/feed-fetcher.js';
+import { unsubscribeAllChannelFeeds } from '../channel/channel-feed.js';
 import { scheduleCustomEmojiSubscription } from '../../features/emoji/custom-emoji-sub.js';
 import { renderFeed, scheduleRender, userKind7Memory, feedLoadState } from '../../features/timeline/feed-renderer.js';
 import { pickChannelRootId, prefetchChannelMetadata } from '../../features/channel/channel.js';
@@ -203,8 +204,9 @@ export function markFeedPreferFullRender(feedId) {
 /**
  * フィードフェッチャー用履歴ロード関連のフック設定オブジェクトを返す
  */
-export function feedFetcherHistHooks() {
+export function feedFetcherHistHooks(generation = null) {
   return {
+    generation: (typeof generation === 'number') ? generation : (state?._feedGeneration ?? null),
     onHistBufferStart: markFeedHistBufferStart,
     onHistBufferEnd: markFeedHistBufferEnd
   };
@@ -376,6 +378,7 @@ export function mergeFetchedIntoGlobalList(moreBuffer, startListLength) {
  * マージ有効時のグローバル追加ロード処理を実行
  */
 export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
+  const generation = state?._feedGeneration;
   return new Promise((resolve) => {
     const gfeed = state.feeds['global'];
     if (!gfeed || mergeUntil == null) {
@@ -404,6 +407,11 @@ export function runMergedGlobalLoadMore({ mergeUntil, startListLength }) {
     const finalize = () => {
       if (settled) return;
       settled = true;
+      if (generation != null && state?._feedGeneration !== generation) {
+        cleanupAll();
+        resolve({ madeProgress: false, minScannedTs: null, appendedCount: 0 });
+        return;
+      }
       try { mergeFetchedIntoGlobalList(moreBuffer, startListLength); } catch (e) { }
       const listAfterLen = gfeed.list?.length || 0;
       const oldestAfter = getFeedOldestCreatedAt(gfeed.list);
@@ -1370,6 +1378,17 @@ export function restartFeeds(fullReset = false) {
     state._authedFeedsPendingToken = null;
     state._homeFetcherPending = false;
   }
+  try { abortAllFetchMore(state); } catch (e) { }
+  try { unsubscribeAllChannelFeeds(); } catch (e) { }
+  try {
+    Object.keys(feedLoadState).forEach(fid => {
+      if (feedLoadState[fid]) {
+        feedLoadState[fid].loadingMore = false;
+        feedLoadState[fid].histLoading = false;
+        feedLoadState[fid].autoFetchFailed = false;
+      }
+    });
+  } catch (e) { }
   if (_delayedBitchatTimer) {
     clearTimeout(_delayedBitchatTimer);
     _delayedBitchatTimer = null;
@@ -1409,7 +1428,7 @@ export function restartFeeds(fullReset = false) {
         }
       }).catch(() => {});
     } catch (_e) { }
-    ['home', 'global', 'mentions', 'me'].forEach(id => {
+    ['home', 'global', 'mentions', 'me', 'bitchat'].forEach(id => {
       try {
         clearFeed(state, id);
         if (feedLoadState[id]) {
@@ -1421,15 +1440,14 @@ export function restartFeeds(fullReset = false) {
 
   ['home', 'global', 'mentions', 'me', 'bitchat'].forEach(id => {
     const el = document.getElementById('feed-' + id);
-    if (el) el.innerHTML = '';
+    if (el) el.innerHTML = '<div class="muted p-12 text-center">' + (t('loading') || '読み込み中...') + '</div>';
   });
 
   try {
     const channelFeedEls = document.querySelectorAll('.feed[id^="feed-channel-"]');
     channelFeedEls.forEach(el => {
-      el.innerHTML = '';
+      el.innerHTML = '<div class="muted p-12 text-center">' + (t('channel.fetching') || 'メッセージを取得中...') + '</div>';
       delete el.__channelEventsMap;
-      delete el.__channelFeedGen;
     });
   } catch (_e) { }
 

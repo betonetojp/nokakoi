@@ -384,8 +384,8 @@ export function renderFeed(id = 'global', force = false) {
 
   let bottomBar = null;
   let scrollSentinel = null;
-  const displayCount = feed.list?.length || 0;
-  const showLoadMore = displayCount < EVENTS_MAX && !(feedLoadState[id] && feedLoadState[id].noMoreEvents);
+  const displayCount = eventsToRender.length;
+  const showLoadMore = displayCount > 0 && displayCount < EVENTS_MAX && !(feedLoadState[id] && feedLoadState[id].noMoreEvents);
   if (showLoadMore && id !== 'bitchat') {
     scrollSentinel = document.createElement('div');
     scrollSentinel.className = 'feed-scroll-sentinel';
@@ -625,6 +625,19 @@ export function renderFeed(id = 'global', force = false) {
     ? captureTimelineAnchor(el)
     : null;
 
+  if (eventsToRender.length > 0) {
+    const placeholder = el.querySelector('.muted.text-center');
+    if (placeholder) placeholder.remove();
+  } else if (!feedLoadState[id]?.histLoaded) {
+    let placeholder = el.querySelector('.muted.text-center');
+    if (!placeholder) {
+      placeholder = document.createElement('div');
+      placeholder.className = 'muted p-12 text-center';
+      placeholder.textContent = t('loading') || '読み込み中...';
+      el.appendChild(placeholder);
+    }
+  }
+
   if (!force) {
     try {
       const newTopId = eventsToRender.length > 0 ? eventsToRender[0].id : '';
@@ -716,7 +729,14 @@ export function renderFeed(id = 'global', force = false) {
   })();
 
   el.innerHTML = '';
-  el.appendChild(frag);
+  if (eventsToRender.length === 0 && !feedLoadState[id]?.histLoaded) {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'muted p-12 text-center';
+    placeholder.textContent = t('loading') || '読み込み中...';
+    el.appendChild(placeholder);
+  } else {
+    el.appendChild(frag);
+  }
   observeNewBottomControls();
 
   if (selectedEventId) {

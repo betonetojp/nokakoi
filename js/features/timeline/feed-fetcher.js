@@ -3,6 +3,23 @@ import { EVENTS_MAX } from '../../config/constants.js';
 
 const moreInFlightByState = new WeakMap();
 
+export function abortAllFetchMore(state) {
+  try {
+    const inFlightMap = getMoreInFlightMap(state);
+    if (inFlightMap) {
+      for (const p of Array.from(inFlightMap.values())) {
+        try {
+          if (p && p.controller && typeof p.controller.abort === 'function') {
+            p.controller.abort();
+          }
+        } catch (e) { }
+      }
+      inFlightMap.clear();
+      try { moreInFlightByState.delete(state); } catch (e) { }
+    }
+  } catch (e) { }
+}
+
 function getMoreInFlightMap(state) {
   if (!state || (typeof state !== 'object' && typeof state !== 'function')) return null;
   let map = moreInFlightByState.get(state);
@@ -211,6 +228,16 @@ export function setupFeedFetcher(opts) {
   const finalize = () => {
     if (histFinished) return;
     histFinished = true;
+    if (controller.signal.aborted || (opts?.generation != null && state?._feedGeneration !== opts.generation)) {
+      try { histBuffer.clear(); } catch (e) { }
+      try {
+        for (const u of Array.from(perRelayUnsubs)) {
+          try { if (typeof u === 'function' && !u.__invoked) { u.__invoked = true; u(); } } catch (e) { }
+        }
+        perRelayUnsubs.clear();
+      } catch (e) { }
+      return;
+    }
     try {
       if (histBufferMode && histBuffer.size > 0) {
         mergeHistBufferIntoFeed(state, feedId, histBuffer, histKeepLimit);
@@ -366,10 +393,12 @@ export function fetchMore(opts) {
     eventsFetchLimit = 60,
     eventsTimeout = 10000,
     onCollect = null,
-    acceptEvent = null
+    acceptEvent = null,
+    generation: explicitGeneration = null
   } = opts || {};
 
-  const inFlightMap = getMoreInFlightMap(state);
+  const generation = explicitGeneration ?? state?._feedGeneration;
+    const inFlightMap = getMoreInFlightMap(state);
   const existing = inFlightMap && inFlightMap.get(feedId);
   if (existing) return existing;
 
@@ -400,6 +429,12 @@ export function fetchMore(opts) {
     const finalizeMore = () => {
       if (settled) return;
       settled = true;
+      if (controller.signal.aborted || (generation != null && state?._feedGeneration !== generation)) {
+        cleanupAll();
+        try { if (abortListener && controller && controller.signal) controller.signal.removeEventListener('abort', abortListener); } catch (e) { }
+        resolve({ appendedCount: 0, totalCount: startListLength });
+        return;
+      }
       let appended = 0;
       let total = 0;
       try {

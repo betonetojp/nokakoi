@@ -235,6 +235,43 @@ describe('scroll-time load more rendering', () => {
     expect(Array.from(uiState.expandedCwEventIds)).toEqual(['cw-open']);
   });
 
+  it('shows loading indicator and does not show load-more button when feed has 0 events and histLoaded is false', () => {
+    const state = {
+      relays: [],
+      feeds: {
+        global: {
+          list: [],
+          map: new Map()
+        }
+      }
+    };
+    initFeedRenderer(state, {
+      nip19: null,
+      settingsManager: { get: () => false },
+      getRenderSettingsWithUiState: () => ({}),
+      ensureFeedUiState: () => ({}),
+      findEventById: () => null,
+      setupInfiniteScrollObserver: vi.fn(),
+      getInfiniteScrollObserver: () => mockObserver
+    });
+
+    feedLoadState.global = { histLoaded: false };
+    renderFeed('global', true);
+
+    const feedEl = document.getElementById('feed-global');
+    expect(feedEl.textContent).toContain('読み込み中...');
+    expect(feedEl.querySelector('.load-more-btn')).toBeNull();
+
+    // Now events arrive: loading placeholder should disappear, events and load-more button rendered
+    state.feeds.global.list.push({ id: 'ev-first', kind: 1, created_at: 1000, content: 'first post' });
+    feedLoadState.global.histLoaded = true;
+    renderFeed('global', false);
+
+    expect(feedEl.querySelector('.muted.text-center')).toBeNull();
+    expect(feedEl.querySelector('.load-more-btn')).not.toBeNull();
+    expect(Array.from(feedEl.querySelectorAll('.event')).map(n => n.dataset.eventId)).toEqual(['ev-first']);
+  });
+
   it('lights scrollToTopBtn.has-new during scroll and flushes immediately on nokakoi:scrollToTop', () => {
     document.body.insertAdjacentHTML('beforeend', '<button id="scrollToTopBtn" hidden></button>');
     const state = {

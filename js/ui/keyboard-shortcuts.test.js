@@ -101,4 +101,30 @@ describe('keyboard shortcuts V and Shift+V for event detail', () => {
     expect(timeClickSpy).toHaveBeenCalledTimes(1);
     expect(refClickSpy).not.toHaveBeenCalled();
   });
+
+  it('does not trigger reload on R key if feed is currently loading', async () => {
+    const softReloadSpy = vi.fn();
+    window.softReload = softReloadSpy;
+
+    const feed = document.getElementById('feed-global');
+    feed.innerHTML = '<div class="muted p-12 text-center">読み込み中...</div>';
+
+    const event = new KeyboardEvent('keydown', { key: 'r', bubbles: true });
+    document.dispatchEvent(event);
+
+    expect(softReloadSpy).not.toHaveBeenCalled();
+  });
+
+  it('triggers softReload on R key if feed is not loading', async () => {
+    const softReloadSpy = vi.fn();
+    window.softReload = softReloadSpy;
+
+    const feed = document.getElementById('feed-global');
+    feed.innerHTML = '<div class="event">Content</div>';
+
+    const event = new KeyboardEvent('keydown', { key: 'r', bubbles: true });
+    document.dispatchEvent(event);
+
+    expect(softReloadSpy).toHaveBeenCalledTimes(1);
+  });
 });

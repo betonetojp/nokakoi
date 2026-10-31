@@ -22,6 +22,40 @@ function debugLog(...args) {
 /**
  * ソフトリロードおよびリロードに関連するイベントリスナーを登録する
  */
+/**
+ * 現在アクティブなフィードまたは画面が初期ロード中・取得中かどうかを判定する
+ * @returns {boolean}
+ */
+export function isFeedLoading() {
+  try {
+    if (typeof window !== 'undefined' && window.__nokakoiSoftReloading) {
+      return true;
+    }
+    if (typeof document === 'undefined') return false;
+    const activeFeed = document.querySelector('.feed.active');
+    if (!activeFeed) return false;
+
+    // 読み込み中プレースホルダーが存在するかチェック（通常フィード・ピン留めチャンネル・一般チャンネル等）
+    const placeholder = activeFeed.querySelector('.muted.text-center, .muted.p-12, .channel-list-status');
+    if (placeholder) {
+      const text = (placeholder.textContent || '').trim();
+      if (
+        text.includes('読み込み中') ||
+        text.includes('取得中') ||
+        text.toLowerCase().includes('loading') ||
+        text.toLowerCase().includes('fetching')
+      ) {
+        return true;
+      }
+    }
+  } catch (e) { }
+  return false;
+}
+
+if (typeof window !== 'undefined') {
+  window.isFeedLoading = isFeedLoading;
+}
+
 export function setupReloadHandler(appState, appSettingsManager) {
   state = appState;
   settingsManager = appSettingsManager;
@@ -29,6 +63,12 @@ export function setupReloadHandler(appState, appSettingsManager) {
   // 1. window.softReload の定義
   try {
     window.softReload = function () {
+      // 読み込み中（「読み込み中...」「メッセージを取得中...」表示中）の呼び出しを抑止
+      if (isFeedLoading()) {
+        debugLog('[softReload] 抑止', { reason: 'feed-loading' });
+        return;
+      }
+
       // 連続呼び出し抑止: 短時間の連打を無視して競合を回避
       try {
         const now = Date.now();
@@ -67,6 +107,10 @@ export function setupReloadHandler(appState, appSettingsManager) {
     window.addEventListener('softReloadRequest', () => {
       try {
         debugLog('[softReloadRequest] 受信');
+        if (isFeedLoading()) {
+          debugLog('[softReloadRequest] 抑止', { reason: 'feed-loading' });
+          return;
+        }
         try {
           if (typeof window.__nokakoiSoftReloading !== 'undefined' && window.__nokakoiSoftReloading) {
             debugLog('[softReloadRequest] 抑止', { reason: 'in-progress' });

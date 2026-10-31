@@ -1,6 +1,7 @@
 import { isReadOnlyAccount } from '../core/account-manager.js';
 import { showToast } from '../utils/utils.js';
 import { t } from '../utils/i18n.js';
+import { isFeedLoading } from './reload-handler.js';
 
 // ============================================================================
 // キーボードショートカット管理
@@ -258,6 +259,7 @@ export function setupKeyboardShortcuts(state, options) {
     // Rキー: ソフトリロード
     if (e.key === 'r' || e.key === 'R') {
       e.preventDefault();
+      if (isFeedLoading()) return;
       try {
         if (typeof window.softReload === 'function') {
           window.softReload();
