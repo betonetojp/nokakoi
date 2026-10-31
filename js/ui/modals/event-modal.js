@@ -508,28 +508,37 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
   }
 
   // タイムラインと同じボタン配置・動作
+  const isReadOnly = isReadOnlyAccount(state);
+  const isGuest = !localStorage.getItem('pubkey');
+
   // リアクション（名前右）
   const reactWrap = modal.querySelector('#eventModalReactWrap');
   if (reactWrap) {
-    reactWrap.innerHTML = '<button class="btn-react" type="button" title="' + escapeHtml(t('reaction.button.title')) + '"><img src="icon/star.png" alt="' + escapeHtml(t('reaction.button.title')) + '" class="icon-btn"></button>';
-    // setupReactButton は renderer.js から export 済みである必要がある
-    if (typeof setupReactButton === 'function') {
-      setupReactButton(modal, event, settings, settingsManager, reactToEvent);
+    if (isGuest || isReadOnly) {
+      reactWrap.innerHTML = '';
+      reactWrap.classList.add('d-none');
+    } else {
+      reactWrap.classList.remove('d-none');
+      reactWrap.innerHTML = '<button class="btn-react" type="button" title="' + escapeHtml(t('reaction.button.title')) + '"><img src="icon/star.png" alt="' + escapeHtml(t('reaction.button.title')) + '" class="icon-btn"></button>';
+      if (typeof setupReactButton === 'function') {
+        setupReactButton(modal, event, settings, settingsManager, reactToEvent);
+      }
     }
   }
   // リポスト・返信（下部右）
   const actionsBottom = modal.querySelector('#eventModalActionsBottom');
   if (actionsBottom) {
     const isKind1 = Number(event && event.kind) === 1 || Number(event && event.kind) === 1111;
-    actionsBottom.classList.toggle('d-none', !isKind1);
-    if (isKind1) {
+    actionsBottom.classList.toggle('d-none', !isKind1 || isGuest || isReadOnly);
+    if (isKind1 && !isGuest && !isReadOnly) {
       actionsBottom.innerHTML = '<button class="btn-repost" type="button" title="' + escapeHtml(t('repost')) + '"><img src="icon/repost.png" alt="' + escapeHtml(t('repost')) + '" class="icon-btn"></button>' +
         '<button class="btn-reply" type="button" title="' + escapeHtml(t('reply')) + '"><img src="icon/reply.png" alt="' + escapeHtml(t('reply')) + '" class="icon-btn"></button>';
-      setupRepostButton(modal, event, repostEvent);
+      setupRepostButton(modal, event, repostEvent, state);
       // 返信ボタン: モーダルを閉じてからreplyToEventを呼ぶ
       const replyBtn = actionsBottom.querySelector('.btn-reply');
       if (replyBtn && typeof replyToEvent === 'function') {
-        replyBtn.onclick = function () {
+        replyBtn.onclick = function (e) {
+          if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
           if (isReadOnlyAccount(state)) {
             showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため返信できません', { type: 'error' });
             return;
@@ -538,7 +547,7 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
           replyToEvent(event);
         };
       } else {
-        setupReplyButton(modal, event, replyToEvent);
+        setupReplyButton(modal, event, replyToEvent, state);
       }
     } else {
       actionsBottom.innerHTML = '';

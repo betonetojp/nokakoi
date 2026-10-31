@@ -3,6 +3,7 @@ import { getReadRelays, subOnce } from '../../core/relay.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { refreshEventsMuteState, invalidateMuteConfigCache } from '../../ui/renderers/render-helpers.js';
 import { signer } from '../../core/signer.js';
+import { isReadOnlyAccount } from '../../core/account-manager.js';
 
 const reportedMuteEventDiagnostics = new Set();
 const reportedMuteSuccessEvents = new Set();
@@ -226,6 +227,7 @@ export function updateMuteListCountsUI() {
 }
 
 export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = {}) {
+  const isReadOnly = isReadOnlyAccount(state);
   const status = ui.status || null;
   const countsWrap = ui.countsWrap || null;
   const pubPubEl = ui.pubPubEl || null;
@@ -368,7 +370,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
 
       let decrypted = null;
 
-      if (nip44 && nip44.v2 && hasContent) {
+      if (!isReadOnly && nip44 && nip44.v2 && hasContent) {
         if (!(state.signer === 'nip07' && !signer.hasKey())) {
           try {
             const attempts = [];
@@ -398,7 +400,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
         }
       }
 
-      if (!decrypted && nip04 && hasContent) {
+      if (!isReadOnly && !decrypted && nip04 && hasContent) {
         if (!(state.signer === 'nip07' && !signer.hasKey())) {
           try {
             const attempts = [];
@@ -464,12 +466,18 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
     try {
       localStorage.setItem(`muteList_raw_kind10000.${pubkey}`, JSON.stringify(results));
       localStorage.setItem('muteList_raw_kind10000', JSON.stringify(results));
-      // 暗号化イベントが存在し非同期復号が控えている場合は、未復号のままexpandedを保存して上書きすることを防止
-      if (!hasEncryptedEvents) {
+      // 暗号化イベントが存在し非同期復号が控えている場合は、未復号のままexpandedを保存して上書きすることを防止（閲覧専用は復号しないため即時保存）
+      if (isReadOnly || !hasEncryptedEvents) {
         localStorage.setItem(`muteList_expanded.${pubkey}`, JSON.stringify(expanded));
         localStorage.setItem('muteList_expanded', JSON.stringify(expanded));
       }
-      try { if (status) status.textContent = t('mute.fetch.done'); } catch (ee) { }
+      try {
+        if (status) {
+          status.textContent = isReadOnly
+            ? (t('mute.fetch.done_public_only') || '取得完了 (公開ミュートのみ)')
+            : t('mute.fetch.done');
+        }
+      } catch (ee) { }
     } catch (e) {
       console.warn('[mute] 保存に失敗', e);
       if (status) status.textContent = t('mute.save.error');
@@ -498,7 +506,7 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
       const isNip46 = state.signer === 'nip46';
       const isNsec = state.signer === 'nsec';
       const hasNostrToolsCrypto = !!getNip04() || !!getNip44();
-      const shouldShow = !isNsec && ((expanded.pubkeys && expanded.pubkeys.private && expanded.pubkeys.private.length > 0) || hasEncryptedEvents) &&
+      const shouldShow = !isReadOnly && !isNsec && ((expanded.pubkeys && expanded.pubkeys.private && expanded.pubkeys.private.length > 0) || hasEncryptedEvents) &&
                          (state.signer === 'nip07' || (typeof window !== 'undefined' && (!!window.nostr || hasNostrToolsCrypto)) || isNip46);
 
       async function performDeferredDecrypt() {

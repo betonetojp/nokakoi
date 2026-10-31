@@ -9,6 +9,8 @@ import { t } from '../../utils/i18n.js';
 import { displayNameWithUsername, loadProfile, isAvatarsEnabled } from '../profile/profile.js';
 import { refreshEventsMuteState, invalidateMuteConfigCache } from '../../ui/renderers/render-helpers.js';
 import { signer } from '../../core/signer.js';
+import { isReadOnlyAccount } from '../../core/account-manager.js';
+import { showToast } from '../../utils/utils.js';
 
 const MUTE_SNAPSHOTS_KEY_BASE = 'mute_list_snapshots';
 
@@ -270,6 +272,7 @@ function showConfirmDialog(parentElement, msgKey, okBtnKey) {
  * ミュートデータの初期パース
  */
 async function parseMuteEvent(ev, state) {
+  const isReadOnly = isReadOnlyAccount(state);
   const publicUsers = new Set();
   const publicWords = new Set();
   const nonMuteTags = [];
@@ -290,7 +293,7 @@ async function parseMuteEvent(ev, state) {
   let encryptionMode = 'nip44'; // 新規時は nip44 優先
   let privateUsers = new Set();
   let privateWords = new Set();
-  let canEditPrivate = true;
+  let canEditPrivate = !isReadOnly;
   let decryptedSuccess = false;
 
   if (content && typeof content === 'string' && content.trim() !== '') {
@@ -305,7 +308,7 @@ async function parseMuteEvent(ev, state) {
       // 暗号化されている
     }
 
-    if (!decryptedSuccess) {
+    if (!decryptedSuccess && !isReadOnly) {
       // NIP-04 か NIP-44 か判定
       const isNip04Format = content.includes('?iv=');
       if (isNip04Format) {
@@ -804,6 +807,7 @@ export async function openMuteEditor(state) {
     backupEvent(10000, latestEvent);
   }
 
+  const isReadOnly = isReadOnlyAccount(state);
   const parsed = await parseMuteEvent(latestEvent, state);
 
   let publicUserItems = parsed.publicUsers.map(pk => ({ pubkey: pk, isMuted: true }));
@@ -812,7 +816,7 @@ export async function openMuteEditor(state) {
   let privateWordItems = parsed.privateWords.map(w => ({ word: w, isMuted: true }));
 
   let activeMainTab = 'mutes'; // 'mutes' | 'snapshots'
-  let activeTab = parsed.canEditPrivate ? 'private' : 'public'; // 非公開ミュート編集可能なら非公開タブを初期選択
+  let activeTab = (parsed.canEditPrivate && !isReadOnly) ? 'private' : 'public'; // 非公開ミュート編集可能なら非公開タブを初期選択
   let selectedEncryptionMode = parsed.encryptionMode || 'nip44';
 
   if (statusEl) statusEl.textContent = '';
@@ -1053,9 +1057,9 @@ export async function openMuteEditor(state) {
     const bodyEl = container.querySelector('#muteTabBody');
 
     if (activeTab === 'public') {
-      renderMuteSection(bodyEl, publicUserItems, publicWordItems, true, 'public');
+      renderMuteSection(bodyEl, publicUserItems, publicWordItems, !isReadOnly, 'public');
     } else {
-      renderMuteSection(bodyEl, privateUserItems, privateWordItems, parsed.canEditPrivate, 'private');
+      renderMuteSection(bodyEl, privateUserItems, privateWordItems, !isReadOnly && parsed.canEditPrivate, 'private');
     }
   }
 
@@ -1374,6 +1378,10 @@ export async function openMuteEditor(state) {
 
   // 保存処理
   const handleSave = async () => {
+    if (isReadOnly) {
+      showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため保存できません', { type: 'error' });
+      return;
+    }
     if (newSaveBtn) newSaveBtn.disabled = true;
     try {
       const confirmed = await showConfirmDialog(modal.querySelector('.modal-body') || modal, 'editor.mute.confirm_save');
@@ -1438,7 +1446,13 @@ export async function openMuteEditor(state) {
     if (statusEl) statusEl.textContent = '';
   };
 
-  if (newSaveBtn) newSaveBtn.onclick = handleSave;
+  if (newSaveBtn) {
+    if (isReadOnly) {
+      newSaveBtn.disabled = true;
+      newSaveBtn.title = t('readonly.action_blocked') || '閲覧専用アカウントのため保存できません';
+    }
+    newSaveBtn.onclick = handleSave;
+  }
   if (newCancelBtn) newCancelBtn.onclick = closeModal;
   if (newCloseBtn) newCloseBtn.onclick = closeModal;
 }

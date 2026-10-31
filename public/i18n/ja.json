@@ -735,5 +735,6 @@
   "readonly.action_blocked": "閲覧専用アカウントのため、この操作（書き込み・署名）は利用できません。",
   "readonly.composer_disabled": "閲覧専用アカウントのため投稿できません",
   "account.method.read_only": "👀 閲覧専用",
-  "account.modal.edit_profile_disabled": "閲覧専用アカウントのためプロフィールは編集できません"
+  "account.modal.edit_profile_disabled": "閲覧専用アカウントのためプロフィールは編集できません",
+  "mute.fetch.done_public_only": "取得完了 (公開ミュートのみ)"
 }

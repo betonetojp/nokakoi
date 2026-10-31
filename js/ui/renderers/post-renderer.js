@@ -251,7 +251,8 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
 export function setupReplyButton(div, ev, replyToEvent, state = null) {
   const replyBtn = div.querySelector('.btn-reply');
   if (!replyBtn) return;
-  replyBtn.onclick = function () {
+  replyBtn.onclick = function (e) {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
     if (isReadOnlyAccount(state)) {
       showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため返信できません', { type: 'error' });
       return;
@@ -303,7 +304,8 @@ export function setupRepostButton(div, ev, repostEvent, state = null) {
   const repostBtn = div.querySelector('.btn-repost');
   if (!repostBtn) return;
 
-  repostBtn.onclick = async function () {
+  repostBtn.onclick = async function (e) {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
     if (isReadOnlyAccount(state)) {
       showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため実行できません', { type: 'error' });
       return;
@@ -1093,6 +1095,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
   if (state && ev && ev.id && !findEventById(state, ev.id)) {
     try { cacheEvent(state, ev); } catch (_e) { }
   }
+  const isReadOnly = isReadOnlyAccount(state);
   const div = buildEventContainer(ev);
   if (settings && (settings.ignoreMuteApply === true || settings.disableMuteApply === true)) {
     div.dataset.ignoreMuteApply = 'true';
@@ -1152,7 +1155,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
 
   const topRowHtml = '<div class="event-top-row">' +
     nameBlockHtml +
-    (localStorage.getItem('pubkey') && ev.kind !== 20000 ?
+    (localStorage.getItem('pubkey') && !isReadOnly && ev.kind !== 20000 ?
       '<div class="event-actions-react">' +
       '<button' + zappedAttr + ' type="button" data-i18n-title="zap.button.title"><img src="icon/zap.svg" alt="" class="icon-btn" data-i18n-alt="zap.button.title"></button>' +
       '<button class="btn-react" type="button" data-i18n-title="reaction.button.title"><img src="icon/star.png" alt="" class="icon-btn" data-i18n-alt="reaction.button.title"></button>' +
@@ -1195,7 +1198,7 @@ export function renderEvent(state, ev, nip19, settings, settingsManager, reactTo
     '<span class="time" role="button" tabindex="0" title="' + escapeHtml(t('event.detail.title') || 'イベント詳細') + '" data-i18n-title="event.detail.title">' + formatTimeForEvent(ev) + '</span>' +
     '<button class="btn-json btn-kind" type="button" data-kind="' + ev.kind + '" data-i18n-title="showJson"> k:' + ev.kind + '</button>' +
     '</div>' +
-    (localStorage.getItem('pubkey') ?
+    (localStorage.getItem('pubkey') && !isReadOnly ?
       '<div class="event-actions-bottom">' +
       omochatButtons +
       (ev.kind !== 20000 ? '<button class="btn-quote" type="button" data-i18n-title="quote"><img src="icon/note.png" alt="" class="icon-btn" data-i18n-alt="quote"></button>' : '') +

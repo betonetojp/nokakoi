@@ -735,5 +735,6 @@
   "readonly.action_blocked": "This action (writing/signing) is not available for read-only accounts.",
   "readonly.composer_disabled": "Posting is disabled for read-only accounts.",
   "account.method.read_only": "👀 Read-only",
-  "account.modal.edit_profile_disabled": "Profile cannot be edited for read-only accounts."
+  "account.modal.edit_profile_disabled": "Profile cannot be edited for read-only accounts.",
+  "mute.fetch.done_public_only": "Fetched (Public mutes only)"
 }

@@ -206,4 +206,78 @@ describe('mute list diagnostics', () => {
     expect(localStorage.getItem('mute_apply.account-b')).toBe('0');
     expect(localStorage.getItem('mute_apply')).toBe('0');
   });
+
+  it('fetches only public mutes without decryption challenge for read-only account', async () => {
+    const pubkey = 'readonly_user_pk';
+    localStorage.setItem('pubkey', pubkey);
+
+    const kind10000Event = {
+      id: 'mute_ev_1',
+      kind: 10000,
+      pubkey: pubkey,
+      created_at: 1000,
+      tags: [
+        ['p', 'muted_user_1'],
+        ['word', 'badword']
+      ],
+      content: '?iv=encrypted_content_payload'
+    };
+
+    mocks.subOnce.mockImplementation((state, subId, filters, onEvent) => {
+      onEvent(kind10000Event, 'wss://relay.example', true);
+      return vi.fn();
+    });
+
+    const statusEl = { textContent: '' };
+    const countsWrap = { hidden: true };
+    const pubPubEl = { textContent: '' };
+    const pubPrivEl = { textContent: '' };
+    const wordPubEl = { textContent: '' };
+    const wordPrivEl = { textContent: '' };
+
+    const state = {
+      pool: {},
+      relays: ['wss://relay.example'],
+      signer: 'read-only',
+      pubkey: pubkey
+    };
+
+    const renderFeed = vi.fn();
+
+    await fetchMuteList(state, () => null, renderFeed, {
+      status: statusEl,
+      countsWrap,
+      pubPubEl,
+      pubPrivEl,
+      wordPubEl,
+      wordPrivEl
+    });
+
+    // Decryption should be skipped
+    expect(mocks.signer.nip44Decrypt).not.toHaveBeenCalled();
+    expect(mocks.signer.nip04Decrypt).not.toHaveBeenCalled();
+
+    // Counts should reflect public mutes only
+    expect(pubPubEl.textContent).toBe(1);
+    expect(pubPrivEl.textContent).toBe(0);
+    expect(wordPubEl.textContent).toBe(1);
+    expect(wordPrivEl.textContent).toBe(0);
+    expect(countsWrap.hidden).toBe(false);
+
+    // Status message
+    expect(statusEl.textContent).toBe('mute.fetch.done_public_only');
+
+    // Mute list should be saved
+    const savedExpandedRaw = localStorage.getItem(`muteList_expanded.${pubkey}`);
+    expect(savedExpandedRaw).not.toBeNull();
+    const saved = JSON.parse(savedExpandedRaw);
+    expect(saved.pubkeys.public).toContain('muted_user_1');
+    expect(saved.words.public).toContain('badword');
+    expect(saved.pubkeys.private).toHaveLength(0);
+    expect(saved.words.private).toHaveLength(0);
+
+    // Feed should be re-rendered
+    expect(renderFeed).toHaveBeenCalled();
+  });
+
 });
