@@ -84,6 +84,15 @@ async function renderMethodSelection(state, settings, settingsManager, onLoginSu
       action: () => {
         renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess);
       }
+    },
+    {
+      id: 'read_only',
+      icon: '👀',
+      titleKey: 'login.modal.read_only',
+      descKey: 'login.modal.read_only_desc',
+      action: () => {
+        renderReadOnlyScreen(state, settings, settingsManager, onLoginSuccess);
+      }
     }
   ];
 
@@ -350,6 +359,121 @@ function renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess) {
 
       if (typeof onLoginSuccess === 'function') {
         await onLoginSuccess();
+      }
+    };
+  }
+}
+
+
+/**
+ * 公開鍵閲覧専用ログイン画面を描画
+ */
+function renderReadOnlyScreen(state, settings, settingsManager, onLoginSuccess) {
+  const content = $('#loginMethodModalContent');
+  if (!content) return;
+
+  content.innerHTML = `
+    <div style="margin-bottom: 12px;">
+      <h3 style="margin-top:0; margin-bottom:8px;">${t('readonly.title')}</h3>
+      <p style="font-size:0.85em; margin:0 0 12px; color:var(--text-secondary, #888);">${t('readonly.desc')}</p>
+      
+      <div class="readonly-display" style="margin-bottom:12px;">
+        <label class="modal-field-label" for="readOnlyPubkeyInput">${t('readonly.input_label')}</label>
+        <div style="display:flex; gap:8px; margin-top:4px;">
+          <input type="text" id="readOnlyPubkeyInput" placeholder="${t('readonly.input_placeholder')}" style="flex:1; padding:8px; box-sizing:border-box; font-family:monospace; font-size:0.9em;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+      </div>
+
+      <div id="readOnlyStatus" style="font-size:0.85em; color:#ffaa00; margin-top:8px; min-height:1.2em;"></div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; gap:8px; margin-top:16px;">
+      <button type="button" class="secondary" id="readOnlyBackBtn">${t('editor.common.cancel')}</button>
+      <button type="button" id="readOnlyLoginBtn">${t('readonly.login_btn')}</button>
+    </div>
+  `;
+
+  const backBtn = $('#readOnlyBackBtn');
+  const loginBtn = $('#readOnlyLoginBtn');
+  const input = $('#readOnlyPubkeyInput');
+  const statusEl = $('#readOnlyStatus');
+
+  if (backBtn) {
+    backBtn.onclick = () => {
+      renderMethodSelection(state, settings, settingsManager, onLoginSuccess);
+    };
+  }
+
+  if (input) {
+    input.focus();
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (loginBtn) loginBtn.click();
+      }
+    };
+  }
+
+  if (loginBtn) {
+    loginBtn.onclick = async () => {
+      const rawInput = input ? input.value.trim() : '';
+      if (!rawInput) {
+        if (statusEl) statusEl.textContent = t('readonly.invalid_key');
+        if (input) input.focus();
+        return;
+      }
+
+      let hexPubkey = null;
+      if (/^[0-9a-f]{64}$/i.test(rawInput)) {
+        hexPubkey = rawInput.toLowerCase();
+      } else if (rawInput.startsWith('npub1')) {
+        try {
+          const { getNip19 } = await import('../../core/nostr-compat.js');
+          const nip19 = getNip19();
+          if (nip19 && typeof nip19.decode === 'function') {
+            const decoded = nip19.decode(rawInput);
+            if (decoded && decoded.type === 'npub' && decoded.data) {
+              hexPubkey = decoded.data.toLowerCase();
+            }
+          }
+        } catch (e) {
+          console.warn('[LoginModal] npubデコード失敗:', e);
+        }
+      }
+
+      if (!hexPubkey || !/^[0-9a-f]{64}$/i.test(hexPubkey)) {
+        if (statusEl) statusEl.textContent = t('readonly.invalid_key');
+        if (input) input.focus();
+        return;
+      }
+
+      if (statusEl) statusEl.textContent = t('auth.pending') || 'ログイン中...';
+
+      closeModal();
+
+      try {
+        const { loginWithPubkey } = await import('../../core/auth/auth-core.js');
+        if (typeof loginWithPubkey === 'function') {
+          await loginWithPubkey(
+            hexPubkey,
+            state,
+            settings,
+            settingsManager,
+            typeof onLoginSuccess === 'function' ? onLoginSuccess : null
+          );
+        } else {
+          state.signer = 'read-only';
+          state.pubkey = hexPubkey;
+          try {
+            localStorage.setItem('pubkey', hexPubkey);
+            localStorage.removeItem('skipAutoLogin');
+          } catch (e) {}
+          if (typeof onLoginSuccess === 'function') {
+            await onLoginSuccess();
+          }
+        }
+      } catch (e) {
+        console.error('[LoginModal] 閲覧専用ログイン失敗:', e);
       }
     };
   }

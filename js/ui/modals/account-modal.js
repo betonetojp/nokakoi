@@ -79,10 +79,22 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
   // 1. プロフィール編集ボタン
   const editProfileBtn = $('#accountEditProfileBtn');
   if (editProfileBtn) {
-    editProfileBtn.onclick = () => {
-      closeModal();
-      openProfileEditor(state);
-    };
+    const activeAccount = accountData.accounts.find(a => a.id.toLowerCase() === activeId);
+    const isReadOnly = (activeAccount && activeAccount.loginMethod === 'read-only') || (state && state.signer === 'read-only');
+    if (isReadOnly) {
+      editProfileBtn.onclick = () => {
+        showConfirmModal(
+          t('confirm.title') || 'お知らせ',
+          t('account.modal.edit_profile_disabled') || '閲覧専用アカウントのためプロフィールは編集できません',
+          () => {}
+        );
+      };
+    } else {
+      editProfileBtn.onclick = () => {
+        closeModal();
+        openProfileEditor(state);
+      };
+    }
   }
 
   // 2. ログアウトボタン
@@ -170,7 +182,8 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
         'nip07': t('account.method.nip07'),
         'nsec': t('account.method.password'),
         'nsec-passkey': t('account.method.passkey'),
-        'nip46': t('account.method.nip46')
+        'nip46': t('account.method.nip46'),
+        'read-only': t('account.method.read_only')
       };
       const methodLabel = methodMap[acc.loginMethod] || t('account.method.unsaved');
 

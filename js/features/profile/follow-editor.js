@@ -445,6 +445,14 @@ function showConfirmDialog(parentElement, msgKey, okBtnKey) {
  */
 export async function toggleFollowUser(state, targetPubkey, buttonEl) {
   try {
+    if (state && state.signer === 'read-only') {
+      try {
+        const { showAlertModal } = await import('../../ui/modals/modals.js');
+        showAlertModal(t('confirm.title') || 'お知らせ', t('readonly.action_blocked') || '閲覧専用アカウントのため操作できません');
+      } catch (_e) {}
+      if (buttonEl) buttonEl.disabled = false;
+      return false;
+    }
     const myPubkey = localStorage.getItem('pubkey');
     if (!myPubkey) {
       console.error('未ログインです');

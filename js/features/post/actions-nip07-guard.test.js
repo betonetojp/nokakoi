@@ -118,6 +118,21 @@ describe('NIP-07 Account Mismatch Guard', () => {
       expect(signed.sig).toBe('valid-sig');
       expect(globalThis.window.nostr.signEvent).toHaveBeenCalledTimes(1);
     });
+
+    it('throws error when state.signer is read-only', async () => {
+      const state = {
+        signer: 'read-only',
+        pubkey: accountA
+      };
+
+      const draft = {
+        kind: 1,
+        content: 'Hello Nostr',
+        tags: []
+      };
+
+      await expect(signEventWithMode(state, draft)).rejects.toThrow();
+    });
   });
 
   describe('encryptPrivatePublicChatTags', () => {

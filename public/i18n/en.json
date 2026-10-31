@@ -722,5 +722,18 @@
   "zap.error.invoice_fetch_failed_network": "Failed to fetch the invoice (CORS/Network Error)",
   "zap.error.invoice_create_failed": "Failed to create the invoice ({reason})",
   "zap.error.unknown_reason": "Unknown reason",
-  "zap.error.no_receipt_relays": "No relays are available to wait for the receipt"
+  "zap.error.no_receipt_relays": "No relays are available to wait for the receipt",
+  "login.modal.read_only": "View with Public Key (Read-only)",
+  "login.modal.read_only_desc": "Experience another user timeline via npub / pubkey",
+  "readonly.title": "Add with Public Key (Read-only)",
+  "readonly.desc": "Enter an npub or 64-character hex public key. You can experience the timeline with their relays, follows, and public mutes. (*Writing actions like posting and reactions are disabled)",
+  "readonly.input_label": "Public Key (npub / hex)",
+  "readonly.input_placeholder": "npub1... or 64-char hex",
+  "readonly.login_btn": "Add & View (Read-only)",
+  "readonly.invalid_key": "Please enter a valid npub or 64-character hex public key.",
+  "readonly.already_exists": "This account has already been added.",
+  "readonly.action_blocked": "This action (writing/signing) is not available for read-only accounts.",
+  "readonly.composer_disabled": "Posting is disabled for read-only accounts.",
+  "account.method.read_only": "👀 Read-only",
+  "account.modal.edit_profile_disabled": "Profile cannot be edited for read-only accounts."
 }

@@ -40,10 +40,12 @@ function migrateUnscopedUiKey(base, pubkey = getPubkey()) {
   if (!pk) return;
   const scoped = `${base}.${pk}`;
   try {
-    if (localStorage.getItem(scoped) != null) return;
     const legacy = localStorage.getItem(base);
     if (legacy == null) return;
-    localStorage.setItem(scoped, legacy);
+    if (localStorage.getItem(scoped) == null) {
+      localStorage.setItem(scoped, legacy);
+    }
+    localStorage.removeItem(base);
   } catch (_e) { }
 }
 

@@ -119,6 +119,10 @@ export async function openChannelCreateModal(state, options = {}) {
     if (statusEl) statusEl.textContent = t('editor.common.no_login') || 'Login required';
     return;
   }
+  if (state && state.signer === 'read-only') {
+    if (statusEl) statusEl.textContent = t('readonly.action_blocked') || '閲覧専用アカウントのためチャンネルを作成できません';
+    return;
+  }
 
   const newSubmitBtn = submitBtn ? submitBtn.cloneNode(true) : null;
   const newCancelBtn = cancelBtn ? cancelBtn.cloneNode(true) : null;

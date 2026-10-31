@@ -420,4 +420,31 @@ describe('account manager', () => {
     expect(getAccountList().activeAccountId).toBe(pubkey);
     expect(loginFn).toHaveBeenCalled();
   });
+
+  it('switches to a read-only account without requiring credentials or extensions', async () => {
+    const targetPubkey = 'e'.repeat(64);
+    addAccount({ id: targetPubkey, loginMethod: 'read-only' });
+
+    const state = {
+      nip46: null,
+      pubkey: 'old_account_pubkey',
+      relays: [],
+      signer: 'nsec'
+    };
+    const settingsManager = {
+      loadForAccount: vi.fn(),
+      saveForAccount: vi.fn(),
+      set: vi.fn(),
+      settings: {}
+    };
+    const loginFn = vi.fn(async () => {});
+
+    await switchAccount(targetPubkey, state, settingsManager, loginFn);
+
+    expect(mocks.signer.clearKey).toHaveBeenCalled();
+    expect(state.pubkey).toBe(targetPubkey);
+    expect(state.signer).toBe('read-only');
+    expect(getAccountList().activeAccountId).toBe(targetPubkey);
+    expect(loginFn).toHaveBeenCalled();
+  });
 });

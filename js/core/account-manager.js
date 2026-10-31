@@ -126,6 +126,9 @@ export function removeAccount(pubkey) {
     localStorage.removeItem(`profile_snapshots.${targetId}`);
     localStorage.removeItem(`nokakoi.nip46.localSecretKey.${targetId}`);
     localStorage.removeItem(`nokakoi.nip46.protectedSession.${targetId}`);
+    localStorage.removeItem(`custom_joined_channels.${targetId}`);
+    localStorage.removeItem(`channel_10005_exclusions_v1.${targetId}`);
+    localStorage.removeItem(`channel_list_cache_v1.${targetId}`);
   } catch (e) {
     console.warn('[AccountManager] アカウント固有データの削除失敗:', e);
   }
@@ -215,10 +218,14 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
   const currentPubkey = state.pubkey || localStorage.getItem('pubkey');
   const targetId = targetPubkey.toLowerCase();
 
-  if (currentPubkey && currentPubkey.toLowerCase() === targetId && signer.hasKey()) {
+  if (currentPubkey && currentPubkey.toLowerCase() === targetId && (signer.hasKey() || state.signer === 'read-only')) {
     return; // すでに同一アカウントかつ鍵保持済み
   }
   const sessionId = ++activeSwitchSessionId;
+  try {
+    const pubResultEl = document.getElementById('publishResult');
+    if (pubResultEl) pubResultEl.textContent = '';
+  } catch (e) {}
   invalidateMuteWork(targetId);
 
   // 切り替え前のバックアップ
@@ -410,6 +417,11 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
         authSuccess = false;
       }
     }
+  } else if (method === 'read-only') {
+    try { signer.clearKey(); } catch (e) {}
+    state.signer = 'read-only';
+    authSuccess = true;
+    addAccount({ id: targetId, loginMethod: 'read-only' });
   } else if (isNip07Candidate) {
     try {
       localStorage.removeItem('skipAutoLogin');
@@ -456,7 +468,7 @@ export async function switchAccount(targetPubkey, state, settingsManager, loginF
 
   // 認証が成功しなかった場合（キャンセルまたはエラー時）
   if (!authSuccess) {
-    if (!settings.encryptedNsec && !settings.passkeyEncryptedNsec && method !== 'nip07' && method !== 'nip46') {
+    if (!settings.encryptedNsec && !settings.passkeyEncryptedNsec && method !== 'nip07' && method !== 'nip46' && method !== 'read-only') {
       showAlertModal(t('confirm.title') || 'お知らせ', t('account.modal.unsaved_prompt'));
     }
     // ロールバック: 元の秘密鍵・状態・設定・ヘッダー表示名を100%完全復元

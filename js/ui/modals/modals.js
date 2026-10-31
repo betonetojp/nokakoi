@@ -761,6 +761,19 @@ export function showConfirmModal(title, message, onYes, onNo) {
  * 単体通知・警告用モーダルを表示
  */
 export function showAlertModal(title, message, onOk) {
+  let actualTitle = title;
+  let actualMessage = message;
+  let actualOnOk = onOk;
+
+  if (typeof message === 'function') {
+    actualOnOk = message;
+    actualMessage = title;
+    actualTitle = t('confirm.title') || 'お知らせ';
+  } else if (message === undefined || message === null) {
+    actualMessage = title;
+    actualTitle = t('confirm.title') || 'お知らせ';
+  }
+
   const modal = $('#confirmModal');
   const titleEl = $('#confirmTitle');
   const messageEl = $('#confirmMessage');
@@ -768,12 +781,13 @@ export function showAlertModal(title, message, onOk) {
   const noBtn = $('#confirmNo');
 
   if (!modal || !titleEl || !messageEl || !yesBtn) {
-    alert(message || title);
-    if (typeof onOk === 'function') onOk();
+    alert(actualMessage || actualTitle);
+    if (typeof actualOnOk === 'function') actualOnOk();
     return;
   }
 
-  titleEl.textContent = title || t('confirm.title') || 'お知らせ';
+  titleEl.textContent = actualTitle || t('confirm.title') || 'お知らせ';
+  messageEl.textContent = actualMessage || '';
 
   if (noBtn) noBtn.hidden = true;
 
@@ -786,7 +800,7 @@ export function showAlertModal(title, message, onOk) {
     modal.hidden = true;
     if (noBtn) noBtn.hidden = false;
     yesBtn.onclick = null;
-    if (typeof onOk === 'function') onOk();
+    if (typeof actualOnOk === 'function') actualOnOk();
   };
 
   yesBtn.onclick = handleOk;

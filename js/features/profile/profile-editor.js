@@ -32,6 +32,11 @@ export async function openProfileEditor(state) {
       console.warn('Not logged in: pubkey not found in localStorage');
       return;
     }
+    if (state && state.signer === 'read-only') {
+      const { showAlertModal } = await import('../../ui/modals/modals.js');
+      showAlertModal(t('confirm.title') || 'お知らせ', t('account.modal.edit_profile_disabled') || '閲覧専用アカウントのためプロフィールは編集できません');
+      return;
+    }
 
     // 2. モーダルの表示
     const modal = document.getElementById('profileEditModal');

@@ -2,7 +2,7 @@
 // 投稿欄管理
 // ============================================================================
 
-import { $, escapeHtml, replaceBadgeEmoji } from '../../utils/utils.js';
+import { $, escapeHtml, replaceBadgeEmoji, showToast } from '../../utils/utils.js';
 import { displayName } from '../profile/profile.js';
 import { t, applyTranslations } from '../../utils/i18n.js';
 import { attachEmojiShortcodeSuggest } from '../emoji/emoji-shortcode-suggest.js';
@@ -51,10 +51,29 @@ function isUserLoggedIn() {
   }
 }
 
+function isReadOnlyAccount() {
+  try {
+    const state = (typeof window !== 'undefined') ? window.__nostrState : null;
+    if (state && state.signer === 'read-only') return true;
+    const pref = (typeof localStorage !== 'undefined') ? localStorage.getItem('lastLoginMethod') : null;
+    if (pref === 'read-only') return true;
+    const pk = (typeof localStorage !== 'undefined') ? localStorage.getItem('pubkey') : null;
+    if (pk) {
+      const rawAccounts = localStorage.getItem('nokakoi-accounts');
+      if (rawAccounts) {
+        const parsed = JSON.parse(rawAccounts);
+        const acc = parsed.accounts?.find(a => a.id.toLowerCase() === pk.toLowerCase());
+        if (acc && acc.loginMethod === 'read-only') return true;
+      }
+    }
+  } catch (_e) {}
+  return false;
+}
+
 function showComposerAndEnsureScroll() {
   const composer = $('#composer');
   if (!composer) return null;
-  if (!isUserLoggedIn()) {
+  if (!isUserLoggedIn() || isReadOnlyAccount()) {
     composer.hidden = true;
     return null;
   }
@@ -67,6 +86,10 @@ function showComposerAndEnsureScroll() {
  * 返信対象をセットし投稿欄UIを更新
  */
 export function setReplyTarget(state, event, nip19) {
+  if ((state && state.signer === 'read-only') || isReadOnlyAccount()) {
+    showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため返信できません', { type: 'error' });
+    return;
+  }
   currentReplyTarget = event;
   currentQuoteMode = false;
   try { if (typeof window !== 'undefined') window.__nokakoiQuoteMode = false; } catch (e) {}

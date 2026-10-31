@@ -722,5 +722,18 @@
   "zap.error.invoice_fetch_failed_network": "インボイスの取得に失敗しました (CORS/Network Error)",
   "zap.error.invoice_create_failed": "インボイスの生成に失敗しました ({reason})",
   "zap.error.unknown_reason": "原因不明",
-  "zap.error.no_receipt_relays": "レシート待ちのリレーがありません"
+  "zap.error.no_receipt_relays": "レシート待ちのリレーがありません",
+  "login.modal.read_only": "公開鍵で閲覧 (Read-only)",
+  "login.modal.read_only_desc": "npub や公開鍵で他人の視点を体験",
+  "readonly.title": "公開鍵で追加（閲覧専用）",
+  "readonly.desc": "npub または 64文字の公開鍵（hex）を入力してください。リレー構成、フォロー一覧、公開ミュートが反映されたタイムラインを体験できます。（※投稿・リアクション等の書き込み機能は利用できません）",
+  "readonly.input_label": "公開鍵 (npub / hex)",
+  "readonly.input_placeholder": "npub1... または 64文字のhex",
+  "readonly.login_btn": "閲覧専用で追加・ログイン",
+  "readonly.invalid_key": "有効な npub または 64文字の公開鍵（hex）を入力してください。",
+  "readonly.already_exists": "このアカウントは既に追加されています。",
+  "readonly.action_blocked": "閲覧専用アカウントのため、この操作（書き込み・署名）は利用できません。",
+  "readonly.composer_disabled": "閲覧専用アカウントのため投稿できません",
+  "account.method.read_only": "👀 閲覧専用",
+  "account.modal.edit_profile_disabled": "閲覧専用アカウントのためプロフィールは編集できません"
 }

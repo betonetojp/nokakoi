@@ -41,7 +41,10 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
   }
 
   let selected = null;
-  if (state.signer === 'nip46' && state.nip46 && state.nip46.connected) {
+  if (state.signer === 'read-only') {
+    selected = 'read-only';
+    try { signer.clearKey(); } catch (e) {}
+  } else if (state.signer === 'nip46' && state.nip46 && state.nip46.connected) {
     selected = 'nip46';
     try { signer.clearKey(); } catch (e) {}
   } else if (state.signer === 'nip07' && window.nostr) {
@@ -89,7 +92,10 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
 
   try {
     let pubkey;
-    if (selected === 'nip07') {
+    if (selected === 'read-only') {
+      pubkey = state.pubkey || localStorage.getItem('pubkey');
+      if (!pubkey) throw new Error(t('readonly.invalid_key') || 'Invalid public key');
+    } else if (selected === 'nip07') {
       pubkey = await window.nostr.getPublicKey();
     } else if (selected === 'nsec') {
       pubkey = signer.getPublicKey();
@@ -139,6 +145,8 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
       actualLoginMethod = 'nip07';
     } else if (selected === 'nip46') {
       actualLoginMethod = 'nip46';
+    } else if (selected === 'read-only') {
+      actualLoginMethod = 'read-only';
     }
 
     try {
@@ -194,7 +202,8 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
         'nip07': t('account.method.nip07') || 'NIP-07拡張機能',
         'nsec': t('account.method.password') || 'パスワード認証',
         'nsec-passkey': t('account.method.passkey') || 'パスキー認証',
-        'nip46': t('account.method.nip46') || 'NIP-46 リモートサイナー'
+        'nip46': t('account.method.nip46') || 'NIP-46 リモートサイナー',
+        'read-only': t('account.method.read_only') || '閲覧専用'
       };
       const newMethodLabel = methodNames[actualLoginMethod] || actualLoginMethod;
       setTimeout(() => {
@@ -238,8 +247,9 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
     const openLoginModalBtn = $('#openLoginModalBtn');
     const composer = $('#composer');
 
+    const isReadOnly = (actualLoginMethod === 'read-only' || state.signer === 'read-only');
     if (openLoginModalBtn) openLoginModalBtn.hidden = true;
-    if (composer) composer.hidden = false;
+    if (composer) composer.hidden = isReadOnly;
 
     // タブの表示更新（未ログイン時制限の解除）
     invokeTabVisibilityUpdate(true);
@@ -284,7 +294,7 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
       setTimeout(() => {
         try {
           const composer2 = document.getElementById('composer');
-          if (composer2) composer2.hidden = false;
+          if (composer2) composer2.hidden = (state.signer === 'read-only');
           try {
             updateHeaderName(state, nip19);
           } catch (e) {
@@ -306,7 +316,11 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
 export function updateHeaderName(state, nip19) {
   try {
     const pk = (state && state.pubkey) || localStorage.getItem('pubkey');
-    const nameEl = $('#userInfo');
+    try {
+    const pubResultEl = document.getElementById('publishResult');
+    if (pubResultEl) pubResultEl.textContent = '';
+  } catch (e) {}
+  const nameEl = $('#userInfo');
     const composerAccEl = $('#composerAccountInfo');
 
     if (!pk) {
@@ -512,6 +526,16 @@ export async function autoLogin(state, settings, settingsManager, loginFn) {
   try {
     const webAuthnSupported = await isWebAuthnSupported();
 
+    if (!state.pubkey && (settings.preferredSigner === 'read-only' || lastLoginMethod === 'read-only') && activeId) {
+      try { signer.clearKey(); } catch (e) {}
+      state.signer = 'read-only';
+      state.pubkey = activeId;
+      await loginFn();
+      isPasskeyAuthPending = false;
+      try { window.__nokakoiAuthPending = false; } catch (e) { }
+      return;
+    }
+
     if (!state.pubkey && settings.preferredSigner === 'nsec-passkey' && settings.passkeyCredentialId && settings.passkeyEncryptedNsec && webAuthnSupported) {
       try {
         const result = await authenticateWithPasskey(settings.passkeyCredentialId);
@@ -699,7 +723,21 @@ export function syncAccountUI(state, settingsManager, options = {}) {
     });
   } catch (e) {}
 
-  // 6. メインフィードのソフトリロード
+  // 6. コンポーザーの閲覧専用状態同期および投稿結果メッセージのクリア
+  try {
+    const pubResultEl = document.getElementById('publishResult');
+    if (pubResultEl) pubResultEl.textContent = '';
+    const composerEl = document.getElementById('composer');
+    if (composerEl) {
+      if (state.signer === 'read-only') {
+        composerEl.hidden = true;
+      } else if (state.pubkey) {
+        composerEl.hidden = false;
+      }
+    }
+  } catch (e) {}
+
+  // 7. メインフィードのソフトリロード
   if (options.reload !== false) {
     try {
       if (typeof window !== 'undefined') {
@@ -711,4 +749,22 @@ export function syncAccountUI(state, settingsManager, options = {}) {
       }
     } catch (e) {}
   }
+}
+
+export async function loginWithPubkey(pubkeyHex, state, settings, settingsManager, restartFeeds, setupComposerScroll) {
+  if (!pubkeyHex) return;
+  try { signer.clearKey(); } catch (e) {}
+  state.signer = 'read-only';
+  state.pubkey = pubkeyHex.toLowerCase();
+  try {
+    localStorage.setItem('pubkey', state.pubkey);
+    localStorage.removeItem('skipAutoLogin');
+  } catch (e) {}
+  if (settingsManager) {
+    settingsManager.set('preferredSigner', 'read-only');
+    if (typeof settingsManager.saveForAccount === 'function') {
+      settingsManager.saveForAccount(state.pubkey);
+    }
+  }
+  await login(state, settings, settingsManager, restartFeeds, setupComposerScroll);
 }

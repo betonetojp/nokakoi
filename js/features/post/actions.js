@@ -232,6 +232,9 @@ function sanitizeTags(tags) {
  * 現在の署名モードでイベントに署名
  */
 export async function signEventWithMode(state, draft) {
+  if (state && state.signer === 'read-only') {
+    throw new Error(t('readonly.action_blocked') || 'Action blocked for read-only accounts');
+  }
   if (draft && draft.tags) {
     draft.tags = sanitizeTags(draft.tags);
     for (const tag of draft.tags) {
@@ -435,6 +438,11 @@ export async function publishNote(state, content, statusEl, options) {
   try {
     if (!content || !content.trim()) return false;
 
+    if (effectiveState.signer === 'read-only') {
+      reportActionFailure(t('readonly.action_blocked'), statusEl);
+      return false;
+    }
+
     // 署名者チェック（skがなければエラー）
     if (effectiveState.signer === 'nsec' && !signer.hasKey()) {
       reportActionFailure(t('publish.nsec_error'), statusEl);
@@ -551,10 +559,15 @@ export async function reactToEvent(state, targetEv, sym = '+') {
     sym
   };
   try {
+    if (effectiveState.signer === 'read-only') {
+      reportActionFailure(t('readonly.action_blocked'));
+      return false;
+    }
     if (!effectiveState.pool) {
       reportActionFailure(t('mute.no_pool'));
       return false;
     }
+
     // 署名者チェック（skがなければエラー）
     if (effectiveState.signer === 'nsec' && !signer.hasKey()) {
       reportActionFailure(t('publish.nsec_error'));

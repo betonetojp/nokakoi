@@ -153,6 +153,11 @@ async function showInvoicePanel(payment, statusEl) {
  * @param {function} onConfirm 送信決定時のコールバック (amountSats, comment) => Promise<any>
  */
 export function showZapModal(recipientName, recipientAddress, onConfirm) {
+  const appState = (typeof window !== 'undefined' && window.__nostrState) ? window.__nostrState : null;
+  if (appState && appState.signer === 'read-only') {
+    showToast(t('readonly.action_blocked') || '閲覧専用アカウントのためZapできません', { type: 'error' });
+    return;
+  }
   const modal = $('#zapModal');
   if (!modal) return;
 

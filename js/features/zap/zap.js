@@ -421,6 +421,9 @@ export function getLnurlEndpoint(address) {
  * @returns {Promise<{ paid: boolean, pr: string, preimage?: string, eventId: string, recipientPubkey: string, senderPubkey: string, amountSats: number, relays: string[] }>}
  */
 export async function sendZap(state, settingsManager, targetEvent, amountSats, comment = '', options = {}) {
+  if (state && state.signer === 'read-only') {
+    throw new Error(t('readonly.action_blocked') || '閲覧専用アカウントのためZapできません');
+  }
   const nwcUri = (settingsManager && settingsManager.settings && settingsManager.settings.nwcUri) || '';
 
   // 1. 受信者のプロフィール情報と Lightning アドレスを確認

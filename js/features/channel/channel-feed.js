@@ -352,6 +352,9 @@ function createChannelMessageElement(ev, state, settingsManager) {
 
 export async function sendChannelMessage(rootId, content, state, options = {}) {
   if (!rootId || !content) throw new Error(t('channel.no_content_or_id') || 'メッセージ内容またはチャンネルIDがありません');
+  if (state && state.signer === 'read-only') {
+    throw new Error(t('readonly.action_blocked') || '閲覧専用アカウントのためチャンネル投稿はできません');
+  }
 
   const writeRelays = (state && state.relays) ? getWriteRelays(state.relays) : [];
   const readRelays = (state && state.relays) ? getReadRelays(state.relays) : [];
