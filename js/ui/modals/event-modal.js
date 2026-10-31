@@ -16,6 +16,7 @@ import { pickChannelRootId, scheduleChannelLabelUpdate } from '../../features/ch
 import { findEventById, cacheEvent } from '../../core/state.js';
 import { getNip19 as getNip19Compat } from '../../core/nostr-compat.js';
 import { t } from '../../utils/i18n.js';
+import { isReadOnlyAccount } from '../../core/account-manager.js';
 import { detectLanguage, getLanguageFlag } from '../../features/timeline/lang-filter.js';
 
 /**
@@ -529,6 +530,10 @@ export function showEventModal(event, state, nip19, reactToEvent, replyToEvent, 
       const replyBtn = actionsBottom.querySelector('.btn-reply');
       if (replyBtn && typeof replyToEvent === 'function') {
         replyBtn.onclick = function () {
+          if (isReadOnlyAccount(state)) {
+            showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため返信できません', { type: 'error' });
+            return;
+          }
           closeEventModal();
           replyToEvent(event);
         };

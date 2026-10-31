@@ -23,6 +23,8 @@ import { getCustomEmojis, getSettingsManager } from '../../core/app-context.js';
 import { setupComposerNostrPreview } from './composer-nostr-preview.js';
 import { getReplyRecipientsManager } from './reply-recipients.js';
 import { getEventCwReason, formatEventCwLabel, isCwExpandedForEvent } from '../../ui/renderers/render-helpers.js';
+import { isReadOnlyAccount } from '../../core/account-manager.js';
+export { isReadOnlyAccount };
 
 function getComposerTargetPreviewText(ev) {
   if (!ev) return '';
@@ -51,24 +53,6 @@ function isUserLoggedIn() {
   }
 }
 
-function isReadOnlyAccount() {
-  try {
-    const state = (typeof window !== 'undefined') ? window.__nostrState : null;
-    if (state && state.signer === 'read-only') return true;
-    const pref = (typeof localStorage !== 'undefined') ? localStorage.getItem('lastLoginMethod') : null;
-    if (pref === 'read-only') return true;
-    const pk = (typeof localStorage !== 'undefined') ? localStorage.getItem('pubkey') : null;
-    if (pk) {
-      const rawAccounts = localStorage.getItem('nokakoi-accounts');
-      if (rawAccounts) {
-        const parsed = JSON.parse(rawAccounts);
-        const acc = parsed.accounts?.find(a => a.id.toLowerCase() === pk.toLowerCase());
-        if (acc && acc.loginMethod === 'read-only') return true;
-      }
-    }
-  } catch (_e) {}
-  return false;
-}
 
 function showComposerAndEnsureScroll() {
   const composer = $('#composer');
@@ -86,9 +70,9 @@ function showComposerAndEnsureScroll() {
  * 返信対象をセットし投稿欄UIを更新
  */
 export function setReplyTarget(state, event, nip19) {
-  if ((state && state.signer === 'read-only') || isReadOnlyAccount()) {
+  if (isReadOnlyAccount(state)) {
     showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため返信できません', { type: 'error' });
-    return;
+    return false;
   }
   currentReplyTarget = event;
   currentQuoteMode = false;
@@ -174,6 +158,10 @@ export function setReplyTarget(state, event, nip19) {
  * 引用対象をセット（NIP-18 qタグモード）
  */
 export function setQuoteTarget(state, event, nip19) {
+  if (isReadOnlyAccount(state)) {
+    showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため引用できません', { type: 'error' });
+    return false;
+  }
   currentReplyTarget = event;
   currentQuoteMode = true;
   try { if (typeof window !== 'undefined') window.__nokakoiQuoteMode = true; } catch (e) {}

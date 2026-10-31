@@ -66,6 +66,8 @@ vi.mock('../ui/setup/tab-manager.js', () => ({ setupTabs: mocks.setupTabs }));
 import {
   addAccount,
   getAccountList,
+  getActiveAccount,
+  isReadOnlyAccount,
   migrateFromSingleAccount,
   removeAccount,
   setActiveAccountId,
@@ -447,4 +449,24 @@ describe('account manager', () => {
     expect(getAccountList().activeAccountId).toBe(targetPubkey);
     expect(loginFn).toHaveBeenCalled();
   });
+
+  it('correctly identifies read-only accounts via isReadOnlyAccount and getActiveAccount', () => {
+    expect(isReadOnlyAccount({ signer: 'read-only' })).toBe(true);
+    expect(isReadOnlyAccount({ signer: 'nsec' })).toBe(false);
+
+    const roPubkey = 'f'.repeat(64);
+    addAccount({ id: roPubkey, loginMethod: 'read-only' });
+    setActiveAccountId(roPubkey);
+
+    expect(getActiveAccount()).toEqual(expect.objectContaining({ id: roPubkey, loginMethod: 'read-only' }));
+    expect(isReadOnlyAccount()).toBe(true);
+
+    const normalPubkey = 'a'.repeat(64);
+    addAccount({ id: normalPubkey, loginMethod: 'nsec' });
+    setActiveAccountId(normalPubkey);
+
+    expect(getActiveAccount()).toEqual(expect.objectContaining({ id: normalPubkey, loginMethod: 'nsec' }));
+    expect(isReadOnlyAccount()).toBe(false);
+  });
+
 });

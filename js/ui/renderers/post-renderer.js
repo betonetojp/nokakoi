@@ -1,4 +1,4 @@
-import { escapeHtml, fmtTime, processHiddenTagChars, buildReactionEmojiTags, replaceBadgeEmoji } from '../../utils/utils.js';
+import { escapeHtml, fmtTime, processHiddenTagChars, buildReactionEmojiTags, replaceBadgeEmoji, showToast } from '../../utils/utils.js';
 import { sanitizeUrlCandidate } from '../../utils/sanitize-url.js';
 import { showZapModal } from '../modals/zap-modal.js';
 import { sendZap, getEventDisplayPubkey } from '../../features/zap/zap.js';
@@ -6,7 +6,7 @@ import { findEventById, cacheEvent } from '../../core/state.js';
 import { displayNameWithUsername, getProfileLightningAddress } from '../../features/profile/profile.js';
 import { showReactionModal, showConfirmModal } from '../modals/modals.js';
 import { linkifyText, updateNostrNpubLinks, updateNostrNoteLinks, fitCustomEmoji, getPreviewWithFullLinksAndEmojis, getEffectiveTextLength } from '../../utils/url-parser.js';
-import { setReplyTarget, setGeohashTarget, setQuoteTarget, getReplyTarget, getQuoteMode } from '../../features/post/composer.js';
+import { setReplyTarget, setGeohashTarget, setQuoteTarget, getReplyTarget, getQuoteMode, isReadOnlyAccount } from '../../features/post/composer.js';
 import { showJsonModal } from '../modals/json-modal.js';
 import { showEventModal } from '../modals/event-modal.js';
 import { showMediaViewer } from '../media-viewer.js';
@@ -248,10 +248,14 @@ export function setupReactButton(div, ev, settings, settingsManager, reactToEven
   try { reactBtn.dataset.listenerInstalled = '1'; } catch (e) { }
 }
 
-export function setupReplyButton(div, ev, replyToEvent) {
+export function setupReplyButton(div, ev, replyToEvent, state = null) {
   const replyBtn = div.querySelector('.btn-reply');
   if (!replyBtn) return;
   replyBtn.onclick = function () {
+    if (isReadOnlyAccount(state)) {
+      showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため返信できません', { type: 'error' });
+      return;
+    }
     replyToEvent(ev);
   };
 }
@@ -275,6 +279,10 @@ export function setupZapButton(div, ev, state, settings, settingsManager) {
 
   zapBtn.onclick = async function (e) {
     e.stopPropagation();
+    if (isReadOnlyAccount(state)) {
+      showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため実行できません', { type: 'error' });
+      return;
+    }
     const prof = lookupProf();
     const lud = syncVisibility();
     if (!lud) return;
@@ -291,11 +299,15 @@ export function setupZapButton(div, ev, state, settings, settingsManager) {
   };
 }
 
-export function setupRepostButton(div, ev, repostEvent) {
+export function setupRepostButton(div, ev, repostEvent, state = null) {
   const repostBtn = div.querySelector('.btn-repost');
   if (!repostBtn) return;
 
   repostBtn.onclick = async function () {
+    if (isReadOnlyAccount(state)) {
+      showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため実行できません', { type: 'error' });
+      return;
+    }
     showConfirmModal(
       t('repost.confirm.title'),
       t('repost.confirm.message'),
@@ -734,6 +746,10 @@ function bindQuoteButtonHandler(div, ev, state, nip19) {
     if (quoteBtn) {
       quoteBtn.onclick = function (e) {
         e.stopPropagation();
+        if (isReadOnlyAccount(state)) {
+          showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため引用できません', { type: 'error' });
+          return;
+        }
         const composer = document.getElementById('composer');
         if (composer) composer.hidden = false;
         try { setQuoteTarget(state, ev, nip19); window.__nokakoiQuoteMode = true; } catch (err) { }
@@ -1009,6 +1025,10 @@ function bindOmochatHandlers(div, ev, state, nip19) {
     replyBtn.title = t('reply');
     replyBtn.onclick = (e) => {
       e.stopPropagation();
+      if (isReadOnlyAccount(state)) {
+        showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため返信できません', { type: 'error' });
+        return;
+      }
       setReplyTarget(state, ev, nip19);
 
       const targetHash = (ev.pubkey && ev.pubkey.length >= 4) ? '#' + ev.pubkey.slice(-4) : '';
@@ -1060,8 +1080,8 @@ function bindEventListeners(div, ev, state, nip19, settings, settingsManager, re
   if (!localStorage.getItem('pubkey')) return;
 
   setupReactButton(div, ev, settings, settingsManager, reactToEvent, state);
-  setupRepostButton(div, ev, repostEvent);
-  setupReplyButton(div, ev, replyToEvent);
+  setupRepostButton(div, ev, repostEvent, state);
+  setupReplyButton(div, ev, replyToEvent, state);
   setupZapButton(div, ev, state, settings, settingsManager);
 
   if (ev.kind === 20000) {

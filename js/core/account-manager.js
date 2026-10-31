@@ -53,6 +53,39 @@ export function getActiveAccountId() {
   const data = getAccountList();
   return data.activeAccountId;
 }
+/**
+ * 現在のアクティブアカウント情報を取得
+ * @returns {{id: string, loginMethod: string, displayName?: string, createdAt?: number}|null}
+ */
+export function getActiveAccount() {
+  try {
+    const data = getAccountList();
+    const activeId = data.activeAccountId || ((typeof localStorage !== 'undefined') ? localStorage.getItem('pubkey') : null);
+    if (!activeId) return null;
+    return data.accounts.find(a => a.id.toLowerCase() === activeId.toLowerCase()) || null;
+  } catch (_e) {
+    return null;
+  }
+}
+
+/**
+ * 閲覧専用アカウントかどうか判定
+ * @param {object} [state]
+ * @returns {boolean}
+ */
+export function isReadOnlyAccount(state = null) {
+  if (state && state.signer === 'read-only') return true;
+  try {
+    const s = (typeof window !== 'undefined') ? (state || window.__nostrState) : state;
+    if (s && s.signer === 'read-only') return true;
+    const pref = (typeof localStorage !== 'undefined') ? localStorage.getItem('lastLoginMethod') : null;
+    if (pref === 'read-only') return true;
+    const active = getActiveAccount();
+    if (active && active.loginMethod === 'read-only') return true;
+  } catch (_e) {}
+  return false;
+}
+
 
 /**
  * アクティブアカウントIDを設定

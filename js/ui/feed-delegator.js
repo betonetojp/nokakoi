@@ -8,6 +8,8 @@ import { applyReactionToButton } from './renderer.js';
 import { findEventById } from '../core/state.js';
 import { getNip19 } from '../core/nostr-compat.js';
 import { t } from '../utils/i18n.js';
+import { isReadOnlyAccount } from '../core/account-manager.js';
+import { showToast } from '../utils/utils.js';
 
 /**
  * タイムライン要素（いいね・返信・リポストなど）のイベント委譲処理をセットアップする
@@ -77,6 +79,10 @@ export function setupDelegatedFeedHandlers(state, settingsManager, _feedsContain
         const replyBtn = e.target.closest && e.target.closest('.btn-reply');
         if (replyBtn) {
           e.preventDefault();
+          if (isReadOnlyAccount(state)) {
+            showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため返信できません', { type: 'error' });
+            return;
+          }
           const evEl = replyBtn.closest && replyBtn.closest('.event');
           const eventId = evEl && evEl.dataset ? evEl.dataset.eventId : null;
           if (!eventId) return;
@@ -90,6 +96,10 @@ export function setupDelegatedFeedHandlers(state, settingsManager, _feedsContain
         const repostBtn = e.target.closest && e.target.closest('.btn-repost');
         if (repostBtn) {
           e.preventDefault();
+          if (isReadOnlyAccount(state)) {
+            showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため実行できません', { type: 'error' });
+            return;
+          }
           const evEl = repostBtn.closest && repostBtn.closest('.event');
           const eventId = evEl && evEl.dataset ? evEl.dataset.eventId : null;
           if (!eventId) return;

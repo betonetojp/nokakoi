@@ -1,3 +1,7 @@
+import { isReadOnlyAccount } from '../core/account-manager.js';
+import { showToast } from '../utils/utils.js';
+import { t } from '../utils/i18n.js';
+
 // ============================================================================
 // キーボードショートカット管理
 // ============================================================================
@@ -349,6 +353,10 @@ export function setupKeyboardShortcuts(state, options) {
       const quoteTarget = getShortcutQuoteTarget();
       if (!quoteTarget) return;
       e.preventDefault();
+      if (isReadOnlyAccount(state)) {
+        showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため引用できません', { type: 'error' });
+        return;
+      }
       closeShortcutTargetModals();
       revealComposerForShortcut();
       try { setQuoteTarget(state, quoteTarget, nip19); window.__nokakoiQuoteMode = true; } catch (ex) { }
@@ -367,6 +375,11 @@ export function setupKeyboardShortcuts(state, options) {
     // Eキー: 選択中の投稿に返信
     if (e.key === 'e' || e.key === 'E') {
       if (!_selectedEventEl) return;
+      if (isReadOnlyAccount(state)) {
+        e.preventDefault();
+        showToast(t('readonly.action_blocked') || '閲覧専用アカウントのため返信できません', { type: 'error' });
+        return;
+      }
       const btn = _selectedEventEl.querySelector('.btn-reply');
       if (btn) { e.preventDefault(); btn.click(); }
       return;
