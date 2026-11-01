@@ -76,6 +76,7 @@ vi.mock('../zap/zap.js', () => ({
   isOutgoingZapReceiptFor: mocks.isOutgoingZapReceiptFor
 }));
 
+import { clearFeed } from '../../core/state.js';
 import {
   initFeedManager,
   restartFeeds,
@@ -84,7 +85,8 @@ import {
   setupSingleFeed,
   getRenderSettingsWithUiState,
   addToFeed,
-  finalizeMergedGlobalFeed
+  finalizeMergedGlobalFeed,
+  handleTabChange
 } from './feed-manager.js';
 
 function createSettings(values) {
@@ -435,5 +437,42 @@ describe('feed manager startup lifecycle', () => {
     // Initial limit should be 25 by default, not 50
     expect(state.feeds.global.list.length).toBe(25);
     expect(state.feeds.global.map.size).toBe(25);
+  });
+
+  it('leaves a pinned channel feed in place when switching tabs', () => {
+    const channelHtml = '<article class="event">kept</article>';
+    const homeEl = { innerHTML: '<article class="event">home</article>', dataset: { topEventId: 'home1' } };
+    const channelEl = { innerHTML: channelHtml, dataset: { topEventId: 'chan1', channelRootId: 'abc' } };
+    const elements = new Map([
+      ['feed-home', homeEl],
+      ['feed-channel-abc', channelEl]
+    ]);
+    document.getElementById = vi.fn(id => elements.get(id) || null);
+    const state = {
+      pool: {},
+      relays: ['wss://relay.example'],
+      subs: new Map(),
+      feeds: {
+        home: createFeed(),
+        global: createFeed(),
+        mentions: createFeed(),
+        me: createFeed()
+      }
+    };
+    const settings = createSettings({ globalMergeHome: false });
+    initFeedManager(state, settings);
+    state._homeFetcher = { stopHist: vi.fn(), stopLive: vi.fn() };
+
+    handleTabChange('home', 'channel-abc');
+
+    expect(channelEl.innerHTML).toBe(channelHtml);
+    expect(channelEl.dataset.topEventId).toBe('chan1');
+    expect(clearFeed).not.toHaveBeenCalled();
+    expect(homeEl.innerHTML).toBe('');
+
+    handleTabChange('channel-abc', 'home');
+
+    expect(channelEl.innerHTML).toBe(channelHtml);
+    expect(channelEl.dataset.topEventId).toBe('chan1');
   });
 });

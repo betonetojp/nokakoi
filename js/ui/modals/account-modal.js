@@ -118,7 +118,9 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
         state,
         settings,
         settingsManager,
-        callbacks && typeof callbacks.onLoginSuccess === 'function' ? callbacks.onLoginSuccess : (callbacks ? () => import('../../core/auth/auth-core.js').then(m => m.login(state, settings, settingsManager, callbacks.restartFeeds, callbacks.enableComposerScroll)) : null)
+        callbacks && typeof callbacks.onLoginSuccess === 'function' ? callbacks.onLoginSuccess : (callbacks ? () => import('../../core/auth/auth-core.js').then(m => m.login(state, settings, settingsManager, callbacks.restartFeeds, callbacks.enableComposerScroll)) : null),
+        callbacks ? callbacks.restartFeeds : null,
+        callbacks ? callbacks.enableComposerScroll : null
       );
     };
   }

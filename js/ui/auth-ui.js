@@ -20,7 +20,9 @@ export function setupAuthUI(state, settings, settingsManager, {
             state,
             settings,
             settingsManager,
-            () => login(state, settings, settingsManager, restartFeeds, enableComposerScroll)
+            () => login(state, settings, settingsManager, restartFeeds, enableComposerScroll),
+            restartFeeds,
+            enableComposerScroll
           );
         }
       });

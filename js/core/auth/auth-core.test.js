@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getNip46ProtectedSession: vi.fn(),
   loadProfile: vi.fn(),
   Nip46Client: vi.fn(),
+  getAccountList: vi.fn(() => ({ accounts: [], activeAccountId: null })),
   setActiveAccountId: vi.fn(),
   setupTabs: vi.fn(),
   signer: {
@@ -63,6 +64,7 @@ vi.mock('./nip46-session.js', () => ({
 }));
 vi.mock('../account-manager.js', () => ({
   addAccount: mocks.addAccount,
+  getAccountList: mocks.getAccountList,
   migrateFromSingleAccount: vi.fn(),
   setActiveAccountId: mocks.setActiveAccountId
 }));
@@ -88,7 +90,7 @@ vi.mock('../state.js', () => ({ clearFullState: mocks.clearFullState }));
 vi.mock('../../ui/renderers/render-helpers.js', () => ({ refreshEventsMuteState: vi.fn() }));
 vi.mock('../../ui/setup/display-settings.js', () => ({ refreshAllDisplaySettingsUI: vi.fn() }));
 
-import { autoLogin, login, logout } from './auth-core.js';
+import { autoLogin, login, loginWithPubkey, logout } from './auth-core.js';
 
 function createStorage() {
   const values = new Map();
@@ -116,6 +118,7 @@ function createSettings(overrides = {}) {
 describe('auth core', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getAccountList.mockImplementation(() => ({ accounts: [], activeAccountId: null }));
     globalThis.localStorage = createStorage();
     const elements = new Map([
       ['composer', { hidden: true }],
@@ -267,5 +270,75 @@ describe('auth core', () => {
     expect(disconnect).toHaveBeenCalled();
     expect(mocks.clearNip46LocalSecretKey).toHaveBeenCalledWith(pubkey);
     expect(localStorage.getItem('skipAutoLogin')).toBe('1');
+  });
+
+  it('keeps stored credentials when a read-only session reuses an existing account', async () => {
+    vi.useFakeTimers();
+    const pubkey = 'd'.repeat(64);
+    localStorage.setItem(`relays.${pubkey}`, 'saved');
+    localStorage.setItem('nokakoi.nip46.localSecretKey', 'ab'.repeat(32));
+    mocks.getNip46LocalSecretKey.mockReturnValue('ab'.repeat(32));
+    mocks.getAccountList.mockImplementation(() => ({
+      accounts: [{ id: pubkey, loginMethod: 'nsec' }],
+      activeAccountId: pubkey
+    }));
+    const settingsManager = createSettings({
+      encryptedNsec: 'stored-nsec',
+      nip46RemotePubkey: 'remote',
+      nip46Secret: 'secret',
+      passkeyCredentialId: 'cred',
+      passkeyEncryptedNsec: 'stored-passkey'
+    });
+    const state = {
+      nip46: { client: null, connected: false, remotePubkey: null },
+      profiles: new Map(),
+      pubkey,
+      relays: [],
+      signer: 'read-only'
+    };
+
+    await login(state, settingsManager.settings, settingsManager, vi.fn(async () => {}), vi.fn());
+
+    expect(mocks.addAccount).not.toHaveBeenCalled();
+    expect(mocks.setActiveAccountId).toHaveBeenCalledWith(pubkey);
+    expect(mocks.clearNip46LocalSecretKey).not.toHaveBeenCalled();
+    expect(localStorage.getItem(`nokakoi.nip46.localSecretKey.${pubkey}`)).toBeNull();
+    expect(settingsManager.set).not.toHaveBeenCalledWith('encryptedNsec', null);
+    expect(settingsManager.set).not.toHaveBeenCalledWith('passkeyCredentialId', null);
+    expect(settingsManager.set).not.toHaveBeenCalledWith('passkeyEncryptedNsec', null);
+    expect(settingsManager.set).not.toHaveBeenCalledWith('nip46RemotePubkey', null);
+    expect(settingsManager.set).not.toHaveBeenCalledWith('nip46Secret', null);
+    expect(settingsManager.settings.encryptedNsec).toBe('stored-nsec');
+    expect(settingsManager.settings.preferredSigner).toBe('read-only');
+    vi.clearAllTimers();
+  });
+
+  it('logs in with a public key once and saves the previous account first', async () => {
+    vi.useFakeTimers();
+    const previous = 'e'.repeat(64);
+    const next = 'f'.repeat(64);
+    localStorage.setItem('pubkey', previous);
+    localStorage.setItem(`relays.${next}`, 'saved');
+    const settingsManager = createSettings({ encryptedNsec: 'old-nsec' });
+    const state = {
+      nip46: { client: null, connected: false, remotePubkey: null },
+      profiles: new Map(),
+      pubkey: previous,
+      relays: [],
+      signer: 'nsec'
+    };
+    const restartFeeds = vi.fn(async () => {});
+
+    await loginWithPubkey(next, state, settingsManager.settings, settingsManager, restartFeeds, vi.fn());
+
+    expect(settingsManager.saveForAccount.mock.calls[0][0]).toBe(previous);
+    expect(localStorage.getItem('pubkey')).toBe(next);
+    expect(state.signer).toBe('read-only');
+    expect(state.pubkey).toBe(next);
+    expect(mocks.addAccount).toHaveBeenCalledTimes(1);
+    expect(mocks.addAccount).toHaveBeenCalledWith({ id: next, loginMethod: 'read-only' });
+    expect(restartFeeds).toHaveBeenCalledTimes(1);
+    expect(restartFeeds).toHaveBeenCalledWith(true);
+    vi.clearAllTimers();
   });
 });

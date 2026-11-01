@@ -10,7 +10,7 @@ import { isUserVerifyingPlatformAvailable, registerPasskey, authenticateWithPass
 /**
  * ログイン選択モーダルを開く
  */
-export function openLoginModal(state, settings, settingsManager, onLoginSuccess) {
+export function openLoginModal(state, settings, settingsManager, onLoginSuccess, restartFeeds, setupComposerScroll) {
   const modal = $('#loginMethodModal');
   const content = $('#loginMethodModalContent');
   const closeBtn = $('#loginMethodModalClose');
@@ -21,7 +21,7 @@ export function openLoginModal(state, settings, settingsManager, onLoginSuccess)
     applyTranslations(modal);
   } catch (e) {}
 
-  renderMethodSelection(state, settings, settingsManager, onLoginSuccess);
+  renderMethodSelection(state, settings, settingsManager, onLoginSuccess, restartFeeds, setupComposerScroll);
 
   modal.hidden = false;
 
@@ -35,7 +35,7 @@ export function openLoginModal(state, settings, settingsManager, onLoginSuccess)
 /**
  * ログイン選択カード一覧を描画
  */
-async function renderMethodSelection(state, settings, settingsManager, onLoginSuccess) {
+async function renderMethodSelection(state, settings, settingsManager, onLoginSuccess, restartFeeds, setupComposerScroll) {
   const content = $('#loginMethodModalContent');
   if (!content) return;
 
@@ -82,7 +82,7 @@ async function renderMethodSelection(state, settings, settingsManager, onLoginSu
       titleKey: 'login.modal.keygen',
       descKey: 'login.modal.keygen_desc',
       action: () => {
-        renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess);
+        renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess, restartFeeds, setupComposerScroll);
       }
     },
     {
@@ -91,7 +91,7 @@ async function renderMethodSelection(state, settings, settingsManager, onLoginSu
       titleKey: 'login.modal.read_only',
       descKey: 'login.modal.read_only_desc',
       action: () => {
-        renderReadOnlyScreen(state, settings, settingsManager, onLoginSuccess);
+        renderReadOnlyScreen(state, settings, settingsManager, onLoginSuccess, restartFeeds, setupComposerScroll);
       }
     }
   ];
@@ -108,7 +108,11 @@ async function renderMethodSelection(state, settings, settingsManager, onLoginSu
         descKey: 'login.modal.saved_accounts_desc',
         action: () => {
           closeModal();
-          openAccountModal(state, settings, settingsManager, onLoginSuccess);
+          openAccountModal(state, settings, settingsManager, {
+            onLoginSuccess,
+            restartFeeds,
+            enableComposerScroll: setupComposerScroll
+          });
         }
       });
     }
@@ -133,7 +137,7 @@ async function renderMethodSelection(state, settings, settingsManager, onLoginSu
 /**
  * 秘密鍵作成画面を描画
  */
-function renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess) {
+function renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess, restartFeeds, setupComposerScroll) {
   const content = $('#loginMethodModalContent');
   if (!content) return;
 
@@ -297,7 +301,7 @@ function renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess) {
   const backBtn = $('#keygenBackBtn');
   if (backBtn) {
     backBtn.onclick = () => {
-      renderMethodSelection(state, settings, settingsManager, onLoginSuccess);
+      renderMethodSelection(state, settings, settingsManager, onLoginSuccess, restartFeeds, setupComposerScroll);
     };
   }
 
@@ -368,7 +372,7 @@ function renderKeyGenScreen(state, settings, settingsManager, onLoginSuccess) {
 /**
  * 公開鍵閲覧専用ログイン画面を描画
  */
-function renderReadOnlyScreen(state, settings, settingsManager, onLoginSuccess) {
+function renderReadOnlyScreen(state, settings, settingsManager, onLoginSuccess, restartFeeds, setupComposerScroll) {
   const content = $('#loginMethodModalContent');
   if (!content) return;
 
@@ -400,7 +404,7 @@ function renderReadOnlyScreen(state, settings, settingsManager, onLoginSuccess) 
 
   if (backBtn) {
     backBtn.onclick = () => {
-      renderMethodSelection(state, settings, settingsManager, onLoginSuccess);
+      renderMethodSelection(state, settings, settingsManager, onLoginSuccess, restartFeeds, setupComposerScroll);
     };
   }
 
@@ -459,7 +463,8 @@ function renderReadOnlyScreen(state, settings, settingsManager, onLoginSuccess) 
             state,
             settings,
             settingsManager,
-            typeof onLoginSuccess === 'function' ? onLoginSuccess : null
+            restartFeeds,
+            setupComposerScroll
           );
         } else {
           state.signer = 'read-only';

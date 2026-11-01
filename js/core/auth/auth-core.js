@@ -9,7 +9,7 @@ import { isWebAuthnSupported, authenticateWithPasskey, decryptNip46SessionWithPa
 import { Nip46Client, DEFAULT_NIP46_RELAYS } from '../nip46.js';
 import { showPasswordModal } from './nsec-auth.js';
 import { getNip46LocalSecretKey, getNip46ProtectedSession, clearNip46LocalSecretKey } from './nip46-session.js';
-import { addAccount, migrateFromSingleAccount, setActiveAccountId } from '../account-manager.js';
+import { addAccount, getAccountList, migrateFromSingleAccount, setActiveAccountId } from '../account-manager.js';
 import { saveRelaysForAccount, loadRelaysForAccount, getDefaultGlobalRelayByLang } from '../relay.js';
 import { updateGlobalButtonLabel } from '../../features/relay/global-relay.js';
 import { invalidateMuteWork, saveMuteListForAccount, loadMuteListForAccount, clearMuteListState } from '../../features/mute/mute.js';
@@ -20,6 +20,17 @@ import {
 } from '../app-context.js';
 
 let isPasskeyAuthPending = false;
+
+function storedAccountFor(pubkey) {
+  try {
+    const data = getAccountList();
+    const accounts = data && Array.isArray(data.accounts) ? data.accounts : [];
+    const id = String(pubkey || '').toLowerCase();
+    return accounts.find(account => account && typeof account.id === 'string' && account.id.toLowerCase() === id) || null;
+  } catch (e) {
+    return null;
+  }
+}
 
 export async function login(state, settings, settingsManager, restartFeeds, setupComposerScroll) {
   const nip19 = getNip19();
@@ -163,21 +174,37 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
       } catch (e) { }
     }
 
-    // NIP-46 ローカルキーのアカウント別保存
-    const activeNip46Key = getNip46LocalSecretKey();
-    if (activeNip46Key) {
-      try {
-        localStorage.setItem(`nokakoi.nip46.localSecretKey.${state.pubkey}`, activeNip46Key);
-      } catch (e) {}
+    // 閲覧専用は署名セッションを持たない。前のアカウントの NIP-46 通信鍵を
+    // この公開鍵のキーへコピーしない。
+    if (actualLoginMethod !== 'read-only') {
+      const activeNip46Key = getNip46LocalSecretKey();
+      if (activeNip46Key) {
+        try {
+          localStorage.setItem(`nokakoi.nip46.localSecretKey.${state.pubkey}`, activeNip46Key);
+        } catch (e) {}
+      }
     }
 
-    // アカウントマネージャーに登録
-    const accResult = addAccount({
-      id: state.pubkey,
-      loginMethod: actualLoginMethod
-    });
+    // 既にパスワードや拡張機能で登録済みの公開鍵は、閲覧専用セッションでは
+    // ログイン方式と保存済みの秘密を上書きしない。
+    const storedAccount = storedAccountFor(state.pubkey);
+    const keepStoredLoginMethod = actualLoginMethod === 'read-only'
+      && storedAccount
+      && storedAccount.loginMethod
+      && storedAccount.loginMethod !== 'read-only';
 
-    if (accResult && accResult.isMethodChanged) {
+    let accResult;
+    if (keepStoredLoginMethod) {
+      setActiveAccountId(state.pubkey);
+      accResult = { isNew: false, isMethodChanged: false, previousMethod: storedAccount.loginMethod };
+    } else {
+      accResult = addAccount({
+        id: state.pubkey,
+        loginMethod: actualLoginMethod
+      });
+    }
+
+    if (accResult && accResult.isMethodChanged && actualLoginMethod !== 'read-only') {
       // 古いログイン方式の残存設定をクリーンアップ
       if (settingsManager) {
         if (actualLoginMethod !== 'nip46') {
@@ -752,19 +779,13 @@ export function syncAccountUI(state, settingsManager, options = {}) {
 }
 
 export async function loginWithPubkey(pubkeyHex, state, settings, settingsManager, restartFeeds, setupComposerScroll) {
-  if (!pubkeyHex) return;
+  if (!pubkeyHex || !state) return;
+  const normalized = String(pubkeyHex).trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(normalized)) return;
   try { signer.clearKey(); } catch (e) {}
+  // pubkey の localStorage 書き込みは login() に任せる。先に書くと、
+  // 前のアカウント設定の保存分岐に入らない。
   state.signer = 'read-only';
-  state.pubkey = pubkeyHex.toLowerCase();
-  try {
-    localStorage.setItem('pubkey', state.pubkey);
-    localStorage.removeItem('skipAutoLogin');
-  } catch (e) {}
-  if (settingsManager) {
-    settingsManager.set('preferredSigner', 'read-only');
-    if (typeof settingsManager.saveForAccount === 'function') {
-      settingsManager.saveForAccount(state.pubkey);
-    }
-  }
+  state.pubkey = normalized;
   await login(state, settings, settingsManager, restartFeeds, setupComposerScroll);
 }

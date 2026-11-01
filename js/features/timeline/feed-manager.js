@@ -1683,6 +1683,10 @@ export function setupSingleFeed(feedId) {
   }
 }
 
+function isPinnedChannelTab(tabId) {
+  return typeof tabId === 'string' && tabId.startsWith('channel-');
+}
+
 /**
  * タブ切り替え時のフィードクリアとソフトリロード処理
  */
@@ -1716,8 +1720,10 @@ export function handleTabChange(oldTab, newTab) {
   });
 
   try { cancelInactiveTabOneshots(newTab); } catch (e) { }
-  // bitchat, channels 以外の非アクティブ化したタブについて、メモリを完全クリアせず、EVENTS_FETCH_LIMIT 件にトリムして保持する
-  if (oldTab && oldTab !== newTab && oldTab !== 'bitchat' && oldTab !== 'channels') {
+  // bitchat, channels, ピン留めチャンネル以外の非アクティブ化したタブについて、
+  // メモリを完全クリアせず、EVENTS_FETCH_LIMIT 件にトリムして保持する。
+  // channel-* の DOM と購読は tab-manager が持つ。
+  if (oldTab && oldTab !== newTab && oldTab !== 'bitchat' && oldTab !== 'channels' && !isPinnedChannelTab(oldTab)) {
     // フィードデータを EVENTS_FETCH_LIMIT 件にトリムしてメモリに保持し、過去遡りカーソルや失敗状態をリセット
     trimFeedToMax(oldTab, EVENTS_FETCH_LIMIT);
     const oldFeed = state.feeds[oldTab];
@@ -1750,6 +1756,8 @@ export function handleTabChange(oldTab, newTab) {
       console.log('[FeedManager] タブ切り替え時に _homeFetcher (home_live) が存在しません。ホームフィードを自動復旧します');
       try { setupSingleFeed('home'); } catch (e) { console.warn('[FeedManager] ホームフィードの自動復旧に失敗しました:', e); }
     }
+
+    if (isPinnedChannelTab(newTab)) return;
 
     const fetcherKey = `_${newTab === 'global' ? 'global' : newTab}Fetcher`;
     const f = state[fetcherKey];
