@@ -129,7 +129,7 @@ export function stopKeepalive(state) {
 }
 
 /**
- * Page Visibility 変更時のリレー接続チェック
+ * 画面表示・復帰時のリレー接続チェック及びフィード再起動
  */
 export function setupVisibilityHandler(state, restartFeedsCallback) {
   removeVisibilityHandler(state);
@@ -137,14 +137,21 @@ export function setupVisibilityHandler(state, restartFeedsCallback) {
 
   state._feedHiddenAt = (typeof document !== 'undefined' && document.hidden) ? Date.now() : null;
 
-  state._visibilityHandler = () => {
+  const triggerResumeCheck = (inferredHiddenFor = 0) => {
     try {
-      if (document.hidden) {
-        state._feedHiddenAt = Date.now();
+      if (typeof document !== 'undefined' && document.hidden) {
         return;
       }
 
-      const hiddenFor = state._feedHiddenAt ? (Date.now() - state._feedHiddenAt) : 0;
+      const now = Date.now();
+      if (state._lastResumeHandledAt && (now - state._lastResumeHandledAt) < 2000) {
+        return;
+      }
+      state._lastResumeHandledAt = now;
+
+      const hiddenFor = state._feedHiddenAt
+        ? (now - state._feedHiddenAt)
+        : inferredHiddenFor;
       state._feedHiddenAt = null;
 
       debugRelay('[Relay] 画面が表示状態になりました。接続状態を確認中', { hiddenFor });
@@ -178,20 +185,111 @@ export function setupVisibilityHandler(state, restartFeedsCallback) {
         }, 500);
       }
     } catch (e) {
+      console.warn('[Relay] resume ハンドラーでエラー:', e);
+    }
+  };
+
+  state._visibilityHandler = () => {
+    try {
+      if (typeof document !== 'undefined' && document.hidden) {
+        state._feedHiddenAt = Date.now();
+        return;
+      }
+      triggerResumeCheck();
+    } catch (e) {
       console.warn('[Relay] visibilitychange ハンドラーでエラー:', e);
     }
   };
 
-  try { document.addEventListener('visibilitychange', state._visibilityHandler); } catch (e) { }
+  state._pageHideHandler = () => {
+    try {
+      if (!state._feedHiddenAt) {
+        state._feedHiddenAt = Date.now();
+      }
+    } catch (e) { }
+  };
+
+  state._pageshowHandler = () => {
+    try {
+      triggerResumeCheck();
+    } catch (e) { }
+  };
+
+  state._focusHandler = () => {
+    try {
+      triggerResumeCheck();
+    } catch (e) { }
+  };
+
+  state._onlineHandler = () => {
+    try {
+      triggerResumeCheck();
+    } catch (e) { }
+  };
+
+  try {
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+      document.addEventListener('visibilitychange', state._visibilityHandler);
+    }
+  } catch (e) { }
+
+  try {
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('pageshow', state._pageshowHandler);
+      window.addEventListener('focus', state._focusHandler);
+      window.addEventListener('online', state._onlineHandler);
+      window.addEventListener('pagehide', state._pageHideHandler);
+      window.addEventListener('blur', state._pageHideHandler);
+    }
+  } catch (e) { }
+
+  // iOS PWA等のサスペンド復帰検知用ハートビート（タイマージャンプ検知）
+  let lastHeartbeat = Date.now();
+  state._resumeHeartbeatInterval = setInterval(() => {
+    try {
+      const current = Date.now();
+      const elapsed = current - lastHeartbeat;
+      lastHeartbeat = current;
+      if (elapsed >= RESUME_RESTART_MS) {
+        debugRelay('[Relay] ハートビートギャップを検知 (サスペンド復帰):', elapsed);
+        triggerResumeCheck(elapsed);
+      }
+    } catch (e) { }
+  }, 2000);
 }
 
 export function removeVisibilityHandler(state) {
   if (state._visibilityHandler) {
-    try { document.removeEventListener('visibilitychange', state._visibilityHandler); } catch (e) { }
+    try {
+      if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
+        document.removeEventListener('visibilitychange', state._visibilityHandler);
+      }
+    } catch (e) { }
     state._visibilityHandler = null;
   }
+  if (state._pageshowHandler) {
+    try {
+      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+        window.removeEventListener('pageshow', state._pageshowHandler);
+        window.removeEventListener('focus', state._focusHandler);
+        window.removeEventListener('online', state._onlineHandler);
+        window.removeEventListener('pagehide', state._pageHideHandler);
+        window.removeEventListener('blur', state._pageHideHandler);
+      }
+    } catch (e) { }
+    state._pageshowHandler = null;
+    state._focusHandler = null;
+    state._onlineHandler = null;
+    state._pageHideHandler = null;
+  }
+  if (state._resumeHeartbeatInterval) {
+    try { clearInterval(state._resumeHeartbeatInterval); } catch (e) { }
+    state._resumeHeartbeatInterval = null;
+  }
   try { state._feedHiddenAt = null; } catch (e) { }
+  try { state._lastResumeHandledAt = null; } catch (e) { }
 }
+
 
 /**
  * リレー接続監視

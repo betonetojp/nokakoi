@@ -231,16 +231,25 @@ export function setupScrollToTopButton() {
     resetButtonPosition(button);
   }
 
-  // ドラッグ/タップ処理
+  // ドラッグ/タップ/長押し処理
   let isDragging = false; let hasMoved = false; let startTime = 0;
   let offsetX = 0, offsetY = 0, initialX = 0, initialY = 0;
+  let longPressTimer = null;
+  let isLongPressTriggered = false;
+
+  function clearLongPress() {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }
 
   function startDrag(e) {
     // composer 入力中は誤ドラッグ防止のため処理しない
     const active = document.activeElement;
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
 
-    isDragging = true; hasMoved = false; startTime = Date.now();
+    isDragging = true; hasMoved = false; isLongPressTriggered = false; startTime = Date.now();
     button.classList.add('dragging');
     const touch = (e.type && e.type.indexOf('touch') !== -1) ? e.touches[0] : e;
     const rect = button.getBoundingClientRect();
@@ -249,6 +258,21 @@ export function setupScrollToTopButton() {
     button.style.transform = 'none';
     button.style.left = rect.left + 'px';
     button.style.bottom = (window.innerHeight - rect.bottom) + 'px';
+
+    clearLongPress();
+    longPressTimer = setTimeout(() => {
+      if (!isDragging || hasMoved) return;
+      isLongPressTriggered = true;
+      try { if (navigator.vibrate) navigator.vibrate([40, 60, 40]); } catch (_e) { }
+      button.classList.remove('dragging');
+      try {
+        showToast(t('reload.full_reload') || 'アプリを完全再読み込みします...', { type: 'info', duration: 1500 });
+      } catch (err) { }
+      setTimeout(() => {
+        try { window.location.reload(); } catch (err2) { window.location.replace(window.location.href); }
+      }, 400);
+    }, 750);
+
     document.addEventListener('mousemove', onDrag);
     document.addEventListener('touchmove', onDrag, { passive: false });
     document.addEventListener('mouseup', stopDrag);
@@ -261,7 +285,10 @@ export function setupScrollToTopButton() {
     if (!isDragging) return;
     const touch = (e.type && e.type.indexOf('touch') !== -1) ? e.touches[0] : e;
     const deltaX = Math.abs(touch.clientX - initialX); const deltaY = Math.abs(touch.clientY - initialY);
-    if (deltaX > 10 || deltaY > 10) hasMoved = true;
+    if (deltaX > 10 || deltaY > 10) {
+      hasMoved = true;
+      clearLongPress();
+    }
     const x = touch.clientX - offsetX; const y = touch.clientY - offsetY;
     const maxX = window.innerWidth - button.offsetWidth; const maxY = window.innerHeight - button.offsetHeight;
     const constrainedX = Math.max(0, Math.min(x, maxX));
@@ -272,10 +299,19 @@ export function setupScrollToTopButton() {
   }
 
   function stopDrag() {
+    clearLongPress();
     if (!isDragging) return;
     button.classList.remove('dragging');
     const duration = Date.now() - startTime;
-    if (duration < 200 && !hasMoved) {
+    if (isLongPressTriggered) {
+      setTimeout(() => { isDragging = false; hasMoved = false; isLongPressTriggered = false; }, 100);
+      document.removeEventListener('mousemove', onDrag);
+      document.removeEventListener('touchmove', onDrag);
+      document.removeEventListener('mouseup', stopDrag);
+      document.removeEventListener('touchend', stopDrag);
+      return;
+    }
+    if (duration < 650 && !hasMoved) {
       activateButtonAction();
     } else if (hasMoved) {
       saveButtonPosition({ left: button.style.left, bottom: button.style.bottom });
@@ -337,7 +373,7 @@ export function setupScrollToTopButton() {
   }
 
   button.addEventListener('click', () => {
-    if (isDragging || hasMoved) return;
+    if (isDragging || hasMoved || isLongPressTriggered) return;
     activateButtonAction();
   });
 

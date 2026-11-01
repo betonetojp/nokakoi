@@ -3,7 +3,8 @@
 // ============================================================================
 
 import { VERSION } from '../../config/version.js';
-import { applyTranslations } from '../../utils/i18n.js';
+import { applyTranslations, t } from '../../utils/i18n.js';
+import { showToast } from '../../utils/utils.js';
 import { getBuildInfo } from '../../core/app-context.js';
 
 export function setupInfoHubModal() {
@@ -12,6 +13,7 @@ export function setupInfoHubModal() {
   const infoHubClose = document.getElementById('infoHubClose');
   const infoHubVersion = document.getElementById('infoHubVersion');
   const openDebugBtn = document.getElementById('openDebugFromInfoHubBtn');
+  const fullReloadBtn = document.getElementById('fullReloadFromInfoHubBtn');
 
   if (!brand || !infoHubModal) return;
 
@@ -50,6 +52,17 @@ export function setupInfoHubModal() {
       if (debugModal) {
         debugModal.hidden = false;
       }
+    };
+  }
+
+  if (fullReloadBtn) {
+    fullReloadBtn.onclick = function () {
+      try {
+        showToast(t('reload.full_reload') || 'アプリを完全再読み込みします...', { type: 'info', duration: 1500 });
+      } catch (e) { }
+      setTimeout(() => {
+        try { window.location.reload(); } catch (err) { window.location.replace(window.location.href); }
+      }, 300);
     };
   }
 }

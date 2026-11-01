@@ -739,5 +739,10 @@
   "readonly.composer_disabled": "閲覧専用アカウントのため投稿できません",
   "account.method.read_only": "👀 閲覧専用",
   "account.modal.edit_profile_disabled": "閲覧専用アカウントのためプロフィールは編集できません",
-  "mute.fetch.done_public_only": "取得完了 (公開ミュートのみ)"
+  "mute.fetch.done_public_only": "取得完了 (公開ミュートのみ)",
+  "infohub.reload_button": "アプリを再読み込み",
+  "reload.full_reload": "アプリを完全再読み込みします...",
+  "ptr.pull": "引っ張って更新",
+  "ptr.release": "離して更新",
+  "ptr.refreshing": "更新中..."
 }

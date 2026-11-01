@@ -739,5 +739,10 @@
   "readonly.composer_disabled": "Posting is disabled for read-only accounts.",
   "account.method.read_only": "👀 Read-only",
   "account.modal.edit_profile_disabled": "Profile cannot be edited for read-only accounts.",
-  "mute.fetch.done_public_only": "Fetched (Public mutes only)"
+  "mute.fetch.done_public_only": "Fetched (Public mutes only)",
+  "infohub.reload_button": "Reload App",
+  "reload.full_reload": "Reloading app...",
+  "ptr.pull": "Pull down to refresh",
+  "ptr.release": "Release to refresh",
+  "ptr.refreshing": "Refreshing..."
 }

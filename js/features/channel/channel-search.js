@@ -316,7 +316,7 @@ export async function searchChannels(state, query, options = {}) {
   };
 
   const filter = { kinds: [40, 41, 42], limit: SEARCH_LIMIT };
-  let events = [];
+  let events;
   if (state && state.pool && typeof state.pool.subscribeMany === 'function') {
     events = await collectViaSubscribe(state, relays, filter, timeoutMs, (snapshot) => {
       byRoot = indexChannelEvents(snapshot);

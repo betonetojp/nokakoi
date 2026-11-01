@@ -24,6 +24,7 @@ import { setupProfileModalClose, showProfileModal } from '../features/profile/pr
 import { setupJsonModalClose } from '../ui/modals/json-modal.js';
 import { setupTabSwipe } from '../ui/tab-swipe.js';
 import { setupScrollToTopButton, resetScrollToTopButtonPosition } from '../ui/scroll-to-top.js';
+import { setupPullToRefresh } from '../ui/pull-to-refresh.js';
 import { setupMuteListUI } from '../features/mute/mute.js';
 import { setupTabs as uiSetupTabs, setupDisplaySettings as uiSetupDisplaySettings, bringModalToFront as uiBringModalToFront } from '../ui/ui-setup.js';
 import { setupPostLinkUI, updatePostLinkButtonAndModal } from '../features/post/postlink.js';
@@ -284,6 +285,7 @@ export async function initApp() {
 
   setupTabSwipe();
   setupScrollToTopButton();
+  setupPullToRefresh();
   setupDisplaySettings();
   
   try { setupPostLinkUI(settingsManager); } catch (e) { console.warn('[Main] setupPostLinkUI に失敗', e); }

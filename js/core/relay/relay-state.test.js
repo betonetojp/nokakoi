@@ -142,7 +142,7 @@ describe('relay-state', () => {
       vi.unstubAllGlobals();
     });
 
-    it('triggers restartFeeds on long background duration (>= 5 mins)', async () => {
+    it('triggers restartFeeds on long background duration (>= RESUME_RESTART_MS)', async () => {
       let visibilityListener = null;
       let hiddenValue = false;
       const documentMock = {
@@ -171,12 +171,95 @@ describe('relay-state', () => {
       hiddenValue = true;
       visibilityListener();
 
-      // 5分（RESUME_RESTART_MS）以上経過
+      // 30秒（RESUME_RESTART_MS）以上経過
       vi.advanceTimersByTime(RESUME_RESTART_MS + 1000);
 
       // タブがフォアグラウンドに復帰する
       hiddenValue = false;
       visibilityListener();
+
+      // 500ms 後に restartFeeds が発火する
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(restartFeedsCallback).toHaveBeenCalledWith(false);
+
+      removeVisibilityHandler(state);
+      vi.unstubAllGlobals();
+    });
+
+    it('triggers restartFeeds on heartbeat gap (timer jump) when app resumes from background suspend', async () => {
+      const documentMock = {
+        get hidden() { return false; },
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn()
+      };
+      vi.stubGlobal('document', documentMock);
+
+      const state = {
+        relays: ['wss://relay1.example'],
+        pool: {
+          relays: new Map(),
+          ensureRelay: vi.fn()
+        }
+      };
+
+      mocks.getRelayFromPool.mockReturnValue({ ws: { readyState: WebSocket.OPEN } });
+
+      const restartFeedsCallback = vi.fn();
+      setupVisibilityHandler(state, restartFeedsCallback);
+
+      // OSサスペンドにより時計がジャンプした状態をシミュレート
+      vi.setSystemTime(Date.now() + RESUME_RESTART_MS + 5000);
+      await vi.advanceTimersByTimeAsync(2000);
+
+      // 500ms 後に restartFeeds が発火する
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(restartFeedsCallback).toHaveBeenCalledWith(false);
+
+      removeVisibilityHandler(state);
+      vi.unstubAllGlobals();
+    });
+
+    it('triggers restartFeeds on pageshow event after long background duration', async () => {
+      let pageshowListener = null;
+      let pagehideListener = null;
+      const windowMock = {
+        addEventListener: vi.fn((event, handler) => {
+          if (event === 'pageshow') pageshowListener = handler;
+          if (event === 'pagehide') pagehideListener = handler;
+        }),
+        removeEventListener: vi.fn()
+      };
+      vi.stubGlobal('window', windowMock);
+      const documentMock = {
+        get hidden() { return false; },
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn()
+      };
+      vi.stubGlobal('document', documentMock);
+
+      const state = {
+        relays: ['wss://relay1.example'],
+        pool: {
+          relays: new Map(),
+          ensureRelay: vi.fn()
+        }
+      };
+
+      mocks.getRelayFromPool.mockReturnValue({ ws: { readyState: WebSocket.OPEN } });
+
+      const restartFeedsCallback = vi.fn();
+      setupVisibilityHandler(state, restartFeedsCallback);
+
+      // pagehide で非表示
+      if (pagehideListener) pagehideListener();
+
+      // RESUME_RESTART_MS 以上経過
+      vi.advanceTimersByTime(RESUME_RESTART_MS + 1000);
+
+      // pageshow で復帰
+      if (pageshowListener) pageshowListener();
 
       // 500ms 後に restartFeeds が発火する
       await vi.advanceTimersByTimeAsync(600);
