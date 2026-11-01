@@ -10,35 +10,6 @@ const swError = (...args) => console.error('[SW]', ...args);
 
 let refreshing = false;
 
-function showUpdateModal(registration, worker, delay) {
-  setTimeout(() => {
-    const modal = document.getElementById('swUpdateModal');
-    const yesButton = document.getElementById('swUpdateYes');
-    const noButton = document.getElementById('swUpdateNo');
-    if (!modal || !yesButton || !noButton) return;
-
-    modal.hidden = false;
-    yesButton.onclick = () => {
-      modal.hidden = true;
-      const workerToNotify = registration.waiting || worker;
-      try {
-        workerToNotify?.postMessage({ type: 'SKIP_WAITING' });
-      } catch (error) {
-        swWarn('postMessage to worker failed', error);
-      }
-      setTimeout(() => {
-        if (!refreshing) {
-          refreshing = true;
-          window.location.reload();
-        }
-      }, 1000);
-    };
-    noButton.onclick = () => {
-      modal.hidden = true;
-    };
-  }, delay);
-}
-
 const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
 if (isLocal) {
@@ -59,35 +30,8 @@ if (isLocal) {
       navigator.serviceWorker.register(`${basePath}sw.js`, { scope: basePath })
         .then((registration) => {
           swLog('Registered:', registration.scope);
-
-          try {
-            if (hadController && registration.waiting) {
-              swLog('registration.waiting present on register');
-              showUpdateModal(registration, registration.waiting, 1000);
-            }
-          } catch (error) {
-            swWarn('waiting check failed', error);
-          }
-
+          // 新ワーカーは install 時に skipWaiting するため、確認モーダルは使わない。
           setInterval(() => registration.update(), 30 * 60 * 1000);
-
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing;
-            if (!newWorker) return;
-            swLog('Update found');
-
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state !== 'installed') return;
-
-              const isUpdate = Boolean(hadController && (navigator.serviceWorker.controller || registration.waiting));
-              swLog('installing state=installed, isUpdate=', isUpdate);
-              if (isUpdate) {
-                showUpdateModal(registration, newWorker, 2000);
-              } else {
-                swLog('First install detected; not showing update modal');
-              }
-            });
-          });
         })
         .catch((error) => {
           swError('Registration failed:', error);

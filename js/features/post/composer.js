@@ -850,11 +850,19 @@ export function setupComposerUI(state, { getOmochatRelays, consumeShareText }) {
     if (shouldSendAsChannel) {
       // チャンネル投稿として送信 (kind:42, 返信・引用含む)
       const rootId = (channelTarget && channelTarget.rootId) || channelRootFromReply;
+      let includedPubkeys = null;
+      try {
+        const recipientsMgr = getReplyRecipientsManager();
+        if (recipientsMgr && recipientsMgr.hasOthers()) {
+          includedPubkeys = recipientsMgr.getActivePubkeys();
+        }
+      } catch (_e) { }
       try {
         await sendChannelMessage(rootId, content, state, {
           replyToEvent: replyTarget,
           isQuote: currentQuoteMode,
-          relays: (channelTarget && channelTarget.relays) || undefined
+          relays: (channelTarget && channelTarget.relays) || undefined,
+          includedPubkeys
         });
         success = true;
       } catch (err) {

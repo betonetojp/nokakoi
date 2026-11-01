@@ -12,7 +12,7 @@ vi.mock('./channel.js', async (importOriginal) => {
   };
 });
 
-import { subscribeChannelFeed, unsubscribeAllChannelFeeds } from './channel-feed.js';
+import { sendChannelMessage, subscribeChannelFeed, unsubscribeAllChannelFeeds } from './channel-feed.js';
 
 describe('channel-feed', () => {
   let containerEl;
@@ -345,6 +345,122 @@ describe('channel-feed', () => {
     // Now EOSE fires -> batch is complete, load-more button is attached at bottom
     handlers.oneose();
     expect(containerEl.querySelector('.load-more-btn')).not.toBeNull();
+  });
+
+  it('keeps load-more available after a duplicate-only page and steps until back one second', async () => {
+    const handlersList = [];
+    const filtersList = [];
+    mockState.pool.subscribeMany = vi.fn((_relays, filters, handlers) => {
+      filtersList.push(filters);
+      handlersList.push(handlers);
+      return { close: vi.fn() };
+    });
+
+    await subscribeChannelFeed('chan-root-dup', mockState, containerEl, mockSettingsManager);
+
+    handlersList[0].onevent({
+      id: 'ev-dup-a',
+      kind: 42,
+      pubkey: 'u1',
+      created_at: 1000,
+      content: 'A',
+      tags: [['e', 'chan-root-dup', '', 'root']]
+    });
+    handlersList[0].onevent({
+      id: 'ev-dup-b',
+      kind: 42,
+      pubkey: 'u2',
+      created_at: 1000,
+      content: 'B',
+      tags: [['e', 'chan-root-dup', '', 'root']]
+    });
+    handlersList[0].oneose();
+
+    const loadMoreBtn = containerEl.querySelector('.load-more-btn');
+    expect(loadMoreBtn).toBeTruthy();
+    loadMoreBtn.click();
+
+    expect(handlersList.length).toBe(2);
+    expect(filtersList[1][0].until).toBe(1000);
+
+    // Relay returns only already-known events at the boundary second
+    handlersList[1].onevent({
+      id: 'ev-dup-a',
+      kind: 42,
+      pubkey: 'u1',
+      created_at: 1000,
+      content: 'A',
+      tags: [['e', 'chan-root-dup', '', 'root']]
+    });
+    handlersList[1].onevent({
+      id: 'ev-dup-b',
+      kind: 42,
+      pubkey: 'u2',
+      created_at: 1000,
+      content: 'B',
+      tags: [['e', 'chan-root-dup', '', 'root']]
+    });
+    handlersList[1].oneose();
+
+    const btnAfterDup = containerEl.querySelector('.load-more-btn');
+    expect(btnAfterDup).toBeTruthy();
+    btnAfterDup.click();
+
+    expect(handlersList.length).toBe(3);
+    expect(filtersList[2][0].until).toBe(999);
+  });
+
+  it('adds optional p-tags from includedPubkeys on channel replies', async () => {
+    const myPubkey = 'a'.repeat(64);
+    const bobPubkey = 'b'.repeat(64);
+    const carolPubkey = 'c'.repeat(64);
+    const rootId = 'd'.repeat(64);
+    const storage = new Map([['pubkey', myPubkey]]);
+    Object.defineProperty(window, 'localStorage', {
+      value: {
+        getItem: (k) => (storage.has(k) ? storage.get(k) : null),
+        setItem: (k, v) => storage.set(k, String(v)),
+        removeItem: (k) => storage.delete(k)
+      },
+      configurable: true
+    });
+    window.nostr = {
+      getPublicKey: vi.fn(async () => myPubkey),
+      signEvent: vi.fn(async (draft) => ({
+        ...draft,
+        pubkey: myPubkey,
+        id: 'e'.repeat(64),
+        sig: 'f'.repeat(128)
+      }))
+    };
+
+    const published = [];
+    const state = {
+      signer: 'nip07',
+      pubkey: myPubkey,
+      relays: [{ url: 'wss://relay.example.com/', read: true, write: true }],
+      pool: {
+        publish: vi.fn(async (_relays, ev) => {
+          published.push(ev);
+          return [Promise.resolve('ok')];
+        })
+      }
+    };
+
+    const signed = await sendChannelMessage(rootId, 'channel reply', state, {
+      replyToEvent: {
+        id: '1'.repeat(64),
+        pubkey: bobPubkey,
+        kind: 42,
+        tags: [['e', rootId, '', 'root']]
+      },
+      includedPubkeys: new Set([bobPubkey, carolPubkey])
+    });
+
+    expect(signed).toBeTruthy();
+    expect(published).toHaveLength(1);
+    expect(published[0].tags.some(t => t[0] === 'p' && t[1] === bobPubkey)).toBe(true);
+    expect(published[0].tags.some(t => t[0] === 'p' && t[1] === carolPubkey)).toBe(true);
   });
 });
 

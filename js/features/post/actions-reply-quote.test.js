@@ -143,6 +143,70 @@ describe('replyToEvent & enrichDraftTagsFromContent (Quote Mode, NIP-30 Emojis, 
     expect(draft.tags).toContainEqual(['emoji', 'blobcat', 'https://example.com/blobcat.png']);
   });
 
+  it('omits NIP-22 root P when root author is toggled off via includedPubkeys', async () => {
+    settingsMap.set('alwaysUseNip22Comment', true);
+    const rootId = '2'.repeat(64);
+    const targetEv = {
+      id: '1'.repeat(64),
+      pubkey: bobPubkey,
+      kind: 1,
+      content: 'Parent note',
+      tags: [
+        ['e', rootId, 'wss://relay.example.com/', 'root', rootPubkey],
+        ['p', rootPubkey]
+      ]
+    };
+    state.eventCache.set(rootId, {
+      id: rootId,
+      pubkey: rootPubkey,
+      kind: 1,
+      content: 'Root',
+      tags: []
+    });
+
+    const ok = await replyToEvent(state, targetEv, 'reply without root notify', {
+      includedPubkeys: new Set([bobPubkey])
+    });
+    expect(ok).toBe(true);
+    const sent = publishedEvents[0];
+    expect(sent.kind).toBe(1111);
+    expect(sent.tags.some(t => t[0] === 'P' && t[1] === rootPubkey)).toBe(false);
+    expect(sent.tags).toContainEqual(expect.arrayContaining(['p', bobPubkey]));
+  });
+
+  it('adds NIP-22 root P and extra p when toggled on via includedPubkeys', async () => {
+    settingsMap.set('alwaysUseNip22Comment', true);
+    const rootId = '2'.repeat(64);
+    const targetEv = {
+      id: '1'.repeat(64),
+      pubkey: bobPubkey,
+      kind: 1,
+      content: 'Parent note',
+      tags: [
+        ['e', rootId, 'wss://relay.example.com/', 'root', rootPubkey],
+        ['p', rootPubkey],
+        ['p', carolPubkey]
+      ]
+    };
+    state.eventCache.set(rootId, {
+      id: rootId,
+      pubkey: rootPubkey,
+      kind: 1,
+      content: 'Root',
+      tags: []
+    });
+
+    const ok = await replyToEvent(state, targetEv, 'reply with notifies', {
+      includedPubkeys: new Set([bobPubkey, rootPubkey, carolPubkey])
+    });
+    expect(ok).toBe(true);
+    const sent = publishedEvents[0];
+    expect(sent.kind).toBe(1111);
+    expect(sent.tags.some(t => t[0] === 'P' && t[1] === rootPubkey)).toBe(true);
+    expect(sent.tags.some(t => t[0] === 'p' && t[1] === bobPubkey)).toBe(true);
+    expect(sent.tags.some(t => t[0] === 'p' && t[1] === carolPubkey)).toBe(true);
+  });
+
   it('does not promote parent mention e-tag to root in NIP-10 reply and inherits thread p tags', async () => {
     const citedId = '9'.repeat(64);
     const parentTopLevelWithMention = {

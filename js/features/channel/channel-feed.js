@@ -74,6 +74,8 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
 
   let isLoadingMore = false;
   let noMoreEvents = false;
+  // 同秒の既出イベントだけで added=0 になったとき、次は until を 1 秒戻す
+  let paginationUntil = null;
 
   function removeStatusPlaceholder() {
     if (!containerEl) return;
@@ -185,8 +187,11 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
     const sorted = Array.from(eventsMap.values()).sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
     if (!sorted.length) return;
     const oldest = sorted[sorted.length - 1];
-    // NIP-01 の until は inclusive。画面下端と同じ秒を再度取り、既出 id は追加しない。
-    const until = oldest.created_at || Math.floor(Date.now() / 1000);
+    // NIP-01 の until は inclusive。通常は画面下端の秒を再度取り、既出 id は追加しない。
+    // 直前が同秒の既出だけだった場合は paginationUntil（1 秒戻し）を使う。
+    const until = (typeof paginationUntil === 'number')
+      ? paginationUntil
+      : (oldest.created_at || Math.floor(Date.now() / 1000));
     if (until <= 0) return;
 
     isLoadingMore = true;
@@ -195,6 +200,8 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
     try {
       const loadFilter = { kinds: [42], '#e': [rootId], limit: EVENTS_FETCH_LIMIT, until };
       const historyBatch = new Map();
+      let scannedCount = 0;
+      let minScannedTs = null;
       if (state && state.pool && typeof state.pool.subscribeMany === 'function') {
         let sub = null;
         const closeHistorySub = () => {
@@ -209,6 +216,9 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
           onevent(ev) {
             if (isStale() || !ev || ev.kind !== 42 || !ev.id) return;
             cacheEvent(state, ev);
+            scannedCount += 1;
+            const ts = ev.created_at || 0;
+            if (minScannedTs == null || ts < minScannedTs) minScannedTs = ts;
             if (!eventsMap.has(ev.id) && !historyBatch.has(ev.id)) {
               historyBatch.set(ev.id, ev);
             }
@@ -230,7 +240,18 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
               }
             }
             isLoadingMore = false;
-            if (added === 0) noMoreEvents = true;
+            if (added > 0) {
+              paginationUntil = null;
+            } else if (scannedCount === 0) {
+              noMoreEvents = true;
+              paginationUntil = null;
+            } else if (typeof minScannedTs === 'number' && minScannedTs > 1) {
+              // 同秒の既出だけで埋まった。次は境界秒の 1 秒前から続ける。
+              paginationUntil = minScannedTs - 1;
+            } else {
+              noMoreEvents = true;
+              paginationUntil = null;
+            }
             updateLoadMoreButton();
           },
           eoseTimeout: 4000,
@@ -391,6 +412,19 @@ export async function sendChannelMessage(rootId, content, state, options = {}) {
     tags.push(['e', replyEv.id, relayHint, 'reply']);
     if (replyEv.pubkey) {
       tags.push(['p', replyEv.pubkey, relayHint]);
+    }
+  }
+
+  // 通知トグルで ON にした相手を追加 p タグにする（返信先本人は上で付与済み）
+  if (options && options.includedPubkeys) {
+    const incSet = options.includedPubkeys instanceof Set
+      ? options.includedPubkeys
+      : new Set(Array.isArray(options.includedPubkeys) ? options.includedPubkeys : []);
+    const replyAuthor = replyEv && replyEv.pubkey ? replyEv.pubkey : null;
+    for (const pk of incSet) {
+      if (!pk || (replyAuthor && pk === replyAuthor)) continue;
+      if (tags.some(t => t[0] === 'p' && t[1] === pk)) continue;
+      tags.push(['p', pk]);
     }
   }
 

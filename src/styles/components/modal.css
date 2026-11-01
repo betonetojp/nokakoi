@@ -67,8 +67,7 @@
   min-height: 1.2em;
 }
 
-#confirmModal .modal-body,
-#swUpdateModal .modal-body {
+#confirmModal .modal-body {
   width: fit-content;
   min-width: min(320px, calc(100vw - 40px));
   max-width: min(520px, calc(100vw - 40px));
@@ -78,9 +77,6 @@
   width: fit-content;
   max-width: min(92vw, 1100px);
 }
-
-#swUpdateModal { z-index: 300; background: rgba(0,0,0,.8); }
-#swUpdateModal .modal-body { border: 2px solid var(--accent); box-shadow: 0 8px 32px rgba(124, 147, 255, 0.3); }
 
 /* lightテーマ時のモーダル/メディアコンテナ背景 */
 body.theme-light .modal-body,

@@ -796,6 +796,16 @@ export async function replyToEvent(state, targetEv, text, options = {}) {
         }
 
         tags = [];
+        const incSet = (options && options.includedPubkeys)
+          ? (options.includedPubkeys instanceof Set
+            ? options.includedPubkeys
+            : new Set(Array.isArray(options.includedPubkeys) ? options.includedPubkeys : []))
+          : null;
+        const shouldNotify = (pk) => {
+          if (!pk) return false;
+          // includedPubkeys 未指定時は従来どおり通知。指定時はトグル ON のものだけ。
+          return !incSet || incSet.has(pk);
+        };
 
         if (rootId && rootId !== targetEv.id) {
           // 親がルートとは別
@@ -809,19 +819,30 @@ export async function replyToEvent(state, targetEv, text, options = {}) {
           const effectiveRootRelayHint = rootRelayHint || targetRelayHint;
           tags.push(['E', rootId, effectiveRootRelayHint, rootPubkey || '']);
           if (rootKind) tags.push(['K', String(rootKind)]);
-          if (rootPubkey && rootPubkey !== targetEv.pubkey) tags.push(['P', rootPubkey, effectiveRootRelayHint]);
+          // ルート作者の P は通知トグル ON のときだけ（返信先本人は下の p で常時通知）
+          if (rootPubkey && rootPubkey !== targetEv.pubkey && shouldNotify(rootPubkey)) {
+            tags.push(['P', rootPubkey, effectiveRootRelayHint]);
+          }
 
           tags.push(['e', targetEv.id, targetRelayHint, targetEv.pubkey]);
           tags.push(['k', String(targetEv.kind)]);
           tags.push(['p', targetEv.pubkey, targetRelayHint]);
         } else {
-          // 親自体がルート（トップレベルノート）
+          // 親自体がルート（トップレベルノート）— 返信先本人は常に通知
           tags.push(['E', targetEv.id, targetRelayHint, targetEv.pubkey]);
           tags.push(['K', String(targetEv.kind)]);
           tags.push(['P', targetEv.pubkey, targetRelayHint]);
           tags.push(['e', targetEv.id, targetRelayHint, targetEv.pubkey]);
           tags.push(['k', String(targetEv.kind)]);
           tags.push(['p', targetEv.pubkey, targetRelayHint]);
+        }
+
+        if (incSet) {
+          for (const pk of incSet) {
+            if (!pk || pk === targetEv.pubkey) continue;
+            if (tags.some(t => (t[0] === 'p' || t[0] === 'P') && t[1] === pk)) continue;
+            tags.push(['p', pk]);
+          }
         }
       } catch (e) {
         tags = [
