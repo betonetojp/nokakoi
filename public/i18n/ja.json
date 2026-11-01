@@ -169,6 +169,7 @@
   "channel.leave": "削除",
   "channel.leave_title": "チャンネルを削除",
   "channel.leave_confirm": "「{name}」を参加リストから削除しますか？",
+  "channel.leave_publish_failed": "参加リストの更新に失敗しました。チャンネルはリストに残っています",
   "channel.joined_count": "参加中: {count}件",
   "channel.none_joined": "参加中のチャンネルがありません",
   "channel.loading": "読み込み中...",

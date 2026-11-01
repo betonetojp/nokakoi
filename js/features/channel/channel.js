@@ -314,7 +314,7 @@ function findLatestKind41InCache(state, rootId, rootEvent = null) {
   return best;
 }
 
-async function fetchLatestKind41(state, rootId, relays, rootEvent = null) {
+async function fetchLatestKind41(state, rootId, relays, rootEvent = null, options = {}) {
   if (!state?.pool || !relays?.length) return findLatestKind41InCache(state, rootId, rootEvent);
 
   const cached = findLatestKind41InCache(state, rootId, rootEvent);
@@ -355,6 +355,9 @@ async function fetchLatestKind41(state, rootId, relays, rootEvent = null) {
           if (ev && ev.kind === 41 && channelEventReferencesRoot(ev, rootId) && isKind41FromCreator(ev, effectiveRoot)) {
             cacheEvent(state, ev);
             collected.push(ev);
+            if (typeof options.onEvent === 'function') {
+              try { options.onEvent(ev); } catch (e) { /* 表示更新の失敗で購読は止めない */ }
+            }
           }
         },
         oneose() {
@@ -384,16 +387,27 @@ export function getChannelLabelFromCache(state, rootId) {
 
 /**
  * kind:40 + 最新 kind:41 を取得して表示名を解決
- * キャッシュ命中時もネット取得し、新しい kind:41 があれば採用する
+ * キャッシュ命中時もネット取得し、新しい kind:41 があれば採用する。
+ * onLabel は kind:41 の完了を待たず、名前が分かった時点で呼ぶ。
  */
-export async function fetchChannelMetadata(state, rootId) {
+export async function fetchChannelMetadata(state, rootId, options = {}) {
   if (!rootId) return { label: null, rootEvent: null, metaEvent: null };
 
   if (__inflight.has(rootId)) return __inflight.get(rootId);
 
+  const notifyLabel = (root, meta) => {
+    const label = resolveChannelLabelFromEvents(root, meta);
+    if (!label) return;
+    __labelCache.set(rootId, label);
+    if (typeof options.onLabel === 'function') {
+      try { options.onLabel(label); } catch (e) { /* 表示側の失敗は取得を止めない */ }
+    }
+  };
+
   const promise = (async () => {
     let rootEvent = findEventById(state, rootId);
     let metaEvent = findLatestKind41InCache(state, rootId, rootEvent);
+    notifyLabel(rootEvent, metaEvent);
 
     const relays = getReadRelays(state.relays);
     if (relays && relays.length > 0 && state.pool) {
@@ -405,11 +419,20 @@ export async function fetchChannelMetadata(state, rootId) {
             rootEvent = fetched;
             // root 取得後に作成者フィルタでキャッシュを見直す
             metaEvent = findLatestKind41InCache(state, rootId, rootEvent);
+            notifyLabel(rootEvent, metaEvent);
           }
         } catch (e) { }
       }
       try {
-        const fetchedMeta = await fetchLatestKind41(state, rootId, relays, rootEvent);
+        let notifiedMeta = metaEvent;
+        const fetchedMeta = await fetchLatestKind41(state, rootId, relays, rootEvent, {
+          onEvent(ev) {
+            const merged = pickNewerEvent(notifiedMeta, ev);
+            if (merged === notifiedMeta) return;
+            notifiedMeta = merged;
+            notifyLabel(rootEvent, merged);
+          },
+        });
         metaEvent = pickNewerEvent(metaEvent, fetchedMeta);
       } catch (e) { }
     }

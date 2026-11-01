@@ -2,7 +2,7 @@
 // チャンネルタイムライン・通信モジュール (NIP-28 kind:42)
 // ============================================================================
 
-import { getReadRelays, getWriteRelays } from '../../core/relay.js';
+import { getReadRelays, getWriteRelays, normalizeRelayUrl } from '../../core/relay.js';
 import { cacheEvent } from '../../core/state.js';
 import { fetchChannelMetadata, pickChannelRootRelayHints } from './channel.js';
 import { getClientAttachInfo, signEventWithMode, reactToEvent, repostEvent, enrichDraftTagsFromContent } from '../post/actions.js';
@@ -17,9 +17,28 @@ import { getInfiniteScrollObserver, setupInfiniteScrollObserver } from '../../bo
 import { getSettingsManager } from '../../core/app-context.js';
 
 let _globalChannelFeedGen = 0;
-const _channelSubs = new Map(); // rootId -> sub/unsub object
+let _feedSessionSeq = 0;
+const _channelSubs = new Map(); // rootId -> sub[]
+const _feedSessionByRoot = new Map(); // rootId -> session id
 const _channelHistorySubs = new Set(); // active loadMoreHistory sub objects
 const _observedLoadMoreBtns = new WeakMap(); // containerEl -> loadMoreBtn
+const CHANNEL_FEED_RELAY_CAP = 10;
+
+function beginFeedSession(rootId) {
+  const session = ++_feedSessionSeq;
+  _feedSessionByRoot.set(rootId, session);
+  return session;
+}
+
+function feedSessionLive(rootId, session) {
+  return _feedSessionByRoot.get(rootId) === session;
+}
+
+function relayListKey(url) {
+  const normalized = normalizeRelayUrl(url);
+  if (!normalized) return '';
+  return normalized.replace(/\/+$/, '').toLowerCase();
+}
 
 /**
  * 特定チャンネルのメッセージ (kind:42) をサブスクライブしてタイムライン描画
@@ -51,25 +70,23 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
     containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.fetching') || 'メッセージを取得中...'}</div>`;
   }
 
-  // メインの Read Relays + チャンネルの推奨リレーを取得
+  // 読み取りリレーへ先に購読し、推奨リレーはメタデータが届いてから足す
   const mainRelays = (state && state.relays) ? getReadRelays(state.relays) : [];
-  let metaRelays = [];
-  try {
-    const meta = await fetchChannelMetadata(state, rootId);
-    if (meta && meta.metaEvent) {
-      const hints = pickChannelRootRelayHints(meta.metaEvent, rootId);
-      if (hints.length) metaRelays = hints;
-    }
-  } catch (_e) {}
+  const targetRelays = [];
+  const seenRelayKeys = new Set();
+  const session = beginFeedSession(rootId);
 
-  if (isStale()) return;
-
-  const targetRelays = Array.from(new Set([...mainRelays, ...metaRelays])).slice(0, 10);
-  if (!targetRelays.length) {
-    if (!isResume || !eventsMap.size) {
-      containerEl.innerHTML = `<div class="text-danger p-12 text-center">${t('channel.no_relay') || '接続可能なリレーがありません'}</div>`;
+  function addRelays(urls) {
+    const added = [];
+    for (const url of urls || []) {
+      const key = relayListKey(url);
+      if (!key || seenRelayKeys.has(key)) continue;
+      if (targetRelays.length >= CHANNEL_FEED_RELAY_CAP) break;
+      seenRelayKeys.add(key);
+      targetRelays.push(url);
+      added.push(url);
     }
-    return;
+    return added;
   }
 
   let isLoadingMore = false;
@@ -267,13 +284,33 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
     }
   }
 
-  // リレー通信 (Simple Pool Subscription - 他タブ同等件数 EVENTS_FETCH_LIMIT)
-  if (state && state.pool && typeof state.pool.subscribeMany === 'function') {
+  let liveSubCount = 0;
+  let liveEoseCount = 0;
+  let metaSettled = false;
+
+  function showEmptyFeed() {
+    if (!containerEl || isStale() || eventsMap.size) return;
+    containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.no_messages') || 'まだメッセージはありません。'}</div>`;
+  }
+
+  function noteLiveEose() {
+    liveEoseCount += 1;
+    if (isStale()) return;
+    if (eventsMap.size) {
+      updateLoadMoreButton();
+      return;
+    }
+    if (metaSettled && liveEoseCount >= liveSubCount) showEmptyFeed();
+  }
+
+  function startLiveSub(relays) {
+    if (!relays.length || isStale() || !feedSessionLive(rootId, session)) return;
+    if (!state || !state.pool || typeof state.pool.subscribeMany !== 'function') return;
     try {
       const filter = { kinds: [42], '#e': [rootId], limit: EVENTS_FETCH_LIMIT };
-      const sub = state.pool.subscribeMany(targetRelays, [filter], {
+      const sub = state.pool.subscribeMany(relays, [filter], {
         onevent(ev) {
-          if (isStale() || !ev || ev.kind !== 42) return;
+          if (isStale() || !feedSessionLive(rootId, session) || !ev || ev.kind !== 42) return;
           cacheEvent(state, ev);
           if (!eventsMap.has(ev.id)) {
             eventsMap.set(ev.id, ev);
@@ -284,26 +321,56 @@ export async function subscribeChannelFeed(rootId, state, containerEl, settingsM
           }
         },
         oneose() {
-          if (isStale()) return;
-          if (!eventsMap.size) {
-            containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.no_messages') || 'まだメッセージはありません。'}</div>`;
-          } else {
-            updateLoadMoreButton();
-          }
+          noteLiveEose();
         },
         eoseTimeout: 5000,
       });
-
-      _channelSubs.set(rootId, sub);
+      if (!sub) return;
+      const bucket = _channelSubs.get(rootId) || [];
+      bucket.push(sub);
+      _channelSubs.set(rootId, bucket);
+      liveSubCount += 1;
     } catch (e) {
       console.error('[channel-feed] Subscription failed', e);
       if (!eventsMap.size) {
         containerEl.innerHTML = `<div class="text-danger p-12 text-center">${t('channel.fetch_failed') || 'メッセージの取得に失敗しました'}</div>`;
       }
     }
-  } else {
+  }
+
+  function settleMetadata(meta) {
+    if (isStale() || !feedSessionLive(rootId, session)) return;
+    let hints = [];
+    try {
+      if (meta && meta.metaEvent) hints = pickChannelRootRelayHints(meta.metaEvent, rootId) || [];
+    } catch (_e) {}
+    const added = addRelays(hints);
+    if (added.length) startLiveSub(added);
+    metaSettled = true;
+    if (!eventsMap.size && liveEoseCount >= liveSubCount) showEmptyFeed();
+  }
+
+  if (!state || !state.pool || typeof state.pool.subscribeMany !== 'function') {
     if (!eventsMap.size) {
       containerEl.innerHTML = `<div class="muted p-12 text-center">${t('channel.pool_unavailable') || 'リレープールが利用できません'}</div>`;
+    }
+    return;
+  }
+
+  const initial = addRelays(mainRelays);
+  if (initial.length) startLiveSub(initial);
+
+  const metaPromise = fetchChannelMetadata(state, rootId).then(settleMetadata).catch(() => {
+    if (!feedSessionLive(rootId, session)) return;
+    metaSettled = true;
+    if (!eventsMap.size && liveEoseCount >= liveSubCount) showEmptyFeed();
+  });
+
+  if (!initial.length) {
+    await metaPromise;
+    if (isStale() || !feedSessionLive(rootId, session)) return;
+    if (!targetRelays.length && (!isResume || !eventsMap.size)) {
+      containerEl.innerHTML = `<div class="text-danger p-12 text-center">${t('channel.no_relay') || '接続可能なリレーがありません'}</div>`;
     }
   }
 }
@@ -325,18 +392,21 @@ function unobserveLoadMore(containerEl) {
  */
 export function unsubscribeChannelFeed(rootId) {
   if (!rootId) return;
-  const sub = _channelSubs.get(rootId);
-  if (sub) {
+  _feedSessionByRoot.delete(rootId);
+  const subs = _channelSubs.get(rootId);
+  const list = Array.isArray(subs) ? subs : (subs ? [subs] : []);
+  for (const sub of list) {
     try {
-      if (typeof sub.close === 'function') sub.close();
-      else if (typeof sub.unsub === 'function') sub.unsub();
+      if (sub && typeof sub.close === 'function') sub.close();
+      else if (sub && typeof sub.unsub === 'function') sub.unsub();
     } catch (_e) {}
-    _channelSubs.delete(rootId);
   }
+  _channelSubs.delete(rootId);
 }
 
 export function unsubscribeAllChannelFeeds() {
   _globalChannelFeedGen++;
+  _feedSessionByRoot.clear();
   for (const id of Array.from(_channelSubs.keys())) {
     unsubscribeChannelFeed(id);
   }
@@ -397,7 +467,6 @@ export async function sendChannelMessage(rootId, content, state, options = {}) {
   const writeRelays = (state && state.relays) ? getWriteRelays(state.relays) : [];
   const readRelays = (state && state.relays) ? getReadRelays(state.relays) : [];
   const optionRelays = Array.isArray(options.relays) ? options.relays.filter(r => typeof r === 'string' && r.trim()) : [];
-  const { normalizeRelayUrl } = await import('../../core/relay.js');
   const rawRelayHint = (writeRelays[0] || readRelays[0] || optionRelays[0] || 'wss://yabu.me/');
   const relayHint = normalizeRelayUrl(rawRelayHint);
   const isQuote = !!options.isQuote;

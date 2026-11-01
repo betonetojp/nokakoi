@@ -13,6 +13,7 @@ vi.mock('./channel.js', async (importOriginal) => {
 });
 
 import { sendChannelMessage, subscribeChannelFeed, unsubscribeAllChannelFeeds } from './channel-feed.js';
+import { fetchChannelMetadata, pickChannelRootRelayHints } from './channel.js';
 
 describe('channel-feed', () => {
   let containerEl;
@@ -36,6 +37,60 @@ describe('channel-feed', () => {
       },
       get: (k) => mockSettingsManager.settings[k]
     };
+  });
+
+  it('subscribes to read relays before metadata and adds hint relays afterwards', async () => {
+    let resolveMeta;
+    fetchChannelMetadata.mockImplementation(() => new Promise((resolve) => {
+      resolveMeta = resolve;
+    }));
+    pickChannelRootRelayHints.mockReturnValue(['wss://extra.example/']);
+    const closes = [];
+    mockState.pool.subscribeMany = vi.fn(() => {
+      const close = vi.fn();
+      closes.push(close);
+      return { close };
+    });
+
+    try {
+      const pending = subscribeChannelFeed('chan-root-1', mockState, containerEl, mockSettingsManager);
+      await Promise.resolve();
+      expect(mockState.pool.subscribeMany).toHaveBeenCalledTimes(1);
+
+      resolveMeta({ metaEvent: { id: 'meta' } });
+      await pending;
+      await Promise.resolve();
+
+      expect(mockState.pool.subscribeMany).toHaveBeenCalledTimes(2);
+      expect(mockState.pool.subscribeMany.mock.calls[1][0]).toContain('wss://extra.example/');
+      unsubscribeAllChannelFeeds();
+      expect(closes[0]).toHaveBeenCalledTimes(1);
+      expect(closes[1]).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchChannelMetadata.mockImplementation(async () => ({ label: 'TestChannel', metaEvent: null, rootEvent: null }));
+      pickChannelRootRelayHints.mockReturnValue([]);
+    }
+  });
+
+  it('does not open hint relays after the feed session has ended', async () => {
+    let resolveMeta;
+    fetchChannelMetadata.mockImplementation(() => new Promise((resolve) => {
+      resolveMeta = resolve;
+    }));
+    pickChannelRootRelayHints.mockReturnValue(['wss://extra.example/']);
+
+    try {
+      const pending = subscribeChannelFeed('chan-root-1', mockState, containerEl, mockSettingsManager);
+      await Promise.resolve();
+      unsubscribeAllChannelFeeds();
+      resolveMeta({ metaEvent: { id: 'meta' } });
+      await pending;
+      await Promise.resolve();
+      expect(mockState.pool.subscribeMany).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchChannelMetadata.mockImplementation(async () => ({ label: 'TestChannel', metaEvent: null, rootEvent: null }));
+      pickChannelRootRelayHints.mockReturnValue([]);
+    }
   });
 
   it('respects showAvatars: false in channel message elements', async () => {

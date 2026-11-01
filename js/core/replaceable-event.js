@@ -22,13 +22,24 @@ export async function fetchLatestEvent(state, kind, pubkey, options = {}) {
     return new Promise((resolve) => {
       let latestEvent = null;
       const events = [];
+      const onEvent = typeof options.onEvent === 'function' ? options.onEvent : null;
 
       const sub = state.pool.subscribeMany(
         readRelays,
         [{ kinds: [kind], authors: [pubkey], limit: 10 }],
         {
           onevent(event) {
+            if (!event) return;
             events.push(event);
+            const created = event.created_at || 0;
+            const best = latestEvent ? (latestEvent.created_at || 0) : -1;
+            if (latestEvent && created <= best) return;
+            latestEvent = event;
+            if (!onEvent) return;
+            try {
+              const ret = onEvent(event);
+              if (ret && typeof ret.catch === 'function') ret.catch(() => {});
+            } catch (e) { /* caller renders incrementally; a bad callback must not drop the fetch */ }
           },
           oneose() {
             sub.close();

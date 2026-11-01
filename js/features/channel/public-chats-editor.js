@@ -314,7 +314,13 @@ export async function openPublicChatsEditor(state, options = {}) {
   ]);
   getCustomJoinedChannels().forEach((id) => {
     if (!known.has(id)) {
-      publicItems.push({ rootId: id, relayHint: null, isPrivate: false, label: null });
+      publicItems.push({
+        rootId: id,
+        relayHint: null,
+        isPrivate: false,
+        label: null,
+        localOnly: true,
+      });
       known.add(id);
     }
   });
@@ -499,6 +505,13 @@ export async function openPublicChatsEditor(state, options = {}) {
       nameEl.className = 'editor-list-name';
       nameEl.textContent = item.label || shortenChannelEventId(item.rootId);
       info.appendChild(nameEl);
+      if (item.localOnly) {
+        const badge = document.createElement('span');
+        badge.className = 'channel-item-badge channel-item-badge--local';
+        badge.title = t('channel.info.local_notice') || '';
+        badge.textContent = t('channel.local_only') || '端末のみ';
+        info.appendChild(badge);
+      }
       row.appendChild(info);
 
       const actions = document.createElement('div');

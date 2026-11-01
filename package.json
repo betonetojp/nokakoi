@@ -1,6 +1,6 @@
 {
   "name": "nokakoi-app",
-  "version": "1.151.10",
+  "version": "1.151.11",
   "description": "Nostr Web Client",
   "scripts": {
     "start": "vite",

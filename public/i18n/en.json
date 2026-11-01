@@ -171,6 +171,7 @@
   "channel.leave": "Remove",
   "channel.leave_title": "Remove channel",
   "channel.leave_confirm": "Remove \"{name}\" from your channel list?",
+  "channel.leave_publish_failed": "Could not update your channel list. The channel is still on it",
   "channel.joined_count": "Joined: {count}",
   "channel.none_joined": "No channels joined",
   "channel.loading": "Loading...",

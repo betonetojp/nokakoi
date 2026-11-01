@@ -36,9 +36,12 @@ vi.mock('./channel-search.js', () => ({
 }));
 
 import { openPublicChatsEditor } from './public-chats-editor.js';
+import { fetchChannelMetadata } from './channel.js';
+import { getCustomJoinedChannels } from './channel-membership.js';
 
 describe('openPublicChatsEditor readonly account', () => {
   beforeEach(() => {
+    getCustomJoinedChannels.mockReturnValue([]);
     document.body.innerHTML = `
       <div id="publicChatsEditModal" hidden>
         <span id="publicChatsEditStatus"></span>
@@ -78,5 +81,22 @@ describe('openPublicChatsEditor readonly account', () => {
     expect(dragHandle).toBeNull();
     const removeBtn = document.querySelector('.editor-list-actions button');
     expect(removeBtn).toBeNull();
+  });
+
+  it('marks device-only channels and leaves kind 10005 channels unmarked', async () => {
+    getCustomJoinedChannels.mockReturnValue(['local-only']);
+    fetchChannelMetadata.mockResolvedValueOnce({ label: null });
+    const state = {
+      pubkey: 'readonly_pk',
+      signer: 'read-only',
+      relays: {},
+    };
+
+    await openPublicChatsEditor(state);
+
+    const rows = Array.from(document.querySelectorAll('.editor-list-item'));
+    const byName = new Map(rows.map((row) => [row.querySelector('.editor-list-name').textContent, row]));
+    expect(byName.get('Channel 1').querySelector('.channel-item-badge--local')).toBeNull();
+    expect(byName.get('local-only').querySelector('.channel-item-badge--local').textContent).toBe('channel.local_only');
   });
 });

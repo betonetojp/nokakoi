@@ -183,7 +183,8 @@ export function mergeChannelMembership(publicEntries) {
 
   (publicEntries || []).forEach((entry) => {
     const id = normalizeRootId(entry && entry.rootId);
-    if (!id || exclusions.has(id)) return;
+    // 10005 に残っているチャンネルは、端末側の除外では隠さない
+    if (!id) return;
     merged.set(id, {
       ...entry,
       rootId: id,

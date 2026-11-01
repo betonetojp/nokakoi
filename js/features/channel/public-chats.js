@@ -8,6 +8,7 @@ import { signer } from '../../core/signer.js';
 import {
   buildChannelEmbedContext,
   formatChannelLabelText,
+  getChannelLabelFromCache,
   shortenChannelEventId,
 } from './channel.js';
 import {
@@ -364,7 +365,8 @@ export async function publishPublicChatsState(state, editable, options = {}) {
 
   const res = await publishReplaceableEvent(state, draft);
   if (res && res.ok) {
-    clearExcludedPublicChatIds();
+    // 一覧からの単体削除は、他チャンネルの端末側除外を残す
+    if (!options.preserveExclusions) clearExcludedPublicChatIds();
     const publishedIds = publicItems.concat(privateItems).map((i) => i.rootId);
     publishedIds.forEach((id) => removeCustomJoinedChannel(id));
     try {
@@ -409,47 +411,29 @@ export async function togglePublicChatMembership(state, rootId, options = {}) {
     }
   }
 
-  return publishPublicChatsState(state, editable, { latestEvent: editable.event });
+  return publishPublicChatsState(state, editable, {
+    latestEvent: editable.event,
+    preserveExclusions: !!options.preserveExclusions,
+  });
 }
 
-/**
- * ログインユーザーの kind:10005 を取得し、各チャンネルの表示用エントリを返す
- * @returns {Promise<{ event: object|null, entries: Array, privateDecryptOk: boolean, privateDecryptAttempted: boolean }>}
- */
-export async function fetchPublicChatsEntries(state, pubkey, options = {}) {
-  const maxEntries = typeof options.maxEntries === 'number' ? options.maxEntries : DEFAULT_MAX_ENTRIES;
-  const concurrency = typeof options.concurrency === 'number' ? options.concurrency : DEFAULT_CONCURRENCY;
-
-  if (!state || !pubkey) {
-    return { event: null, entries: [], privateDecryptOk: true, privateDecryptAttempted: false };
-  }
-
-  const event = await fetchLatestEvent(state, PUBLIC_CHATS_KIND, pubkey, {
-    timeout: options.timeout || 4000,
+function listEntriesFromRefs(state, refs) {
+  return refs.map((ref) => {
+    let label = null;
+    try {
+      label = getChannelLabelFromCache(state, ref.rootId) || null;
+    } catch (_e) { /* 表示名キャッシュが無くても ID 一覧は出す */ }
+    return {
+      rootId: ref.rootId,
+      label,
+      isPrivate: !!ref.isPrivate,
+    };
   });
-  if (!event) {
-    return { event: null, entries: [], privateDecryptOk: true, privateDecryptAttempted: false };
-  }
+}
 
-  const seen = new Set();
-  const publicRefs = parsePublicChatChannelRefsFromTags(event.tags, { isPrivate: false, seen });
-
-  let privateDecryptOk = true;
-  let privateDecryptAttempted = false;
-  let privateRefs = [];
-  const content = typeof event.content === 'string' ? event.content.trim() : '';
-  if (content) {
-    privateDecryptAttempted = true;
-    const decrypted = await decryptNip51PrivateTags(state, event);
-    privateDecryptOk = decrypted.ok;
-    if (decrypted.ok && decrypted.tags.length) {
-      privateRefs = parsePublicChatChannelRefsFromTags(decrypted.tags, { isPrivate: true, seen });
-    }
-  }
-
-  const refs = publicRefs.concat(privateRefs).slice(0, maxEntries);
+async function resolveChannelEntries(state, refs, options = {}) {
+  const concurrency = typeof options.concurrency === 'number' ? options.concurrency : DEFAULT_CONCURRENCY;
   const entries = [];
-
   for (let i = 0; i < refs.length; i += concurrency) {
     const batch = refs.slice(i, i + concurrency);
     const resolved = await Promise.all(batch.map(async (ref) => {
@@ -475,11 +459,92 @@ export async function fetchPublicChatsEntries(state, pubkey, options = {}) {
       if (item && item.channel) entries.push(item);
     }
   }
+  return entries;
+}
+
+/**
+ * kind:10005 を公開分と秘密分の表示エントリへ分解する。
+ * resolveChannels が false のとき、名前のリレー取得はしない。
+ * content がある場合は復号前に公開分だけ onUpdate する。
+ */
+async function describePublicChatsEvent(state, event, options = {}) {
+  const maxEntries = typeof options.maxEntries === 'number' ? options.maxEntries : DEFAULT_MAX_ENTRIES;
+  const resolveChannels = options.resolveChannels !== false;
+  const seen = new Set();
+  const publicRefs = parsePublicChatChannelRefsFromTags(event && event.tags, { isPrivate: false, seen });
+  const content = event && typeof event.content === 'string' ? event.content.trim() : '';
+
+  if (typeof options.onUpdate === 'function' && !resolveChannels && content) {
+    options.onUpdate({
+      event,
+      entries: listEntriesFromRefs(state, publicRefs.slice(0, maxEntries)),
+      privateDecryptOk: true,
+      privateDecryptAttempted: false,
+      partial: true,
+    });
+  }
+
+  let privateDecryptOk = true;
+  let privateDecryptAttempted = false;
+  let privateRefs = [];
+  if (content) {
+    privateDecryptAttempted = true;
+    const decrypted = await decryptNip51PrivateTags(state, event);
+    privateDecryptOk = decrypted.ok;
+    if (decrypted.ok && decrypted.tags.length) {
+      privateRefs = parsePublicChatChannelRefsFromTags(decrypted.tags, { isPrivate: true, seen });
+    }
+  }
+
+  const refs = publicRefs.concat(privateRefs).slice(0, maxEntries);
+  const entries = resolveChannels
+    ? await resolveChannelEntries(state, refs, options)
+    : listEntriesFromRefs(state, refs);
 
   return {
     event,
     entries,
     privateDecryptOk,
     privateDecryptAttempted,
+    partial: false,
   };
+}
+
+/**
+ * ログインユーザーの kind:10005 を取得し、各チャンネルの表示用エントリを返す。
+ * onUpdate を渡すと、EOSE を待たずに新しい created_at のたびに同じ形で通知する。
+ * @returns {Promise<{ event: object|null, entries: Array, privateDecryptOk: boolean, privateDecryptAttempted: boolean, partial?: boolean }>}
+ */
+export async function fetchPublicChatsEntries(state, pubkey, options = {}) {
+  if (!state || !pubkey) {
+    return { event: null, entries: [], privateDecryptOk: true, privateDecryptAttempted: false };
+  }
+
+  const parses = new Map();
+  const parse = (event) => {
+    const key = event && event.id ? event.id : event;
+    if (!parses.has(key)) parses.set(key, describePublicChatsEvent(state, event, options));
+    return parses.get(key);
+  };
+
+  let bestCreated = -1;
+  let seq = 0;
+  const event = await fetchLatestEvent(state, PUBLIC_CHATS_KIND, pubkey, {
+    timeout: options.timeout || 4000,
+    onEvent(ev) {
+      if (!ev || typeof options.onUpdate !== 'function') return;
+      const created = Number(ev.created_at) || 0;
+      if (created < bestCreated) return;
+      bestCreated = created;
+      const mySeq = ++seq;
+      parse(ev).then((snapshot) => {
+        if (mySeq !== seq) return;
+        options.onUpdate(snapshot);
+      }).catch(() => {});
+    },
+  });
+  if (!event) {
+    return { event: null, entries: [], privateDecryptOk: true, privateDecryptAttempted: false };
+  }
+  return parse(event);
 }

@@ -116,7 +116,7 @@ function matchesQuery(record, queryLower) {
 /**
  * 最初の oneose で打ち切ると空振りしやすいので、timeout まで収集する
  */
-function collectViaSubscribe(state, relays, filter, timeoutMs) {
+function collectViaSubscribe(state, relays, filter, timeoutMs, onSnapshot) {
   return new Promise((resolve) => {
     const byId = new Map();
     let finished = false;
@@ -145,6 +145,7 @@ function collectViaSubscribe(state, relays, filter, timeoutMs) {
           if (!prev || (ev.created_at || 0) >= (prev.created_at || 0)) {
             byId.set(ev.id, ev);
           }
+          if (typeof onSnapshot === 'function') onSnapshot(Array.from(byId.values()));
         },
         // oneose では閉じない（先行リレーの空 EOSE で打ち切られるのを防ぐ）
         oneose() {},
@@ -175,7 +176,7 @@ async function collectChannelEvents(state, relays, timeoutMs) {
   return collectViaSubscribe(state, relays, filter, timeoutMs);
 }
 
-async function assembleChannelRecords(state, events) {
+function indexChannelEvents(events) {
   const byRoot = new Map(); // rootId -> { rootEvent, metaEvent, lastMessageAt }
 
   for (const ev of events || []) {
@@ -204,31 +205,10 @@ async function assembleChannelRecords(state, events) {
       byRoot.set(rootId, cur);
     }
   }
+  return byRoot;
+}
 
-  // kind:42 メッセージはあるが kind:40/41 メタデータがまだないチャンネルを非同期で補完
-  const unresolvedRoots = [];
-  for (const [rootId, pair] of byRoot.entries()) {
-    if (!pair.rootEvent && !pair.metaEvent) {
-      unresolvedRoots.push(rootId);
-    }
-  }
-
-  if (unresolvedRoots.length > 0 && state) {
-    await Promise.allSettled(
-      unresolvedRoots.slice(0, 30).map(async (rootId) => {
-        try {
-          const meta = await fetchChannelMetadata(state, rootId);
-          if (meta) {
-            const cur = byRoot.get(rootId) || {};
-            if (meta.rootEvent) cur.rootEvent = meta.rootEvent;
-            if (meta.metaEvent) cur.metaEvent = meta.metaEvent;
-            byRoot.set(rootId, cur);
-          }
-        } catch (_e) {}
-      }),
-    );
-  }
-
+function recordsFromIndex(byRoot) {
   const records = [];
   for (const [rootId, pair] of byRoot.entries()) {
     records.push(buildChannelRecord(
@@ -241,34 +221,31 @@ async function assembleChannelRecords(state, events) {
   return records;
 }
 
-/**
- * キーワード / 空（直近一覧）でチャンネル候補を検索
- * 最新メッセージ (kind:42) またはメタデータが新しいチャンネル順にソート
- * @returns {Promise<{ results: Array, query: string, mode: 'browse'|'search' }>}
- */
-export async function searchChannels(state, query, options = {}) {
-  const q = normalizeQuery(query);
-  const limit = typeof options.limit === 'number' ? options.limit : 20;
-  const results = [];
-  const seen = new Set();
-
-  const pushResult = (item) => {
-    if (!item || !item.rootId || seen.has(item.rootId)) return;
-    seen.add(item.rootId);
-    results.push(item);
-  };
-
-  const relays = (state && state.relays) ? getReadRelays(state.relays).slice(0, 4) : [];
-  if (!relays.length) {
-    return { results: [], query: q, mode: q ? 'search' : 'browse' };
+async function enrichUnresolvedChannels(state, byRoot, limit) {
+  const unresolved = [];
+  for (const [rootId, pair] of byRoot.entries()) {
+    if (!pair.rootEvent && !pair.metaEvent) {
+      unresolved.push({ rootId, lastMessageAt: pair.lastMessageAt || 0 });
+    }
   }
+  unresolved.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+  if (!unresolved.length || !state) return;
 
-  const timeoutMs = typeof options.timeoutMs === 'number' ? options.timeoutMs : SEARCH_TIMEOUT_MS;
-  const events = await collectChannelEvents(state, relays, timeoutMs);
-  const records = await assembleChannelRecords(state, events);
-  const queryLower = q.toLowerCase();
-  const mode = q ? 'search' : 'browse';
+  await Promise.allSettled(
+    unresolved.slice(0, limit).map(async ({ rootId }) => {
+      try {
+        const meta = await fetchChannelMetadata(state, rootId);
+        if (!meta) return;
+        const cur = byRoot.get(rootId) || {};
+        if (meta.rootEvent) cur.rootEvent = meta.rootEvent;
+        if (meta.metaEvent) cur.metaEvent = meta.metaEvent;
+        byRoot.set(rootId, cur);
+      } catch (_e) {}
+    }),
+  );
+}
 
+function rankChannelRecords(records, queryLower, limit) {
   const scored = records
     .filter(rec => matchesQuery(rec, queryLower))
     .map((rec) => {
@@ -286,11 +263,71 @@ export async function searchChannels(state, query, options = {}) {
       return { ...rec, score, fromIdLookup: false };
     })
     .sort((a, b) => (b.score - a.score) || ((b.last_active_at || 0) - (a.last_active_at || 0)) || ((b.created_at || 0) - (a.created_at || 0)));
+  return scored.slice(0, limit);
+}
 
-  for (const item of scored.slice(0, limit)) {
-    pushResult(item);
+/**
+ * キーワード / 空（直近一覧）でチャンネル候補を検索
+ * 最新メッセージ (kind:42) またはメタデータが新しいチャンネル順にソート
+ * @returns {Promise<{ results: Array, query: string, mode: 'browse'|'search' }>}
+ */
+export async function searchChannels(state, query, options = {}) {
+  const q = normalizeQuery(query);
+  const limit = typeof options.limit === 'number' ? options.limit : 20;
+  const queryLower = q.toLowerCase();
+  const mode = q ? 'search' : 'browse';
+  const relays = (state && state.relays) ? getReadRelays(state.relays).slice(0, 4) : [];
+  if (!relays.length) {
+    return { results: [], query: q, mode, settled: true };
   }
 
-  return { results: results.slice(0, limit), query: q, mode };
+  const timeoutMs = typeof options.timeoutMs === 'number' ? options.timeoutMs : SEARCH_TIMEOUT_MS;
+  const publishDelay = typeof options.publishDelay === 'number' ? options.publishDelay : 50;
+  let byRoot = new Map();
+  let publishTimer = null;
+
+  const snapshotPayload = (settled) => ({
+    results: rankChannelRecords(recordsFromIndex(byRoot), queryLower, limit),
+    query: q,
+    mode,
+    settled: !!settled,
+  });
+
+  const publish = (settled) => {
+    const payload = snapshotPayload(settled);
+    if (typeof options.onUpdate !== 'function') return payload;
+    if (!settled && !payload.results.length) return payload;
+    options.onUpdate(payload);
+    return payload;
+  };
+
+  const schedulePublish = () => {
+    if (typeof options.onUpdate !== 'function') return;
+    if (publishTimer) return;
+    publishTimer = setTimeout(() => {
+      publishTimer = null;
+      publish(false);
+    }, publishDelay);
+  };
+
+  const filter = { kinds: [40, 41, 42], limit: SEARCH_LIMIT };
+  let events = [];
+  if (state && state.pool && typeof state.pool.subscribeMany === 'function') {
+    events = await collectViaSubscribe(state, relays, filter, timeoutMs, (snapshot) => {
+      byRoot = indexChannelEvents(snapshot);
+      schedulePublish();
+    });
+  } else {
+    events = await collectChannelEvents(state, relays, timeoutMs);
+  }
+  if (publishTimer) {
+    clearTimeout(publishTimer);
+    publishTimer = null;
+  }
+  byRoot = indexChannelEvents(events);
+  publish(false);
+
+  await enrichUnresolvedChannels(state, byRoot, limit);
+  return publish(true);
 }
 

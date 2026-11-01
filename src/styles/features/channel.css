@@ -407,6 +407,7 @@
 }
 
 .channel-item-badge--local {
+  flex-shrink: 0;
   font-size: 0.68rem;
   padding: 1px 6px;
   border-radius: 999px;

@@ -1,5 +1,5 @@
-import { fetchPublicChatsEntries } from './public-chats.js';
-import { fetchChannelMetadata, extractChannelProfileFields, buildChannelEmbedContext, shortenChannelEventId } from './channel.js';
+import { fetchPublicChatsEntries, togglePublicChatMembership } from './public-chats.js';
+import { fetchChannelMetadata, extractChannelProfileFields, buildChannelEmbedContext, getChannelLabelFromCache, shortenChannelEventId } from './channel.js';
 import { subscribeChannelFeed, unsubscribeChannelFeed, unsubscribeAllChannelFeeds } from './channel-feed.js';
 import {
   mergeChannelMembership,
@@ -581,11 +581,17 @@ function renderChannelListItems(listEl, statusEl, publicEntries, options = {}) {
     listEl.appendChild(row);
 
     if (!entry.label) {
-      fetchChannelMetadata(_stateRef, entry.rootId).then(meta => {
-        if (meta && meta.label) {
-          const nameSpan = itemBtn.querySelector('.channel-item-name');
-          if (nameSpan) nameSpan.textContent = `# ${meta.label}`;
-        }
+      const rootId = entry.rootId;
+      const pubkeyAtRender = normalizePubkey(getPubkey());
+      const applyLabel = (label) => {
+        if (!label || !itemBtn.isConnected) return;
+        if (normalizePubkey(getPubkey()) !== pubkeyAtRender) return;
+        const nameSpan = itemBtn.querySelector('.channel-item-name');
+        if (nameSpan) nameSpan.textContent = `# ${label}`;
+        if (typeof options.onLabel === 'function') options.onLabel(rootId, label);
+      };
+      fetchChannelMetadata(getState(), rootId, { onLabel: applyLabel }).then((meta) => {
+        if (meta && meta.label) applyLabel(meta.label);
       }).catch(() => {});
     }
   });
@@ -829,33 +835,92 @@ export async function loadChannelList() {
     return;
   }
 
-  if (statusEl) statusEl.textContent = t('channel.loading_list') || 'チャンネル一覧を読み込み中...';
+  const labelMap = new Map();
+  for (const entry of Array.isArray(cached) ? cached : []) {
+    if (!entry || !entry.rootId || !entry.label) continue;
+    labelMap.set(String(entry.rootId).toLowerCase(), entry.label);
+  }
 
-  const usableEntryCount = (cached && Array.isArray(cached) && cached.length)
-    ? renderChannelListItems(listEl, statusEl, cached, {
+  const rememberLabel = (rootId, label) => {
+    const id = String(rootId || '').toLowerCase();
+    const name = String(label || '').trim();
+    if (!id || !name) return;
+    labelMap.set(id, name);
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (!raw) return;
+      const stored = JSON.parse(raw);
+      if (!Array.isArray(stored)) return;
+      let changed = false;
+      for (const entry of stored) {
+        if (!entry || String(entry.rootId || '').toLowerCase() !== id || entry.label === name) continue;
+        entry.label = name;
+        changed = true;
+      }
+      if (changed) localStorage.setItem(cacheKey, JSON.stringify(stored));
+    } catch (_e) {}
+  };
+
+  const withKnownLabels = (entries) => (entries || []).map((entry) => {
+    if (!entry || entry.label) return entry;
+    const id = String(entry.rootId || '').toLowerCase();
+    let cachedLabel = null;
+    try {
+      cachedLabel = getChannelLabelFromCache(getState(), entry.rootId) || null;
+    } catch (_e) { /* メモリ上に表示名が無くても一覧は出す */ }
+    const label = labelMap.get(id) || cachedLabel;
+    return label ? { ...entry, label } : entry;
+  });
+
+  let bestCreatedAt = -1;
+  let hasPainted = false;
+
+  const applySnapshot = (result) => {
+    if (!isCurrentLoad() || !result || !Array.isArray(result.entries)) return;
+    if (result.event) {
+      const createdAt = Number(result.event.created_at) || 0;
+      if (createdAt < bestCreatedAt) return;
+      if (createdAt === bestCreatedAt && result.partial) return;
+      bestCreatedAt = createdAt;
+    } else if (bestCreatedAt >= 0) {
+      return;
+    }
+
+    const entries = withKnownLabels(result.entries);
+    if (!result.partial) {
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(entries));
+      } catch (_e) {}
+    }
+    renderChannelListItems(listEl, statusEl, entries, {
+      prune: !!result.event && !result.partial,
+      allowEmpty: !!result.event && !result.partial,
+      onLabel: rememberLabel,
+    });
+    hasPainted = true;
+  };
+
+  if (Array.isArray(cached) && cached.length) {
+    renderChannelListItems(listEl, statusEl, cached, {
       prune: false,
-      updateStatus: false,
-    }).length
-    : renderChannelListItems(listEl, statusEl, [], {
-      prune: false,
-      updateStatus: false,
-    }).length;
+      onLabel: rememberLabel,
+    });
+    hasPainted = true;
+  } else if (statusEl) {
+    statusEl.textContent = t('channel.loading_list') || 'チャンネル一覧を読み込み中...';
+  }
 
   try {
     const state = getState();
     if (state && pubkey) {
-      const result = await fetchPublicChatsEntries(state, pubkey, { maxEntries: 40 });
+      const result = await fetchPublicChatsEntries(state, pubkey, {
+        maxEntries: 40,
+        resolveChannels: false,
+        onUpdate: applySnapshot,
+      });
       if (!isCurrentLoad()) return;
       if (result && Array.isArray(result.entries)) {
-        // The key is captured with the load so a later account switch cannot redirect this write.
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify(result.entries));
-        } catch (_e) {}
-        // event があるときだけ除外を prune（空の 10005 なら allowEmpty で刈り取り可）
-        renderChannelListItems(listEl, statusEl, result.entries, {
-          prune: !!result.event,
-          allowEmpty: !!result.event,
-        });
+        applySnapshot(result);
       } else {
         throw new Error('Invalid public chats response');
       }
@@ -864,7 +929,7 @@ export async function loadChannelList() {
     if (!isCurrentLoad()) return;
     console.warn('[channel-ui] fetchPublicChatsEntries error', err);
     if (statusEl) statusEl.textContent = t('channel.load_failed') || 'チャンネル一覧の取得に失敗しました';
-    if (!usableEntryCount) listEl.innerHTML = '';
+    if (!hasPainted) listEl.innerHTML = '';
   }
 }
 
@@ -879,10 +944,8 @@ async function handleChannelSearch() {
   resultsEl.classList.remove('d-none');
   resultsEl.innerHTML = `<div class="muted text-sm p-8">${t('channel.searching') || '検索中...'}</div>`;
 
-  try {
-    const { results, mode } = await searchChannels(getState(), query, { limit: 20 });
+  const paintResults = (results, mode) => {
     if (seq !== _searchSeq) return;
-
     if (!results.length) {
       const emptyMsg = mode === 'browse'
         ? (t('channel.browse_empty') || '直近のチャンネルを取得できませんでした。IDで追加するか、キーワードを変えてください。')
@@ -931,6 +994,16 @@ async function handleChannelSearch() {
       row.appendChild(meta);
       row.appendChild(addBtn);
       resultsEl.appendChild(row);
+    });
+  };
+
+  try {
+    await searchChannels(getState(), query, {
+      limit: 20,
+      onUpdate: ({ results, mode, settled }) => {
+        if (!results.length && !settled) return;
+        paintResults(results, mode);
+      },
     });
   } catch (err) {
     if (seq !== _searchSeq) return;
@@ -1185,9 +1258,25 @@ async function handleLeaveChannel(rootId) {
     .replace('{name}', displayName);
 
   showConfirmModal(title, message, async () => {
-    leaveChannelLocally(rootId, { publicRootIds: _lastPublicRootIds });
+    const id = String(rootId).trim().toLowerCase();
+    const onPublicList = _lastPublicRootIds.includes(id);
+    // 10005 にあるものだけリレーのリストから外す。端末のみはローカル削除に留める。
+    leaveChannelLocally(rootId, { publicRootIds: onPublicList ? _lastPublicRootIds : [] });
     if (_activeRootId === rootId) {
       clearActiveChannelView();
+    }
+    if (onPublicList) {
+      try {
+        const res = await togglePublicChatMembership(getState(), rootId, {
+          join: false,
+          preserveExclusions: true,
+        });
+        if (!res || !res.ok) {
+          showToast(t('channel.leave_publish_failed') || '参加リストの更新に失敗しました。チャンネルはリストに残っています');
+        }
+      } catch (_e) {
+        showToast(t('channel.leave_publish_failed') || '参加リストの更新に失敗しました。チャンネルはリストに残っています');
+      }
     }
     await loadChannelList();
   });

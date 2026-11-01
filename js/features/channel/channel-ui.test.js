@@ -9,16 +9,18 @@ const mocks = vi.hoisted(() => ({
   revealComposerForSelectedChannel: vi.fn(),
   setChannelTarget: vi.fn(),
   subscribeChannelFeed: vi.fn(),
+  togglePublicChatMembership: vi.fn(async () => ({ ok: true })),
 }));
 
 vi.mock('./public-chats.js', () => ({
   fetchPublicChatsEntries: mocks.fetchPublicChatsEntries,
-  togglePublicChatMembership: vi.fn(),
+  togglePublicChatMembership: mocks.togglePublicChatMembership,
 }));
 vi.mock('./channel.js', () => ({
   buildChannelEmbedContext: vi.fn(async () => null),
   extractChannelProfileFields: mocks.extractChannelProfileFields,
   fetchChannelMetadata: mocks.fetchChannelMetadata,
+  getChannelLabelFromCache: vi.fn(() => null),
   shortenChannelEventId: vi.fn(id => String(id || '').slice(0, 8)),
 }));
 vi.mock('./channel-feed.js', () => ({
@@ -39,6 +41,7 @@ vi.mock('../post/composer.js', () => ({
 vi.mock('../../ui/modals/modals.js', () => ({ showConfirmModal: vi.fn() }));
 vi.mock('../../utils/i18n.js', () => ({ t: key => key }));
 
+import { showConfirmModal } from '../../ui/modals/modals.js';
 import {
   initChannelView,
   openChannelFromExternal,
@@ -164,6 +167,151 @@ describe('channel list account loading', () => {
 
     expect(container.querySelector('#channelListStatus').textContent).toBe('channel.none_joined');
     expect(container.querySelector('#channelList').children).toHaveLength(0);
+  });
+
+  it('shows a cached list immediately and keeps the loading text only when the cache is empty', () => {
+    const request = deferred();
+    mocks.fetchPublicChatsEntries.mockReturnValueOnce(request.promise);
+    localStorage.setItem('pubkey', ACCOUNT_A);
+    localStorage.setItem(`nokakoi_public_chats_cache_v1.${ACCOUNT_A}`, JSON.stringify([
+      { rootId: OLD_CHANNEL, label: 'cached channel' },
+    ]));
+
+    const container = setupView({ pubkey: ACCOUNT_A });
+
+    expect(container.querySelector('#channelListStatus').textContent).toBe('channel.joined_count');
+    expect(container.querySelector('.channel-item-name').textContent).toBe('# cached channel');
+    expect(mocks.fetchPublicChatsEntries).toHaveBeenCalledWith(
+      expect.anything(),
+      ACCOUNT_A,
+      expect.objectContaining({ resolveChannels: false, maxEntries: 40 }),
+    );
+  });
+
+  it('paints the first snapshot, then ignores an older or partial replay', async () => {
+    let onUpdate;
+    const request = deferred();
+    mocks.fetchPublicChatsEntries.mockImplementationOnce((state, pubkey, options) => {
+      onUpdate = options.onUpdate;
+      return request.promise;
+    });
+    localStorage.setItem('pubkey', ACCOUNT_A);
+    const container = setupView({ pubkey: ACCOUNT_A });
+    const newerId = 'd'.repeat(64);
+    const cacheKey = `nokakoi_public_chats_cache_v1.${ACCOUNT_A}`;
+
+    expect(container.querySelector('#channelListStatus').textContent).toBe('channel.loading_list');
+
+    onUpdate({
+      event: { id: 'new', created_at: 20 },
+      entries: [{ rootId: newerId, label: 'newer' }],
+      partial: true,
+    });
+    expect(container.querySelector('#channelListStatus').textContent).toBe('channel.joined_count');
+    expect(container.querySelector('.channel-item-name').textContent).toBe('# newer');
+    expect(localStorage.getItem(cacheKey)).toBeNull();
+
+    onUpdate({
+      event: { id: 'new', created_at: 20 },
+      entries: [{ rootId: newerId, label: 'newer', isPrivate: false }],
+    });
+    expect(JSON.parse(localStorage.getItem(cacheKey))[0].rootId).toBe(newerId);
+
+    onUpdate({
+      event: { id: 'old', created_at: 10 },
+      entries: [{ rootId: OLD_CHANNEL, label: 'older' }],
+    });
+    onUpdate({
+      event: { id: 'new', created_at: 20 },
+      entries: [{ rootId: newerId }],
+      partial: true,
+    });
+    expect(container.querySelector('.channel-item-name').textContent).toBe('# newer');
+
+    request.resolve({
+      event: { id: 'old', created_at: 5 },
+      entries: [{ rootId: OLD_CHANNEL, label: 'stale' }],
+    });
+    await flushPromises();
+
+    expect(container.querySelector('.channel-item-name').textContent).toBe('# newer');
+    expect(JSON.parse(localStorage.getItem(cacheKey))[0].rootId).toBe(newerId);
+  });
+
+  it('stores a name resolved after the list is shown', async () => {
+    mocks.fetchPublicChatsEntries.mockResolvedValue({
+      event: { id: 'e', created_at: 3 },
+      entries: [{ rootId: OLD_CHANNEL }],
+    });
+    localStorage.setItem('pubkey', ACCOUNT_A);
+
+    setupView({ pubkey: ACCOUNT_A });
+    await flushPromises();
+    await flushPromises();
+
+    const saved = JSON.parse(localStorage.getItem(`nokakoi_public_chats_cache_v1.${ACCOUNT_A}`));
+    expect(saved[0].label).toBe('Channel');
+    expect(document.querySelector('.channel-item-name').textContent).toBe('# Channel');
+  });
+
+  async function confirmRemove(container) {
+    showConfirmModal.mockImplementation((_title, _message, onYes) => { onYes(); });
+    container.querySelector('.channel-list-remove').click();
+    await flushPromises();
+    await flushPromises();
+  }
+
+  it('publishes a kind 10005 removal for channels on the public list', async () => {
+    mocks.fetchPublicChatsEntries.mockResolvedValue({
+      event: { id: 'list', created_at: 5 },
+      entries: [{ rootId: OLD_CHANNEL, label: 'Listed' }],
+    });
+    mocks.togglePublicChatMembership.mockResolvedValue({ ok: true });
+    localStorage.setItem('pubkey', ACCOUNT_A);
+    const container = setupView({ pubkey: ACCOUNT_A });
+    await flushPromises();
+    await flushPromises();
+
+    await confirmRemove(container);
+
+    expect(mocks.togglePublicChatMembership).toHaveBeenCalledWith(
+      expect.anything(),
+      OLD_CHANNEL,
+      { join: false, preserveExclusions: true },
+    );
+  });
+
+  it('removes a device-only channel locally without publishing kind 10005', async () => {
+    mocks.fetchPublicChatsEntries.mockResolvedValue({
+      event: { id: 'list', created_at: 5 },
+      entries: [],
+    });
+    localStorage.setItem('pubkey', ACCOUNT_A);
+    localStorage.setItem(`custom_joined_channels.${ACCOUNT_A}`, JSON.stringify([OLD_CHANNEL]));
+    const container = setupView({ pubkey: ACCOUNT_A });
+    await flushPromises();
+    await flushPromises();
+
+    expect(container.querySelector('.channel-item-badge--local')).toBeTruthy();
+    await confirmRemove(container);
+
+    expect(mocks.togglePublicChatMembership).not.toHaveBeenCalled();
+    expect(localStorage.getItem(`custom_joined_channels.${ACCOUNT_A}`)).toBe('[]');
+  });
+
+  it('shows a kind 10005 channel even when this device had hidden it', async () => {
+    mocks.fetchPublicChatsEntries.mockResolvedValue({
+      event: { id: 'list', created_at: 5 },
+      entries: [{ rootId: OLD_CHANNEL, label: 'Still listed' }],
+    });
+    localStorage.setItem('pubkey', ACCOUNT_A);
+    localStorage.setItem(`channel_10005_exclusions_v1.${ACCOUNT_A}`, JSON.stringify([OLD_CHANNEL]));
+    const container = setupView({ pubkey: ACCOUNT_A });
+    await flushPromises();
+    await flushPromises();
+
+    expect(container.querySelector('.channel-item-name').textContent).toBe('# Still listed');
+    expect(container.querySelector('.channel-item-badge--local')).toBeNull();
   });
 });
 

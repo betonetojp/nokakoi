@@ -170,5 +170,52 @@ describe('channel-search', () => {
       expect(result.results[0].rootId).toBe(channelA);
       expect(result.results[1].rootId).toBe(channelB);
     });
+
+    it('publishes browse hits before the collect timeout and fills names afterwards', async () => {
+      vi.useFakeTimers();
+      const channelD = 'dd'.repeat(32);
+      let handlers = null;
+      const state = {
+        relays: { 'wss://relay.example.com': { read: true } },
+        pool: {
+          subscribeMany: vi.fn((_relays, _filters, next) => {
+            handlers = next;
+            return { close: vi.fn() };
+          }),
+          querySync: vi.fn(async () => []),
+        },
+      };
+      const updates = [];
+      try {
+        const pending = searchChannels(state, '', {
+          timeoutMs: 5000,
+          publishDelay: 50,
+          onUpdate: (payload) => updates.push({
+            settled: payload.settled,
+            names: payload.results.map((item) => item.name),
+          }),
+        });
+        handlers.onevent({
+          id: 'msg_d',
+          kind: 42,
+          created_at: 6000,
+          tags: [['e', channelD, '', 'root']],
+          content: 'active msg',
+        });
+        await vi.advanceTimersByTimeAsync(50);
+        expect(updates.length).toBeGreaterThan(0);
+        expect(updates[0].settled).toBe(false);
+        expect(updates[0].names[0]).toBe(channelD.slice(0, 8));
+        expect(mocks.fetchChannelMetadata).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(5000);
+        const result = await pending;
+        expect(result.settled).toBe(true);
+        expect(result.results[0].name).toBe(`Name-${channelD.slice(0, 4)}`);
+        expect(mocks.fetchChannelMetadata).toHaveBeenCalledWith(state, channelD);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });
