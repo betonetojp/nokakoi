@@ -1,6 +1,11 @@
 /* ==========================================================================
-   Pull to Refresh Indicator
+   Pull to Refresh Indicator & Over-scroll containment
    ========================================================================== */
+
+html, body {
+  /* ブラウザ標準の Pull-to-refresh（Chrome Android, Safari 等）を抑止 */
+  overscroll-behavior-y: none;
+}
 
 .ptr-indicator {
   position: fixed;

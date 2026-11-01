@@ -29,30 +29,30 @@
 /* scrollToTopBtn のパルスリングアニメーション（案1） */
 @keyframes scroll-top-pulse {
   0% {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.25), 0 0 0 0 var(--accent-focus);
+    box-shadow: 0 0 0 0 var(--accent-focus);
     border-color: var(--accent);
   }
   50% {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 0 rgba(255, 255, 255, 0.3), 0 0 0 8px rgba(124, 165, 216, 0);
+    box-shadow: 0 0 0 8px rgba(124, 165, 216, 0);
     border-color: var(--accent);
   }
   100% {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.25), 0 0 0 0 rgba(124, 165, 216, 0);
+    box-shadow: 0 0 0 0 rgba(124, 165, 216, 0);
     border-color: var(--accent);
   }
 }
 
 @keyframes scroll-top-pulse-light {
   0% {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 0 0 0 var(--accent-focus);
+    box-shadow: 0 0 0 0 var(--accent-focus);
     border-color: var(--accent);
   }
   50% {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 0 0 8px rgba(194, 65, 114, 0);
+    box-shadow: 0 0 0 8px rgba(194, 65, 114, 0);
     border-color: var(--accent);
   }
   100% {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 0 0 0 rgba(194, 65, 114, 0);
+    box-shadow: 0 0 0 0 rgba(194, 65, 114, 0);
     border-color: var(--accent);
   }
 }

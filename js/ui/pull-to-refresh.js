@@ -106,6 +106,11 @@ export function setupPullToRefresh() {
       return;
     }
 
+    // ブラウザネイティブの引っ張り更新・バウンスを抑止しカスタムUIで処理
+    if (diffY > 0 && e.cancelable) {
+      try { e.preventDefault(); } catch (_err) { }
+    }
+
     // 下方向への引き下げ
     if (diffY > 8) {
       isPulling = true;

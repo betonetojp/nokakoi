@@ -130,6 +130,22 @@ describe('pull-to-refresh', () => {
     expect(indicator.classList.contains('ptr-pulling')).toBe(false);
   });
 
+  it('prevents default on touchmove when pulling downwards from the top to suppress browser native reload', () => {
+    cleanup = setupPullToRefresh();
+
+    window.scrollY = 0;
+    const touchStartEvent = new Event('touchstart');
+    touchStartEvent.touches = [{ clientX: 100, clientY: 50 }];
+    window.dispatchEvent(touchStartEvent);
+
+    const touchMoveEvent = new Event('touchmove', { cancelable: true });
+    touchMoveEvent.touches = [{ clientX: 100, clientY: 60 }];
+    const preventDefaultSpy = vi.spyOn(touchMoveEvent, 'preventDefault');
+    window.dispatchEvent(touchMoveEvent);
+
+    expect(preventDefaultSpy).toHaveBeenCalled();
+  });
+
   it('cleans up indicator element when cleanup function is invoked', () => {
     cleanup = setupPullToRefresh();
     expect(document.getElementById('ptrIndicator')).not.toBeNull();
