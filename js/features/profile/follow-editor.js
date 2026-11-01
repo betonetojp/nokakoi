@@ -3,7 +3,7 @@
  * フォローリスト管理機能 (kind:3) & スナップショット（複数保存・名前変更・復元・削除）
  */
 
-import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../core/replaceable-event.js';
+import { fetchLatestEvent, backupEvent, publishReplaceableEvent, describeLatestFetchProgress } from '../../core/replaceable-event.js';
 import { t } from '../../utils/i18n.js';
 import { getNip19, getSimplePool } from '../../core/nostr-compat.js';
 import { getReadRelays, relayConnect, profileIndexerRelays } from '../../core/relay.js';
@@ -667,35 +667,93 @@ export async function openFollowEditor(state) {
   if (cancelBtn && newCancelBtn) cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
   if (closeBtn && newCloseBtn) closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
 
-  // 最新の kind:3 を取得
-  const latestEvent = await fetchLatestEvent(state, 3, myPubkey);
-  if (latestEvent) {
-    backupEvent(3, latestEvent);
-  }
-
-  let existingContent = latestEvent ? (latestEvent.content || '') : '';
+  let latestEvent = null;
+  let existingContent = '';
   let items = [];
   let nonPTags = [];
+  let shownCreatedAt = -1;
+  let listEdited = false;
+  let skippedNewer = false;
+  let fetchProgress = { settled: 0, total: 0, done: false };
 
-  if (latestEvent && latestEvent.tags) {
-    for (const tag of latestEvent.tags) {
-      if (tag[0] === 'p' && tag[1]) {
-        items.push({
-          pubkey: tag[1],
-          relayHint: extractRelayHint(tag),
-          petname: extractPetname(tag),
-          isFollowing: true
-        });
-      } else {
-        nonPTags.push([...tag]);
-      }
-    }
-  }
-
-  if (statusEl) statusEl.textContent = '';
-
+  const paintFetchStatus = () => {
+    if (statusEl) statusEl.textContent = describeLatestFetchProgress(fetchProgress, { stale: skippedNewer });
+  };
   const mutualCache = new Map();
   let activeTab = 'current'; // 'current' | 'saved'
+  const editorSession = Symbol('follow-editor');
+  modal.__editorSession = editorSession;
+
+  const noteListEdit = (event) => {
+    const target = event.target;
+    if (!target || !target.closest || target.closest('.editor-tabs')) return;
+    listEdited = true;
+  };
+  if (contentEl) {
+    contentEl.addEventListener('pointerdown', noteListEdit, true);
+    contentEl.addEventListener('input', noteListEdit, true);
+  }
+
+  function editorStillOpen() {
+    return modal.__editorSession === editorSession && !modal.hidden;
+  }
+
+  function applyFollowSnapshot(ev) {
+    if (!editorStillOpen()) return;
+    if (!ev) {
+      if (shownCreatedAt >= 0) return;
+      latestEvent = null;
+      existingContent = '';
+      items = [];
+      nonPTags = [];
+      paintFetchStatus();
+      renderModalStructure();
+      return;
+    }
+    const created = Number(ev.created_at) || 0;
+    if (shownCreatedAt >= 0 && created < shownCreatedAt) return;
+    if (shownCreatedAt >= 0 && created === shownCreatedAt && latestEvent) return;
+    if (listEdited && shownCreatedAt >= 0) {
+      skippedNewer = true;
+      paintFetchStatus();
+      return;
+    }
+    latestEvent = ev;
+    shownCreatedAt = created;
+    backupEvent(3, ev);
+    existingContent = ev.content || '';
+    items = [];
+    nonPTags = [];
+    if (ev.tags) {
+      for (const tag of ev.tags) {
+        if (tag[0] === 'p' && tag[1]) {
+          items.push({
+            pubkey: tag[1],
+            relayHint: extractRelayHint(tag),
+            petname: extractPetname(tag),
+            isFollowing: true
+          });
+        } else {
+          nonPTags.push([...tag]);
+        }
+      }
+    }
+    paintFetchStatus();
+    renderModalStructure();
+  }
+
+  const fetchedFollowEvent = await fetchLatestEvent(state, 3, myPubkey, {
+    onEvent: (ev) => applyFollowSnapshot(ev),
+    onProgress: (progress) => {
+      fetchProgress = progress;
+      paintFetchStatus();
+    }
+  });
+  if (!fetchProgress.done) {
+    fetchProgress = { settled: fetchProgress.total || fetchProgress.settled, total: fetchProgress.total, done: true };
+  }
+  applyFollowSnapshot(fetchedFollowEvent);
+  paintFetchStatus();
 
   // サブタブおよび領域の初期生成
   function renderModalStructure() {
@@ -1074,9 +1132,6 @@ export async function openFollowEditor(state) {
     container.appendChild(listEl);
     if (prevSnapScroll) listEl.scrollTop = prevSnapScroll;
   }
-
-  // 初期レイアウト表示
-  renderModalStructure();
 
   // 現在のフォローの保存処理
   const handleSave = async () => {

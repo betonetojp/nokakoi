@@ -102,6 +102,24 @@ function createFeed() {
   return { list: [], map: new Map() };
 }
 
+function createStartupState() {
+  return {
+    pool: {},
+    relays: ['wss://relay.example'],
+    subs: new Map(),
+    feeds: {
+      home: createFeed(),
+      global: createFeed(),
+      mentions: createFeed(),
+      me: createFeed(),
+      bitchat: createFeed()
+    },
+    followPetnames: new Map(),
+    profiles: new Map(),
+    userStatuses: new Map()
+  };
+}
+
 describe('feed manager startup lifecycle', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -474,5 +492,57 @@ describe('feed manager startup lifecycle', () => {
 
     expect(channelEl.innerHTML).toBe(channelHtml);
     expect(channelEl.dataset.topEventId).toBe('chan1');
+  });
+
+  it('starts feeds from a stored mute list while refreshing kind 10000 in the background', async () => {
+    window.__nokakoiMuteList = {
+      pubkeys: { public: ['muted'], private: [] },
+      words: { public: [], private: [] }
+    };
+    let resolveMute;
+    window.__nokakoiFetchMuteList = vi.fn(() => new Promise((resolve) => { resolveMute = resolve; }));
+    const settings = createSettings({
+      globalMergeHome: false,
+      globalRelay: ['wss://global.example'],
+      showMusicStatus: false,
+      showOmochat: false,
+      showHomeOmochat: false
+    });
+    initFeedManager(createStartupState(), settings);
+
+    expect(restartFeeds(true)).toBe(true);
+    const idsBeforeMute = mocks.setupFeedFetcher.mock.calls.map(([opts]) => opts.feedId);
+    expect(idsBeforeMute).toContain('global');
+    expect(idsBeforeMute).toContain('home');
+    expect(mocks.subOnce.mock.calls.some(([, key]) => key === 'follows')).toBe(true);
+
+    resolveMute({ ok: true });
+    await Promise.resolve();
+    expect(idsBeforeMute.filter((id) => id === 'home')).toHaveLength(1);
+  });
+
+  it('prefetches the follow list but waits to show feeds on the first login without a mute list', async () => {
+    window.__nokakoiMuteList = null;
+    let resolveMute;
+    window.__nokakoiFetchMuteList = vi.fn(() => new Promise((resolve) => { resolveMute = resolve; }));
+    const settings = createSettings({
+      globalMergeHome: false,
+      globalRelay: ['wss://global.example'],
+      showMusicStatus: false,
+      showOmochat: false,
+      showHomeOmochat: false
+    });
+    initFeedManager(createStartupState(), settings);
+
+    expect(restartFeeds(true)).toBe(true);
+    expect(mocks.setupFeedFetcher).not.toHaveBeenCalled();
+    expect(mocks.subOnce.mock.calls.some(([, key]) => key === 'follows')).toBe(true);
+
+    resolveMute({ ok: true });
+    await Promise.resolve();
+    await Promise.resolve();
+    const ids = mocks.setupFeedFetcher.mock.calls.map(([opts]) => opts.feedId);
+    expect(ids).toContain('global');
+    expect(ids).toContain('home');
   });
 });

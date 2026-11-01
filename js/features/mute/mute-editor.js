@@ -3,7 +3,7 @@
  * ミュートリスト管理機能 (kind:10000)
  */
 
-import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../core/replaceable-event.js';
+import { fetchLatestEvent, backupEvent, publishReplaceableEvent, describeLatestFetchProgress } from '../../core/replaceable-event.js';
 import { getNip04, getNip44, getNip19 } from '../../core/nostr-compat.js';
 import { t } from '../../utils/i18n.js';
 import { displayNameWithUsername, loadProfile, isAvatarsEnabled } from '../profile/profile.js';
@@ -801,25 +801,96 @@ export async function openMuteEditor(state) {
   if (cancelBtn && newCancelBtn) cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
   if (closeBtn && newCloseBtn) closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
 
-  // 最新の kind:10000 を取得
-  const latestEvent = await fetchLatestEvent(state, 10000, myPubkey);
-  if (latestEvent) {
-    backupEvent(10000, latestEvent);
+  const isReadOnly = isReadOnlyAccount(state);
+  let latestEvent = null;
+  let parsed = await parseMuteEvent(null, state);
+  let publicUserItems = [];
+  let publicWordItems = [];
+  let privateUserItems = [];
+  let privateWordItems = [];
+  let activeMainTab = 'mutes'; // 'mutes' | 'snapshots'
+  let activeTab = 'public';
+  let selectedEncryptionMode = 'nip44';
+  let shownCreatedAt = -1;
+  let listEdited = false;
+  let skippedNewer = false;
+  let fetchProgress = { settled: 0, total: 0, done: false };
+  let muteApplySeq = 0;
+
+  const paintFetchStatus = () => {
+    if (statusEl) statusEl.textContent = describeLatestFetchProgress(fetchProgress, { stale: skippedNewer });
+  };
+  const editorSession = Symbol('mute-editor');
+  modal.__editorSession = editorSession;
+
+  const noteListEdit = (event) => {
+    const target = event.target;
+    if (!target || !target.closest || target.closest('.editor-tabs')) return;
+    listEdited = true;
+  };
+  if (contentEl) {
+    contentEl.addEventListener('pointerdown', noteListEdit, true);
+    contentEl.addEventListener('input', noteListEdit, true);
   }
 
-  const isReadOnly = isReadOnlyAccount(state);
-  const parsed = await parseMuteEvent(latestEvent, state);
+  function editorStillOpen() {
+    return modal.__editorSession === editorSession && !modal.hidden;
+  }
 
-  let publicUserItems = parsed.publicUsers.map(pk => ({ pubkey: pk, isMuted: true }));
-  let publicWordItems = parsed.publicWords.map(w => ({ word: w, isMuted: true }));
-  let privateUserItems = parsed.privateUsers.map(pk => ({ pubkey: pk, isMuted: true }));
-  let privateWordItems = parsed.privateWords.map(w => ({ word: w, isMuted: true }));
+  async function applyMuteSnapshot(ev) {
+    if (!editorStillOpen()) return;
+    const seq = ++muteApplySeq;
+    const created = ev ? (Number(ev.created_at) || 0) : -1;
+    if (ev) {
+      if (shownCreatedAt >= 0 && created < shownCreatedAt) return;
+      if (shownCreatedAt >= 0 && created === shownCreatedAt && latestEvent) return;
+      if (listEdited && shownCreatedAt >= 0) {
+        skippedNewer = true;
+        paintFetchStatus();
+        return;
+      }
+    } else if (shownCreatedAt >= 0) {
+      return;
+    }
+    const nextParsed = await parseMuteEvent(ev, state);
+    if (seq !== muteApplySeq || !editorStillOpen()) return;
+    if (listEdited && shownCreatedAt >= 0) {
+      skippedNewer = true;
+      paintFetchStatus();
+      return;
+    }
+    if (ev && shownCreatedAt > created) return;
+    const firstPaint = shownCreatedAt < 0;
+    latestEvent = ev;
+    if (ev) {
+      shownCreatedAt = created;
+      backupEvent(10000, ev);
+    }
+    parsed = nextParsed;
+    publicUserItems = parsed.publicUsers.map(pk => ({ pubkey: pk, isMuted: true }));
+    publicWordItems = parsed.publicWords.map(w => ({ word: w, isMuted: true }));
+    privateUserItems = parsed.privateUsers.map(pk => ({ pubkey: pk, isMuted: true }));
+    privateWordItems = parsed.privateWords.map(w => ({ word: w, isMuted: true }));
+    if (firstPaint) {
+      activeTab = (parsed.canEditPrivate && !isReadOnly) ? 'private' : 'public';
+    }
+    selectedEncryptionMode = parsed.encryptionMode || 'nip44';
+    paintFetchStatus();
+    renderMuteStructure();
+  }
 
-  let activeMainTab = 'mutes'; // 'mutes' | 'snapshots'
-  let activeTab = (parsed.canEditPrivate && !isReadOnly) ? 'private' : 'public'; // 非公開ミュート編集可能なら非公開タブを初期選択
-  let selectedEncryptionMode = parsed.encryptionMode || 'nip44';
-
-  if (statusEl) statusEl.textContent = '';
+  const fetchedMuteEvent = await fetchLatestEvent(state, 10000, myPubkey, {
+    onEvent: (ev) => applyMuteSnapshot(ev),
+    onProgress: (progress) => {
+      fetchProgress = progress;
+      paintFetchStatus();
+    }
+  });
+  if (!fetchProgress.done) {
+    fetchProgress = { settled: fetchProgress.total || fetchProgress.settled, total: fetchProgress.total, done: true };
+  }
+  await applyMuteSnapshot(fetchedMuteEvent);
+  paintFetchStatus();
 
   function renderMuteStructure() {
     if (contentEl) contentEl.__renderMuteStructure = renderMuteStructure;
@@ -1373,8 +1444,6 @@ export async function openMuteEditor(state) {
       });
     }
   }
-
-  renderMuteStructure();
 
   // 保存処理
   const handleSave = async () => {

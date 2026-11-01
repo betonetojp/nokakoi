@@ -1024,6 +1024,58 @@ export function setupBitchatFeed({ mode: requestedMode } = {}) {
 /**
  * 認証情報に基づくフォローフィードなどのセットアップ
  */
+let _followWatch = null;
+
+function parseFollowTags(ev) {
+  const follows = [];
+  const petnames = [];
+  const tags = ev && ev.tags ? ev.tags : [];
+  for (const tag of tags) {
+    try {
+      if (!tag || tag.length < 2 || tag[0] !== 'p' || !tag[1]) continue;
+      follows.push(tag[1]);
+      let pet = null;
+      if (tag.length >= 4 && tag[3]) pet = String(tag[3]);
+      else if (tag.length >= 3 && tag[2]) {
+        const maybe = String(tag[2]);
+        if (!maybe.startsWith('wss://') && !maybe.startsWith('ws://') && !maybe.startsWith('http://') && !maybe.startsWith('https://')) {
+          pet = maybe;
+        }
+      }
+      if (pet) petnames.push([tag[1], pet]);
+    } catch (e) { }
+  }
+  return { follows, petnames };
+}
+
+function hasStoredMuteList() {
+  try {
+    const list = window.__nokakoiMuteList;
+    return !!(list && typeof list === 'object' && (list.pubkeys || list.words));
+  } catch (e) {
+    return false;
+  }
+}
+
+function watchFollowList(generation, pubkey) {
+  if (_followWatch && _followWatch.generation === generation && _followWatch.pubkey === pubkey) return;
+  if (_followWatch && typeof _followWatch.unsub === 'function') {
+    try { _followWatch.unsub(); } catch (e) { }
+  }
+  const watch = { generation, pubkey, event: null, createdAt: -1, unsub: null };
+  _followWatch = watch;
+  watch.unsub = subOnce(state, 'follows', [{ kinds: [3], authors: [pubkey], limit: 1 }], (ev) => {
+    if (_followWatch !== watch || generation !== _feedGeneration || !ev) return;
+    const created = Number(ev.created_at) || 0;
+    if (watch.event && created <= watch.createdAt) return;
+    watch.event = ev;
+    watch.createdAt = created;
+    if (state && state._homeFollowReadyGeneration === generation && typeof state._applyFollowEvent === 'function') {
+      try { state._applyFollowEvent(ev); } catch (e) { }
+    }
+  });
+}
+
 export function setupAuthedFeeds(generation = _feedGeneration) {
   const pubkey = localStorage.getItem('pubkey');
   if (!pubkey) return false;
@@ -1031,40 +1083,154 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
   if (state._authedFeedsPendingToken === pendingToken) return false;
   state._authedFeedsPendingToken = pendingToken;
   state._homeFetcherPending = true;
-  let authedInitialized = false;
-  subOnce(state, 'follows', [{ kinds: [3], authors: [pubkey], limit: 1 }], function (ev) {
-    if (generation !== _feedGeneration || state._authedFeedsPendingToken !== pendingToken) return;
+  state._applyFollowEvent = null;
+
+  try {
+    const activeTabEl = document.querySelector('.tab.active');
+    const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
+    if (!state.feeds['mentions']) state.feeds['mentions'] = { list: [], map: new Map() };
+    try { window.__mentionsInitialLoading = true; } catch (e) { }
+    const isMentionsActive = activeTab === 'mentions';
+    const mentionsHist = isMentionsActive ? [
+      { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_INITIAL_LIMIT },
+      { kinds: [1111], '#P': [pubkey], limit: EVENTS_INITIAL_LIMIT }
+    ] : [];
+    stopFetcherSlot('_mentionsFetcher');
+    const mentionsFetcher = setupFeedFetcher({
+      state,
+      feedId: 'mentions',
+      histFilters: mentionsHist,
+      liveFilters: null,
+      relays: getReadRelays(state.relays),
+      addToFeed,
+      scheduleRender,
+      eventsFetchLimit: EVENTS_INITIAL_LIMIT,
+      eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
+      histKeepLimit: EVENTS_INITIAL_LIMIT,
+      ...feedFetcherHistHooks()
+    });
+    try { state._mentionsFetcher = mentionsFetcher; } catch (e) { }
+    setTimeout(() => { try { window.__mentionsInitialLoading = false; checkMentionBlink(); } catch (e) { } }, 3000);
+  } catch (e) {
+    try {
+      subOnce(state, 'mentions_hist', [
+        { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
+        { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
+      ], (ev2, relay, done) => {
+        if (ev2) addToFeed('mentions', ev2);
+        if (done) {
+          try { window.__mentionsInitialLoading = false; checkMentionBlink(); } catch (ee) { }
+        }
+      });
+    } catch (ee) { }
+  }
+
+  try {
+    const activeTabEl = document.querySelector('.tab.active');
+    const activeTab = activeTabEl && activeTabEl.dataset ? activeTabEl.dataset.tab : 'home';
+    if (!state.feeds['me']) state.feeds['me'] = { list: [], map: new Map() };
+    const isMeActive = activeTab === 'me';
+    const meHist = isMeActive ? [
+      { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_INITIAL_LIMIT },
+      buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_INITIAL_LIMIT })
+    ].filter(Boolean) : [];
+    stopFetcherSlot('_meFetcher');
+    const meFetcher = setupFeedFetcher({
+      state,
+      feedId: 'me',
+      histFilters: meHist,
+      liveFilters: null,
+      relays: getReadRelays(state.relays),
+      addToFeed,
+      scheduleRender,
+      eventsFetchLimit: EVENTS_INITIAL_LIMIT,
+      eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
+      histKeepLimit: EVENTS_INITIAL_LIMIT,
+      ...feedFetcherHistHooks()
+    });
+    try { state._meFetcher = meFetcher; } catch (e) { }
+  } catch (e) {
+    try {
+      subOnce(state, 'me_hist', [
+        { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT },
+        buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT })
+      ].filter(Boolean), (ev3, relay, done) => {
+        if (ev3) addToFeed('me', ev3);
+        if (done) {
+          const list = state.feeds['me'] && state.feeds['me'].list;
+          if (Array.isArray(list)) {
+            list.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+            const keep = list.slice(0, EVENTS_FETCH_LIMIT);
+            const keepIds = new Set(keep.map(e => e.id));
+            state.feeds['me'].list = keep;
+            for (const id of Array.from(state.feeds['me'].map.keys())) {
+              if (!keepIds.has(id)) state.feeds['me'].map.delete(id);
+            }
+            scheduleRender('me');
+          }
+        }
+      });
+      setTimeout(() => {
+        const list = state.feeds['me'] && state.feeds['me'].list;
+        if (Array.isArray(list)) {
+          list.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+          const keep = list.slice(0, EVENTS_FETCH_LIMIT);
+          const keepIds = new Set(keep.map(e => e.id));
+          state.feeds['me'].list = keep;
+          for (const id of Array.from(state.feeds['me'].map.keys())) {
+            if (!keepIds.has(id)) state.feeds['me'].map.delete(id);
+          }
+          scheduleRender('me');
+        }
+      }, 3000);
+      subOnce(state, 'me_live', [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], since: Math.floor(Date.now() / 1000) }], ev3 => {
+        if (ev3 && typeof ev3 === 'object' && !ev3.__receivedAt) ev3.__receivedAt = Date.now();
+        addToFeed('me', ev3);
+      });
+    } catch (ee) { }
+  }
+
+  try {
+    if (typeof window !== 'undefined') {
+      if (typeof window.scheduleCustomEmojiSubscription === 'function') {
+        window.scheduleCustomEmojiSubscription(2000);
+      } else if (typeof window.setupCustomEmojiSubscription === 'function') {
+        window.setupCustomEmojiSubscription();
+      }
+    } else {
+      scheduleCustomEmojiSubscription(2000);
+    }
+  } catch (e) { }
+
+  let appliedCreatedAt = -1;
+  let appliedKey = null;
+  state._applyFollowEvent = function (ev) {
+    if (generation !== _feedGeneration) return;
     if (!ev) {
       state._homeFetcherPending = false;
-      state._authedFeedsPendingToken = null;
       return;
     }
-    if (authedInitialized) return;
-    authedInitialized = true;
-    const tags = ev.tags || [];
-    const follows = [];
-    try {
-      for (const t of tags) {
-        try {
-          if (!t || t.length < 2) continue;
-          if (t[0] !== 'p') continue;
-          const fpk = t[1];
-          if (!fpk) continue;
-          follows.push(fpk);
-          let pet = null;
-          if (t.length >= 4 && t[3]) pet = String(t[3]);
-          else if (t.length >= 3 && t[2]) {
-            const maybe = String(t[2]);
-            if (!maybe.startsWith('wss://') && !maybe.startsWith('ws://') && !maybe.startsWith('http://') && !maybe.startsWith('https://')) {
-              pet = maybe;
-            }
-          }
-          if (pet) {
-            try { state.followPetnames.set(fpk, pet); } catch (e) { }
-          }
-        } catch (e) { }
-      }
-    } catch (e) { }
+    const created = Number(ev.created_at) || 0;
+    if (appliedCreatedAt >= 0 && created <= appliedCreatedAt) return;
+    const parsed = parseFollowTags(ev);
+    const follows = parsed.follows;
+    const followKey = follows.join('\n');
+    if (appliedKey === followKey && state._homeFetcher) {
+      appliedCreatedAt = created;
+      return;
+    }
+    const replacing = appliedKey !== null;
+    appliedCreatedAt = created;
+    appliedKey = followKey;
+    const followSeq = (state._homeFollowSeq || 0) + 1;
+    state._homeFollowSeq = followSeq;
+    if (replacing) {
+      stopFetcherSlot('_homeFetcher');
+      try { clearFeed(state, 'home'); } catch (e) { }
+    }
+    for (const [fpk, pet] of parsed.petnames) {
+      try { state.followPetnames.set(fpk, pet); } catch (e) { }
+    }
 
     if (!state.feeds['home']) {
       state.feeds['home'] = { list: [], map: new Map(), follows: follows, followSet: new Set(follows) };
@@ -1072,19 +1238,6 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
       state.feeds['home'].follows = follows;
       state.feeds['home'].followSet = new Set(follows);
     }
-
-    // NIP-30 購読のリセット (2秒遅延で1回のみ実行)
-    try {
-      if (typeof window !== 'undefined') {
-        if (typeof window.scheduleCustomEmojiSubscription === 'function') {
-          window.scheduleCustomEmojiSubscription(2000);
-        } else if (typeof window.setupCustomEmojiSubscription === 'function') {
-          window.setupCustomEmojiSubscription();
-        }
-      } else {
-        scheduleCustomEmojiSubscription(2000);
-      }
-    } catch (e) { }
 
     try {
       for (const pk of follows) {
@@ -1098,7 +1251,6 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
 
     if (!follows.length) {
       state._homeFetcherPending = false;
-      state._authedFeedsPendingToken = null;
       return;
     }
 
@@ -1153,7 +1305,7 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
 
       (function createHomeFetcher(attempts) {
         try {
-          if (generation !== _feedGeneration || state._authedFeedsPendingToken !== pendingToken) return;
+          if (generation !== _feedGeneration || state._homeFollowSeq !== followSeq) return;
           const relaysForHist = getReadRelays(state.relays) || [];
           const liveRelays = selectHomeLiveRelays(
             relaysForHist,
@@ -1206,113 +1358,6 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
         }
       })(0);
 
-      // 通知（mentions）フィードのセットアップ
-      try {
-        if (!state.feeds['mentions']) state.feeds['mentions'] = { list: [], map: new Map() };
-        try { window.__mentionsInitialLoading = true; } catch (e) { }
-                const isMentionsActive = activeTab === 'mentions';
-        const mentionsHist = isMentionsActive ? [
-          { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_INITIAL_LIMIT },
-          { kinds: [1111], '#P': [pubkey], limit: EVENTS_INITIAL_LIMIT }
-        ] : [];
-                stopFetcherSlot('_mentionsFetcher');
-        const mentionsFetcher = setupFeedFetcher({
-          state,
-          feedId: 'mentions',
-          histFilters: mentionsHist,
-          liveFilters: null, // home_live に統合されたため個別の live 購読は作成しない
-          relays: getReadRelays(state.relays),
-          addToFeed,
-          scheduleRender,
-          eventsFetchLimit: EVENTS_INITIAL_LIMIT,
-          eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
-          histKeepLimit: EVENTS_INITIAL_LIMIT,
-          ...feedFetcherHistHooks()
-        });
-        try { state._mentionsFetcher = mentionsFetcher; } catch (e) { }
-        
-        // 遅延後に初期ロード中フラグを解除し、通知の明滅を再評価
-        setTimeout(() => { try { window.__mentionsInitialLoading = false; checkMentionBlink(); } catch (e) { } }, 3000);
-      } catch (e) {
-        // 例外時のフォールバック処理
-        try {
-          subOnce(state, 'mentions_hist', [
-            { kinds: [1, 6, 7, 16, 42, 1111, 9735], '#p': [pubkey], limit: EVENTS_FETCH_LIMIT },
-            { kinds: [1111], '#P': [pubkey], limit: EVENTS_FETCH_LIMIT }
-          ], (ev2, relay, done) => {
-            if (ev2) addToFeed('mentions', ev2);
-            if (done) {
-              try { window.__mentionsInitialLoading = false; checkMentionBlink(); } catch (ee) { }
-            }
-          });
-        } catch (ee) { }
-      }
-
-      // 自分（me）フィードのセットアップ
-      try {
-        if (!state.feeds['me']) state.feeds['me'] = { list: [], map: new Map() };
-                const isMeActive = activeTab === 'me';
-        const meHist = isMeActive ? [
-          { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_INITIAL_LIMIT },
-          buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_INITIAL_LIMIT })
-        ].filter(Boolean) : [];
-                stopFetcherSlot('_meFetcher');
-        const meFetcher = setupFeedFetcher({
-          state,
-          feedId: 'me',
-          histFilters: meHist,
-          liveFilters: null, // home_live に統合されたため個別の live 購読は作成しない
-          relays: getReadRelays(state.relays),
-          addToFeed,
-          scheduleRender,
-          eventsFetchLimit: EVENTS_INITIAL_LIMIT,
-          eventsTimeout: Math.max(EVENTS_TIMEOUT, 3000),
-          histKeepLimit: EVENTS_INITIAL_LIMIT,
-          ...feedFetcherHistHooks()
-        });
-        try { state._meFetcher = meFetcher; } catch (e) { }
-      } catch (e) {
-        // 例外時のフォールバック処理
-        try {
-          subOnce(state, 'me_hist', [
-            { kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], limit: EVENTS_FETCH_LIMIT },
-            buildOutgoingZapReceiptFilter(pubkey, { limit: EVENTS_FETCH_LIMIT })
-          ].filter(Boolean), (ev3, relay, done) => {
-            if (ev3) addToFeed('me', ev3);
-            if (done) {
-              const list = state.feeds['me'] && state.feeds['me'].list;
-              if (Array.isArray(list)) {
-                list.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
-                const keep = list.slice(0, EVENTS_FETCH_LIMIT);
-                const keepIds = new Set(keep.map(e => e.id));
-                state.feeds['me'].list = keep;
-                for (const id of Array.from(state.feeds['me'].map.keys())) {
-                  if (!keepIds.has(id)) state.feeds['me'].map.delete(id);
-                }
-                scheduleRender('me');
-              }
-            }
-          });
-          setTimeout(() => {
-            const list = state.feeds['me'] && state.feeds['me'].list;
-            if (Array.isArray(list)) {
-              list.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
-              const keep = list.slice(0, EVENTS_FETCH_LIMIT);
-              const keepIds = new Set(keep.map(e => e.id));
-              state.feeds['me'].list = keep;
-              for (const id of Array.from(state.feeds['me'].map.keys())) {
-                if (!keepIds.has(id)) state.feeds['me'].map.delete(id);
-              }
-              scheduleRender('me');
-            }
-          }, 3000);
-          subOnce(state, 'me_live', [{ kinds: [1, 6, 7, 42, 16, 1111], authors: [pubkey], since: Math.floor(Date.now() / 1000) }], ev3 => {
-            if (ev3 && typeof ev3 === 'object' && !ev3.__receivedAt) ev3.__receivedAt = Date.now();
-            addToFeed('me', ev3);
-          });
-        } catch (ee) { }
-      }
-
       // フォロイーのプロフィールキャッシュをバッチ処理で非同期ロード
       const batchSize = 10;
       const delay = 500;
@@ -1329,7 +1374,13 @@ export function setupAuthedFeeds(generation = _feedGeneration) {
       } catch (_err) { }
       console.warn('[Main] setupAuthedFeeds setupFeedFetcher に失敗', e);
     }
-  });
+  };
+
+  watchFollowList(generation, pubkey);
+  state._homeFollowReadyGeneration = generation;
+  if (_followWatch && _followWatch.generation === generation && _followWatch.event) {
+    state._applyFollowEvent(_followWatch.event);
+  }
   return true;
 }
 
@@ -1494,7 +1545,7 @@ export function restartFeeds(fullReset = false) {
   }
 
   if (fullReset && localStorage.getItem('pubkey')) {
-    if (!window.__nokakoiMuteList) {
+    if (!hasStoredMuteList()) {
       try {
         const stored = localStorage.getItem('muteList_expanded');
         if (stored) {
@@ -1503,12 +1554,16 @@ export function restartFeeds(fullReset = false) {
         }
       } catch (e) { }
     }
+    const pubkey = localStorage.getItem('pubkey');
+    if (pubkey) watchFollowList(generation, pubkey);
+    const cachedMute = hasStoredMuteList();
     let feedsStarted = false;
     const startFeedsOnce = () => {
       if (feedsStarted) return;
       feedsStarted = true;
       startFeeds();
     };
+    if (cachedMute) startFeedsOnce();
     const fallbackTimer = setTimeout(startFeedsOnce, 5000);
     try {
       const fetchMute = (typeof window !== 'undefined' && typeof window.__nokakoiFetchMuteList === 'function')

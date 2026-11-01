@@ -99,6 +99,7 @@ function buildChannelRecord(rootId, rootEvent, metaEvent, lastMessageAt = 0) {
   return {
     rootId,
     name,
+    namePending: !(rootEvent || metaEvent),
     about,
     relays: (profile && profile.relays) || null,
     created_at,
@@ -286,12 +287,16 @@ export async function searchChannels(state, query, options = {}) {
   let byRoot = new Map();
   let publishTimer = null;
 
-  const snapshotPayload = (settled) => ({
-    results: rankChannelRecords(recordsFromIndex(byRoot), queryLower, limit),
-    query: q,
-    mode,
-    settled: !!settled,
-  });
+  const snapshotPayload = (settled) => {
+    const results = rankChannelRecords(recordsFromIndex(byRoot), queryLower, limit);
+    return {
+      results,
+      query: q,
+      mode,
+      settled: !!settled,
+      namesPending: results.some((item) => item && item.namePending),
+    };
+  };
 
   const publish = (settled) => {
     const payload = snapshotPayload(settled);

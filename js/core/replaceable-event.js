@@ -1,6 +1,25 @@
 import { getReadRelays, getWriteRelays } from './relay.js';
 import { signEventWithMode } from '../features/post/actions.js';
 import { awaitAny } from '../utils/utils.js';
+import { t } from '../utils/i18n.js';
+
+/**
+ * 編集モーダル用。リレーの応答数と、編集開始で新しい一覧を見送ったことを伝える。
+ */
+export function describeLatestFetchProgress(progress, options = {}) {
+  if (options.stale) {
+    return t('editor.common.edited_before_latest') || '編集を始めたため、新しいリストは反映していません';
+  }
+  if (progress && progress.done) {
+    return t('editor.common.fetched') || '取得完了';
+  }
+  const total = progress && Number(progress.total) > 0 ? Number(progress.total) : 0;
+  const settled = progress && Number(progress.settled) > 0 ? Math.min(Number(progress.settled), total) : 0;
+  if (!total) {
+    return t('editor.common.checking_unknown') || '最新を確認中...';
+  }
+  return t('editor.common.checking', { settled, total }) || `最新を確認中... (${settled}/${total})`;
+}
 
 /**
  * 全 read リレーから指定 kind の最新イベントを取得。
@@ -23,38 +42,67 @@ export async function fetchLatestEvent(state, kind, pubkey, options = {}) {
       let latestEvent = null;
       const events = [];
       const onEvent = typeof options.onEvent === 'function' ? options.onEvent : null;
+      const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
+      const subs = [];
+      let settled = 0;
+      let finished = false;
+      let timeout = null;
+      const total = readRelays.length;
 
-      const sub = state.pool.subscribeMany(
-        readRelays,
-        [{ kinds: [kind], authors: [pubkey], limit: 10 }],
-        {
-          onevent(event) {
-            if (!event) return;
-            events.push(event);
-            const created = event.created_at || 0;
-            const best = latestEvent ? (latestEvent.created_at || 0) : -1;
-            if (latestEvent && created <= best) return;
-            latestEvent = event;
-            if (!onEvent) return;
-            try {
-              const ret = onEvent(event);
-              if (ret && typeof ret.catch === 'function') ret.catch(() => {});
-            } catch (e) { /* caller renders incrementally; a bad callback must not drop the fetch */ }
-          },
-          oneose() {
-            sub.close();
-            resolve(findLatest());
-          }
+      const report = (done) => {
+        if (!onProgress) return;
+        try {
+          onProgress({ settled, total, done: !!done });
+        } catch (e) { /* status text must not abort the fetch */ }
+      };
+
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        if (timeout) clearTimeout(timeout);
+        for (const sub of subs) {
+          try { if (sub && typeof sub.close === 'function') sub.close(); } catch (e) { }
         }
-      );
-
-      const timeout = setTimeout(() => {
-        sub.close();
+        report(true);
         resolve(findLatest());
-      }, timeoutMs);
+      };
+
+      report(false);
+      timeout = setTimeout(finish, timeoutMs);
+
+      for (const relay of readRelays) {
+        const sub = state.pool.subscribeMany(
+          [relay],
+          [{ kinds: [kind], authors: [pubkey], limit: 10 }],
+          {
+            onevent(event) {
+              if (!event) return;
+              events.push(event);
+              const created = event.created_at || 0;
+              const best = latestEvent ? (latestEvent.created_at || 0) : -1;
+              if (latestEvent && created <= best) return;
+              latestEvent = event;
+              if (!onEvent) return;
+              try {
+                const ret = onEvent(event);
+                if (ret && typeof ret.catch === 'function') ret.catch(() => {});
+              } catch (e) { /* caller renders incrementally; a bad callback must not drop the fetch */ }
+            },
+            oneose() {
+              if (finished) return;
+              settled += 1;
+              report(false);
+              if (settled >= total) finish();
+            }
+          }
+        );
+        subs.push(sub);
+        if (finished) {
+          try { if (sub && typeof sub.close === 'function') sub.close(); } catch (e) { }
+        }
+      }
 
       function findLatest() {
-        clearTimeout(timeout);
         if (events.length === 0) return null;
         latestEvent = events[0];
         for (const ev of events) {

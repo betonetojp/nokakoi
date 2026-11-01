@@ -944,7 +944,7 @@ async function handleChannelSearch() {
   resultsEl.classList.remove('d-none');
   resultsEl.innerHTML = `<div class="muted text-sm p-8">${t('channel.searching') || '検索中...'}</div>`;
 
-  const paintResults = (results, mode) => {
+  const paintResults = (results, mode, namesPending) => {
     if (seq !== _searchSeq) return;
     if (!results.length) {
       const emptyMsg = mode === 'browse'
@@ -956,9 +956,15 @@ async function handleChannelSearch() {
 
     const header = document.createElement('div');
     header.className = 'muted text-xs p-8 channel-search-header';
-    header.textContent = mode === 'browse'
-      ? (t('channel.browse_header') || '直近のチャンネル')
-      : (t('channel.search_header') || '検索結果');
+    if (mode === 'browse' && namesPending) {
+      header.textContent = t('channel.browse_names_pending') || '直近のチャンネル（名前を取得中...）';
+    } else if (mode === 'browse') {
+      header.textContent = t('channel.browse_header') || '直近のチャンネル';
+    } else if (namesPending) {
+      header.textContent = t('channel.search_names_pending') || '検索結果（名前を取得中...）';
+    } else {
+      header.textContent = t('channel.search_header') || '検索結果';
+    }
 
     resultsEl.innerHTML = '';
     resultsEl.appendChild(header);
@@ -1000,9 +1006,9 @@ async function handleChannelSearch() {
   try {
     await searchChannels(getState(), query, {
       limit: 20,
-      onUpdate: ({ results, mode, settled }) => {
+      onUpdate: ({ results, mode, settled, namesPending }) => {
         if (!results.length && !settled) return;
-        paintResults(results, mode);
+        paintResults(results, mode, !!namesPending && !settled);
       },
     });
   } catch (err) {

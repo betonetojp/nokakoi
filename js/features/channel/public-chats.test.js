@@ -13,6 +13,7 @@ vi.mock('../../core/replaceable-event.js', () => ({
   fetchLatestEvent: mocks.fetchLatestEvent,
   backupEvent: vi.fn(),
   publishReplaceableEvent: mocks.publishReplaceableEvent,
+  describeLatestFetchProgress: () => '',
 }));
 vi.mock('./channel.js', () => ({
   buildChannelEmbedContext: mocks.buildChannelEmbedContext,

@@ -9,6 +9,7 @@ import {
 import { fetchChannelMetadata, shortenChannelEventId } from './channel.js';
 import { getCustomJoinedChannels } from './channel-membership.js';
 import { resolveChannelRootIdInput } from './channel-search.js';
+import { describeLatestFetchProgress } from '../../core/replaceable-event.js';
 import { isReadOnlyAccount } from '../../core/account-manager.js';
 import { showToast } from '../../utils/utils.js';
 import { t } from '../../utils/i18n.js';
@@ -297,7 +298,11 @@ export async function openPublicChatsEditor(state, options = {}) {
   if (cancelBtn && newCancelBtn) cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
   if (closeBtn && newCloseBtn) closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
 
-  const loaded = await loadPublicChatsEditableState(state, myPubkey);
+  const loaded = await loadPublicChatsEditableState(state, myPubkey, {
+    onProgress: (progress) => {
+      if (statusEl && !modal.hidden) statusEl.textContent = describeLatestFetchProgress(progress);
+    }
+  });
   let publicItems = loaded.publicItems.slice();
   let privateItems = loaded.privateItems.slice();
   let otherTags = loaded.otherTags.slice();
@@ -325,7 +330,7 @@ export async function openPublicChatsEditor(state, options = {}) {
     }
   });
 
-  if (statusEl) statusEl.textContent = '';
+  if (statusEl) statusEl.textContent = describeLatestFetchProgress({ done: true });
 
   const closeModal = () => {
     modal.hidden = true;

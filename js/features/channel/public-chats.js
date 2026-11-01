@@ -274,7 +274,7 @@ export async function encryptPrivatePublicChatTags(state, privateRefs, encryptio
 /**
  * kind:10005 を編集用に分解
  */
-export async function loadPublicChatsEditableState(state, pubkey) {
+export async function loadPublicChatsEditableState(state, pubkey, options = {}) {
   const myPubkey = pubkey || (state && state.pubkey) || localStorage.getItem('pubkey');
   if (!state || !myPubkey) {
     return {
@@ -288,7 +288,10 @@ export async function loadPublicChatsEditableState(state, pubkey) {
     };
   }
 
-  const event = await fetchLatestEvent(state, PUBLIC_CHATS_KIND, myPubkey, { timeout: 4000 });
+  const event = await fetchLatestEvent(state, PUBLIC_CHATS_KIND, myPubkey, {
+    timeout: 4000,
+    onProgress: options.onProgress,
+  });
   const otherTags = [];
   const publicItems = [];
   let privateItems = [];

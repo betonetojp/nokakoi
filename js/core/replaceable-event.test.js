@@ -24,9 +24,11 @@ describe('fetchLatestEvent', () => {
       },
     };
 
+    const progress = [];
     const pending = fetchLatestEvent({ pool, relays: [] }, 10005, 'aa', {
       timeout: 4000,
       onEvent: (event) => seen.push(event.id),
+      onProgress: (state) => progress.push({ ...state }),
     });
 
     handlers.onevent({ id: 'old', created_at: 10 });
@@ -37,5 +39,7 @@ describe('fetchLatestEvent', () => {
 
     await expect(pending).resolves.toMatchObject({ id: 'new' });
     expect(seen).toEqual(['old', 'new']);
+    expect(progress[0]).toEqual({ settled: 0, total: 1, done: false });
+    expect(progress.at(-1)).toEqual({ settled: 1, total: 1, done: true });
   });
 });

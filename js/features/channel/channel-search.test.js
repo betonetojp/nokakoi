@@ -192,6 +192,7 @@ describe('channel-search', () => {
           publishDelay: 50,
           onUpdate: (payload) => updates.push({
             settled: payload.settled,
+            namesPending: payload.namesPending,
             names: payload.results.map((item) => item.name),
           }),
         });
@@ -205,12 +206,14 @@ describe('channel-search', () => {
         await vi.advanceTimersByTimeAsync(50);
         expect(updates.length).toBeGreaterThan(0);
         expect(updates[0].settled).toBe(false);
+        expect(updates[0].namesPending).toBe(true);
         expect(updates[0].names[0]).toBe(channelD.slice(0, 8));
         expect(mocks.fetchChannelMetadata).not.toHaveBeenCalled();
 
         await vi.advanceTimersByTimeAsync(5000);
         const result = await pending;
         expect(result.settled).toBe(true);
+        expect(result.namesPending).toBe(false);
         expect(result.results[0].name).toBe(`Name-${channelD.slice(0, 4)}`);
         expect(mocks.fetchChannelMetadata).toHaveBeenCalledWith(state, channelD);
       } finally {

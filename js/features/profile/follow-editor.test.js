@@ -25,7 +25,8 @@ vi.mock('../../core/relay.js', () => ({
 vi.mock('../../core/replaceable-event.js', () => ({
   fetchLatestEvent: vi.fn(),
   backupEvent: vi.fn(),
-  publishReplaceableEvent: vi.fn()
+  publishReplaceableEvent: vi.fn(),
+  describeLatestFetchProgress: () => ''
 }));
 
 vi.mock('./profile.js', () => ({

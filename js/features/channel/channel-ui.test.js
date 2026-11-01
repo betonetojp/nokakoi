@@ -42,6 +42,7 @@ vi.mock('../../ui/modals/modals.js', () => ({ showConfirmModal: vi.fn() }));
 vi.mock('../../utils/i18n.js', () => ({ t: key => key }));
 
 import { showConfirmModal } from '../../ui/modals/modals.js';
+import { searchChannels } from './channel-search.js';
 import {
   initChannelView,
   openChannelFromExternal,
@@ -488,6 +489,35 @@ describe('channel feed reload', () => {
       container.querySelector('#channelMessages'),
       null
     );
+  });
+
+  it('labels recent channels while names are still loading', async () => {
+    localStorage.setItem('pubkey', ACCOUNT_A);
+    const container = setupView({ pubkey: ACCOUNT_A });
+    await flushPromises();
+
+    searchChannels.mockImplementation(async (_state, _query, options) => {
+      options.onUpdate({
+        results: [{ rootId: OLD_CHANNEL, name: OLD_CHANNEL.slice(0, 8), about: '' }],
+        mode: 'browse',
+        settled: false,
+        namesPending: true,
+      });
+      expect(container.querySelector('.channel-search-header').textContent).toBe('channel.browse_names_pending');
+      options.onUpdate({
+        results: [{ rootId: OLD_CHANNEL, name: 'Named', about: '' }],
+        mode: 'browse',
+        settled: true,
+        namesPending: false,
+      });
+      return { results: [], mode: 'browse', settled: true, namesPending: false };
+    });
+
+    container.querySelector('#channelSearchBtn').click();
+    await flushPromises();
+
+    expect(container.querySelector('.channel-search-header').textContent).toBe('channel.browse_header');
+    expect(container.querySelector('.channel-search-result-name').textContent).toBe('# Named');
   });
 
   it('clears search results and query on reloadChannelView and refresh button click', async () => {

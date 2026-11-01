@@ -3,7 +3,7 @@
  * プロフィール編集機能
  */
 
-import { fetchLatestEvent, backupEvent, publishReplaceableEvent } from '../../core/replaceable-event.js';
+import { fetchLatestEvent, backupEvent, publishReplaceableEvent, describeLatestFetchProgress } from '../../core/replaceable-event.js';
 import { t } from '../../utils/i18n.js';
 import { getNip19 } from '../../core/nostr-compat.js';
 import { showConfirmModal } from '../../ui/modals/modals.js';
@@ -70,26 +70,84 @@ export async function openProfileEditor(state) {
     if (cancelBtn && newCancelBtn) cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
     if (closeBtn && newCloseBtn) closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
 
-    // 4. 最新の kind:0 イベントを取得
     let baseObject = {};
-    const latestEvent = await fetchLatestEvent(state, 0, pubkey);
+    let latestEvent = null;
+    let shownCreatedAt = -1;
+    let formEdited = false;
+    let skippedNewer = false;
+    let fetchProgress = { settled: 0, total: 0, done: false };
 
-    if (latestEvent) {
-      // 5. 既存のプロフィール情報 (JSON) をパースして base object とする
-      try {
-        baseObject = JSON.parse(latestEvent.content);
-        // 6. 念のため元のイベントをバックアップ
-        backupEvent(0, latestEvent);
-      } catch (e) {
-        console.error('Failed to parse existing profile JSON:', e);
-      }
-    }
-
-    if (statusEl) {
-      statusEl.textContent = '';
-    }
-
+    const paintFetchStatus = () => {
+      if (statusEl) statusEl.textContent = describeLatestFetchProgress(fetchProgress, { stale: skippedNewer });
+    };
     let activeTab = 'current'; // 'current' | 'saved'
+    const editorSession = Symbol('profile-editor');
+    modal.__editorSession = editorSession;
+
+    const noteFormEdit = (event) => {
+      const target = event.target;
+      if (!target || !target.closest || target.closest('.editor-tabs')) return;
+      formEdited = true;
+    };
+    if (contentEl) {
+      contentEl.addEventListener('pointerdown', noteFormEdit, true);
+      contentEl.addEventListener('input', noteFormEdit, true);
+    }
+
+    function editorStillOpen() {
+      return modal.__editorSession === editorSession && !modal.hidden;
+    }
+
+    function applyProfileSnapshot(ev) {
+      if (!editorStillOpen()) return;
+      if (!ev) {
+        if (shownCreatedAt >= 0) return;
+        latestEvent = null;
+        baseObject = {};
+        paintFetchStatus();
+        renderProfileEditorStructure();
+        return;
+      }
+      const created = Number(ev.created_at) || 0;
+      if (shownCreatedAt >= 0 && created < shownCreatedAt) return;
+      if (shownCreatedAt >= 0 && created === shownCreatedAt && latestEvent) return;
+      if (formEdited && shownCreatedAt >= 0) {
+        skippedNewer = true;
+        paintFetchStatus();
+        return;
+      }
+      let nextObject = {};
+      if (ev.content) {
+        try {
+          const parsed = JSON.parse(ev.content);
+          if (!parsed || typeof parsed !== 'object') return;
+          nextObject = parsed;
+        } catch (e) {
+          console.error('Failed to parse existing profile JSON:', e);
+          if (shownCreatedAt >= 0) return;
+          nextObject = {};
+        }
+      }
+      latestEvent = ev;
+      shownCreatedAt = created;
+      baseObject = nextObject;
+      backupEvent(0, ev);
+      paintFetchStatus();
+      renderProfileEditorStructure();
+    }
+
+    const fetchedProfileEvent = await fetchLatestEvent(state, 0, pubkey, {
+      onEvent: (ev) => applyProfileSnapshot(ev),
+      onProgress: (progress) => {
+        fetchProgress = progress;
+        paintFetchStatus();
+      }
+    });
+    if (!fetchProgress.done) {
+      fetchProgress = { settled: fetchProgress.total || fetchProgress.settled, total: fetchProgress.total, done: true };
+    }
+    applyProfileSnapshot(fetchedProfileEvent);
+    paintFetchStatus();
 
     function renderProfileEditorStructure() {
       if (!contentEl) return;
@@ -200,8 +258,6 @@ export async function openProfileEditor(state) {
         };
       }
     }
-
-    renderProfileEditorStructure();
 
     // 8. 保存ボタン (#profileEditSaveBtn) の処理
     if (newSaveBtn) {
