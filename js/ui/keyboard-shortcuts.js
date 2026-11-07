@@ -249,6 +249,9 @@ export function setupKeyboardShortcuts(state, options) {
     if (e.key === 'n' || e.key === 'N' || e.key === 'c' || e.key === 'C') {
       const composer = $('#composer');
       if (!composer || composer.hidden) return;
+      if (composer.classList && composer.classList.contains('composer--login-prompt')) return;
+      const formBody = document.getElementById('composerFormBody');
+      if (formBody && formBody.hidden) return;
       if (composer.dataset && composer.dataset._settingsHidden) return;
       e.preventDefault();
       closeShortcutTargetModals();
@@ -344,6 +347,7 @@ export function setupKeyboardShortcuts(state, options) {
 
     // Qキー: 選択中の投稿を引用
     if (e.key === 'q' || e.key === 'Q') {
+      if (!state || (!state.pubkey && (typeof localStorage === 'undefined' || !localStorage.getItem('pubkey')))) return;
       const quoteTarget = getShortcutQuoteTarget();
       if (!quoteTarget) return;
       e.preventDefault();

@@ -2,7 +2,7 @@
 // Signer モジュール (秘密鍵のクロージャ保持)
 // ============================================================================
 
-import { getFinalizeEvent, getPublicKey as getPublicKeyFn } from './nostr-compat.js';
+import { getFinalizeEvent, getNip19, getPublicKey as getPublicKeyFn } from './nostr-compat.js';
 import { hexToBytes } from './crypto.js';
 
 /**
@@ -80,6 +80,21 @@ export const signer = (() => {
      */
     hasKey() {
       return _sk !== null && _sk !== '';
+    },
+
+    /**
+     * 保持している秘密鍵を nsec1... 形式にエンコードして取得
+     * @returns {string|null}
+     */
+    exportNsec() {
+      const nip19 = getNip19();
+      if (!_sk || !nip19 || typeof nip19.nsecEncode !== 'function') return null;
+      try {
+        return nip19.nsecEncode(skBytes(_sk));
+      } catch (e) {
+        console.warn('[Signer] exportNsec 失敗:', e);
+        return null;
+      }
     },
 
     /**

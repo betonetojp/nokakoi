@@ -115,14 +115,49 @@
 /* アカウント管理モーダル */
 .account-modal-top-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
 }
 
 .account-modal-top-actions button {
-  flex: 1;
+  flex: 1 1 auto;
   padding: 8px 12px;
   text-align: center;
+}
+
+.account-export-nsec-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  background: var(--bg-secondary, rgba(245, 158, 11, 0.08));
+}
+
+.account-export-nsec-panel[hidden] {
+  display: none !important;
+}
+
+.account-export-nsec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.account-export-nsec-title {
+  font-size: 0.95em;
+  color: var(--text, inherit);
+}
+
+.account-export-nsec-warning {
+  margin: 0;
+  font-size: 0.85em;
+  line-height: 1.45;
+  color: var(--status-warn, #f59e0b);
 }
 
 .account-modal-bottom-actions {

@@ -19,21 +19,26 @@ vi.mock('../../utils/utils.js', async (importOriginal) => {
   };
 });
 
-import { setQuoteTarget, setReplyTarget, getQuoteMode, getReplyTarget } from './composer.js';
+import { setQuoteTarget, setReplyTarget, getQuoteMode, getReplyTarget, syncComposerAuthState } from './composer.js';
 
 describe('composer read-only guard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     document.body.innerHTML = `
       <div id="composer" hidden>
-        <div id="replyContext" hidden>
-          <span class="reply-context-label"></span>
-          <span id="replyContextContent"></span>
-          <button id="cancelReply" style="display:none;"></button>
-          <span id="changeGeohashLabel" style="display:none;"></span>
+        <div id="composerFormBody">
+          <div id="replyContext" hidden>
+            <span class="reply-context-label"></span>
+            <span id="replyContextContent"></span>
+            <button id="cancelReply" style="display:none;"></button>
+            <span id="changeGeohashLabel" style="display:none;"></span>
+          </div>
+          <div id="composerTitle"></div>
+          <textarea id="noteInput"></textarea>
         </div>
-        <div id="composerTitle"></div>
-        <textarea id="noteInput"></textarea>
+        <div id="composerLoginPrompt" hidden>
+          <button id="composerOpenLoginBtn"></button>
+        </div>
       </div>
     `;
     localStorage.clear();
@@ -73,5 +78,32 @@ describe('composer read-only guard', () => {
     expect(document.getElementById('replyContext').hidden).toBe(false);
     expect(getQuoteMode()).toBe(true);
     expect(getReplyTarget()).toEqual(event);
+  });
+
+  it('syncComposerAuthState shows login prompt bar when unauthenticated and switches to form when logged in', () => {
+    const composer = document.getElementById('composer');
+    const formBody = document.getElementById('composerFormBody');
+    const loginPrompt = document.getElementById('composerLoginPrompt');
+
+    // Unauthenticated
+    syncComposerAuthState({ pubkey: null, signer: 'auto' });
+    expect(composer.hidden).toBe(false);
+    expect(formBody.hidden).toBe(true);
+    expect(loginPrompt.hidden).toBe(false);
+    expect(composer.classList.contains('composer--login-prompt')).toBe(true);
+
+    // Logged in (normal)
+    const pk = 'a'.repeat(64);
+    localStorage.setItem('pubkey', pk);
+    syncComposerAuthState({ pubkey: pk, signer: 'nsec' });
+    expect(composer.hidden).toBe(false);
+    expect(formBody.hidden).toBe(false);
+    expect(loginPrompt.hidden).toBe(true);
+    expect(composer.classList.contains('composer--login-prompt')).toBe(false);
+
+    // Logged in (read-only)
+    syncComposerAuthState({ pubkey: pk, signer: 'read-only' });
+    expect(composer.hidden).toBe(true);
+    expect(loginPrompt.hidden).toBe(true);
   });
 });

@@ -11,22 +11,29 @@ export function setupAuthUI(state, settings, settingsManager, {
   restartFeeds,
   enableComposerScroll
 }) {
+  const handleOpenLoginModal = () => {
+    import('./modals/login-modal.js').then(mod => {
+      if (mod && typeof mod.openLoginModal === 'function') {
+        mod.openLoginModal(
+          state,
+          settings,
+          settingsManager,
+          () => login(state, settings, settingsManager, restartFeeds, enableComposerScroll),
+          restartFeeds,
+          enableComposerScroll
+        );
+      }
+    });
+  };
+
   const openLoginBtn = $('#openLoginModalBtn');
   if (openLoginBtn) {
-    openLoginBtn.onclick = () => {
-      import('./modals/login-modal.js').then(mod => {
-        if (mod && typeof mod.openLoginModal === 'function') {
-          mod.openLoginModal(
-            state,
-            settings,
-            settingsManager,
-            () => login(state, settings, settingsManager, restartFeeds, enableComposerScroll),
-            restartFeeds,
-            enableComposerScroll
-          );
-        }
-      });
-    };
+    openLoginBtn.onclick = handleOpenLoginModal;
+  }
+
+  const composerOpenLoginBtn = $('#composerOpenLoginBtn');
+  if (composerOpenLoginBtn) {
+    composerOpenLoginBtn.onclick = handleOpenLoginModal;
   }
   const nsecBtn = $('#nsecLoginBtn');
   if (nsecBtn) {

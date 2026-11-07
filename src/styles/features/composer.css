@@ -425,3 +425,48 @@ body.no-glass-effect #composer.composer-floating button.secondary:hover,
 body.no-glass-effect #composer.floating button.secondary:hover {
   background: var(--panel-hover);
 }
+
+/* 未ログイン時の下部ログイン導線バー */
+#composerFormBody[hidden],
+#composerLoginPrompt[hidden] {
+  display: none !important;
+}
+
+#composer.composer--login-prompt {
+  padding-top: 10px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+
+.composer-login-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.composer-login-prompt-text {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+#composerOpenLoginBtn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-weight: 600;
+  padding: 8px 16px;
+}
+
+@media (max-width: 480px) {
+  .composer-login-prompt {
+    gap: 8px;
+  }
+  .composer-login-prompt-text {
+    font-size: 0.85rem;
+  }
+  #composerOpenLoginBtn {
+    padding: 7px 12px;
+    font-size: 0.9rem;
+  }
+}

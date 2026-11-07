@@ -121,7 +121,9 @@ describe('auth core', () => {
     mocks.getAccountList.mockImplementation(() => ({ accounts: [], activeAccountId: null }));
     globalThis.localStorage = createStorage();
     const elements = new Map([
-      ['composer', { hidden: true }],
+      ['composer', { hidden: true, classList: { add: vi.fn(), remove: vi.fn() } }],
+      ['composerFormBody', { hidden: false }],
+      ['composerLoginPrompt', { hidden: true }],
       ['composerAccountInfo', { appendChild: vi.fn(), innerHTML: '' }],
       ['openLoginModalBtn', { hidden: false }],
       ['userInfo', { appendChild: vi.fn(), innerHTML: '', textContent: '' }]
@@ -168,6 +170,9 @@ describe('auth core', () => {
     expect(state.signer).toBe('nsec');
     expect(state.pubkey).toBe(pubkey);
     expect(mocks.addAccount).toHaveBeenCalledWith({ id: pubkey, loginMethod: 'nsec' });
+    expect(document.getElementById('composer').hidden).toBe(false);
+    expect(document.getElementById('composerFormBody').hidden).toBe(false);
+    expect(document.getElementById('composerLoginPrompt').hidden).toBe(true);
     expect(restartFeeds).toHaveBeenCalledWith(true);
     expect(mocks.loadProfile).toHaveBeenCalledWith(state, pubkey);
     vi.advanceTimersByTime(100);
@@ -270,6 +275,10 @@ describe('auth core', () => {
     expect(disconnect).toHaveBeenCalled();
     expect(mocks.clearNip46LocalSecretKey).toHaveBeenCalledWith(pubkey);
     expect(localStorage.getItem('skipAutoLogin')).toBe('1');
+    expect(document.getElementById('composer').hidden).toBe(false);
+    expect(document.getElementById('composerFormBody').hidden).toBe(true);
+    expect(document.getElementById('composerLoginPrompt').hidden).toBe(false);
+    expect(document.getElementById('composer').classList.add).toHaveBeenCalledWith('composer--login-prompt');
   });
 
   it('keeps stored credentials when a read-only session reuses an existing account', async () => {

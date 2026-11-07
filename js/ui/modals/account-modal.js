@@ -9,9 +9,139 @@ import { getAccountList, switchAccount, removeAccount } from '../../core/account
 import { logout } from '../../core/auth/auth-core.js';
 import { openLoginModal } from './login-modal.js';
 import { openProfileEditor } from '../../features/profile/profile-editor.js';
-import { getNip19 } from '../../core/nostr-compat.js';
+import { getNip19, getPublicKey as getPublicKeyFn } from '../../core/nostr-compat.js';
 import { displayNameWithUsername, loadProfile } from '../../features/profile/profile.js';
-import { showConfirmModal } from './modals.js';
+import { showConfirmModal, showAlertModal } from './modals.js';
+import { signer } from '../../core/signer.js';
+import { decryptNsec, hexToBytes } from '../../core/crypto.js';
+import { authenticateWithPasskey, decryptNsecWithPasskey } from '../../core/webauthn.js';
+import { showPasswordModal } from '../../core/auth/nsec-auth.js';
+
+function getAccountSetting(settings, settingsManager, key) {
+  if (settingsManager && typeof settingsManager.get === 'function') {
+    const val = settingsManager.get(key);
+    if (val !== undefined) return val;
+  }
+  return settings ? settings[key] : undefined;
+}
+
+function clearExportNsecPanel() {
+  const panel = $('#accountExportNsecPanel');
+  if (!panel) return;
+  const input = panel.querySelector('#accountExportNsecInput');
+  if (input) input.value = '';
+  panel.innerHTML = '';
+  panel.hidden = true;
+}
+
+function canExportSecretKey(state, settings, settingsManager, activeId, activeAccount) {
+  if (!activeId) return false;
+  const isReadOnly = (activeAccount && activeAccount.loginMethod === 'read-only') || (state && state.signer === 'read-only');
+  if (isReadOnly) return false;
+  if (state && (state.signer === 'nip07' || state.signer === 'nip46')) return false;
+  if (activeAccount && (activeAccount.loginMethod === 'nip07' || activeAccount.loginMethod === 'nip46')) return false;
+
+  const hasPasskey = !!(
+    getAccountSetting(settings, settingsManager, 'passkeyCredentialId') &&
+    getAccountSetting(settings, settingsManager, 'passkeyEncryptedNsec')
+  );
+  const hasPasswordNsec = !!getAccountSetting(settings, settingsManager, 'encryptedNsec');
+  const hasMemoryKey = !!(
+    state &&
+    state.signer === 'nsec' &&
+    signer &&
+    typeof signer.hasKey === 'function' &&
+    signer.hasKey() &&
+    (!signer.getPublicKey || !signer.getPublicKey() || signer.getPublicKey().toLowerCase() === activeId)
+  );
+
+  return hasPasskey || hasPasswordNsec || hasMemoryKey;
+}
+
+function encodeVerifiedSkHex(skHex, activeId) {
+  if (!skHex || typeof skHex !== 'string' || !/^[0-9a-f]{64}$/i.test(skHex)) {
+    return null;
+  }
+  const bytes = hexToBytes(skHex.toLowerCase());
+  if (!bytes || bytes.length !== 32) return null;
+
+  const getPublicKey = getPublicKeyFn();
+  if (typeof getPublicKey === 'function' && activeId) {
+    try {
+      const derivedPk = getPublicKey(bytes);
+      if (derivedPk && derivedPk.toLowerCase() !== activeId.toLowerCase()) {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  const nip19 = getNip19();
+  if (!nip19 || typeof nip19.nsecEncode !== 'function') return null;
+  try {
+    return nip19.nsecEncode(bytes);
+  } catch (e) {
+    return null;
+  }
+}
+
+function renderExportNsecPanel(nsec) {
+  const panel = $('#accountExportNsecPanel');
+  if (!panel || !nsec) return;
+
+  panel.innerHTML = `
+    <div class="account-export-nsec-header">
+      <strong class="account-export-nsec-title">${escapeHtml(t('account.nsec_export.title'))}</strong>
+      <button type="button" class="secondary text-xs" id="accountExportNsecCloseBtn">${escapeHtml(t('close'))}</button>
+    </div>
+    <p class="account-export-nsec-warning">${escapeHtml(t('account.nsec_export.warning'))}</p>
+    <div class="keygen-input-wrap">
+      <input type="password" id="accountExportNsecInput" readonly autocomplete="off" spellcheck="false">
+      <button type="button" class="secondary" id="accountExportNsecToggleBtn">${escapeHtml(t('account.nsec_export.show'))}</button>
+      <button type="button" class="secondary" id="accountExportNsecCopyBtn">${escapeHtml(t('keygen.copy'))}</button>
+    </div>
+  `;
+
+  const input = panel.querySelector('#accountExportNsecInput');
+  const toggleBtn = panel.querySelector('#accountExportNsecToggleBtn');
+  const copyBtn = panel.querySelector('#accountExportNsecCopyBtn');
+  const closePanelBtn = panel.querySelector('#accountExportNsecCloseBtn');
+
+  if (input) {
+    input.value = nsec;
+  }
+
+  if (toggleBtn && input) {
+    toggleBtn.onclick = () => {
+      const isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      toggleBtn.textContent = isHidden ? t('account.nsec_export.hide') : t('account.nsec_export.show');
+    };
+  }
+
+  if (copyBtn) {
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(nsec);
+        copyBtn.textContent = t('keygen.copied');
+        setTimeout(() => {
+          if (copyBtn.isConnected) {
+            copyBtn.textContent = t('keygen.copy');
+          }
+        }, 2000);
+      } catch (e) {}
+    };
+  }
+
+  if (closePanelBtn) {
+    closePanelBtn.onclick = () => {
+      clearExportNsecPanel();
+    };
+  }
+
+  panel.hidden = false;
+}
 
 /**
  * アカウント管理モーダルを開く
@@ -31,7 +161,7 @@ export function openAccountModal(state, settings, settingsManager, authCallbacks
 
   if (closeBtn) {
     closeBtn.onclick = () => {
-      modal.hidden = true;
+      closeModal();
     };
   }
 }
@@ -47,18 +177,26 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
   const accountData = getAccountList();
   const currentPubkey = (state && state.pubkey) || localStorage.getItem('pubkey');
   const activeId = currentPubkey ? (accountData.activeAccountId || currentPubkey).toLowerCase() : null;
+  const activeAccount = activeId ? accountData.accounts.find(a => a.id.toLowerCase() === activeId) : null;
+  const showExportNsec = canExportSecretKey(state, settings, settingsManager, activeId, activeAccount);
   const nip19 = getNip19();
 
   const topActionsHtml = activeId ? `
-    <!-- 最上部アクション: プロフィール編集・ログアウト -->
+    <!-- 最上部アクション: プロフィール編集・秘密鍵表示・ログアウト -->
     <div class="account-modal-top-actions">
       <button type="button" class="secondary" id="accountEditProfileBtn">
         ${t('account.modal.edit_profile')}
       </button>
+      ${showExportNsec ? `
+      <button type="button" class="secondary" id="accountExportNsecBtn">
+        ${t('account.modal.export_nsec')}
+      </button>
+      ` : ''}
       <button type="button" class="secondary btn-danger" id="accountLogoutBtn">
         ${t('logout')}
       </button>
     </div>
+    ${showExportNsec ? `<div id="accountExportNsecPanel" class="account-export-nsec-panel" hidden></div>` : ''}
 
     <hr class="account-modal-divider">
   ` : '';
@@ -79,7 +217,6 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
   // 1. プロフィール編集ボタン
   const editProfileBtn = $('#accountEditProfileBtn');
   if (editProfileBtn) {
-    const activeAccount = accountData.accounts.find(a => a.id.toLowerCase() === activeId);
     const isReadOnly = (activeAccount && activeAccount.loginMethod === 'read-only') || (state && state.signer === 'read-only');
     if (isReadOnly) {
       editProfileBtn.onclick = () => {
@@ -95,6 +232,76 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
         openProfileEditor(state);
       };
     }
+  }
+
+  // 1.5. 秘密鍵表示ボタン
+  const exportNsecBtn = $('#accountExportNsecBtn');
+  if (exportNsecBtn) {
+    exportNsecBtn.onclick = async () => {
+      const panel = $('#accountExportNsecPanel');
+      if (panel && !panel.hidden) {
+        clearExportNsecPanel();
+        return;
+      }
+
+      const passkeyCredentialId = getAccountSetting(settings, settingsManager, 'passkeyCredentialId');
+      const passkeyEncryptedNsec = getAccountSetting(settings, settingsManager, 'passkeyEncryptedNsec');
+      const encryptedNsec = getAccountSetting(settings, settingsManager, 'encryptedNsec');
+
+      if (passkeyCredentialId && passkeyEncryptedNsec) {
+        try {
+          const authResult = await authenticateWithPasskey(passkeyCredentialId);
+          if (!authResult || !authResult.success) return;
+          const skHex = await decryptNsecWithPasskey(passkeyEncryptedNsec, authResult.prfKey);
+          const nsec = encodeVerifiedSkHex(skHex, activeId);
+          if (!nsec) {
+            showAlertModal(t('error.generic'), t('account.nsec_export.failed'));
+            return;
+          }
+          renderExportNsecPanel(nsec);
+        } catch (e) {
+          console.error('[AccountModal] パスキーによる秘密鍵復号失敗:', e);
+          showAlertModal(t('error.generic'), t('account.nsec_export.failed'));
+        }
+        return;
+      }
+
+      if (encryptedNsec) {
+        showPasswordModal(async (password) => {
+          if (!password) {
+            showAlertModal(t('error.generic'), t('auth.password_required'));
+            return;
+          }
+          try {
+            const skHex = await decryptNsec(encryptedNsec, password);
+            const nsec = encodeVerifiedSkHex(skHex, activeId);
+            if (!nsec) {
+              showAlertModal(t('error.generic'), t('auth.password_incorrect'));
+              return;
+            }
+            renderExportNsecPanel(nsec);
+          } catch (e) {
+            showAlertModal(t('error.generic'), t('auth.password_incorrect'));
+          }
+        });
+        return;
+      }
+
+      if (state && state.signer === 'nsec' && signer && typeof signer.hasKey === 'function' && signer.hasKey()) {
+        showConfirmModal(
+          t('account.nsec_export.confirm_title'),
+          t('account.nsec_export.confirm_msg'),
+          () => {
+            const nsec = typeof signer.exportNsec === 'function' ? signer.exportNsec() : null;
+            if (!nsec) {
+              showAlertModal(t('error.generic'), t('account.nsec_export.failed'));
+              return;
+            }
+            renderExportNsecPanel(nsec);
+          }
+        );
+      }
+    };
   }
 
   // 2. ログアウトボタン
@@ -247,6 +454,7 @@ function renderAccountModal(state, settings, settingsManager, authCallbacks) {
 }
 
 function closeModal() {
+  clearExportNsecPanel();
   const modal = $('#accountModal');
   if (modal) modal.hidden = true;
 }

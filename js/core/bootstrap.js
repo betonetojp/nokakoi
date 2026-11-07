@@ -15,7 +15,7 @@ import {
   setupComposerScrollBehavior,
   setupComposerScrollLifecycle
 } from '../features/post/composer-scroll.js';
-import { setReplyTarget, clearReplyTarget, setupCancelReplyButton, setupEmojiPreview, setupEmojiShortcodeSuggest, setupNostrPreview, openHiddenTagCharModal, setupComposerUI, setQuoteTarget } from '../features/post/composer.js';
+import { setReplyTarget, clearReplyTarget, setupCancelReplyButton, setupEmojiPreview, setupEmojiShortcodeSuggest, setupNostrPreview, openHiddenTagCharModal, setupComposerUI, setQuoteTarget, syncComposerAuthState } from '../features/post/composer.js';
 import { setupGlobalTabSelector, updateGlobalButtonLabel, showGlobalRelaySelector } from '../features/relay/global-relay.js';
 import { setupRelaySettingsUI } from '../features/relay/relay-settings.js';
 import { setupMediaLinkHandlers } from '../utils/url-parser.js';
@@ -92,7 +92,6 @@ let state = null;
 let settingsManager = null;
 let settings = null;
 let nip19 = null;
-let cleanupScrollBehavior = null;
 let authGuardInterval = null;
 
 // Deprecated window properties remain available only as an explicit migration bridge.
@@ -313,22 +312,19 @@ export async function initApp() {
   });
 
   const enableComposerScroll = () => {
-    cleanupScrollBehavior = setupComposerScrollBehavior();
+    setupComposerScrollBehavior();
   };
 
   setupAuthUI(state, settings, settingsManager, {
     restartFeeds,
     enableComposerScroll,
     onLogout: () => {
-      if (cleanupScrollBehavior) {
-        cleanupScrollBehavior();
-        cleanupScrollBehavior = null;
-      }
       stopMonitoringRelays(state);
       if (authGuardInterval) {
         clearInterval(authGuardInterval);
         authGuardInterval = null;
       }
+      enableComposerScroll();
     }
   });
 
@@ -432,6 +428,8 @@ export async function initApp() {
     const pubkey = localStorage.getItem('pubkey');
     updateTabVisibility(!!pubkey);
     if (!pubkey) {
+      syncComposerAuthState(state);
+      enableComposerScroll();
       setupGlobalFeed();
       try {
         if (shouldConnectOmochatOnBoot(settingsManager)) {
@@ -561,15 +559,12 @@ export async function initApp() {
             restartFeeds,
             enableComposerScroll,
             onLogout: () => {
-              if (cleanupScrollBehavior) {
-                cleanupScrollBehavior();
-                cleanupScrollBehavior = null;
-              }
               stopMonitoringRelays(state);
               if (authGuardInterval) {
                 clearInterval(authGuardInterval);
                 authGuardInterval = null;
               }
+              enableComposerScroll();
             }
           });
         }

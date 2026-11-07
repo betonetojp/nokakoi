@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { signer } from './signer.js';
-import { getPublicKey, getFinalizeEvent } from './nostr-compat.js';
+import { getPublicKey, getFinalizeEvent, getNip19 } from './nostr-compat.js';
+import { bytesToHex } from './crypto.js';
 
 const SK = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 const PK = '4646ae5047316b4230d0086c8acec687f00b1cd9d1dc634f6cb358ac0a9a8fff';
@@ -43,5 +44,21 @@ describe('signer + nostr-compat secret key handling', () => {
     expect(signer.getPublicKey()).toBe(PK);
     expect(signer.restoreRollbackHandle(handle)).toBe(false);
     signer.clearKey();
+  });
+
+  it('signer.exportNsec encodes current secret key as nsec and returns null when cleared', () => {
+    signer.clearKey();
+    expect(signer.exportNsec()).toBeNull();
+
+    signer.setKey(SK);
+    const nsec = signer.exportNsec();
+    expect(nsec).toMatch(/^nsec1[0-9a-z]+$/);
+
+    const decoded = getNip19().decode(nsec);
+    expect(decoded.type).toBe('nsec');
+    expect(bytesToHex(decoded.data)).toBe(SK);
+
+    signer.clearKey();
+    expect(signer.exportNsec()).toBeNull();
   });
 });

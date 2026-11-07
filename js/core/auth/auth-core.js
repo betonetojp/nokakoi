@@ -273,10 +273,19 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
 
     const openLoginModalBtn = $('#openLoginModalBtn');
     const composer = $('#composer');
+    const composerFormBody = $('#composerFormBody');
+    const composerLoginPrompt = $('#composerLoginPrompt');
 
     const isReadOnly = (actualLoginMethod === 'read-only' || state.signer === 'read-only');
     if (openLoginModalBtn) openLoginModalBtn.hidden = true;
-    if (composer) composer.hidden = isReadOnly;
+    if (composerFormBody) composerFormBody.hidden = false;
+    if (composerLoginPrompt) composerLoginPrompt.hidden = true;
+    if (composer) {
+      if (composer.classList && typeof composer.classList.remove === 'function') {
+        composer.classList.remove('composer--login-prompt');
+      }
+      composer.hidden = isReadOnly;
+    }
 
     // タブの表示更新（未ログイン時制限の解除）
     invokeTabVisibilityUpdate(true);
@@ -321,7 +330,16 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
       setTimeout(() => {
         try {
           const composer2 = document.getElementById('composer');
-          if (composer2) composer2.hidden = (state.signer === 'read-only');
+          const composerFormBody2 = document.getElementById('composerFormBody');
+          const composerLoginPrompt2 = document.getElementById('composerLoginPrompt');
+          if (composerFormBody2) composerFormBody2.hidden = false;
+          if (composerLoginPrompt2) composerLoginPrompt2.hidden = true;
+          if (composer2) {
+            if (composer2.classList && typeof composer2.classList.remove === 'function') {
+              composer2.classList.remove('composer--login-prompt');
+            }
+            composer2.hidden = (state.signer === 'read-only');
+          }
           try {
             updateHeaderName(state, nip19);
           } catch (e) {
@@ -480,9 +498,18 @@ export function logout(state, settings, settingsManager, restartFeeds) {
 
   const openLoginModalBtn = $('#openLoginModalBtn');
   const composer = $('#composer');
+  const composerFormBody = $('#composerFormBody');
+  const composerLoginPrompt = $('#composerLoginPrompt');
 
   if (openLoginModalBtn) openLoginModalBtn.hidden = false;
-  if (composer) composer.hidden = true;
+  if (composerFormBody) composerFormBody.hidden = true;
+  if (composerLoginPrompt) composerLoginPrompt.hidden = false;
+  if (composer) {
+    if (composer.classList && typeof composer.classList.add === 'function') {
+      composer.classList.add('composer--login-prompt');
+    }
+    composer.hidden = false;
+  }
 
   // デフォルトタブ構成でタブバーを再構築
   try {
@@ -750,15 +777,34 @@ export function syncAccountUI(state, settingsManager, options = {}) {
     });
   } catch (e) {}
 
-  // 6. コンポーザーの閲覧専用状態同期および投稿結果メッセージのクリア
+  // 6. コンポーザーの閲覧専用状態・未ログイン状態の同期および投稿結果メッセージのクリア
   try {
     const pubResultEl = document.getElementById('publishResult');
     if (pubResultEl) pubResultEl.textContent = '';
     const composerEl = document.getElementById('composer');
+    const composerFormBodyEl = document.getElementById('composerFormBody');
+    const composerLoginPromptEl = document.getElementById('composerLoginPrompt');
     if (composerEl) {
-      if (state.signer === 'read-only') {
+      if (!state.pubkey) {
+        if (composerFormBodyEl) composerFormBodyEl.hidden = true;
+        if (composerLoginPromptEl) composerLoginPromptEl.hidden = false;
+        if (composerEl.classList && typeof composerEl.classList.add === 'function') {
+          composerEl.classList.add('composer--login-prompt');
+        }
+        composerEl.hidden = false;
+      } else if (state.signer === 'read-only') {
+        if (composerFormBodyEl) composerFormBodyEl.hidden = false;
+        if (composerLoginPromptEl) composerLoginPromptEl.hidden = true;
+        if (composerEl.classList && typeof composerEl.classList.remove === 'function') {
+          composerEl.classList.remove('composer--login-prompt');
+        }
         composerEl.hidden = true;
-      } else if (state.pubkey) {
+      } else {
+        if (composerFormBodyEl) composerFormBodyEl.hidden = false;
+        if (composerLoginPromptEl) composerLoginPromptEl.hidden = true;
+        if (composerEl.classList && typeof composerEl.classList.remove === 'function') {
+          composerEl.classList.remove('composer--login-prompt');
+        }
         composerEl.hidden = false;
       }
     }

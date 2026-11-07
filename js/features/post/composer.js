@@ -44,22 +44,84 @@ let currentChannelTarget = null;
 let currentQuoteMode = false;
 let __composerLastState = null;
 let __composerLastNip19 = null;
-function isUserLoggedIn() {
+function isUserLoggedIn(state) {
   try {
     const pk = (typeof localStorage !== 'undefined') ? localStorage.getItem('pubkey') : null;
-    return !!(pk || (__composerLastState && __composerLastState.pubkey));
+    return !!(pk || (state && state.pubkey) || (__composerLastState && __composerLastState.pubkey));
   } catch (_e) {
     return false;
   }
 }
 
+export function syncComposerAuthState(state) {
+  if (state) __composerLastState = state;
+  const composer = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('composer') : $('#composer');
+  if (!composer) return null;
+
+  const formBody = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('composerFormBody') : $('#composerFormBody');
+  const loginPrompt = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('composerLoginPrompt') : $('#composerLoginPrompt');
+
+  const loggedIn = isUserLoggedIn(state);
+  const readOnly = isReadOnlyAccount(state || __composerLastState);
+
+  if (!loggedIn) {
+    if (formBody) formBody.hidden = true;
+    if (loginPrompt) loginPrompt.hidden = false;
+    if (composer.classList && typeof composer.classList.add === 'function') {
+      composer.classList.add('composer--login-prompt');
+    }
+    composer.hidden = false;
+    if (typeof composer.removeAttribute === 'function') {
+      composer.removeAttribute('hidden');
+    }
+    ensureComposerScrollBehavior();
+    return composer;
+  }
+
+  if (formBody) formBody.hidden = false;
+  if (loginPrompt) loginPrompt.hidden = true;
+  if (composer.classList && typeof composer.classList.remove === 'function') {
+    composer.classList.remove('composer--login-prompt');
+  }
+
+  if (readOnly) {
+    composer.hidden = true;
+    return null;
+  }
+
+  try {
+    const activeTabBtn = (typeof document !== 'undefined' && document.querySelector) ? document.querySelector('.tabs .tab.active') : null;
+    const tabName = activeTabBtn && activeTabBtn.dataset ? activeTabBtn.dataset.tab : '';
+    if (tabName === 'channels' && !isChannelChatOpen()) {
+      composer.hidden = true;
+      return null;
+    }
+  } catch (_e) {}
+
+  composer.hidden = false;
+  if (typeof composer.removeAttribute === 'function') {
+    composer.removeAttribute('hidden');
+  }
+  ensureComposerScrollBehavior();
+  return composer;
+}
 
 function showComposerAndEnsureScroll() {
   const composer = $('#composer');
   if (!composer) return null;
-  if (!isUserLoggedIn() || isReadOnlyAccount()) {
+  if (!isUserLoggedIn()) {
+    return syncComposerAuthState(__composerLastState);
+  }
+  if (isReadOnlyAccount(__composerLastState)) {
     composer.hidden = true;
     return null;
+  }
+  const formBody = $('#composerFormBody');
+  const loginPrompt = $('#composerLoginPrompt');
+  if (formBody) formBody.hidden = false;
+  if (loginPrompt) loginPrompt.hidden = true;
+  if (composer.classList && typeof composer.classList.remove === 'function') {
+    composer.classList.remove('composer--login-prompt');
   }
   composer.hidden = false;
   ensureComposerScrollBehavior();
@@ -386,8 +448,14 @@ export function hideComposerForUnselectedChannel() {
 
   const composer = document.getElementById('composer') || $('#composer');
   if (composer) {
-    composer.hidden = true;
-    composer.setAttribute('hidden', '');
+    if (!isUserLoggedIn()) {
+      syncComposerAuthState(__composerLastState);
+    } else {
+      composer.hidden = true;
+      if (typeof composer.setAttribute === 'function') {
+        composer.setAttribute('hidden', '');
+      }
+    }
   }
 
   const replyContext = document.getElementById('replyContext') || $('#replyContext');

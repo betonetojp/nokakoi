@@ -4,6 +4,7 @@ import { bytesToHex, encryptNsec } from '../crypto.js';
 import { signer } from '../signer.js';
 import { t } from '../../utils/i18n.js';
 import { isUserVerifyingPlatformAvailable, registerPasskey, authenticateWithPasskey, encryptNsecWithPasskey } from '../webauthn.js';
+import { bringModalToFront } from '../../ui/setup/modal-helper.js';
 
 function showModal(modalId) {
   const modal = $(modalId);
@@ -202,6 +203,7 @@ export function showPasswordModal(onConfirm, onCancel) {
 
   const cleanup = () => {
     hideModal('#passwordModal');
+    try { modal.style.zIndex = ''; } catch (e) {}
     if (form) form.onsubmit = null;
     confirmBtn.onclick = null;
     cancelBtn.onclick = null;
@@ -249,6 +251,7 @@ export function showPasswordModal(onConfirm, onCancel) {
   };
 
   showModal('#passwordModal');
+  try { bringModalToFront(modal); } catch (e) {}
   setTimeout(() => {
     try { input.focus(); } catch (e) {}
   }, 50);

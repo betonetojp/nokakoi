@@ -744,5 +744,15 @@
   "reload.full_reload": "アプリを完全再読み込みします...",
   "ptr.pull": "引っ張って更新",
   "ptr.release": "離して更新",
-  "ptr.refreshing": "更新中..."
+  "ptr.refreshing": "更新中...",
+  "account.modal.export_nsec": "🔑 秘密鍵を表示",
+  "account.nsec_export.title": "秘密鍵 (nsec)",
+  "account.nsec_export.warning": "⚠️ 秘密鍵を他人に教えたり公開したりしないでください。知っている人は誰でもアカウントを操作できます。",
+  "account.nsec_export.confirm_title": "秘密鍵の表示",
+  "account.nsec_export.confirm_msg": "現在ログイン中のアカウントの秘密鍵 (nsec) を表示しますか？周囲に人がいないか確認してください。",
+  "account.nsec_export.show": "表示",
+  "account.nsec_export.hide": "隠す",
+  "account.nsec_export.failed": "秘密鍵の取得に失敗しました。",
+  "composer.login_prompt": "ログインして投稿やリアクションを楽しもう",
+  "composer.login_button": "ログイン / はじめる"
 }

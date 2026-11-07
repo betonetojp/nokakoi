@@ -744,5 +744,15 @@
   "reload.full_reload": "Reloading app...",
   "ptr.pull": "Pull down to refresh",
   "ptr.release": "Release to refresh",
-  "ptr.refreshing": "Refreshing..."
+  "ptr.refreshing": "Refreshing...",
+  "account.modal.export_nsec": "🔑 Show Secret Key",
+  "account.nsec_export.title": "Secret Key (nsec)",
+  "account.nsec_export.warning": "⚠️ Never share or publish your secret key. Anyone with this key has full control of your account.",
+  "account.nsec_export.confirm_title": "Show Secret Key",
+  "account.nsec_export.confirm_msg": "Reveal the secret key (nsec) for the currently logged-in account? Make sure no one is watching your screen.",
+  "account.nsec_export.show": "Show",
+  "account.nsec_export.hide": "Hide",
+  "account.nsec_export.failed": "Failed to retrieve secret key.",
+  "composer.login_prompt": "Log in to post and react",
+  "composer.login_button": "Log in / Get Started"
 }
