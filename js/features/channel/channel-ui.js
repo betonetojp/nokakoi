@@ -665,6 +665,11 @@ export function reloadChannelView(state = null) {
   if (state) _stateRef = state;
   if (!_containerEl) return;
 
+  if (!_containerEl.querySelector('.channel-portal-wrapper')) {
+    initChannelView(_containerEl, getState(), _settingsManagerRef);
+    return;
+  }
+
   clearChannelSearchResults();
 
   const wrapper = _containerEl.querySelector('.channel-portal-wrapper');
@@ -1082,13 +1087,15 @@ function updateOwnerMetaEditButton(rootEvent) {
 }
 
 /**
- * フィード等の外部からチャンネルを開く（一覧に無ければ端末のみ参加として追加）
+ * フィードやディープリンク等の外部からチャンネルを開く（一覧に無ければ端末のみ参加として追加）
+ * options.pinTab === true または既にピン留め済みの場合は個別チャンネルタブとして開く。
  */
-export async function openChannelFromExternal(rootId, state = null) {
+export async function openChannelFromExternal(rootId, state = null, options = {}) {
   const id = rootId ? String(rootId).trim().toLowerCase() : '';
   if (!/^[0-9a-f]{64}$/.test(id)) return false;
 
   if (state) _stateRef = state;
+  if (options && options.settingsManager) _settingsManagerRef = options.settingsManager;
 
   if (typeof document !== 'undefined') {
     const eventModal = document.getElementById('eventModal');
@@ -1105,10 +1112,57 @@ export async function openChannelFromExternal(rootId, state = null) {
         profileModal.hidden = true;
       }
     }
+  }
 
+  const alreadyListed = _lastPublicRootIds.includes(id)
+    || getCustomJoinedChannels().includes(id);
+
+  if (!alreadyListed) {
+    joinChannelLocally(id, { publicRootIds: _lastPublicRootIds });
+  }
+
+  const sm = (options && options.settingsManager)
+    || _settingsManagerRef
+    || (typeof getSettingsManager === 'function' ? getSettingsManager() : null);
+
+  const shouldOpenPinnedTab = !!(sm && ((options && options.pinTab === true) || isChannelTabPinned(sm, id)));
+  if (shouldOpenPinnedTab) {
+    const ev = options && options.event ? options.event : null;
+    const profile = ev
+      ? (extractChannelProfileFields(ev.kind === 40 ? ev : null, ev.kind === 41 ? ev : null) || {})
+      : {};
+    let initialName = profile.name || '';
+    if (!initialName) {
+      try {
+        initialName = getChannelLabelFromCache(getState(), id) || '';
+      } catch (_e) {}
+    }
+    const initialRelays = Array.isArray(profile.relays) ? profile.relays : [];
+
+    if (_activeRootId === id) {
+      clearActiveChannelView();
+    }
+
+    const tabPayload = {
+      rootId: id,
+      name: initialName,
+      relays: initialRelays,
+    };
+
+    if (options && options.pinTab === true && typeof window !== 'undefined') {
+      try { window.__nokakoiDeepLinkChannelTab = tabPayload; } catch (_e) {}
+    }
+
+    addChannelTab(sm, tabPayload);
+    if (_containerEl) {
+      loadChannelList().catch(() => {});
+    }
+    return true;
+  }
+
+  if (typeof document !== 'undefined') {
     try {
       const { activateTab } = await import('../../ui/setup/tab-manager.js');
-      const sm = _settingsManagerRef || (typeof getSettingsManager === 'function' ? getSettingsManager() : null);
       if (typeof activateTab === 'function') {
         activateTab('channels', sm, { skipFeedLifecycle: true });
       } else {
@@ -1124,16 +1178,9 @@ export async function openChannelFromExternal(rootId, state = null) {
   const feedChan = document.getElementById('feed-channels');
   if (feedChan) {
     _containerEl = feedChan;
-    initChannelView(feedChan, getState(), _settingsManagerRef);
+    initChannelView(feedChan, getState(), sm);
   }
   if (!_containerEl) return false;
-
-  const alreadyListed = _lastPublicRootIds.includes(id)
-    || getCustomJoinedChannels().includes(id);
-
-  if (!alreadyListed) {
-    joinChannelLocally(id, { publicRootIds: _lastPublicRootIds });
-  }
 
   // タブ切替直後でもチャット面を出す
   await selectChannel(id);

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   addAccount: vi.fn(() => ({ isMethodChanged: false, isNew: false })),
+  addChannelTab: vi.fn(),
   authenticateWithPasskey: vi.fn(),
   clearFullState: vi.fn(),
   clearNip46LocalSecretKey: vi.fn(),
@@ -69,6 +70,7 @@ vi.mock('../account-manager.js', () => ({
   setActiveAccountId: mocks.setActiveAccountId
 }));
 vi.mock('../../ui/setup/tab-manager.js', () => ({
+  addChannelTab: mocks.addChannelTab,
   setupTabs: mocks.setupTabs
 }));
 vi.mock('../relay.js', () => ({
@@ -348,6 +350,40 @@ describe('auth core', () => {
     expect(mocks.addAccount).toHaveBeenCalledWith({ id: next, loginMethod: 'read-only' });
     expect(restartFeeds).toHaveBeenCalledTimes(1);
     expect(restartFeeds).toHaveBeenCalledWith(true);
+    vi.clearAllTimers();
+  });
+
+  it('re-applies a pending deep-link pinned channel tab after loadForAccount on same-account boot login', async () => {
+    vi.useFakeTimers();
+    const pubkey = 'a'.repeat(64);
+    const rootId = '9'.repeat(64);
+    localStorage.setItem('pubkey', pubkey);
+    localStorage.setItem(`relays.${pubkey}`, 'saved');
+    mocks.signer.hasKey.mockReturnValue(true);
+    mocks.signer.getPublicKey.mockReturnValue(pubkey);
+    window.__nokakoiDeepLinkChannelTab = {
+      rootId,
+      name: 'DeepLinkChan',
+      relays: ['wss://relay.example']
+    };
+    const state = {
+      nip46: { client: null, connected: false, remotePubkey: null },
+      profiles: new Map(),
+      pubkey: null,
+      relays: [],
+      signer: 'nsec'
+    };
+    const settingsManager = createSettings({ preferredSigner: 'nsec' });
+
+    await login(state, settingsManager.settings, settingsManager, vi.fn(async () => {}), vi.fn());
+
+    expect(settingsManager.loadForAccount).toHaveBeenCalledWith(pubkey);
+    expect(mocks.addChannelTab).toHaveBeenCalledWith(settingsManager, {
+      rootId,
+      name: 'DeepLinkChan',
+      relays: ['wss://relay.example']
+    });
+    expect(window.__nokakoiDeepLinkChannelTab).toBeUndefined();
     vi.clearAllTimers();
   });
 });

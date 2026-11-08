@@ -355,20 +355,17 @@ export async function initApp() {
     openDeepLink(state, {
       nip19,
       showProfileModal: showProfileModalProxy,
-      openChannel: async (rootId) => {
+      openChannel: async (rootId, event) => {
         try {
-          const { activateTab } = await import('../ui/setup/tab-manager.js');
           const mod = await import('../features/channel/channel-ui.js');
-          if (typeof activateTab === 'function') {
-            activateTab('channels', settingsManager, { skipFeedLifecycle: true });
-          } else {
-            const channelsTabBtn = document.querySelector('.tabs .tab[data-tab="channels"]');
-            if (channelsTabBtn) channelsTabBtn.click();
-          }
           if (mod && typeof mod.openChannelFromExternal === 'function') {
-            await mod.openChannelFromExternal(rootId, state);
+            return await mod.openChannelFromExternal(rootId, state, {
+              pinTab: true,
+              event,
+              settingsManager
+            });
           }
-          return true;
+          return false;
         } catch (e) {
           console.warn('[Main] チャンネルオープンに失敗', e);
           return false;

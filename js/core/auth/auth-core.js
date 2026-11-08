@@ -13,7 +13,7 @@ import { addAccount, getAccountList, migrateFromSingleAccount, setActiveAccountI
 import { saveRelaysForAccount, loadRelaysForAccount, getDefaultGlobalRelayByLang } from '../relay.js';
 import { updateGlobalButtonLabel } from '../../features/relay/global-relay.js';
 import { invalidateMuteWork, saveMuteListForAccount, loadMuteListForAccount, clearMuteListState } from '../../features/mute/mute.js';
-import { setupTabs } from '../../ui/setup/tab-manager.js';
+import { setupTabs, addChannelTab } from '../../ui/setup/tab-manager.js';
 import {
   getSettingsManager,
   updateTabVisibility as invokeTabVisibilityUpdate
@@ -116,9 +116,10 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
 
     const oldPubkey = localStorage.getItem('pubkey');
     const newPubkey = pubkey.toLowerCase();
+    const isAccountSwitch = !!(oldPubkey && oldPubkey.toLowerCase() !== newPubkey);
 
     // 以前ログインしていた別アカウントが存在する場合、前アカウントのデータを保存してメモリを完全クリア
-    if (oldPubkey && oldPubkey.toLowerCase() !== newPubkey) {
+    if (isAccountSwitch) {
       if (settingsManager && typeof settingsManager.saveForAccount === 'function') {
         settingsManager.saveForAccount(oldPubkey.toLowerCase());
       }
@@ -141,6 +142,17 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
     if (settingsManager && typeof settingsManager.loadForAccount === 'function') {
       settingsManager.loadForAccount(state.pubkey);
     }
+
+    // 起動時のディープリンク等でログイン完了前にピン留めされたチャンネルタブがあれば引き継ぐ
+    try {
+      const pendingDeepLinkTab = (typeof window !== 'undefined') ? window.__nokakoiDeepLinkChannelTab : null;
+      if (pendingDeepLinkTab && typeof window !== 'undefined') {
+        delete window.__nokakoiDeepLinkChannelTab;
+      }
+      if (!isAccountSwitch && pendingDeepLinkTab && pendingDeepLinkTab.rootId && typeof addChannelTab === 'function') {
+        addChannelTab(settingsManager, pendingDeepLinkTab);
+      }
+    } catch (e) {}
 
     // 実際のログイン方式を判別
     let actualLoginMethod = selected;
@@ -267,7 +279,7 @@ export async function login(state, settings, settingsManager, restartFeeds, setu
     }
 
     // アカウント全体のUI描画を同期・再更新
-    syncAccountUI(state, settingsManager);
+    syncAccountUI(state, settingsManager, { resetChannelView: isAccountSwitch });
 
     updateHeaderName(state, nip19);
 
@@ -771,7 +783,10 @@ export function syncAccountUI(state, settingsManager, options = {}) {
   // 5. 参加中チャンネル一覧・ビューの同期
   try {
     import('../../features/channel/channel-ui.js').then(c => {
-      if (c && typeof c.resetChannelViewForAccount === 'function') {
+      if (!c) return;
+      if (options.resetChannelView === false && typeof c.reloadChannelView === 'function') {
+        c.reloadChannelView(state);
+      } else if (typeof c.resetChannelViewForAccount === 'function') {
         c.resetChannelViewForAccount(state);
       }
     });

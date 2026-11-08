@@ -129,7 +129,7 @@ export function setupDeepLinkUrlCleanup() {
 
 export async function fetchDeepLinkEvent(state, parsed) {
   if (!parsed || parsed.kind !== 'event' || !parsed.eventId || !state) return null;
-  const { findEventById } = await import('../core/state.js');
+  const { findEventById, cacheEvent } = await import('../core/state.js');
   const cached = findEventById(state, parsed.eventId);
   if (cached) return cached;
   if (!state.pool || typeof state.pool.get !== 'function') return null;
@@ -140,6 +140,9 @@ export async function fetchDeepLinkEvent(state, parsed) {
   if (!relays.length) return null;
   try {
     const fetched = await state.pool.get(relays, { ids: [parsed.eventId] });
+    if (fetched && typeof cacheEvent === 'function') {
+      try { cacheEvent(state, fetched); } catch (_e) {}
+    }
     return fetched || null;
   } catch (_e) {
     return null;

@@ -105,27 +105,47 @@ export function isChannelTabPinned(settingsManager, rootId) {
 
 export function addChannelTab(settingsManager, { rootId, name = '', relays = [] } = {}) {
   if (!settingsManager || !rootId) return false;
-  const tabId = getChannelTabId(rootId);
+  const normalizedRootId = String(rootId).trim().toLowerCase();
+  const tabId = getChannelTabId(normalizedRootId);
   const currentTabs = loadTabSettings(settingsManager);
-  const existing = currentTabs.find(t => t.id === tabId || t.rootId === rootId);
+  const existing = currentTabs.find(t => t.id === tabId || t.rootId === normalizedRootId || t.rootId === rootId);
+  const rawName = String(name || '').trim();
+  const shortened = shortenChannelEventId(normalizedRootId);
+  const hasCustomName = !!(rawName && rawName !== shortened && rawName !== `# ${shortened}`);
+  const resolvedLabel = rawName ? (rawName.startsWith('#') ? rawName : `# ${rawName}`) : '';
+
   if (existing) {
+    let changed = false;
     if (existing.visible === false) {
       existing.visible = true;
+      changed = true;
+    }
+    if (hasCustomName && existing.label !== resolvedLabel) {
+      existing.label = resolvedLabel;
+      existing.fallbackLabel = resolvedLabel;
+      changed = true;
+    }
+    if (Array.isArray(relays) && relays.length && (!Array.isArray(existing.relays) || !existing.relays.length)) {
+      existing.relays = relays;
+      changed = true;
+    }
+    if (changed) {
       saveTabSettings(settingsManager, currentTabs);
       refreshTabSettingsUI(settingsManager);
     }
-    setupTabs(settingsManager, true);
+    const prevActiveBtn = typeof document !== 'undefined' ? document.querySelector('.tabs .tab.active') : null;
+    const prevActiveId = prevActiveBtn && prevActiveBtn.dataset ? prevActiveBtn.dataset.tab : null;
+    setupTabs(settingsManager, true, prevActiveId && prevActiveId !== existing.id ? { skipFeedLifecycle: true } : {});
     activateTab(existing.id, settingsManager);
     try { window.dispatchEvent(new CustomEvent('tabsRebuilt')); } catch (e) {}
     return true;
   }
 
-  const rawName = String(name || '').trim();
-  const label = rawName ? (rawName.startsWith('#') ? rawName : `# ${rawName}`) : `# ${shortenChannelEventId(rootId)}`;
+  const label = resolvedLabel || `# ${shortened}`;
   const newTab = {
     id: tabId,
     type: 'channel',
-    rootId,
+    rootId: normalizedRootId,
     label,
     fallbackLabel: label,
     canRemove: true,
@@ -149,7 +169,9 @@ export function addChannelTab(settingsManager, { rootId, name = '', relays = [] 
 
   saveTabSettings(settingsManager, currentTabs);
   refreshTabSettingsUI(settingsManager);
-  setupTabs(settingsManager, true);
+  const prevActiveBtn = typeof document !== 'undefined' ? document.querySelector('.tabs .tab.active') : null;
+  const prevActiveId = prevActiveBtn && prevActiveBtn.dataset ? prevActiveBtn.dataset.tab : null;
+  setupTabs(settingsManager, true, prevActiveId && prevActiveId !== tabId ? { skipFeedLifecycle: true } : {});
   activateTab(tabId, settingsManager);
   try { window.dispatchEvent(new CustomEvent('tabsRebuilt')); } catch (e) {}
   return true;

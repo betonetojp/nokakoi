@@ -669,6 +669,89 @@ describe('openChannelFromExternal', () => {
     expect(feedChannels.classList.contains('active')).toBe(true);
     expect(feedHome.classList.contains('active')).toBe(false);
   });
+
+  it('pins and activates an individual channel tab when opened with pinTab: true (deep link)', async () => {
+    document.body.innerHTML = `
+      <div class="tabs"><button class="tab active" data-tab="home"></button><button class="tab" data-tab="channels"></button></div>
+      <div id="feeds">
+        <div id="feed-home" class="feed active"></div>
+        <div id="feed-channels" class="feed"></div>
+      </div>
+    `;
+    let savedTabs = [
+      { id: 'home', visible: true },
+      { id: 'channels', visible: true }
+    ];
+    const sm = {
+      get: vi.fn((key) => key === 'tabs_v2' ? savedTabs : null),
+      set: vi.fn((key, val) => { if (key === 'tabs_v2') savedTabs = val; }),
+    };
+
+    const targetChannelId = '2'.repeat(64);
+    const kind40Event = {
+      id: targetChannelId,
+      kind: 40,
+      content: JSON.stringify({ name: 'DeepLinkChannel', relays: ['wss://relay.example.com/'] })
+    };
+    mocks.extractChannelProfileFields.mockReturnValueOnce({
+      name: 'DeepLinkChannel',
+      relays: ['wss://relay.example.com/']
+    });
+
+    const success = await openChannelFromExternal(targetChannelId, { pubkey: ACCOUNT_A }, {
+      pinTab: true,
+      event: kind40Event,
+      settingsManager: sm
+    });
+    expect(success).toBe(true);
+
+    const pinnedTabId = `channel-${targetChannelId}`;
+    expect(savedTabs.some(t => t.id === pinnedTabId && t.label === '# DeepLinkChannel')).toBe(true);
+    const activeTabBtn = document.querySelector('.tabs .tab.active');
+    expect(activeTabBtn?.dataset.tab).toBe(pinnedTabId);
+    expect(document.getElementById(`feed-${pinnedTabId}`)?.classList.contains('active')).toBe(true);
+    expect(window.__nokakoiDeepLinkChannelTab).toEqual({
+      rootId: targetChannelId,
+      name: 'DeepLinkChannel',
+      relays: ['wss://relay.example.com/']
+    });
+  });
+
+  it('activates the existing pinned tab when the channel is already pinned', async () => {
+    const targetChannelId = '3'.repeat(64);
+    const pinnedTabId = `channel-${targetChannelId}`;
+    let savedTabs = [
+      { id: 'home', visible: true },
+      { id: 'channels', visible: true },
+      { id: pinnedTabId, type: 'channel', rootId: targetChannelId, label: '# ExistingPinned', visible: true }
+    ];
+    const sm = {
+      get: vi.fn((key) => key === 'tabs_v2' ? savedTabs : null),
+      set: vi.fn((key, val) => { if (key === 'tabs_v2') savedTabs = val; }),
+    };
+    document.body.innerHTML = `
+      <div class="tabs">
+        <button class="tab active" data-tab="home"></button>
+        <button class="tab" data-tab="channels"></button>
+        <button class="tab" data-tab="${pinnedTabId}"></button>
+      </div>
+      <div id="feeds">
+        <div id="feed-home" class="feed active"></div>
+        <div id="feed-channels" class="feed"></div>
+        <div id="feed-${pinnedTabId}" class="feed"></div>
+      </div>
+    `;
+
+    const success = await openChannelFromExternal(targetChannelId, { pubkey: ACCOUNT_A }, {
+      settingsManager: sm
+    });
+    expect(success).toBe(true);
+
+    const activeTabBtn = document.querySelector('.tabs .tab.active');
+    expect(activeTabBtn?.dataset.tab).toBe(pinnedTabId);
+    expect(document.getElementById(`feed-${pinnedTabId}`)?.classList.contains('active')).toBe(true);
+    expect(document.getElementById('feed-channels')?.classList.contains('active')).toBe(false);
+  });
 });
 
 describe('pinning a channel tab', () => {
