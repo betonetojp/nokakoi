@@ -149,6 +149,7 @@ function getActiveTabId() {
 function isLiveOrProtectedKey(key) {
   if (!key || typeof key !== 'string') return false;
   if (key === 'follows') return true;
+  if (key.startsWith('mute-list:')) return true;
   if (key.includes('live')) return true;
   if (key.includes('profile')) return true;
   return false;
@@ -392,7 +393,7 @@ export function reevaluateQueuePriorities() {
     for (const req of subscribeQueue) {
       let isHighPriority = false;
       const key = req.key;
-      if (key === 'follows' || (key && (key.includes('profile') || key.includes('live')))) {
+      if (key === 'follows' || (key && (key.startsWith('mute-list:') || key.includes('profile') || key.includes('live')))) {
         isHighPriority = true;
       } else if (activeTab && key && (key === activeTab || key.startsWith(activeTab + '_'))) {
         isHighPriority = true;
@@ -814,7 +815,7 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
 
       let isHighPriority = false;
       try {
-        if (key === 'follows') {
+        if (key === 'follows' || (key && key.startsWith('mute-list:'))) {
           isHighPriority = true;
         } else if (key && (key.includes('profile') || key.includes('live'))) {
           isHighPriority = true;
@@ -826,7 +827,7 @@ export function subOnce(state, key, filters, onEvent, relays = null) {
           }
         }
       } catch (e) {
-        if (key && (key === 'home' || key.startsWith('home_') || key.includes('live'))) isHighPriority = true;
+        if (key && (key === 'home' || key.startsWith('home_') || key.startsWith('mute-list:') || key.includes('live'))) isHighPriority = true;
       }
 
       if (isHighPriority) {

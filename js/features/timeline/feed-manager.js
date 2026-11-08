@@ -1563,7 +1563,6 @@ export function restartFeeds(fullReset = false) {
       feedsStarted = true;
       startFeeds();
     };
-    if (cachedMute) startFeedsOnce();
     const fallbackTimer = setTimeout(startFeedsOnce, 5000);
     try {
       const fetchMute = (typeof window !== 'undefined' && typeof window.__nokakoiFetchMuteList === 'function')
@@ -1590,6 +1589,7 @@ export function restartFeeds(fullReset = false) {
       try { clearTimeout(fallbackTimer); } catch (ee) { }
       startFeedsOnce();
     }
+    if (cachedMute) startFeedsOnce();
   } else {
     startFeeds();
   }

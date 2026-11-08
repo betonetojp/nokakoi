@@ -226,6 +226,31 @@ export function updateMuteListCountsUI() {
   return restoreMuteListFromStorage({ status, countsWrap, pubPubEl, pubPrivEl, wordPubEl, wordPrivEl });
 }
 
+function getExistingMuteListForAccount(pubkey) {
+  const norm = normalizePubkey(pubkey);
+  const candidates = [];
+  try {
+    if (norm) candidates.push(localStorage.getItem(`muteList_expanded.${norm}`));
+    candidates.push(localStorage.getItem('muteList_expanded'));
+  } catch (e) { }
+  for (const raw of candidates) {
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && (parsed.pubkeys || parsed.words)) {
+        return parsed;
+      }
+    } catch (e) { }
+  }
+  try {
+    if (typeof window !== 'undefined' && window.__nokakoiMuteList && typeof window.__nokakoiMuteList === 'object') {
+      const mem = window.__nokakoiMuteList;
+      if (mem.pubkeys || mem.words) return mem;
+    }
+  } catch (e) { }
+  return null;
+}
+
 export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = {}) {
   const isReadOnly = isReadOnlyAccount(state);
   const status = ui.status || null;
@@ -255,6 +280,8 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
     }
     request = beginMuteRequest(pubkey, state);
     if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };
+
+    const previousExpanded = getExistingMuteListForAccount(pubkey);
 
     if (status) status.textContent = t('mute.fetching');
     if (countsWrap) countsWrap.hidden = true;
@@ -297,10 +324,22 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
 
     if (!results.length) {
       if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };
-      clearMuteListState();
-      localStorage.removeItem(`muteList_raw_kind10000.${pubkey}`);
-      localStorage.removeItem(`muteList_expanded.${pubkey}`);
-      updateMuteListCountsUI();
+      const existingExpanded = getExistingMuteListForAccount(pubkey) || previousExpanded;
+      if (existingExpanded) {
+        try {
+          const serialized = JSON.stringify(existingExpanded);
+          localStorage.setItem(`muteList_expanded.${pubkey}`, serialized);
+          localStorage.setItem('muteList_expanded', serialized);
+        } catch (e) { }
+        window.__nokakoiMuteList = existingExpanded;
+        invalidateMuteConfigCache();
+        restoreMuteListFromStorage({ status: null, countsWrap, pubPubEl, pubPrivEl, wordPubEl, wordPrivEl });
+      } else {
+        clearMuteListState();
+        localStorage.removeItem(`muteList_raw_kind10000.${pubkey}`);
+        localStorage.removeItem(`muteList_expanded.${pubkey}`);
+        updateMuteListCountsUI();
+      }
       if (status) status.textContent = t('mute.kind10000.notfound');
       return { ok: false, reason: 'not_found' };
     }
@@ -463,13 +502,38 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
     }
     if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };
 
+    const buildEffectiveExpanded = () => {
+      if (!isReadOnly && hasEncryptedEvents && !decryptSucceeded && previousExpanded) {
+        const prevPrivPubs = (previousExpanded.pubkeys && Array.isArray(previousExpanded.pubkeys.private))
+          ? previousExpanded.pubkeys.private.slice()
+          : [];
+        const prevPrivWords = (previousExpanded.words && Array.isArray(previousExpanded.words.private))
+          ? previousExpanded.words.private.slice()
+          : [];
+        const curPrivPubs = Array.isArray(expanded.pubkeys.private) ? expanded.pubkeys.private : [];
+        const curPrivWords = Array.isArray(expanded.words.private) ? expanded.words.private : [];
+        return {
+          pubkeys: {
+            public: Array.isArray(expanded.pubkeys.public) ? expanded.pubkeys.public.slice() : [],
+            private: Array.from(new Set([...curPrivPubs, ...prevPrivPubs]))
+          },
+          words: {
+            public: Array.isArray(expanded.words.public) ? expanded.words.public.slice() : [],
+            private: Array.from(new Set([...curPrivWords, ...prevPrivWords]))
+          }
+        };
+      }
+      return expanded;
+    };
+    const effectiveExpanded = buildEffectiveExpanded();
+
     try {
       localStorage.setItem(`muteList_raw_kind10000.${pubkey}`, JSON.stringify(results));
       localStorage.setItem('muteList_raw_kind10000', JSON.stringify(results));
-      // 暗号化イベントが存在し非同期復号が控えている場合は、未復号のままexpandedを保存して上書きすることを防止（閲覧専用は復号しないため即時保存）
-      if (isReadOnly || !hasEncryptedEvents) {
-        localStorage.setItem(`muteList_expanded.${pubkey}`, JSON.stringify(expanded));
-        localStorage.setItem('muteList_expanded', JSON.stringify(expanded));
+      // 閲覧専用・非暗号化・同期復号完了時、または既存非公開ミュートを引き継げる場合は即時保存
+      if (isReadOnly || !hasEncryptedEvents || decryptSucceeded || previousExpanded) {
+        localStorage.setItem(`muteList_expanded.${pubkey}`, JSON.stringify(effectiveExpanded));
+        localStorage.setItem('muteList_expanded', JSON.stringify(effectiveExpanded));
       }
       try {
         if (status) {
@@ -483,10 +547,10 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
       if (status) status.textContent = t('mute.save.error');
     }
 
-    const pubP = expanded.pubkeys.public ? expanded.pubkeys.public.length : 0;
-    const pubPr = expanded.pubkeys.private ? expanded.pubkeys.private.length : 0;
-    const wdP = expanded.words.public ? expanded.words.public.length : 0;
-    const wdPr = expanded.words.private ? expanded.words.private.length : 0;
+    const pubP = effectiveExpanded.pubkeys.public ? effectiveExpanded.pubkeys.public.length : 0;
+    const pubPr = effectiveExpanded.pubkeys.private ? effectiveExpanded.pubkeys.private.length : 0;
+    const wdP = effectiveExpanded.words.public ? effectiveExpanded.words.public.length : 0;
+    const wdPr = effectiveExpanded.words.private ? effectiveExpanded.words.private.length : 0;
     if (pubPubEl) pubPubEl.textContent = pubP;
     if (pubPrivEl) pubPrivEl.textContent = pubPr;
     if (wordPubEl) wordPubEl.textContent = wdP;
@@ -494,7 +558,8 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
     if (countsWrap) countsWrap.hidden = false;
 
     if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };
-    window.__nokakoiMuteList = expanded;
+    window.__nokakoiMuteList = effectiveExpanded;
+    invalidateMuteConfigCache();
 
     try {
       if (typeof renderFeed === 'function') {
@@ -644,6 +709,8 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
                 localStorage.setItem(`muteList_expanded.${pubkey}`, JSON.stringify(expanded));
                 localStorage.setItem('muteList_expanded', JSON.stringify(expanded));
               } catch (e) { }
+              window.__nokakoiMuteList = expanded;
+              invalidateMuteConfigCache();
               const pubP2 = expanded.pubkeys.public ? expanded.pubkeys.public.length : 0;
               const pubPr2 = expanded.pubkeys.private ? expanded.pubkeys.private.length : 0;
               const wdP2 = expanded.words && expanded.words.public ? expanded.words.public.length : 0;
@@ -665,10 +732,18 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
                   ['home', 'global', 'mentions', 'me', 'bitchat'].forEach(id => { try { renderFeed(id, true); } catch (e) { } });
                 }
               } catch (e) { /* 無視 */ }
+              try { refreshEventsMuteState(state); } catch (e) { }
               try { if (preserveScroll) window.scrollTo(0, prevScroll); } catch (e) { }
             return true;
           } else {
             if (!isCurrentMuteRequest(request)) return false;
+            const fallbackExpanded = buildEffectiveExpanded();
+            try {
+              localStorage.setItem(`muteList_expanded.${pubkey}`, JSON.stringify(fallbackExpanded));
+              localStorage.setItem('muteList_expanded', JSON.stringify(fallbackExpanded));
+            } catch (e) { }
+            window.__nokakoiMuteList = fallbackExpanded;
+            invalidateMuteConfigCache();
             if (decryptSucceeded) {
               debugMuteSuccessOnce(
                 latestResults[0],
@@ -704,13 +779,19 @@ export async function fetchMuteList(state, SimplePoolProvider, renderFeed, ui = 
             performDeferredDecrypt().catch(e => { if (window.__nokakoiDebug) console.warn('[Mute] 自動遅延復号に失敗', e); });
           }, 50);
         }
-      } else if (decryptSucceeded) {
-        debugMuteSuccessOnce(
-          latestResults[0],
-          detectedFormats,
-          expanded.pubkeys.public.length + expanded.pubkeys.private.length +
-            expanded.words.public.length + expanded.words.private.length
-        );
+      } else {
+        try {
+          localStorage.setItem(`muteList_expanded.${pubkey}`, JSON.stringify(effectiveExpanded));
+          localStorage.setItem('muteList_expanded', JSON.stringify(effectiveExpanded));
+        } catch (e) { }
+        if (decryptSucceeded) {
+          debugMuteSuccessOnce(
+            latestResults[0],
+            detectedFormats,
+            expanded.pubkeys.public.length + expanded.pubkeys.private.length +
+              expanded.words.public.length + expanded.words.private.length
+          );
+        }
       }
     } catch (e) { console.warn('[mute] 拡張復号セットアップに失敗', e); }
     if (!isCurrentMuteRequest(request)) return { ok: false, reason: 'stale' };

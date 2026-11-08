@@ -280,4 +280,126 @@ describe('mute list diagnostics', () => {
     expect(renderFeed).toHaveBeenCalled();
   });
 
+  it('preserves existing mute list in storage and memory when kind 10000 fetch returns no events', async () => {
+    const existing = {
+      pubkeys: { public: ['pub-user-1'], private: ['priv-user-1'] },
+      words: { public: ['pub-word'], private: ['priv-word'] }
+    };
+    localStorage.setItem('muteList_expanded.author', JSON.stringify(existing));
+    localStorage.setItem('muteList_expanded', JSON.stringify(existing));
+    window.__nokakoiMuteList = existing;
+
+    mocks.subOnce.mockImplementation((_state, _subId, _filters, onEvent) => {
+      onEvent(null, 'wss://relay.example', true);
+      return vi.fn();
+    });
+
+    const pubPubEl = { textContent: '' };
+    const pubPrivEl = { textContent: '' };
+    const wordPubEl = { textContent: '' };
+    const wordPrivEl = { textContent: '' };
+    const countsWrap = { hidden: true };
+
+    const state = {
+      pool: {},
+      relays: ['wss://relay.example'],
+      signer: 'nsec',
+      pubkey: 'author'
+    };
+
+    const res = await fetchMuteList(state, () => null, vi.fn(), {
+      countsWrap,
+      pubPubEl,
+      pubPrivEl,
+      wordPubEl,
+      wordPrivEl
+    });
+
+    expect(res).toMatchObject({ ok: false, reason: 'not_found' });
+    expect(window.__nokakoiMuteList).toEqual(existing);
+    expect(JSON.parse(localStorage.getItem('muteList_expanded.author'))).toEqual(existing);
+    expect(JSON.parse(localStorage.getItem('muteList_expanded'))).toEqual(existing);
+    expect(pubPubEl.textContent).toBe(1);
+    expect(pubPrivEl.textContent).toBe(1);
+    expect(wordPubEl.textContent).toBe(1);
+    expect(wordPrivEl.textContent).toBe(1);
+    expect(countsWrap.hidden).toBe(false);
+  });
+
+  it('saves synchronously decrypted private mutes to localStorage for nsec/passkey signer', async () => {
+    const nostrCompat = await import('../../core/nostr-compat.js');
+    nostrCompat.getNip44.mockReturnValueOnce({ v2: {} });
+    mocks.signer.hasKey.mockReturnValueOnce(true).mockReturnValueOnce(true);
+    mocks.signer.nip44Decrypt.mockReturnValueOnce(
+      JSON.stringify([['p', 'priv-user-nsec'], ['word', 'priv-word-nsec']])
+    );
+
+    mocks.subOnce.mockImplementation((_state, _subId, _filters, onEvent) => {
+      onEvent({
+        id: 'nsec-mute-ev',
+        kind: 10000,
+        pubkey: 'author',
+        created_at: 200,
+        tags: [['p', 'pub-user-nsec']],
+        content: 'encrypted-nip44-ciphertext-longer-than-forty-characters'
+      }, 'wss://relay.example', true);
+      return vi.fn();
+    });
+
+    const state = {
+      pool: {},
+      relays: ['wss://relay.example'],
+      signer: 'nsec',
+      pubkey: 'author'
+    };
+
+    const res = await fetchMuteList(state, () => null, vi.fn());
+    expect(res).toMatchObject({ ok: true, reason: 'fetched' });
+
+    const saved = JSON.parse(localStorage.getItem('muteList_expanded.author'));
+    expect(saved.pubkeys.public).toEqual(['pub-user-nsec']);
+    expect(saved.pubkeys.private).toEqual(['priv-user-nsec']);
+    expect(saved.words.private).toEqual(['priv-word-nsec']);
+    expect(window.__nokakoiMuteList).toEqual(saved);
+  });
+
+  it('preserves cached private mutes when deferred decryption fails on resume', async () => {
+    const existing = {
+      pubkeys: { public: ['old-pub'], private: ['cached-priv-user'] },
+      words: { public: [], private: ['cached-priv-word'] }
+    };
+    localStorage.setItem('muteList_expanded.author', JSON.stringify(existing));
+    localStorage.setItem('muteList_expanded', JSON.stringify(existing));
+    window.__nokakoiMuteList = existing;
+
+    window.nostr.nip44.decrypt.mockRejectedValue(new Error('decrypt timeout'));
+
+    mocks.subOnce.mockImplementation((_state, _subId, _filters, onEvent) => {
+      onEvent({
+        id: 'encrypted-ev-2',
+        kind: 10000,
+        pubkey: 'author',
+        created_at: 300,
+        tags: [['p', 'new-pub']],
+        content: 'encrypted-nip44-ciphertext-longer-than-forty-characters'
+      }, 'wss://relay.example', true);
+      return vi.fn();
+    });
+
+    const state = {
+      pool: {},
+      relays: ['wss://relay.example'],
+      signer: 'nip07',
+      pubkey: 'author'
+    };
+
+    await fetchMuteList(state, () => null, vi.fn());
+
+    const saved = JSON.parse(localStorage.getItem('muteList_expanded.author'));
+    expect(saved.pubkeys.public).toEqual(['new-pub']);
+    expect(saved.pubkeys.private).toEqual(['cached-priv-user']);
+    expect(saved.words.private).toEqual(['cached-priv-word']);
+    expect(window.__nokakoiMuteList).toEqual(saved);
+  });
+
 });
